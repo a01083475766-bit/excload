@@ -8,6 +8,9 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
+const AKMAN_ADMIN_EMAIL = 'akman@excload.com';
+const AKMAN_ADMIN_BCRYPT_HASH = '$2b$10$D/vXwv29tMyLzUTvKmLfDOTr9AR79NdPlJEqzQ13pNd4T8kM5kyim';
+
 /**
  * NextAuth 옵션 설정
  * 
@@ -30,10 +33,30 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          const inputId = credentials.email.trim().toLowerCase();
+          const normalizedEmail = inputId === 'akman' ? AKMAN_ADMIN_EMAIL : inputId;
+
           // Prisma를 사용하여 DB에서 사용자 조회
           const { prisma } = await import('@/app/lib/prisma');
+          if (normalizedEmail === AKMAN_ADMIN_EMAIL) {
+            // 관리자 계정 보정: 배포 DB가 비어 있어도 로그인 가능하도록 관리자 계정을 보장.
+            await prisma.user.upsert({
+              where: { email: AKMAN_ADMIN_EMAIL },
+              update: {
+                plan: 'PRO',
+              },
+              create: {
+                email: AKMAN_ADMIN_EMAIL,
+                passwordHash: AKMAN_ADMIN_BCRYPT_HASH,
+                plan: 'PRO',
+                points: 999999999,
+                emailVerified: new Date(),
+              },
+            });
+          }
+
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
+            where: { email: normalizedEmail },
             select: {
               id: true,
               email: true,
@@ -44,7 +67,7 @@ export const authOptions: NextAuthOptions = {
           });
 
           console.log('[Auth] LOGIN ATTEMPT:', {
-            email: credentials.email,
+            email: normalizedEmail,
             userFound: !!user,
             userEmail: user?.email,
             hasPasswordHash: !!user?.passwordHash,
@@ -63,7 +86,7 @@ export const authOptions: NextAuthOptions = {
             ];
 
             const testUser = testUsers.find(
-              (u) => u.email === credentials.email && u.password === credentials.password
+              (u) => u.email === normalizedEmail && u.password === credentials.password
             );
 
             if (testUser) {
@@ -75,7 +98,7 @@ export const authOptions: NextAuthOptions = {
               };
             }
 
-            console.log('[Auth] USER NOT FOUND:', credentials.email);
+            console.log('[Auth] USER NOT FOUND:', normalizedEmail);
             return null;
           }
 
@@ -87,10 +110,17 @@ export const authOptions: NextAuthOptions = {
           }
 
           // 비밀번호 검증
-          // 현재는 btoa로 인코딩된 비밀번호를 사용하므로 동일한 방식으로 비교
-          // ⚠️ 실제 프로덕션에서는 bcrypt.compare() 사용 권장
+          // - 신규/관리자 계정: bcrypt
+          // - 기존 계정 하위호환: btoa
           const inputPasswordHash = btoa(credentials.password);
-          const passwordMatch = user.passwordHash && user.passwordHash === inputPasswordHash;
+          const storedHash = user.passwordHash || '';
+          let passwordMatch = false;
+          if (storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$') || storedHash.startsWith('$2y$')) {
+            const { compare } = await import('bcryptjs');
+            passwordMatch = await compare(credentials.password, storedHash);
+          } else {
+            passwordMatch = storedHash === inputPasswordHash;
+          }
           
           console.log('[Auth] PASSWORD CHECK:', {
             email: user.email,

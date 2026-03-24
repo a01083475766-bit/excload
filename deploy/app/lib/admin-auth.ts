@@ -14,10 +14,9 @@
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   
-  // akman 아이디, 기존 관리자 이메일, 또는 환경 변수의 ADMIN_EMAIL과 일치하는지 확인
+  // akman 관리자 이메일 또는 환경 변수의 ADMIN_EMAIL과 일치하는지 확인
   return (
-    email === 'akman' || 
-    email === 'a01083475766@gmail.com' ||
+    email === 'akman@excload.com' ||
     email === process.env.ADMIN_EMAIL
   );
 }

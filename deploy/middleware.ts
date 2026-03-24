@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // /excload 경로는 허용
@@ -79,8 +80,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /akman 경로는 허용 (관리자 페이지 - 내부에서 관리자 체크 수행)
+  // /akman 경로는 관리자 이메일만 허용
   if (pathname.startsWith('/akman')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (token?.email !== 'akman@excload.com') {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
     return NextResponse.next();
   }
 
