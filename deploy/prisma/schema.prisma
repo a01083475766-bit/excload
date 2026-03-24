@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String?   // 비밀번호 해시 (회원가입 시 저장)
+  name             String?
+  emailVerified    DateTime?
+  image            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  plan             String    @default("FREE")
+  points           Int       @default(5000)
+  nextPointDate    DateTime?
+
+  deviceId         String?   // 디바이스 기준 무료 혜택 제한용 식별자
+  lastIp           String?
+  abuseScore       Int       @default(0)
+  abuseFlag        Boolean   @default(false)
+
+  isBlocked        Boolean   @default(false) // 계정 차단 여부
+  blockReason      String?              // 차단 이유
+  abuseReason      String?              // 어뷰즈 점수 사유 (요약)
+
+  stripeCustomerId String?   @unique
+  cancelAtPeriodEnd Boolean  @default(false)
+  signupBonusClaimed Boolean @default(false)
+
+  pointHistory     PointHistory[]
+  subscriptions   Subscription[]
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model PointHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  change    Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Payment {
+  id                   String   @id @default(cuid())
+  userId               String
+  email                String
+  plan                 String
+  amount               Int      // 결제 금액 (원 단위)
+  currency             String   @default("KRW")
+
+  stripeSessionId      String?  @unique
+  stripeSubscriptionId String?
+  stripeInvoiceId      String?
+
+  paymentProvider      String?  // STRIPE | TOSS
+  tossPaymentKey       String?
+  tossOrderId          String?
+
+  createdAt            DateTime @default(now())
+}
+
+model AiHeaderMappingLog {
+  id              String   @id @default(cuid())
+  originalHeader  String
+  aiMappedHeader  String
+  baseHeader      String
+  sourceType      String
+  createdAt       DateTime @default(now())
+}
+
+model HeaderAlias {
+  id          String   @id @default(cuid())
+  alias       String   @unique
+  baseHeader  String
+  source      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model StripeEvent {
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id                 String   @id @default(cuid())
+  userId             String
+  stripeCustomerId   String
+  stripeSubscriptionId String @unique
+
+  status             String
+  cancelAtPeriodEnd  Boolean  @default(false)
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+
+  paymentProvider    String?  // STRIPE | TOSS
+  tossBillingKey     String?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User @relation(fields: [userId], references: [id])
+}
+
+model PopupCampaign {
+  id        String   @id @default(cuid())
+  title     String
+  imageUrl  String
+  linkUrl   String?
+  startAt   DateTime
+  endAt     DateTime
+  isActive  Boolean  @default(true)
+  priority  Int      @default(0)
+  target    String   @default("ALL")     // ALL | ORDER_CONVERT | HISTORY | OTHER
+  showEveryVisit Boolean @default(true)  // true: 이동할 때마다, false: 해당 페이지에서 한 번만
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

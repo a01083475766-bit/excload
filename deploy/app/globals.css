@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* 스크롤바 영역 항상 확보 → 페이지 전환 시 출렁임(CLS) 방지 */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll; /* scrollbar-gutter 미지원 브라우저용 폴백 */
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes card-shake {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(0.5px, -0.5px);
+  }
+  50% {
+    transform: translate(-0.5px, 0.5px);
+  }
+  75% {
+    transform: translate(0.5px, 0.5px);
+  }
+}
+
+.card {
+  width: 140px;
+  height: 90px;
+  background: linear-gradient(145deg, #f2f2f2, #d9d9d9);
+  border-radius: 14px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #444;
+}
+
+/* 3D 큐브 스타일 (Card2 전용) */
+.cube-container {
+  width: 90px;
+  height: 90px;
+  perspective: 1000px;
+  perspective-origin: center center;
+}
+
+.cube {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: rotateCube 7s infinite linear;
+}
+
+.cube-face {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  background: linear-gradient(
+    135deg,
+    rgba(147, 51, 234, 0.9) 0%,
+    rgba(124, 58, 237, 0.95) 25%,
+    rgba(139, 92, 246, 1) 50%,
+    rgba(124, 58, 237, 0.95) 75%,
+    rgba(147, 51, 234, 0.9) 100%
+  );
+  border: 1px solid rgba(192, 132, 252, 0.3);
+  box-shadow: 
+    inset 0 0 20px rgba(192, 132, 252, 0.4),
+    inset -10px -10px 30px rgba(88, 28, 135, 0.6),
+    inset 10px 10px 30px rgba(192, 132, 252, 0.3),
+    0 0 10px rgba(147, 51, 234, 0.5);
+}
+
+.cube-face-front {
+  transform: rotateY(0deg) translateZ(45px);
+}
+
+.cube-face-back {
+  transform: rotateY(180deg) translateZ(45px);
+}
+
+.cube-face-right {
+  transform: rotateY(90deg) translateZ(45px);
+}
+
+.cube-face-left {
+  transform: rotateY(-90deg) translateZ(45px);
+}
+
+.cube-face-top {
+  transform: rotateX(90deg) translateZ(45px);
+}
+
+.cube-face-bottom {
+  transform: rotateX(-90deg) translateZ(45px);
+}@keyframes rotateCube {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg);
+  }
+  25% {
+    transform: rotateX(90deg) rotateY(90deg);
+  }
+  50% {
+    transform: rotateX(180deg) rotateY(180deg);
+  }
+  75% {
+    transform: rotateX(270deg) rotateY(270deg);
+  }
+  100% {
+    transform: rotateX(360deg) rotateY(360deg);
+  }
+}
+
+/* 주문변환 페이지 미리보기 스크롤바 스타일 */
+.preview-scrollbar::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+}
+
+.preview-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.preview-scrollbar::-webkit-scrollbar-thumb {
+  background: #93c5fd; /* blue-300 - 텍스트 주문 변환 버튼 비활성화 색상과 동일 */
+  border-radius: 6px;
+}
+
+.preview-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #60a5fa; /* blue-400 - hover 시 조금 더 진한 파란색 */
+}
+
+/* 3PL 미리보기 스크롤바: 크기는 동일, 색상만 보라 계열 */
+.preview-scrollbar-purple::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+}
+
+.preview-scrollbar-purple::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.preview-scrollbar-purple::-webkit-scrollbar-thumb {
+  background: #c084fc; /* purple-400 */
+  border-radius: 6px;
+}
+
+.preview-scrollbar-purple::-webkit-scrollbar-thumb:hover {
+  background: #a855f7; /* purple-500 */
+}
+
+/* 다크모드 스크롤바 스타일 */
+@media (prefers-color-scheme: dark) {
+  .preview-scrollbar::-webkit-scrollbar-track {
+    background: #2a2a2a;
+  }
+
+  .preview-scrollbar::-webkit-scrollbar-thumb {
+    background: #93c5fd; /* blue-300 - 텍스트 주문 변환 버튼 비활성화 색상과 동일 */
+  }
+
+  .preview-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #60a5fa; /* blue-400 - hover 시 조금 더 진한 파란색 */
+  }
+
+  .preview-scrollbar-purple::-webkit-scrollbar-track {
+    background: #2a2a2a;
+  }
+
+  .preview-scrollbar-purple::-webkit-scrollbar-thumb {
+    background: #c084fc;
+  }
+
+  .preview-scrollbar-purple::-webkit-scrollbar-thumb:hover {
+    background: #a855f7;
+  }
+}
