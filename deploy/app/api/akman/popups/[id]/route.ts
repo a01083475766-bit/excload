@@ -6,7 +6,7 @@ import { isAdminEmail } from '@/app/lib/admin-auth';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +21,8 @@ export async function PATCH(
     const url = new URL(req.url);
     const segments = url.pathname.split('/');
     const fallbackId = segments[segments.length - 1];
-    const id = params?.id || fallbackId;
+    const resolved = await params;
+    const id = resolved?.id || fallbackId;
 
     const popup = await prisma.popupCampaign.update({
       where: { id },
@@ -47,7 +48,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -58,7 +59,8 @@ export async function DELETE(
     const url = new URL(req.url);
     const segments = url.pathname.split('/');
     const fallbackId = segments[segments.length - 1];
-    const id = params?.id || fallbackId;
+    const resolved = await params;
+    const id = resolved?.id || fallbackId;
 
     await prisma.popupCampaign.delete({
       where: { id },

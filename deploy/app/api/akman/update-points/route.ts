@@ -84,10 +84,15 @@ export async function POST(request: NextRequest) {
       // amount가 있으면 증감량으로 처리
       newPoints = user.points + amount;
       change = amount;
-    } else {
+    } else if (typeof points === 'number') {
       // points가 있으면 절대값으로 설정
       newPoints = points;
       change = points - user.points;
+    } else {
+      return NextResponse.json(
+        { error: 'amount 또는 points가 필요합니다.' },
+        { status: 400 }
+      );
     }
 
     // 포인트가 음수가 되지 않도록 보호

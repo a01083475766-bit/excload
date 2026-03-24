@@ -11,7 +11,7 @@
 
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Mail, Lock, LogIn, UserPlus, Loader2 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
@@ -19,12 +19,9 @@ type AuthMode = 'login' | 'signup';
 
 export default function AuthPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const fetchUser = useUserStore((state) => state.fetchUser);
   
-  // URL 쿼리 파라미터에서 모드 가져오기
-  const urlMode = searchParams.get('mode') as AuthMode | null;
-  const [mode, setMode] = useState<AuthMode>(urlMode === 'signup' ? 'signup' : 'login');
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -34,11 +31,12 @@ export default function AuthPage() {
 
   // URL 쿼리 파라미터 변경 시 모드 업데이트
   useEffect(() => {
-    const urlMode = searchParams.get('mode') as AuthMode | null;
+    if (typeof window === 'undefined') return;
+    const urlMode = new URLSearchParams(window.location.search).get('mode') as AuthMode | null;
     if (urlMode === 'signup' || urlMode === 'login') {
       setMode(urlMode);
     }
-  }, [searchParams]);
+  }, []);
 
   const getDeviceId = () => {
     if (typeof window === 'undefined') return undefined;

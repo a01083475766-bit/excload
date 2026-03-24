@@ -1,14 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
 export default function PaymentSuccessPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id');
   const [isRefreshing, setIsRefreshing] = useState(true);
   
   const fetchUser = useUserStore((state) => state.fetchUser);

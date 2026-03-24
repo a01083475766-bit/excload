@@ -5,7 +5,7 @@
  * 관리자 시스템은 파이프라인 구조와 독립적으로 동작합니다.
  */
 
-import { Request } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
@@ -16,8 +16,8 @@ import { isAdminEmail } from '@/app/lib/admin-auth';
  * 관리자가 사용자 상세 정보 조회
  */
 export async function GET(
-  request: Request,
-  { params }: any
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 관리자 권한 확인
@@ -37,8 +37,7 @@ export async function GET(
       );
     }
 
-    const resolvedParams = await params;
-    const userId = resolvedParams.id;
+    const { id: userId } = await params;
 
     if (!userId) {
       return Response.json(

@@ -9,11 +9,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 
-// Stripe 클라이언트 초기화
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2026-02-25.clover',
-});
-
 /**
  * POST /api/stripe/webhook
  * Stripe 이벤트 처리
@@ -28,6 +23,10 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2026-02-25.clover',
+    });
 
     // Raw body 처리 (중요: JSON.parse 하지 않고 text()로 처리)
     const body = await request.text();
@@ -206,8 +205,8 @@ export async function POST(request: NextRequest) {
       });
     } else if (
       event.type === 'invoice.payment_succeeded' ||
-      event.type === 'invoice.payment.paid' ||
-      event.type === 'invoice_payment.paid'
+      (event.type as string) === 'invoice.payment.paid' ||
+      (event.type as string) === 'invoice_payment.paid'
     ) {
       // Webhook payload 확인을 위한 로그
       console.log(`[Stripe Webhook] ${event.type} payload:`, JSON.stringify(event.data.object, null, 2));
@@ -289,7 +288,6 @@ export async function POST(request: NextRequest) {
           console.log('[Stripe Webhook] invoice.status가 paid가 아님 → 포인트 지급 건너뜀', {
             invoiceId: invoice.id,
             status: invoice.status,
-            paid: invoice.paid,
           });
           return NextResponse.json({ received: true });
         }
@@ -582,6 +580,10 @@ export async function POST(request: NextRequest) {
           // Subscription 정보 저장/업데이트 (subscription이 있을 경우만)
           if (subscription && subscription.id) {
             try {
+              const subWithPeriods = subscription as Stripe.Subscription & {
+                current_period_start?: number | null;
+                current_period_end?: number | null;
+              };
               const customerId = typeof subscription.customer === 'string' 
                 ? subscription.customer 
                 : subscription.customer?.id || '';
@@ -593,11 +595,11 @@ export async function POST(request: NextRequest) {
                 update: {
                   status: subscription.status,
                   cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
-                  currentPeriodStart: subscription.current_period_start 
-                    ? new Date(subscription.current_period_start * 1000)
+                  currentPeriodStart: subWithPeriods.current_period_start 
+                    ? new Date(subWithPeriods.current_period_start * 1000)
                     : null,
-                  currentPeriodEnd: subscription.current_period_end
-                    ? new Date(subscription.current_period_end * 1000)
+                  currentPeriodEnd: subWithPeriods.current_period_end
+                    ? new Date(subWithPeriods.current_period_end * 1000)
                     : null,
                 },
                 create: {
@@ -606,11 +608,11 @@ export async function POST(request: NextRequest) {
                   stripeSubscriptionId: subscription.id,
                   status: subscription.status,
                   cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
-                  currentPeriodStart: subscription.current_period_start
-                    ? new Date(subscription.current_period_start * 1000)
+                  currentPeriodStart: subWithPeriods.current_period_start
+                    ? new Date(subWithPeriods.current_period_start * 1000)
                     : null,
-                  currentPeriodEnd: subscription.current_period_end
-                    ? new Date(subscription.current_period_end * 1000)
+                  currentPeriodEnd: subWithPeriods.current_period_end
+                    ? new Date(subWithPeriods.current_period_end * 1000)
                     : null,
                 },
               });
@@ -665,8 +667,12 @@ export async function POST(request: NextRequest) {
           );
         }
     } else if (event.type === 'invoice.payment_failed') {
-      const invoice = event.data.object as Stripe.Invoice;
-      const subscriptionId = invoice.subscription as string | null;
+      const invoice = event.data.object as Stripe.Invoice & {
+        subscription?: string | Stripe.Subscription | null;
+      };
+      const subRef = invoice.subscription;
+      const subscriptionId =
+        typeof subRef === 'string' ? subRef : subRef?.id ?? null;
 
       if (!subscriptionId) {
         console.log('[Stripe Webhook] invoice.payment_failed: subscription ID가 없습니다.');
@@ -730,7 +736,10 @@ export async function POST(request: NextRequest) {
         );
       }
     } else if (event.type === 'customer.subscription.updated') {
-      const subscription = event.data.object as Stripe.Subscription;
+      const subscription = event.data.object as Stripe.Subscription & {
+        current_period_start?: number | null;
+        current_period_end?: number | null;
+      };
       const customerId = subscription.customer as string;
 
       if (!customerId) {
@@ -920,7 +929,9 @@ export async function POST(request: NextRequest) {
         );
       }
     } else if (event.type === 'charge.refunded') {
-      const charge = event.data.object as Stripe.Charge;
+      const charge = event.data.object as Stripe.Charge & {
+        invoice?: string | Stripe.Invoice | null;
+      };
       const customerId = charge.customer as string;
 
       if (!customerId) {

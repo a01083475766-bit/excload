@@ -24,7 +24,7 @@ export default async function PointLogPage() {
   console.log('[Point Log Page] ADMIN EMAIL:', process.env.ADMIN_EMAIL);
   console.log('[Point Log Page] EMAIL MATCH:', session?.user?.email === process.env.ADMIN_EMAIL);
 
-  if (!session) {
+  if (!session?.user?.email) {
     console.log('[Point Log Page] NO SESSION - REDIRECT TO /');
     redirect('/');
   }

@@ -6,7 +6,7 @@ import { isAdminEmail } from '@/app/lib/admin-auth';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -25,7 +25,7 @@ export async function DELETE(
       );
     }
 
-    const paymentId = params.id;
+    const { id: paymentId } = await params;
 
     const result = await prisma.payment.deleteMany({
       where: { id: paymentId },

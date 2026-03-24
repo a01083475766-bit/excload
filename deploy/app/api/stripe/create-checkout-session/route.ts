@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
     }
 
     const userEmail = session.user.email;
-    const userId = session.user.id || 'temp-id';
 
     // 사용자 조회 및 기존 구독 확인
     const { prisma } = await import('@/app/lib/prisma');
@@ -78,6 +77,8 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const userId = user.id;
 
     // Stripe Customer 확인 및 생성
     let customerId = user.stripeCustomerId;

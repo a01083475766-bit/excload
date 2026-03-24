@@ -772,26 +772,26 @@ export default function ThreePLConvertPage() {
       }
 
       setCourierHeaders(templateHeaders);
-      const newPreviewRows = pipelineResult.rows.map((row, idx) => ({
+      const newPreviewRows = pipelineResult.rows.map((row: Record<string, string>, idx: number) => ({
         // 주문변환처럼 최근 행 하이라이트를 안정적으로 하기 위해 UUID로 rowId 생성
         rowId: crypto.randomUUID(),
         data: row as Record<string, string>,
         missingReasons:
-          pipelineResult.rowMissingReasons[idx]?.map((m: any) => ({
+          pipelineResult.rowMissingReasons[idx]?.map((m: { key: string; reason?: unknown }) => ({
             key: m.key,
             reason: m.reason ? String(m.reason) : undefined,
           })) ?? [],
       }));
-      const newRowIds = newPreviewRows.map((r) => r.rowId);
+      const newRowIds = newPreviewRows.map((r: { rowId: string }) => r.rowId);
       setNewRows((prev) => {
         const updated = new Set(prev);
-        newRowIds.forEach((id) => updated.add(id));
+        newRowIds.forEach((id: string) => updated.add(id));
         return updated;
       });
       setTimeout(() => {
         setNewRows((prev) => {
           const updated = new Set(prev);
-          newRowIds.forEach((id) => updated.delete(id));
+          newRowIds.forEach((id: string) => updated.delete(id));
           return updated;
         });
       }, 3000);
@@ -892,25 +892,25 @@ export default function ThreePLConvertPage() {
       }
 
       setCourierHeaders(selectedTemplateHeaders);
-      const newPreviewRows = pipelineResult.rows.map((row, idx) => ({
+      const newPreviewRows = pipelineResult.rows.map((row: Record<string, string>, idx: number) => ({
         rowId: generated[idx]?.rowId ?? crypto.randomUUID(),
         data: row as Record<string, string>,
         missingReasons:
-          pipelineResult.rowMissingReasons[idx]?.map((m) => ({
+          pipelineResult.rowMissingReasons[idx]?.map((m: { key: string; reason?: unknown }) => ({
             key: m.key,
             reason: m.reason ? String(m.reason) : undefined,
           })) ?? [],
       }));
-      const newRowIds = newPreviewRows.map((r) => r.rowId);
+      const newRowIds = newPreviewRows.map((r: { rowId: string }) => r.rowId);
       setNewRows((prev) => {
         const updated = new Set(prev);
-        newRowIds.forEach((id) => updated.add(id));
+        newRowIds.forEach((id: string) => updated.add(id));
         return updated;
       });
       setTimeout(() => {
         setNewRows((prev) => {
           const updated = new Set(prev);
-          newRowIds.forEach((id) => updated.delete(id));
+          newRowIds.forEach((id: string) => updated.delete(id));
           return updated;
         });
       }, 3000);
