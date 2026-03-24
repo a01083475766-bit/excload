@@ -16,6 +16,8 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/app/lib/prisma';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function PointLogPage() {
   // 1. 세션 확인
   const session = await getServerSession(authOptions);
