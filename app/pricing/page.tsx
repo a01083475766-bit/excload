@@ -10,6 +10,7 @@ import Link from 'next/link';
 export default function PricingPage() {
   const plans = [
     {
+      planKey: 'free' as const,
       name: '무료',
       price: '0',
       period: '월',
@@ -29,6 +30,7 @@ export default function PricingPage() {
       showVat: false,
     },
     {
+      planKey: 'monthly' as const,
       name: '프로',
       price: '4,000',
       period: '월',
@@ -50,6 +52,7 @@ export default function PricingPage() {
       showVat: true,
     },
     {
+      planKey: 'yearly' as const,
       name: '연간',
       price: '40,000',
       period: '년',
@@ -92,7 +95,7 @@ export default function PricingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-16">
           {plans.map((plan, index) => (
             <div
-              key={index}
+              key={plan.planKey}
               className={`relative rounded-2xl border-2 p-6 lg:p-8 ${
                 plan.popular
                   ? 'border-blue-500 bg-white dark:bg-zinc-900 shadow-xl scale-105'
@@ -156,7 +159,10 @@ export default function PricingPage() {
               </div>
               
               <button
-                onClick={() => window.location.href='/subscribe'}
+                type="button"
+                onClick={() => {
+                  window.location.href = `/subscribe?plan=${encodeURIComponent(plan.planKey)}`;
+                }}
                 className="w-full text-center px-6 py-3 rounded-lg font-semibold transition-colors bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {`${plan.name} 시작하기`}
