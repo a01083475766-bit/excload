@@ -86,7 +86,11 @@ export async function middleware(request: NextRequest) {
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
-    if (token?.email !== 'akman@excload.com') {
+    const adminEmails = (process.env.ADMIN_EMAIL || '')
+      .split(',')
+      .map((e) => e.trim());
+
+    if (!adminEmails.includes(token?.email || '')) {
       return NextResponse.redirect(new URL('/', request.url));
     }
     return NextResponse.next();
