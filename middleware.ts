@@ -88,9 +88,12 @@ export async function middleware(request: NextRequest) {
     });
     const adminEmails = (process.env.ADMIN_EMAIL || '')
       .split(',')
-      .map((e) => e.trim());
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
 
-    if (!adminEmails.includes(token?.email || '')) {
+    const tokenEmail = (token?.email || '').trim().toLowerCase();
+
+    if (!adminEmails.includes(tokenEmail)) {
       return NextResponse.redirect(new URL('/', request.url));
     }
     return NextResponse.next();
