@@ -7,21 +7,11 @@ export default function AkmanClient() {
 
   if (status === 'loading') return <div>로딩중...</div>;
 
-  const email = (session?.user?.email || '').trim().toLowerCase();
+  const email = (session?.user?.email || '').trim();
+  if (!email) return <div>로그인이 필요합니다</div>;
 
-  const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  // 브라우저 콘솔에서 실제 비교값 확인(권한 없음일 때 디버깅용)
-  // eslint-disable-next-line no-console
-  console.log('[AkmanClient] session email:', email, 'adminEmails:', adminEmails);
-
-  const isAdmin = adminEmails.includes(email);
-
-  if (!isAdmin) return <div>관리자 권한 없음</div>;
-
+  // /akman 접근 권한(관리자 여부)은 middleware.ts에서 1차로 차단/허용합니다.
+  // 여기서는 추가로 NEXT_PUBLIC_ADMIN_EMAIL을 검사하지 않습니다.
   return <div>관리자 페이지</div>;
 }
 
