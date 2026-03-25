@@ -86,7 +86,12 @@ export async function middleware(request: NextRequest) {
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
-    const adminEmails = (process.env.ADMIN_EMAIL || '')
+    // 배포 환경에 ADMIN_EMAIL만 설정했을 수도 있고, NEXT_PUBLIC_ADMIN_EMAIL로만
+    // 설정했을 수도 있어 둘을 모두 허용(서버에서도 접근 가능)
+    const rawAdminEmails =
+      process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
+
+    const adminEmails = rawAdminEmails
       .split(',')
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
