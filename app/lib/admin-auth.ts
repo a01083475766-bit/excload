@@ -13,10 +13,15 @@
  */
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
-  
-  // akman 관리자 이메일 또는 환경 변수의 ADMIN_EMAIL과 일치하는지 확인
+
+  // 문자열 비교 안정성 향상: 공백/대소문자 차이로 인한 오판 방지
+  const normalized = email.trim().toLowerCase();
+  const adminFromEnv = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+
+  // akman 관리자 이메일(또는 임시 로그인용 아이디 'akman') 또는 환경 변수 ADMIN_EMAIL과 일치하는지 확인
   return (
-    email === 'akman@excload.com' ||
-    email === process.env.ADMIN_EMAIL
+    normalized === 'akman@excload.com' ||
+    normalized === 'akman' ||
+    normalized === adminFromEnv
   );
 }

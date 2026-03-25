@@ -12,10 +12,10 @@ import { useUserStore } from '@/app/store/userStore';
  */
 function isAdminEmailClient(email: string | null | undefined): boolean {
   if (!email) return false;
-  
-  // akman 아이디, 기존 관리자 이메일 체크
+
   return (
-    email === 'akman' || 
+    email === 'akman' ||
+    email === 'akman@excload.com' ||
     email === 'a01083475766@gmail.com'
   );
 }
