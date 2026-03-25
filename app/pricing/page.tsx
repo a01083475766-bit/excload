@@ -179,6 +179,7 @@ export default function PricingPage() {
               엑클로드는 구독형(정기결제) 서비스입니다.
             </p>
             <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <li>신용카드, 간편결제 등 다양한 결제 수단을 지원합니다.</li>
               <li>결제는 매월 자동으로 갱신됩니다.</li>
               <li>언제든지 해지 가능하며, 다음 결제부터 적용됩니다.</li>
               <li>결제 후 즉시 서비스 이용이 가능합니다.</li>
@@ -222,7 +223,7 @@ export default function PricingPage() {
               },
               {
                 question: '결제는 어떻게 진행되나요?',
-                answer: '신용카드, 계좌이체 등 다양한 결제 수단을 지원합니다.',
+                answer: '현재 신용카드 결제를 지원합니다.',
               },
               {
                 question: '환불 정책은 어떻게 되나요?',
