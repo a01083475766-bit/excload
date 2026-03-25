@@ -13,7 +13,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
   LineChart,
@@ -66,7 +66,7 @@ interface SuspiciousUser {
 }
 
 export default function AkmanPage() {
-  const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -90,6 +90,9 @@ export default function AkmanPage() {
   const [isPaymentListExpanded, setIsPaymentListExpanded] = useState(false);
   const [isAbuserListExpanded, setIsAbuserListExpanded] = useState(false);
   const [activeFilter, setActiveFilter] = useState<{ type: string; value: string } | null>(null);
+
+  const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
+  const isAdmin = adminEmails.includes((session?.user?.email || '').trim());
 
   // 통계 조회
   const fetchStats = async () => {
@@ -164,8 +167,6 @@ export default function AkmanPage() {
             tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 100);
         }
-      } else if (response.status === 401 || response.status === 403) {
-        router.push('/');
       }
     } catch (error) {
       console.error('[Akman Page] 사용자 목록 조회 실패:', error);
@@ -472,6 +473,10 @@ export default function AkmanPage() {
     fetchUsers(1, null, false, null, null);
   };
 
+
+  if (sessionStatus !== 'loading' && !isAdmin) {
+    return <div>권한 없음</div>;
+  }
 
   if (loading) {
     return (
