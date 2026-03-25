@@ -10,7 +10,7 @@
  * 3. 관리자 이메일이 아니면 "/" 로 redirect
  */
 
-'use client';
+"use client";
 
 import { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
@@ -66,7 +66,7 @@ interface SuspiciousUser {
 }
 
 export default function AkmanPage() {
-  const { data: session, status: sessionStatus } = useSession();
+  const { data: session } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -91,8 +91,9 @@ export default function AkmanPage() {
   const [isAbuserListExpanded, setIsAbuserListExpanded] = useState(false);
   const [activeFilter, setActiveFilter] = useState<{ type: string; value: string } | null>(null);
 
+  const email = session?.user?.email || '';
   const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
-  const isAdmin = adminEmails.includes((session?.user?.email || '').trim());
+  const isAdmin = adminEmails.includes(email.trim());
 
   // 통계 조회
   const fetchStats = async () => {
@@ -474,7 +475,15 @@ export default function AkmanPage() {
   };
 
 
-  if (sessionStatus !== 'loading' && !isAdmin) {
+  if (!session) {
+    return (
+      <div style={{ padding: '40px', fontFamily: 'system-ui, sans-serif', textAlign: 'center' }}>
+        <p>로딩 중...</p>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return <div>권한 없음</div>;
   }
 
