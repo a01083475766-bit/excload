@@ -1,3 +1,7 @@
+/**
+ * 가격·결제·구독 안내. 서비스 설명 중심 페이지는 app/about/page.tsx 와 역할을 분리합니다.
+ * ⚠️ EXCLOAD CONSTITUTION v4.2 — 결제/Stripe 연동은 본 페이지·API 경로에서만 다룹니다.
+ */
 'use client';
 
 import { Check, ArrowRight } from 'lucide-react';
@@ -161,6 +165,45 @@ export default function PricingPage() {
           ))}
         </div>
 
+        <p className="mb-10 max-w-3xl mx-auto text-center text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
+          결제 진행 시 정기결제에 동의하는 것으로 간주됩니다.
+        </p>
+
+        {/* 결제·환불 안내 (토스 심사 대응: 가격 페이지에서 결제 조건 명시) */}
+        <div className="max-w-3xl mx-auto space-y-6 mb-16">
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 lg:p-8">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+              결제 안내
+            </h2>
+            <p className="text-zinc-700 dark:text-zinc-300 mb-4">
+              엑클로드는 구독형(정기결제) 서비스입니다.
+            </p>
+            <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <li>결제는 매월 자동으로 갱신됩니다.</li>
+              <li>언제든지 해지 가능하며, 다음 결제부터 적용됩니다.</li>
+              <li>결제 후 즉시 서비스 이용이 가능합니다.</li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 lg:p-8">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+              환불 정책
+            </h2>
+            <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <li>결제 후 7일 이내 환불 요청 가능</li>
+              <li>서비스 이용 이력이 없는 경우 전액 환불</li>
+              <li>이용 이력이 있는 경우 환불 제한될 수 있음</li>
+            </ul>
+            <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
+              자세한 내용은{' '}
+              <Link href="/refund" className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300">
+                환불 정책 전문
+              </Link>
+              을 참고해 주세요.
+            </p>
+          </div>
+        </div>
+
         {/* FAQ 섹션 */}
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-10">
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-8 text-center">
@@ -183,7 +226,8 @@ export default function PricingPage() {
               },
               {
                 question: '환불 정책은 어떻게 되나요?',
-                answer: '첫 달 사용 후 만족하지 않으시면 100% 환불해드립니다.',
+                answer:
+                  '결제 후 7일 이내 요청이 가능하며, 서비스 이용 이력이 없으면 전액 환불될 수 있습니다. 이용 이력이 있으면 제한될 수 있습니다. 상세는 환불 정책 페이지를 참고해 주세요.',
               },
             ].map((faq, index) => (
               <div key={index} className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
