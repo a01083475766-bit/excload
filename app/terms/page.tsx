@@ -1,7 +1,7 @@
 export default function TermsPage() {
   return (
     <div className="max-w-[800px] mx-auto py-16 px-6">
-      <h1 className="text-2xl font-bold mb-2 text-center">이용약관 (업그레이드 버전)</h1>
+      <h1 className="text-2xl font-bold mb-2 text-center">이용약관</h1>
       <p className="text-sm text-zinc-500 text-center mb-10">엑클로드(EXCLOAD) 서비스 이용약관</p>
 
       <div className="text-sm leading-7 space-y-8 text-left text-zinc-800">
