@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -80,27 +79,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /akman 경로는 관리자 이메일만 허용
+  // /akman: 임시로 누구나 통과 (관리자 검증 비활성화 — 운영 전 반드시 복구)
   if (pathname.startsWith('/akman')) {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    // 배포 환경에 ADMIN_EMAIL만 설정했을 수도 있고, NEXT_PUBLIC_ADMIN_EMAIL로만
-    // 설정했을 수도 있어 둘을 모두 허용(서버에서도 접근 가능)
-    const rawAdminEmails =
-      process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
-
-    const adminEmails = rawAdminEmails
-      .split(',')
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-
-    const tokenEmail = (token?.email || '').trim().toLowerCase();
-
-    if (!adminEmails.includes(tokenEmail)) {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
     return NextResponse.next();
   }
 
