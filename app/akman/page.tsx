@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * 
  * 보안 규칙:
  * 1. 로그인된 사용자만 접근 가능
- * 2. session?.user?.email === process.env.ADMIN_EMAIL 인 경우만 접근 허용
+ * 2. session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL 인 경우만 접근 허용
  * 3. 관리자 이메일이 아니면 "/" 로 redirect
  */
 
@@ -94,7 +94,7 @@ export default function AkmanPage() {
   const [activeFilter, setActiveFilter] = useState<{ type: string; value: string } | null>(null);
 
   const email = session?.user?.email || '';
-  const adminEmails = (process.env.ADMIN_EMAIL || '')
+  const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || '')
     .split(',')
     .map((e) => e.trim());
   const isAdmin = adminEmails.includes(email);
