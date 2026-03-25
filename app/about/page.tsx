@@ -49,7 +49,7 @@ export default function AboutPage() {
           href="/pricing"
           className="inline-flex items-center text-blue-600 dark:text-blue-400 font-medium underline underline-offset-2 hover:text-blue-800 dark:hover:text-blue-300"
         >
-          가격 및 플랜 보기 →
+          가격 및 찾아보기
         </Link>
       </section>
 
