@@ -255,14 +255,19 @@ export async function handleNormalize29(
     }
 
     const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content || '{}';
+    const text = data?.choices?.[0]?.message?.content || '{}';
+    console.log('[AI RAW RESPONSE]', text);
 
     let parsed;
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(text);
     } catch {
       parsed = { orders: [] };
     }
+
+    const orders = Array.isArray(parsed?.orders) ? parsed.orders : [];
+    console.log('[PARSED ORDERS]', orders);
+    console.log('[PARSED ORDERS LENGTH]', orders.length);
 
     return NextResponse.json(parsed);
   } catch (error) {

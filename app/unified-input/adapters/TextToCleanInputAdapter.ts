@@ -27,10 +27,13 @@ export async function runTextToCleanInputAdapter(text: string) {
   }
 
   const orders = data.orders;
+  console.log('[ORDERS]', orders);
 
   const rows = orders.map((order: any) =>
     BASE_HEADERS.map((header) => order[header] ?? '')
   );
+  console.log('[ROWS BEFORE RETURN]', rows);
+  console.log('[ROWS COUNT]', rows.length);
 
   console.log('[TEXT → ROWS 변환]', {
     ordersCount: orders.length,
