@@ -141,6 +141,56 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        // checkout 완료 시점에도 구독 주기 정보를 저장해 "다음 결제 예정일"이 비지 않게 보정
+        if (session.subscription) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(
+              session.subscription as string
+            ) as Stripe.Subscription & {
+              current_period_start?: number | null;
+              current_period_end?: number | null;
+            };
+
+            const stripeCustomerId =
+              typeof subscription.customer === 'string'
+                ? subscription.customer
+                : subscription.customer?.id || '';
+
+            await prisma.subscription.upsert({
+              where: {
+                stripeSubscriptionId: subscription.id,
+              },
+              update: {
+                userId: user.id,
+                stripeCustomerId,
+                status: subscription.status,
+                cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+                currentPeriodStart: subscription.current_period_start
+                  ? new Date(subscription.current_period_start * 1000)
+                  : null,
+                currentPeriodEnd: subscription.current_period_end
+                  ? new Date(subscription.current_period_end * 1000)
+                  : null,
+              },
+              create: {
+                userId: user.id,
+                stripeCustomerId,
+                stripeSubscriptionId: subscription.id,
+                status: subscription.status,
+                cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+                currentPeriodStart: subscription.current_period_start
+                  ? new Date(subscription.current_period_start * 1000)
+                  : null,
+                currentPeriodEnd: subscription.current_period_end
+                  ? new Date(subscription.current_period_end * 1000)
+                  : null,
+              },
+            });
+          } catch (subscriptionSyncError) {
+            console.error('[Stripe Webhook] checkout completed 후 subscription 동기화 실패:', subscriptionSyncError);
+          }
+        }
+
         // 1. 결제 기록 생성
         const amount = plan === 'PRO' ? 4000 : 40000;
         await prisma.payment.create({

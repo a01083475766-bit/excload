@@ -61,6 +61,18 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
           return;
         }
 
+        if (data.changedPlan) {
+          alert('플랜이 즉시 변경되었습니다. 마이페이지에서 상태를 확인해 주세요.');
+          window.location.href = '/mypage';
+          return;
+        }
+
+        if (data.alreadyOnPlan) {
+          alert(typeof data.message === 'string' ? data.message : '이미 해당 플랜을 사용 중입니다.');
+          window.location.href = '/mypage';
+          return;
+        }
+
         if (data.url) {
           window.location.href = data.url;
         } else {

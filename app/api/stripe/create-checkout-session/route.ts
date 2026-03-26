@@ -123,28 +123,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 기존 활성 구독 확인 (중복 구독 방지)
-    const existingSubscription = await prisma.subscription.findFirst({
-      where: {
-        userId: user.id,
-        status: 'active',
-      },
-    });
-
-    if (existingSubscription) {
-      console.log('[Stripe Checkout] 중복 구독 시도 차단:', {
-        userId: user.id,
-        email: userEmail,
-        existingSubscriptionId: existingSubscription.stripeSubscriptionId,
-      });
-      return NextResponse.json(
-        {
-          error: '이미 활성화된 구독이 있습니다.',
-        },
-        { status: 400 }
-      );
-    }
-
     // 2️⃣ Price ID 선택 로직 확인 로그
     console.log('[Stripe Checkout] STRIPE_MONTHLY_PRICE_ID:', process.env.STRIPE_MONTHLY_PRICE_ID);
     console.log('[Stripe Checkout] STRIPE_YEARLY_PRICE_ID:', process.env.STRIPE_YEARLY_PRICE_ID);
@@ -153,10 +131,6 @@ export async function POST(request: NextRequest) {
     const priceId = planType === 'monthly' 
       ? process.env.STRIPE_MONTHLY_PRICE_ID
       : process.env.STRIPE_YEARLY_PRICE_ID;
-    
-    // 3️⃣ 선택된 Price ID 확인 로그
-    console.log('[Stripe Checkout] 선택된 priceId:', priceId);
-    console.log('[Stripe Checkout] Price ID 선택 조건:', planType === 'monthly' ? 'monthly → STRIPE_MONTHLY_PRICE_ID' : 'yearly → STRIPE_YEARLY_PRICE_ID');
 
     // Price ID 유효성 검사
     if (!priceId) {
@@ -167,6 +141,84 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // 기존 활성 구독 확인
+    const existingSubscription = await prisma.subscription.findFirst({
+      where: {
+        userId: user.id,
+        status: 'active',
+      },
+    });
+
+    if (existingSubscription) {
+      console.log('[Stripe Checkout] 활성 구독 존재 - 플랜 변경 시도:', {
+        userId: user.id,
+        email: userEmail,
+        existingSubscriptionId: existingSubscription.stripeSubscriptionId,
+        targetPlanType: planType,
+        targetPriceId: priceId,
+      });
+
+      const subscription = await stripe.subscriptions.retrieve(existingSubscription.stripeSubscriptionId);
+      const item = subscription.items.data[0];
+      if (!item) {
+        return NextResponse.json(
+          { error: '활성 구독 항목을 찾을 수 없습니다.' },
+          { status: 400 }
+        );
+      }
+
+      // 같은 가격이면 변경할 필요 없음
+      if (item.price?.id === priceId) {
+        return NextResponse.json({
+          success: true,
+          changedPlan: false,
+          alreadyOnPlan: true,
+          message: '이미 선택한 플랜을 사용 중입니다.',
+        });
+      }
+
+      const updatedSubscription = await stripe.subscriptions.update(subscription.id, {
+        items: [
+          {
+            id: item.id,
+            price: priceId,
+          },
+        ],
+        proration_behavior: 'create_prorations',
+      });
+
+      const nextPlan = planType === 'monthly' ? 'PRO' : 'YEARLY';
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: user.id },
+          data: { plan: nextPlan },
+        }),
+        prisma.subscription.updateMany({
+          where: { stripeSubscriptionId: updatedSubscription.id },
+          data: {
+            status: updatedSubscription.status,
+            cancelAtPeriodEnd: updatedSubscription.cancel_at_period_end || false,
+            currentPeriodStart: updatedSubscription.current_period_start
+              ? new Date(updatedSubscription.current_period_start * 1000)
+              : null,
+            currentPeriodEnd: updatedSubscription.current_period_end
+              ? new Date(updatedSubscription.current_period_end * 1000)
+              : null,
+          },
+        }),
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        changedPlan: true,
+        message: '활성 구독의 플랜이 변경되었습니다.',
+      });
+    }
+
+    // 3️⃣ 선택된 Price ID 확인 로그
+    console.log('[Stripe Checkout] 선택된 priceId:', priceId);
+    console.log('[Stripe Checkout] Price ID 선택 조건:', planType === 'monthly' ? 'monthly → STRIPE_MONTHLY_PRICE_ID' : 'yearly → STRIPE_YEARLY_PRICE_ID');
 
     console.log('[Stripe Checkout] checkout.sessions.create 요청:', {
       planType,

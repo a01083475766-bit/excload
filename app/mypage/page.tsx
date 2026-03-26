@@ -25,6 +25,7 @@ export default function MyPage() {
     currentPeriodEnd: null,
   });
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
+  const [isRequestingRefund, setIsRequestingRefund] = useState(false);
   
   // 컴포넌트 마운트 시 사용자 정보 가져오기
   useEffect(() => {
@@ -130,6 +131,38 @@ export default function MyPage() {
       alert('구독 상태 변경 중 오류가 발생했습니다.');
     } finally {
       setIsUpdatingSubscription(false);
+    }
+  };
+
+  const handleRefundRequest = async () => {
+    const ok = window.confirm(
+      '환불 정책 기준(결제 후 7일 이내, 결제 이후 포인트 사용 이력 없음)에 따라 환불 가능 여부를 확인합니다. 진행하시겠습니까?'
+    );
+    if (!ok) return;
+
+    try {
+      setIsRequestingRefund(true);
+      const response = await fetch('/api/stripe/request-refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data?.error || '환불 신청 처리 중 오류가 발생했습니다.');
+        return;
+      }
+      alert(
+        data?.message ||
+          '환불 신청이 접수되었습니다. 결제 수단 환불 완료까지 영업일 기준 수 일이 소요될 수 있습니다.'
+      );
+      await fetchUser();
+      router.refresh();
+    } catch (error) {
+      console.error('[MyPage] 환불 신청 실패:', error);
+      alert('환불 신청 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsRequestingRefund(false);
     }
   };
 
@@ -268,21 +301,33 @@ export default function MyPage() {
                             ? `해지 예약 상태 · 서비스 이용 종료일 ${currentPeriodEndText ?? '-'}`
                             : `정기결제 활성 · 다음 결제 예정일 ${currentPeriodEndText ?? '-'}`}
                         </p>
-                        <button
-                          onClick={handleSubscriptionToggle}
-                          disabled={isUpdatingSubscription}
-                          className={`px-6 py-3 rounded-lg transition-colors text-sm font-semibold ${
-                            subscriptionState.cancelAtPeriodEnd
-                              ? 'border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                              : 'border border-rose-300 text-rose-700 hover:bg-rose-50'
-                          } disabled:opacity-60 disabled:cursor-not-allowed`}
-                        >
-                          {isUpdatingSubscription
-                            ? '처리 중...'
-                            : subscriptionState.cancelAtPeriodEnd
-                              ? '해지 예약 취소'
-                              : '정기결제 해지 예약'}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={handleSubscriptionToggle}
+                            disabled={isUpdatingSubscription}
+                            className={`px-6 py-3 rounded-lg transition-colors text-sm font-semibold ${
+                              subscriptionState.cancelAtPeriodEnd
+                                ? 'border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                                : 'border border-rose-300 text-rose-700 hover:bg-rose-50'
+                            } disabled:opacity-60 disabled:cursor-not-allowed`}
+                          >
+                            {isUpdatingSubscription
+                              ? '처리 중...'
+                              : subscriptionState.cancelAtPeriodEnd
+                                ? '해지 예약 취소'
+                                : '정기결제 해지 예약'}
+                          </button>
+                          <button
+                            onClick={handleRefundRequest}
+                            disabled={isRequestingRefund}
+                            className="px-6 py-3 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {isRequestingRefund ? '확인 중...' : '환불 신청하기'}
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          환불 정책 기준에 따라 자동 판정되며, 조건 미충족 시 고객센터 검토 대상으로 안내됩니다.
+                        </p>
                       </div>
                     ) : null}
                   </div>
