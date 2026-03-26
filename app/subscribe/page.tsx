@@ -1,11 +1,11 @@
 /**
- * 플랜별 후속 안내. 무료는 결제 없음, 유료는 Stripe 연동(app/api/stripe/*)과 연계 가능.
+ * 플랜별 후속 안내. 무료는 결제 없음, 유료는 Stripe 연동(app/api/stripe/*).
  * ⚠️ EXCLOAD CONSTITUTION v4.2 — 결제 UI는 본 페이지·Stripe API에서만 다룹니다.
  */
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const VALID_PLANS = ['free', 'monthly', 'yearly'] as const;
@@ -13,6 +13,80 @@ type PlanKey = (typeof VALID_PLANS)[number];
 
 function isPlanKey(v: string | null): v is PlanKey {
   return v !== null && (VALID_PLANS as readonly string[]).includes(v);
+}
+
+function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
+  const [loading, setLoading] = useState(false);
+
+  const paidLabel =
+    planKey === 'monthly'
+      ? 'PRO 플랜 (월 4,000원, VAT 별도)'
+      : '연간 플랜 (년 40,000원, VAT 별도)';
+
+  const handleCheckout = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          planType: planKey === 'yearly' ? 'yearly' : 'monthly',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(typeof data.error === 'string' ? data.error : '결제 연결 실패');
+        return;
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('결제 연결 실패');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('결제 오류 발생');
+    } finally {
+      setLoading(false);
+    }
+  }, [planKey]);
+
+  return (
+    <div className="max-w-[600px] mx-auto py-20 px-6 text-center">
+      <h1 className="text-2xl font-bold mb-6">결제 진행</h1>
+
+      <p className="mb-6 text-gray-600">
+        아래 버튼을 누르면 Stripe 안전 결제 페이지로 이동합니다.
+        <br />
+        로그인이 필요하며, 미로그인 시 안내에 따라 로그인 후 다시 시도해 주세요.
+      </p>
+
+      <div className="border rounded-lg p-6 border-zinc-200 dark:border-zinc-700">
+        <p className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">선택한 플랜</p>
+        <p className="text-lg mb-6 text-zinc-800 dark:text-zinc-200">{paidLabel}</p>
+
+        <button
+          type="button"
+          onClick={handleCheckout}
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? '연결 중…' : '결제 진행하기'}
+        </button>
+      </div>
+
+      <p className="mt-8 text-sm text-gray-500">
+        <Link href="/pricing" className="text-blue-600 underline underline-offset-2">
+          다른 플랜 보기
+        </Link>
+      </p>
+    </div>
+  );
 }
 
 function SubscribeInner() {
@@ -74,41 +148,7 @@ function SubscribeInner() {
     );
   }
 
-  const paidLabel =
-    planKey === 'monthly'
-      ? 'PRO 플랜 (월 4,000원, VAT 별도)'
-      : '연간 플랜 (년 40,000원, VAT 별도)';
-
-  return (
-    <div className="max-w-[600px] mx-auto py-20 px-6 text-center">
-      <h1 className="text-2xl font-bold mb-6">결제 진행</h1>
-
-      <p className="mb-6 text-gray-600">
-        현재 결제 시스템을 준비 중입니다.
-        <br />
-        정식 오픈 시 정상적으로 결제가 가능합니다.
-      </p>
-
-      <div className="border rounded-lg p-6 border-zinc-200 dark:border-zinc-700">
-        <p className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">선택한 플랜</p>
-        <p className="text-lg mb-6 text-zinc-800 dark:text-zinc-200">{paidLabel}</p>
-
-        <button
-          type="button"
-          disabled
-          className="w-full bg-blue-600 text-white py-3 rounded-lg opacity-90 cursor-not-allowed"
-        >
-          결제 진행하기 (준비중)
-        </button>
-      </div>
-
-      <p className="mt-8 text-sm text-gray-500">
-        <Link href="/pricing" className="text-blue-600 underline underline-offset-2">
-          다른 플랜 보기
-        </Link>
-      </p>
-    </div>
-  );
+  return <PaidPlanCheckout planKey={planKey} />;
 }
 
 export default function SubscribePage() {
