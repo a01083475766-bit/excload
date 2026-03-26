@@ -313,6 +313,7 @@ export async function handleNormalize29(
 
     console.log('[PARSED ORDERS]', orders);
     console.log('[PARSED ORDERS LENGTH]', orders.length);
+    console.log('[FINAL RETURN ORDERS]', orders);
 
     return NextResponse.json({ orders });
   } catch (error) {

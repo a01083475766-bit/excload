@@ -21,6 +21,7 @@ export async function runTextToCleanInputAdapter(text: string) {
   }
 
   const data = await response.json();
+  console.log('[API RESPONSE RAW]', data);
 
   if (!data?.orders || !Array.isArray(data.orders)) {
     throw new Error('normalize-29 응답 형식 오류');
