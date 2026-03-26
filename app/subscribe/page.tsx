@@ -24,35 +24,44 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
       : '연간 플랜 (년 40,000원, VAT 별도)';
 
   const handleCheckout = useCallback(async () => {
-    setLoading(true);
     try {
-      const res = await fetch('/api/stripe/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          planType: planKey === 'yearly' ? 'yearly' : 'monthly',
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(typeof data.error === 'string' ? data.error : '결제 연결 실패');
+      const sessionRes = await fetch('/api/auth/session', { credentials: 'include' });
+      const session = await sessionRes.json();
+      if (!session?.user) {
+        window.location.href = '/login';
         return;
       }
 
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert('결제 연결 실패');
+      setLoading(true);
+      try {
+        const res = await fetch('/api/stripe/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            planType: planKey === 'yearly' ? 'yearly' : 'monthly',
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert(typeof data.error === 'string' ? data.error : '결제 연결 실패');
+          return;
+        }
+
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert('결제 연결 실패');
+        }
+      } finally {
+        setLoading(false);
       }
     } catch (error) {
       console.error(error);
       alert('결제 오류 발생');
-    } finally {
-      setLoading(false);
     }
   }, [planKey]);
 

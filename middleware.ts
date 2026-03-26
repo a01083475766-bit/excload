@@ -79,6 +79,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /login → /auth/login 별칭 (subscribe 등에서 리다이렉트용)
+  if (pathname.startsWith('/login')) {
+    return NextResponse.next();
+  }
+
   // /akman: 임시로 누구나 통과 (관리자 검증 비활성화 — 운영 전 반드시 복구)
   if (pathname.startsWith('/akman')) {
     return NextResponse.next();
