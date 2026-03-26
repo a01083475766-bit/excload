@@ -187,8 +187,9 @@ export default function PricingPage() {
             <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
               <li>신용카드, 간편결제 등 다양한 결제 수단을 지원합니다.</li>
               <li>결제는 매월 자동으로 갱신됩니다.</li>
-              <li>언제든지 해지 가능하며, 다음 결제부터 적용됩니다.</li>
+              <li>마이페이지에서 언제든지 해지 예약이 가능하며, 다음 결제일부터 중단됩니다.</li>
               <li>결제 후 즉시 서비스 이용이 가능합니다.</li>
+              <li>서비스 제공기간: 월간 플랜 1개월 단위, 연간 플랜 12개월 단위</li>
             </ul>
           </div>
 
@@ -199,7 +200,7 @@ export default function PricingPage() {
             <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
               <li>결제 후 7일 이내 환불 요청 가능</li>
               <li>서비스 이용 이력이 없는 경우 전액 환불</li>
-              <li>이용 이력이 있는 경우 환불 제한될 수 있음</li>
+              <li>서비스 이용 이력이 있는 경우 사용량에 따라 환불이 제한될 수 있음</li>
             </ul>
             <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
               자세한 내용은{' '}

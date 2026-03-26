@@ -33,8 +33,9 @@ export default function RefundPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-zinc-900">4. 정기결제</h2>
           <ul className="list-disc space-y-1 pl-5">
-            <li>정기결제는 다음 결제일 이전까지 해지 가능합니다.</li>
-            <li>이미 결제된 금액은 환불되지 않습니다.</li>
+            <li>정기결제는 다음 결제일 이전까지 해지 예약이 가능합니다.</li>
+            <li>해지 예약 시 다음 결제일부터 자동결제가 중단됩니다.</li>
+            <li>이미 서비스 이용이 발생한 결제 건은 사용량에 따라 환불이 제한될 수 있습니다.</li>
           </ul>
         </section>
 

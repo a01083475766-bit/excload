@@ -268,7 +268,7 @@ export default function ContactPage() {
                   <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
                   <div>
                     <p className="font-medium text-zinc-700 dark:text-zinc-300">📧 이메일</p>
-                    <p className="text-zinc-600 dark:text-zinc-400">support@excload.com</p>
+                    <p className="text-zinc-600 dark:text-zinc-400">sacom5766@naver.com</p>
                   </div>
                 </div>
                 

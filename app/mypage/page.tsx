@@ -3,8 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { User, Mail, Calendar, CreditCard, Settings, Bell, Shield, LogOut } from 'lucide-react';
+import { User, Calendar, CreditCard, Settings, Bell, Shield, LogOut } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
+
+interface SubscriptionState {
+  status: string | null;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: string | null;
+}
 
 export default function MyPage() {
   const router = useRouter();
@@ -13,6 +19,12 @@ export default function MyPage() {
   const clearUser = useUserStore((state) => state.clearUser);
   const isLoading = useUserStore((state) => state.isLoading);
   const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'billing'>('profile');
+  const [subscriptionState, setSubscriptionState] = useState<SubscriptionState>({
+    status: null,
+    cancelAtPeriodEnd: false,
+    currentPeriodEnd: null,
+  });
+  const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   
   // 컴포넌트 마운트 시 사용자 정보 가져오기
   useEffect(() => {
@@ -43,6 +55,29 @@ export default function MyPage() {
     }
   }, [user, isLoading, router]);
 
+  useEffect(() => {
+    if (!user) return;
+    const loadSubscriptionState = async () => {
+      try {
+        const response = await fetch('/api/user/subscription-status', {
+          credentials: 'include',
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data?.success && data?.subscription) {
+          setSubscriptionState({
+            status: data.subscription.status,
+            cancelAtPeriodEnd: !!data.subscription.cancelAtPeriodEnd,
+            currentPeriodEnd: data.subscription.currentPeriodEnd,
+          });
+        }
+      } catch (error) {
+        console.error('[MyPage] 구독 상태 조회 실패:', error);
+      }
+    };
+    loadSubscriptionState();
+  }, [user]);
+
   // 플랜 타입을 한글로 변환
   const getPlanName = (plan: string) => {
     switch (plan) {
@@ -54,6 +89,47 @@ export default function MyPage() {
         return '연간';
       default:
         return '무료';
+    }
+  };
+
+  const currentPeriodEndText = subscriptionState.currentPeriodEnd
+    ? new Date(subscriptionState.currentPeriodEnd).toLocaleDateString('ko-KR')
+    : null;
+
+  const hasPaidPlan = user.plan === 'PRO' || user.plan === 'YEARLY';
+
+  const handleSubscriptionToggle = async () => {
+    if (!hasPaidPlan) return;
+    try {
+      setIsUpdatingSubscription(true);
+      const action = subscriptionState.cancelAtPeriodEnd ? 'resume' : 'cancel';
+      const response = await fetch('/api/stripe/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data?.error || '구독 상태 변경에 실패했습니다.');
+        return;
+      }
+      setSubscriptionState((prev) => ({
+        ...prev,
+        cancelAtPeriodEnd: !!data.cancelAtPeriodEnd,
+        currentPeriodEnd: data.currentPeriodEnd ?? prev.currentPeriodEnd,
+      }));
+      await fetchUser();
+      alert(
+        data.cancelAtPeriodEnd
+          ? '해지가 예약되었습니다. 다음 결제일부터 자동 결제가 중단됩니다.'
+          : '해지 예약이 취소되었습니다.'
+      );
+    } catch (error) {
+      console.error('[MyPage] 구독 해지/복원 실패:', error);
+      alert('구독 상태 변경 중 오류가 발생했습니다.');
+    } finally {
+      setIsUpdatingSubscription(false);
     }
   };
 
@@ -268,9 +344,16 @@ export default function MyPage() {
                       <div>
                         <p className="font-semibold text-zinc-900 dark:text-zinc-100">현재 플랜</p>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">{getPlanName(user.plan)}</p>
+                        {hasPaidPlan && (
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {subscriptionState.cancelAtPeriodEnd
+                              ? `해지 예약 상태 · 서비스 이용 종료일 ${currentPeriodEndText ?? '-'}`
+                              : `정기결제 활성 · 다음 결제 예정일 ${currentPeriodEndText ?? '-'}`}
+                          </p>
+                        )}
                       </div>
                       <span className="px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-sm font-medium">
-                        활성
+                        {subscriptionState.cancelAtPeriodEnd ? '해지예약' : '활성'}
                       </span>
                     </div>
                     <button 
@@ -279,6 +362,23 @@ export default function MyPage() {
                     >
                       플랜 변경하기
                     </button>
+                    {hasPaidPlan && (
+                      <button
+                        onClick={handleSubscriptionToggle}
+                        disabled={isUpdatingSubscription}
+                        className={`mt-3 w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                          subscriptionState.cancelAtPeriodEnd
+                            ? 'border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                            : 'border border-rose-300 text-rose-700 hover:bg-rose-50'
+                        } disabled:opacity-60 disabled:cursor-not-allowed`}
+                      >
+                        {isUpdatingSubscription
+                          ? '처리 중...'
+                          : subscriptionState.cancelAtPeriodEnd
+                            ? '해지 예약 취소'
+                            : '정기결제 해지 예약'}
+                      </button>
+                    )}
                   </div>
                   
                   <div className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
