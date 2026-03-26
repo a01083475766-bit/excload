@@ -1,3 +1,5 @@
+import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
+
 export async function runTextToCleanInputAdapter(text: string) {
   if (!text || text.trim() === '') {
     throw new Error('텍스트가 비어있습니다.');
@@ -24,15 +26,17 @@ export async function runTextToCleanInputAdapter(text: string) {
     throw new Error('normalize-29 응답 형식 오류');
   }
 
-  // 29개 기준헤더를 헤더로 구성
-  const headers = Object.keys(data.orders[0] || {});
-
   const rows = data.orders.map((order: any) =>
-    headers.map((key) => order[key] ?? '')
+    BASE_HEADERS.map((header) => order[header] ?? '')
   );
 
+  console.log('[TEXT → ROWS]', {
+    headers: BASE_HEADERS,
+    sampleRow: rows[0],
+  });
+
   return {
-    headers,
+    headers: BASE_HEADERS,
     rows,
     sourceType: 'text' as const,
   };
