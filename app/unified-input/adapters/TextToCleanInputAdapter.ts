@@ -26,6 +26,15 @@ export async function runTextToCleanInputAdapter(text: string) {
   if (!data?.orders || !Array.isArray(data.orders)) {
     throw new Error('normalize-29 응답 형식 오류');
   }
+  if (data?.meta?.usedFallback) {
+    const reason = data?.meta?.fallbackReason;
+    console.warn('[normalize-29 fallback detected]', data.meta);
+    throw new Error(
+      reason === 'json_parse_failed'
+        ? 'AI 응답 파싱에 실패했습니다. 잠시 후 다시 시도해 주세요.'
+        : 'AI가 주문 항목을 제대로 분리하지 못했습니다. 입력 텍스트 형식을 확인해 주세요.'
+    );
+  }
 
   const orders = data.orders;
   console.log('[ORDERS]', orders);
