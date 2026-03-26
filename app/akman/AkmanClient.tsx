@@ -14,6 +14,14 @@ interface AkmanStats {
   monthlyRevenue: number;
 }
 
+interface AdminUserRow {
+  id: string;
+  email: string;
+  plan: 'FREE' | 'PRO' | 'YEARLY' | string;
+  points: number;
+  createdAt: string;
+}
+
 const shell: React.CSSProperties = {
   padding: '40px',
   fontFamily: 'system-ui, sans-serif',
@@ -57,6 +65,12 @@ export default function AkmanClient() {
   const [statsError, setStatsError] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [userIdInput, setUserIdInput] = useState('');
+  const [usersOpen, setUsersOpen] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [userPlanFilter, setUserPlanFilter] = useState<'ALL' | 'FREE' | 'PRO' | 'YEARLY'>('ALL');
+  const [userDateFilter, setUserDateFilter] = useState<'ALL' | 'today' | 'thisMonth'>('ALL');
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +112,40 @@ export default function AkmanClient() {
   const fmt = (n: number) => n.toLocaleString('ko-KR');
   const fmtWon = (n: number) => `${fmt(n)}원`;
 
+  const loadUsers = async (
+    plan: 'ALL' | 'FREE' | 'PRO' | 'YEARLY' = userPlanFilter,
+    date: 'ALL' | 'today' | 'thisMonth' = userDateFilter
+  ) => {
+    setUsersLoading(true);
+    setUsersError(null);
+    try {
+      const params = new URLSearchParams({ page: '1', pageSize: '20' });
+      if (plan !== 'ALL') params.set('plan', plan);
+      if (date !== 'ALL') params.set('date', date);
+      const res = await fetch(`/api/akman/users?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || '회원 목록을 불러오지 못했습니다.');
+      }
+      setUsers(data.users || []);
+    } catch (error) {
+      setUsers([]);
+      setUsersError(error instanceof Error ? error.message : '회원 목록을 불러오지 못했습니다.');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const openUsers = async (
+    plan: 'ALL' | 'FREE' | 'PRO' | 'YEARLY' = 'ALL',
+    date: 'ALL' | 'today' | 'thisMonth' = 'ALL'
+  ) => {
+    setUsersOpen(true);
+    setUserPlanFilter(plan);
+    setUserDateFilter(date);
+    await loadUsers(plan, date);
+  };
+
   const menuItems: { href: string; title: string; desc: string }[] = [
     { href: '/akman/payments', title: '결제 내역', desc: '결제·플랜 기록 조회' },
     { href: '/akman/points', title: '포인트 로그', desc: '포인트 지급·차감 이력' },
@@ -121,19 +169,19 @@ export default function AkmanClient() {
       )}
       {!statsLoading && stats && (
         <div style={cardGrid}>
-          <div style={statCard}>
+          <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('ALL', 'ALL')}>
             <div style={{ fontSize: '13px', color: '#666' }}>전체 회원</div>
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.totalUsers)}</div>
           </div>
-          <div style={statCard}>
+          <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('ALL', 'today')}>
             <div style={{ fontSize: '13px', color: '#666' }}>오늘 가입</div>
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.todayUsers)}</div>
           </div>
-          <div style={statCard}>
+          <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('ALL', 'thisMonth')}>
             <div style={{ fontSize: '13px', color: '#666' }}>이번 달 가입</div>
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.monthlyUsers)}</div>
           </div>
-          <div style={statCard}>
+          <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('FREE', 'ALL')}>
             <div style={{ fontSize: '13px', color: '#666' }}>FREE / PRO / YEARLY</div>
             <div style={{ fontSize: '15px', fontWeight: 600, marginTop: '4px' }}>
               {fmt(stats.freeUsers)} / {fmt(stats.proUsers)} / {fmt(stats.yearlyUsers)}
@@ -180,6 +228,69 @@ export default function AkmanClient() {
           marginTop: '8px',
         }}
       >
+        <div style={{ fontWeight: 600, marginBottom: '10px' }}>가입 회원 목록</div>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (usersOpen) {
+                setUsersOpen(false);
+              } else {
+                void openUsers(userPlanFilter, userDateFilter);
+              }
+            }}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #ccc',
+              background: '#fff',
+              borderRadius: '6px',
+              cursor: 'pointer',
+            }}
+          >
+            {usersOpen ? '회원 목록 닫기' : '회원 목록 펼치기'}
+          </button>
+          {usersOpen && (
+            <>
+              <button type="button" onClick={() => void openUsers('ALL', 'ALL')} style={{ padding: '8px 12px', border: '1px solid #ccc', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}>전체</button>
+              <button type="button" onClick={() => void openUsers('FREE', 'ALL')} style={{ padding: '8px 12px', border: '1px solid #ccc', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}>FREE</button>
+              <button type="button" onClick={() => void openUsers('PRO', 'ALL')} style={{ padding: '8px 12px', border: '1px solid #ccc', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}>PRO</button>
+              <button type="button" onClick={() => void openUsers('YEARLY', 'ALL')} style={{ padding: '8px 12px', border: '1px solid #ccc', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}>YEARLY</button>
+            </>
+          )}
+        </div>
+        {usersOpen && (
+          <div style={{ marginBottom: '16px', border: '1px solid #eee', borderRadius: '8px', overflow: 'hidden' }}>
+            {usersLoading && <div style={{ padding: '12px', color: '#666' }}>회원 목록 불러오는 중...</div>}
+            {!usersLoading && usersError && <div style={{ padding: '12px', color: '#b42318' }}>{usersError}</div>}
+            {!usersLoading && !usersError && users.length === 0 && <div style={{ padding: '12px', color: '#666' }}>조회된 회원이 없습니다.</div>}
+            {!usersLoading && !usersError && users.length > 0 && (
+              <div style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                {users.map((u) => (
+                  <div
+                    key={u.id}
+                    onClick={() => router.push(`/akman/users/${encodeURIComponent(u.id)}`)}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '2fr 90px 110px 110px',
+                      gap: '8px',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      borderBottom: '1px solid #f0f0f0',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                    }}
+                  >
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</div>
+                    <div>{u.plan}</div>
+                    <div>{fmt(u.points)}P</div>
+                    <div>{new Date(u.createdAt).toLocaleDateString('ko-KR')}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ fontWeight: 600, marginBottom: '10px' }}>사용자 상세 (ID)</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
           <input
