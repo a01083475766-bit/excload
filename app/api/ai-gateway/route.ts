@@ -32,9 +32,44 @@ export async function POST(request: NextRequest) {
 
     // AI 활성화 여부 확인
     if (process.env.NEXT_PUBLIC_AI_ENABLED !== 'true') {
-      // AI 비활성화 시 빈 응답 반환
+      // AI 비활성화여도 normalize-29는 최소 1건 fallback을 반환
       if (type === 'normalize-29') {
-        return NextResponse.json({ orders: [] });
+        const fallbackText = typeof body?.text === 'string' ? body.text : '';
+        return NextResponse.json({
+          orders: [
+            {
+              "주문번호": "",
+              "보내는사람": "",
+              "보내는사람전화1": "",
+              "보내는사람전화2": "",
+              "보내는사람우편번호": "",
+              "보내는사람주소1": "",
+              "보내는사람주소2": "",
+              "받는사람": "",
+              "받는사람전화1": "",
+              "받는사람전화2": "",
+              "받는사람우편번호": "",
+              "받는사람주소1": fallbackText,
+              "받는사람주소2": "",
+              "주문자": "",
+              "주문자연락처": "",
+              "주문일시": "",
+              "결제금액": "",
+              "상품명": fallbackText,
+              "추가상품": "",
+              "상품옵션": "",
+              "상품옵션1": "",
+              "수량": "1",
+              "배송메시지": "",
+              "운임구분": "",
+              "운임": "",
+              "운송장번호": "",
+              "창고메모": "",
+              "내부메모": "",
+              "출고번호": ""
+            }
+          ],
+        });
       }
       return NextResponse.json({ error: '현재 분석 기능을 사용할 수 없습니다.' }, { status: 400 });
     }

@@ -457,8 +457,8 @@ export async function POST(request: NextRequest) {
         const invoiceId = invoice?.id || null;
         let skipPaymentCreate = false;
 
-        // 중복 지급 방지: 같은 invoice ID로 이미 Payment가 생성되었는지 확인
-        // 중요: Payment 중복이어도 포인트 리셋 로직은 계속 실행합니다.
+        // 중복 지급 방지: 같은 invoice ID가 이미 처리되었다면
+        // 포인트/이력/결제 생성을 모두 건너뛰고 이벤트만 처리 완료로 마킹한다.
         if (invoiceId) {
           const existingPayment = await prisma.payment.findFirst({
             where: {
@@ -472,7 +472,7 @@ export async function POST(request: NextRequest) {
           });
           
           if (existingPayment) {
-            console.log('[Stripe Webhook] 이미 처리된 Invoice - 포인트 지급 건너뜀:', {
+            console.log('[Stripe Webhook] 이미 처리된 Invoice - 전체 후속 처리 건너뜀:', {
               invoiceId,
               userId: user.id,
               existingPaymentId: existingPayment.id,
@@ -480,6 +480,14 @@ export async function POST(request: NextRequest) {
               eventType: event.type,
             });
             skipPaymentCreate = true;
+
+            await prisma.stripeEvent.upsert({
+              where: { eventId: event.id },
+              update: {},
+              create: { eventId: event.id },
+            });
+
+            return NextResponse.json({ received: true });
           }
         }
 
