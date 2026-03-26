@@ -196,12 +196,15 @@ export async function mapTemplateToBase(
             throw new Error('시스템 설정 오류가 발생했습니다.');
           }
           
+          const payload = {
+            type: 'header-map' as const,
+            unknownHeaders,
+            baseHeaders: BASE_HEADERS,
+          };
+          console.log('[AI GATEWAY REQUEST]', payload);
+
           const response = await handleHeaderMap(
-            {
-              type: 'header-map',
-              unknownHeaders,
-              baseHeaders: BASE_HEADERS,
-            },
+            payload,
             apiKey
           );
           
@@ -211,19 +214,23 @@ export async function mapTemplateToBase(
           }
           
           aiMapping = await response.json();
+          console.log('[AI GATEWAY RESPONSE]', aiMapping);
         } else {
           // 클라이언트 사이드: API 호출
+        const payload = {
+          type: 'header-map',
+          unknownHeaders,
+          baseHeaders: BASE_HEADERS,
+          fileSessionId: fileSessionId,
+        };
+        console.log('[AI GATEWAY REQUEST]', payload);
+
         const response = await fetch('/api/ai-gateway', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            type: 'header-map',
-            unknownHeaders,
-            baseHeaders: BASE_HEADERS,
-            fileSessionId: fileSessionId,
-          }),
+          body: JSON.stringify(payload),
         });
         
         if (!response.ok) {
@@ -231,6 +238,7 @@ export async function mapTemplateToBase(
         }
         
         aiMapping = await response.json();
+        console.log('[AI GATEWAY RESPONSE]', aiMapping);
         }
       }
       
@@ -285,10 +293,8 @@ export async function mapTemplateToBase(
       
       console.log('[Stage1] AI Mapping Result:', aiMapping);
     } catch (error) {
-      // AI 호출 실패 시 로그만 출력하고 계속 진행
-      // alias 매핑 결과만 사용
-      // 에러 로그는 출력하지 않음
-      // guard는 유지하여 재시도 방지
+      console.error('[Stage2 INNER ERROR]', error);
+      throw error;
     }
   }
   

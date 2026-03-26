@@ -20,6 +20,7 @@ import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const prompt = (body as { prompt?: string | null })?.prompt;
     const { fileSessionId, ...cleanInputFile } = body;
     
     // CleanInputFile 검증
@@ -30,8 +31,22 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    console.log('[Stage2 INPUT]', {
+      prompt,
+      type: typeof prompt,
+      length: prompt?.length,
+    });
+
     // Stage2 Order Pipeline 실행
-    const result = await runOrderPipeline(cleanInputFile as CleanInputFile, fileSessionId);
+    let result;
+    try {
+      result = await runOrderPipeline(cleanInputFile as CleanInputFile, fileSessionId);
+    } catch (error) {
+      console.error('[Stage2 ERROR FULL]', error);
+      throw error;
+    }
+
+    console.log('[Stage2 OUTPUT]', result);
     
     return NextResponse.json(result);
   } catch (error) {

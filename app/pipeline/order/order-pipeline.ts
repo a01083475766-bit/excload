@@ -85,10 +85,43 @@ export async function run(cleanInputFile: CleanInputFile, fileSessionId?: string
   throwIfInvalid(inputValidation, 'Stage2 Order Pipeline - Input');
   
   const { headers, rows } = cleanInputFile;
+  const prompt = (cleanInputFile as { prompt?: string | null })?.prompt;
+  const baseHeaderSet = new Set(BASE_HEADERS);
+  const isNormalizedText =
+    Array.isArray(headers) &&
+    headers.length >= BASE_HEADERS.length * 0.7 &&
+    headers.every((h) => baseHeaderSet.has(h as any));
   
+  const stage2Input = headers;
+  console.log('[PROMPT CHECK]', {
+    prompt,
+    type: typeof prompt,
+    length: prompt?.length,
+    preview: prompt?.slice?.(0, 100),
+  });
+  console.log('[Stage2 BEFORE AI]', {
+    input: stage2Input,
+    type: typeof stage2Input,
+  });
+
   // 1. Stage1 헤더 매핑 로직 사용 (AI Header Mapping 포함)
-  console.log('[Stage1] Starting Header Mapping for Order File');
-  const mappingResult = await mapTemplateToBase(headers, undefined, fileSessionId);
+  let mappingResult;
+  if (isNormalizedText) {
+    console.log('[TEXT FLOW - SKIP HEADER MAP]', headers);
+    mappingResult = {
+      mappedBaseHeaders: [...headers],
+      unknownHeaders: [] as string[],
+    };
+  } else {
+    console.log('[Stage1] Starting Header Mapping for Order File');
+    try {
+      mappingResult = await mapTemplateToBase(headers, undefined, fileSessionId);
+    } catch (error) {
+      console.error('[Stage2 INNER ERROR]', error);
+      throw error;
+    }
+    console.log('[Stage2 AFTER AI]', mappingResult);
+  }
   
   // mappingResult를 headerMap으로 변환
   // Record<원본헤더인덱스, 기준헤더> 형태
