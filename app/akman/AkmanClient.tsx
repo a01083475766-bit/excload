@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -49,6 +48,7 @@ const menuCard: React.CSSProperties = {
   padding: '20px',
   display: 'block',
   transition: 'border-color 0.15s, box-shadow 0.15s',
+  cursor: 'pointer',
 };
 
 export default function AkmanClient() {
@@ -153,10 +153,22 @@ export default function AkmanClient() {
       <h2 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>바로가기</h2>
       <div style={cardGrid}>
         {menuItems.map((item) => (
-          <Link key={item.href} href={item.href} style={{ ...menuCard, textDecoration: 'none', color: 'inherit' }}>
+          <div
+            key={item.href}
+            role="link"
+            tabIndex={0}
+            onClick={() => router.push(item.href)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                router.push(item.href);
+              }
+            }}
+            style={{ ...menuCard, textDecoration: 'none', color: 'inherit' }}
+          >
             <div style={{ ...linkStyle, marginBottom: '6px' }}>{item.title}</div>
             <div style={{ fontSize: '14px', color: '#666' }}>{item.desc}</div>
-          </Link>
+          </div>
         ))}
       </div>
 
