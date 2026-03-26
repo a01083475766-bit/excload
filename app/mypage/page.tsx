@@ -96,7 +96,7 @@ export default function MyPage() {
     ? new Date(subscriptionState.currentPeriodEnd).toLocaleDateString('ko-KR')
     : null;
 
-  const hasPaidPlan = user.plan === 'PRO' || user.plan === 'YEARLY';
+  const hasPaidPlan = !!user && (user.plan === 'PRO' || user.plan === 'YEARLY');
 
   const handleSubscriptionToggle = async () => {
     if (!hasPaidPlan) return;
