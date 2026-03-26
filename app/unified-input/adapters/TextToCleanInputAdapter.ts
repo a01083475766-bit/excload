@@ -26,12 +26,15 @@ export async function runTextToCleanInputAdapter(text: string) {
     throw new Error('normalize-29 응답 형식 오류');
   }
 
-  const rows = data.orders.map((order: any) =>
+  const orders = data.orders;
+
+  const rows = orders.map((order: any) =>
     BASE_HEADERS.map((header) => order[header] ?? '')
   );
 
-  console.log('[TEXT → ROWS]', {
-    headers: BASE_HEADERS,
+  console.log('[TEXT → ROWS 변환]', {
+    ordersCount: orders.length,
+    rowsCount: rows.length,
     sampleRow: rows[0],
   });
 
