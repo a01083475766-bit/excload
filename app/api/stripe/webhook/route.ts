@@ -389,6 +389,7 @@ export async function POST(request: NextRequest) {
             id: true,
             email: true,
             points: true,
+            plan: true,
           },
         });
 
@@ -405,6 +406,7 @@ export async function POST(request: NextRequest) {
               id: true,
               email: true,
               points: true,
+              plan: true,
             },
           });
           
@@ -450,8 +452,10 @@ export async function POST(request: NextRequest) {
 
         // Invoice ID 추출 (중복 체크용)
         const invoiceId = invoice?.id || null;
-        
+        let skipPaymentCreate = false;
+
         // 중복 지급 방지: 같은 invoice ID로 이미 Payment가 생성되었는지 확인
+        // 중요: Payment 중복이어도 포인트 리셋 로직은 계속 실행합니다.
         if (invoiceId) {
           const existingPayment = await prisma.payment.findFirst({
             where: {
@@ -472,10 +476,7 @@ export async function POST(request: NextRequest) {
               existingPaymentCreatedAt: existingPayment.createdAt,
               eventType: event.type,
             });
-            return NextResponse.json({ 
-              received: true,
-              message: '이미 처리된 Invoice입니다.',
-            });
+            skipPaymentCreate = true;
           }
         }
 
@@ -494,10 +495,17 @@ export async function POST(request: NextRequest) {
             pointsToSet: 400000,
           });
           
+          const nextPlan =
+            plan === 'PRO' || plan === 'YEARLY'
+              ? plan
+              : user.plan === 'PRO' || user.plan === 'YEARLY'
+                ? user.plan
+                : 'PRO';
+
           const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
-              plan: plan,
+              plan: nextPlan,
               points: 400000, // 매달 고정 포인트로 리셋 (누적 아님)
             },
             select: {
@@ -508,6 +516,11 @@ export async function POST(request: NextRequest) {
           });
 
           console.log('[Stripe Webhook] Points granted', updatedUser);
+          console.log('[Stripe Webhook] 결제 성공 감지', {
+            customerId,
+            email: user.email,
+            points: 400000,
+          });
           
           // 포인트 지급 로그 기록 (리셋)
           const pointsChange = 400000 - user.points; // 실제 변경량 계산
@@ -520,41 +533,45 @@ export async function POST(request: NextRequest) {
           });
 
           // 결제 정보 저장 (invoice.payment_succeeded/invoice.payment.paid/invoice_payment.paid는 session.id가 없으므로 null)
-          const amount = plan === 'PRO' ? 4000 : 40000;
-          
-          // invoiceId 추출
-          const invoiceId = invoice?.id || null;
-          
+          const amount = updatedUser.plan === 'PRO' ? 4000 : 40000;
+
           // 5️⃣ prisma.payment.create 실행 시 unique 제약 충돌 여부 확인
           // stripeSessionId는 unique이지만 null이므로 문제 없음
           // stripeInvoiceId는 unique가 아니지만 중복 방지를 위해 확인
-          try {
-            await prisma.payment.create({
-              data: {
-                userId: user.id,
-                email: userEmail,
-                plan: plan,
-                amount: amount,
-                currency: 'KRW',
-                stripeSessionId: null,
-                stripeSubscriptionId: subscription?.id || null,
-                stripeInvoiceId: invoiceId,
-              },
-            });
-          } catch (paymentError: any) {
-            // Unique 제약 충돌 체크 (P2002는 Prisma unique 제약 오류 코드)
-            if (paymentError?.code === 'P2002') {
-              console.error('[Stripe Webhook] Payment 중복 생성 시도:', {
-                userId: user.id,
-                email: userEmail,
-                invoiceId: invoiceId,
-                subscriptionId: subscription?.id || null,
-                error: paymentError.message,
+          if (!skipPaymentCreate) {
+            try {
+              await prisma.payment.create({
+                data: {
+                  userId: user.id,
+                  email: userEmail,
+                  plan: updatedUser.plan,
+                  amount: amount,
+                  currency: 'KRW',
+                  stripeSessionId: null,
+                  stripeSubscriptionId: subscription?.id || null,
+                  stripeInvoiceId: invoiceId,
+                },
               });
-              // 중복이어도 이미 결제가 처리된 것으로 간주하고 계속 진행
-            } else {
-              throw paymentError; // 다른 오류는 다시 throw
+            } catch (paymentError: any) {
+              // Unique 제약 충돌 체크 (P2002는 Prisma unique 제약 오류 코드)
+              if (paymentError?.code === 'P2002') {
+                console.error('[Stripe Webhook] Payment 중복 생성 시도:', {
+                  userId: user.id,
+                  email: userEmail,
+                  invoiceId: invoiceId,
+                  subscriptionId: subscription?.id || null,
+                  error: paymentError.message,
+                });
+                // 중복이어도 이미 결제가 처리된 것으로 간주하고 계속 진행
+              } else {
+                throw paymentError; // 다른 오류는 다시 throw
+              }
             }
+          } else {
+            console.log('[Stripe Webhook] Payment 생성 생략 (기존 invoice 기록 존재):', {
+              userId: user.id,
+              invoiceId,
+            });
           }
 
           console.log('[Stripe Webhook] 포인트 지급 및 플랜 업데이트 완료:', {
