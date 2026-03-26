@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 import { isAdminEmail } from '@/app/lib/admin-auth';
+import Stripe from 'stripe';
 
 interface DeleteUserRequest {
   userId: string;
@@ -73,21 +74,54 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // 관련 데이터 삭제 (Cascade)
-    // PointHistory 삭제
-    await prisma.pointHistory.deleteMany({
-      where: { userId },
-    });
+    // Stripe 구독이 남아있으면 먼저 종료 시도 (실패해도 DB 삭제는 계속 진행)
+    try {
+      if (process.env.STRIPE_SECRET_KEY) {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+          apiVersion: '2026-02-25.clover',
+        });
+        const subs = await prisma.subscription.findMany({
+          where: { userId },
+          select: {
+            stripeSubscriptionId: true,
+            status: true,
+          },
+        });
+        for (const sub of subs) {
+          if (
+            sub.stripeSubscriptionId &&
+            ['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)
+          ) {
+            try {
+              await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
+            } catch (stripeCancelError) {
+              console.error('[Admin Delete User API] Stripe 구독 해지 실패:', stripeCancelError);
+            }
+          }
+        }
+      }
+    } catch (stripeError) {
+      console.error('[Admin Delete User API] Stripe 정리 중 오류:', stripeError);
+    }
 
-    // EmailVerificationToken 삭제 (이메일로)
-    await prisma.emailVerificationToken.deleteMany({
-      where: { email: user.email },
-    });
-
-    // 사용자 삭제
-    await prisma.user.delete({
-      where: { id: userId },
-    });
+    // FK 충돌 방지를 위해 연관 테이블 먼저 삭제 후 사용자 삭제
+    await prisma.$transaction([
+      prisma.subscription.deleteMany({
+        where: { userId },
+      }),
+      prisma.pointHistory.deleteMany({
+        where: { userId },
+      }),
+      prisma.payment.deleteMany({
+        where: { userId },
+      }),
+      prisma.emailVerificationToken.deleteMany({
+        where: { email: user.email },
+      }),
+      prisma.user.delete({
+        where: { id: userId },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
