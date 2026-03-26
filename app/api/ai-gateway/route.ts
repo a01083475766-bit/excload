@@ -220,6 +220,14 @@ export async function handleNormalize29(
 공통 발신인
 모든 주문 동일 발송인
 ○○에서 발송
+
+[추가 규칙]
+
+- 반드시 최소 1개의 orders를 생성해야 한다.
+- 입력이 불완전하더라도 추론하여 주문을 생성한다.
+- 이름, 전화번호, 주소, 상품 중 일부만 있어도 반드시 1개 주문 생성
+- 절대 빈 배열([])을 반환하지 않는다.
+- 결과가 애매하더라도 가장 가능성 높은 형태로 생성한다.
 `;
 
   const apiUrl = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
