@@ -24,17 +24,26 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
       : '연간 플랜 (년 40,000원, VAT 별도)';
 
   const handleCheckout = useCallback(async () => {
+    console.log('🔥 결제 버튼 클릭됨');
     try {
       const sessionRes = await fetch('/api/auth/session', { credentials: 'include' });
       const session = await sessionRes.json();
+      console.log('🔥 세션 체크 결과:', {
+        hasSession: !!session?.user,
+        email: session?.user?.email,
+      });
       if (!session?.user) {
+        console.log('🔥 세션 없음 -> /login 이동');
         window.location.href = '/login';
         return;
       }
 
       setLoading(true);
       try {
-        const res = await fetch('/api/stripe/create-checkout-session', {
+        console.log('🔥 Stripe API 호출 직전');
+        const res = await fetch(
+          `${window.location.origin}/api/stripe/create-checkout-session`,
+          {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -42,7 +51,8 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
           body: JSON.stringify({
             planType: planKey === 'yearly' ? 'yearly' : 'monthly',
           }),
-        });
+          }
+        );
 
         const data = await res.json();
 

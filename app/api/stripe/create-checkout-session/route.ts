@@ -19,6 +19,7 @@ interface CreateCheckoutSessionRequest {
  * Stripe Checkout 세션 생성
  */
 export async function POST(request: NextRequest) {
+  console.log('[Stripe Checkout] POST /api/stripe/create-checkout-session 수신');
   try {
     // Stripe Secret Key 확인 (가장 먼저 확인)
     if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.trim() === '') {
@@ -29,10 +30,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Stripe 클라이언트 초기화
+    // Stripe 클라이언트 초기화 (STRIPE_SECRET_KEY 사용)
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: '2026-02-25.clover',
     });
+    console.log('[Stripe Checkout] Stripe 클라이언트 초기화 완료 (STRIPE_SECRET_KEY 적용)');
 
     // 세션 확인
     const session = await getServerSession(authOptions);
@@ -46,6 +48,11 @@ export async function POST(request: NextRequest) {
 
     const body: CreateCheckoutSessionRequest = await request.json();
     const { planType } = body;
+
+    console.log('[Stripe Checkout] 요청 요약:', {
+      planType,
+      email: session.user.email,
+    });
 
     // 1️⃣ planType 수신 확인 로그
     console.log('[Stripe Checkout] 수신된 planType:', planType);
@@ -161,7 +168,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Stripe Checkout 세션 생성
+    console.log('[Stripe Checkout] checkout.sessions.create 요청:', {
+      planType,
+      priceId,
+      customerId,
+    });
+
+    // Stripe Checkout 세션 생성 (line_items[].price ← STRIPE_MONTHLY_PRICE_ID 또는 STRIPE_YEARLY_PRICE_ID)
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -190,19 +203,28 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/cancel`,
     });
 
+    console.log('[Stripe Checkout] Checkout 세션 생성 성공:', {
+      sessionId: checkoutSession.id,
+      hasUrl: !!checkoutSession.url,
+    });
+
     return NextResponse.json({
       success: true,
       sessionId: checkoutSession.id,
       url: checkoutSession.url,
     });
   } catch (error) {
-    console.error('[Stripe Checkout API] 에러:', error);
-    return NextResponse.json(
-      { 
-        error: error instanceof Error ? error.message : '결제 세션 생성 실패',
-        details: error instanceof Stripe.errors.StripeError ? error.message : undefined,
-      },
-      { status: 500 }
-    );
+    console.error('Stripe error:', error);
+    if (error instanceof Stripe.errors.StripeError) {
+      console.error('[Stripe Checkout] Stripe API 세부:', {
+        type: error.type,
+        code: error.code,
+        message: error.message,
+        statusCode: error.statusCode,
+      });
+    }
+    const message =
+      error instanceof Error ? error.message : '결제 세션 생성 실패';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
