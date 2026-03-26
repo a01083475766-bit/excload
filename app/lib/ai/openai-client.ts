@@ -38,9 +38,30 @@ export async function callOpenAI(prompt: string): Promise<string> {
   }
 
   const data = await response.json();
-  const text = data?.output?.[0]?.content?.[0]?.text;
+  let text = '';
 
-  if (!text || typeof text !== 'string') {
+  // 1) output_text 우선
+  if (typeof data.output_text === 'string') {
+    text = data.output_text;
+  }
+
+  // 2) output 배열 fallback
+  if (!text && Array.isArray(data.output)) {
+    for (const item of data.output) {
+      if (item?.type === 'message' && Array.isArray(item.content)) {
+        for (const c of item.content) {
+          if (c?.type === 'output_text' && c.text) {
+            text = c.text;
+            break;
+          }
+        }
+      }
+      if (text) break;
+    }
+  }
+
+  if (!text) {
+    console.error('[OpenAI RAW RESPONSE]', JSON.stringify(data, null, 2));
     throw new Error('OpenAI 응답 파싱 실패');
   }
 
