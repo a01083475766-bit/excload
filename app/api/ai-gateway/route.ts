@@ -273,11 +273,48 @@ export async function handleNormalize29(
       parsed = { orders: [] };
     }
 
-    const orders = Array.isArray(parsed?.orders) ? parsed.orders : [];
+    let orders = parsed?.orders || [];
+
+    if (!Array.isArray(orders) || orders.length === 0) {
+      console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 강제 생성');
+
+      orders = [{
+        "주문번호": "",
+        "보내는사람": "",
+        "보내는사람전화1": "",
+        "보내는사람전화2": "",
+        "보내는사람우편번호": "",
+        "보내는사람주소1": "",
+        "보내는사람주소2": "",
+        "받는사람": "",
+        "받는사람전화1": "",
+        "받는사람전화2": "",
+        "받는사람우편번호": "",
+        "받는사람주소1": text || "",
+        "받는사람주소2": "",
+        "주문자": "",
+        "주문자연락처": "",
+        "주문일시": "",
+        "결제금액": "",
+        "상품명": text || "",
+        "추가상품": "",
+        "상품옵션": "",
+        "상품옵션1": "",
+        "수량": "1",
+        "배송메시지": "",
+        "운임구분": "",
+        "운임": "",
+        "운송장번호": "",
+        "창고메모": "",
+        "내부메모": "",
+        "출고번호": ""
+      }];
+    }
+
     console.log('[PARSED ORDERS]', orders);
     console.log('[PARSED ORDERS LENGTH]', orders.length);
 
-    return NextResponse.json(parsed);
+    return NextResponse.json({ orders });
   } catch (error) {
     console.error('[AI Gateway] normalize-29 error:', error);
     return NextResponse.json(
