@@ -36,6 +36,22 @@ export async function POST(_request: NextRequest) {
       return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
     }
 
+    const acceptManualReview = async (message: string) => {
+      await prisma.pointHistory.create({
+        data: {
+          userId: user.id,
+          change: 0,
+          reason: 'REFUND_REQUEST_REVIEW',
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        manualReview: true,
+        message,
+      });
+    };
+
     const latestPayment = await prisma.payment.findFirst({
       where: {
         userId: user.id,
@@ -70,13 +86,8 @@ export async function POST(_request: NextRequest) {
     });
 
     if (usedPointHistory) {
-      return NextResponse.json(
-        {
-          error:
-            '결제 이후 포인트 사용 이력이 확인되어 자동 환불 대상이 아닙니다. 고객센터 검토 후 처리됩니다.',
-          needsManualReview: true,
-        },
-        { status: 400 }
+      return acceptManualReview(
+        '환불 신청이 접수되었습니다. 결제 이후 사용 이력이 있어 정책 검토 후 영업일 기준 3일 이내 안내드리겠습니다.'
       );
     }
 
@@ -101,13 +112,8 @@ export async function POST(_request: NextRequest) {
     }
 
     if (!paymentIntentId) {
-      return NextResponse.json(
-        {
-          error:
-            '결제 식별 정보를 찾지 못해 자동 환불 처리가 불가합니다. 고객센터로 문의해 주세요.',
-          needsManualReview: true,
-        },
-        { status: 400 }
+      return acceptManualReview(
+        '환불 신청이 접수되었습니다. 결제 정보 확인 후 영업일 기준 3일 이내 처리 결과를 안내드리겠습니다.'
       );
     }
 
