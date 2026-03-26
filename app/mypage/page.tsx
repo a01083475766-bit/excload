@@ -261,9 +261,30 @@ export default function MyPage() {
                       <span>잔여 포인트: {user.points.toLocaleString()}P</span>
                     </div>
                     
-                    <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
-                      저장하기
-                    </button>
+                    {hasPaidPlan ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {subscriptionState.cancelAtPeriodEnd
+                            ? `해지 예약 상태 · 서비스 이용 종료일 ${currentPeriodEndText ?? '-'}`
+                            : `정기결제 활성 · 다음 결제 예정일 ${currentPeriodEndText ?? '-'}`}
+                        </p>
+                        <button
+                          onClick={handleSubscriptionToggle}
+                          disabled={isUpdatingSubscription}
+                          className={`px-6 py-3 rounded-lg transition-colors text-sm font-semibold ${
+                            subscriptionState.cancelAtPeriodEnd
+                              ? 'border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                              : 'border border-rose-300 text-rose-700 hover:bg-rose-50'
+                          } disabled:opacity-60 disabled:cursor-not-allowed`}
+                        >
+                          {isUpdatingSubscription
+                            ? '처리 중...'
+                            : subscriptionState.cancelAtPeriodEnd
+                              ? '해지 예약 취소'
+                              : '정기결제 해지 예약'}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -346,9 +367,7 @@ export default function MyPage() {
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">{getPlanName(user.plan)}</p>
                         {hasPaidPlan && (
                           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                            {subscriptionState.cancelAtPeriodEnd
-                              ? `해지 예약 상태 · 서비스 이용 종료일 ${currentPeriodEndText ?? '-'}`
-                              : `정기결제 활성 · 다음 결제 예정일 ${currentPeriodEndText ?? '-'}`}
+                            프로필 탭에서 해지 예약/취소를 관리할 수 있습니다.
                           </p>
                         )}
                       </div>
@@ -362,23 +381,6 @@ export default function MyPage() {
                     >
                       플랜 변경하기
                     </button>
-                    {hasPaidPlan && (
-                      <button
-                        onClick={handleSubscriptionToggle}
-                        disabled={isUpdatingSubscription}
-                        className={`mt-3 w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                          subscriptionState.cancelAtPeriodEnd
-                            ? 'border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                            : 'border border-rose-300 text-rose-700 hover:bg-rose-50'
-                        } disabled:opacity-60 disabled:cursor-not-allowed`}
-                      >
-                        {isUpdatingSubscription
-                          ? '처리 중...'
-                          : subscriptionState.cancelAtPeriodEnd
-                            ? '해지 예약 취소'
-                            : '정기결제 해지 예약'}
-                      </button>
-                    )}
                   </div>
                   
                   <div className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
