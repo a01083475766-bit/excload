@@ -263,12 +263,12 @@ export async function handleNormalize29(
     }
 
     const data = await response.json();
-    const text = data?.choices?.[0]?.message?.content || '{}';
-    console.log('[AI RAW RESPONSE]', text);
+    const aiText = data?.choices?.[0]?.message?.content || '{}';
+    console.log('[AI RAW RESPONSE]', aiText);
 
     let parsed;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(aiText);
     } catch {
       parsed = { orders: [] };
     }
@@ -290,13 +290,13 @@ export async function handleNormalize29(
         "받는사람전화1": "",
         "받는사람전화2": "",
         "받는사람우편번호": "",
-        "받는사람주소1": text || "",
+        "받는사람주소1": body.text || "",
         "받는사람주소2": "",
         "주문자": "",
         "주문자연락처": "",
         "주문일시": "",
         "결제금액": "",
-        "상품명": text || "",
+        "상품명": body.text || "",
         "추가상품": "",
         "상품옵션": "",
         "상품옵션1": "",
