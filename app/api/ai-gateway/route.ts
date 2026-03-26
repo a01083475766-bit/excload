@@ -120,6 +120,65 @@ export async function handleNormalize29(
   body: { type: 'normalize-29'; text: string },
   apiKey: string
 ): Promise<NextResponse> {
+  const BASE_HEADERS_29 = [
+    '주문번호',
+    '보내는사람',
+    '보내는사람전화1',
+    '보내는사람전화2',
+    '보내는사람우편번호',
+    '보내는사람주소1',
+    '보내는사람주소2',
+    '받는사람',
+    '받는사람전화1',
+    '받는사람전화2',
+    '받는사람우편번호',
+    '받는사람주소1',
+    '받는사람주소2',
+    '주문자',
+    '주문자연락처',
+    '주문일시',
+    '결제금액',
+    '상품명',
+    '추가상품',
+    '상품옵션',
+    '상품옵션1',
+    '수량',
+    '배송메시지',
+    '운임구분',
+    '운임',
+    '운송장번호',
+    '창고메모',
+    '내부메모',
+    '출고번호',
+  ] as const;
+
+  const stripCodeFence = (input: string) =>
+    input
+      .replace(/^\s*```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim();
+
+  const extractJsonObject = (input: string): string => {
+    const first = input.indexOf('{');
+    const last = input.lastIndexOf('}');
+    if (first >= 0 && last > first) {
+      return input.slice(first, last + 1);
+    }
+    return input;
+  };
+
+  const normalizeOrderObject = (order: Record<string, any>): Record<string, string> => {
+    const normalized: Record<string, string> = {};
+    for (const header of BASE_HEADERS_29) {
+      const value = order?.[header];
+      normalized[header] = value == null ? '' : String(value).trim();
+    }
+    if (!normalized['수량']) {
+      normalized['수량'] = '1';
+    }
+    return normalized;
+  };
+
   const { text } = body;
 
   if (!text || typeof text !== 'string') {
@@ -282,6 +341,7 @@ export async function handleNormalize29(
           { role: 'user', content: text }
         ],
         temperature: 0.1,
+        response_format: { type: 'json_object' },
       }),
     });
 
@@ -303,12 +363,21 @@ export async function handleNormalize29(
 
     let parsed;
     try {
-      parsed = JSON.parse(aiText);
+      const cleaned = stripCodeFence(aiText);
+      parsed = JSON.parse(cleaned);
     } catch {
+      try {
+        const extracted = extractJsonObject(stripCodeFence(aiText));
+        parsed = JSON.parse(extracted);
+      } catch {
       parsed = { orders: [] };
+      }
     }
 
-    let orders = parsed?.orders || [];
+    let orders = Array.isArray(parsed?.orders) ? parsed.orders : [];
+    orders = orders
+      .filter((order: any) => order && typeof order === 'object' && !Array.isArray(order))
+      .map((order: Record<string, any>) => normalizeOrderObject(order));
 
     if (!Array.isArray(orders) || orders.length === 0) {
       console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 강제 생성');
@@ -343,7 +412,7 @@ export async function handleNormalize29(
         "창고메모": "",
         "내부메모": "",
         "출고번호": ""
-      }];
+      }].map((order) => normalizeOrderObject(order));
     }
 
     console.log('[PARSED ORDERS]', orders);

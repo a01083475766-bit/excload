@@ -48,7 +48,7 @@ async function preprocessImage(file: File): Promise<HTMLCanvasElement> {
       0.59 * data[i + 1] +
       0.11 * data[i + 2];
 
-    const threshold = 160; // 140~180 사이 실험 가능
+    const threshold = 150; // 글자 획 보존을 위해 약간 낮춤
     const value = gray > threshold ? 255 : 0;
 
     data[i] = value;
@@ -59,6 +59,66 @@ async function preprocessImage(file: File): Promise<HTMLCanvasElement> {
   ctx.putImageData(imageData, 0, 0);
 
   return canvas;
+}
+
+function normalizeWhitespace(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\u00A0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function correctCommonOcrErrors(text: string): string {
+  // 전화번호/숫자 맥락에서 자주 발생하는 문자 오인식 보정
+  const normalizeBetweenDigits = (
+    source: string,
+    pattern: RegExp,
+    replacement: string
+  ) => source.replace(pattern, (_m, a: string, b: string) => `${a}${replacement}${b}`);
+
+  let numericFixed = text;
+  numericFixed = normalizeBetweenDigits(numericFixed, /(\d)[oO](\d)/g, '0');
+  numericFixed = normalizeBetweenDigits(numericFixed, /(\d)[lI|](\d)/g, '1');
+  numericFixed = normalizeBetweenDigits(numericFixed, /(\d)[sS](\d)/g, '5');
+  numericFixed = normalizeBetweenDigits(numericFixed, /(\d)[bB](\d)/g, '8');
+
+  return numericFixed
+    .replace(/[•·●▪■□]/g, ' ')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[^\S\n]+/g, ' ');
+}
+
+function scoreTextQuality(text: string): number {
+  if (!text) return 0;
+
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+
+  const koreanMatches = trimmed.match(/[가-힣]/g) ?? [];
+  const digitMatches = trimmed.match(/\d/g) ?? [];
+  const phonePattern = /\d{2,3}[-.\s]?\d{3,4}[-.\s]?\d{4}/g;
+  const phoneMatches = trimmed.match(phonePattern) ?? [];
+  const noisyChars = trimmed.match(/[^\w가-힣\s\-\/:(),.]/g) ?? [];
+
+  return (
+    koreanMatches.length * 2 +
+    digitMatches.length +
+    phoneMatches.length * 20 -
+    noisyChars.length * 1.5
+  );
+}
+
+async function runOcr(
+  source: HTMLCanvasElement | File
+): Promise<string> {
+  const Tesseract = (await import('tesseract.js')).default;
+  const result = await Tesseract.recognize(source, 'kor+eng', {
+    tessedit_pageseg_mode: 6,
+  });
+  return result.data.text ?? '';
 }
 
 /**
@@ -82,18 +142,16 @@ export async function extractTextFromImage(
     throw new Error(`지원하지 않는 이미지 형식입니다. (${imageFile.type})`);
   }
 
-  const Tesseract = (await import('tesseract.js')).default;
-
-  // OCR 전처리 단계 추가
+  // OCR 전처리 단계
   const processedCanvas = await preprocessImage(imageFile);
+  const [rawText, processedText] = await Promise.all([
+    runOcr(imageFile),
+    runOcr(processedCanvas),
+  ]);
 
-  const result = await Tesseract.recognize(
-    processedCanvas,
-    'kor+eng',
-    {
-      tessedit_pageseg_mode: 6,
-    }
-  );
+  const rawScore = scoreTextQuality(rawText);
+  const processedScore = scoreTextQuality(processedText);
+  const pickedText = processedScore >= rawScore ? processedText : rawText;
 
-  return result.data.text;
+  return normalizeWhitespace(correctCommonOcrErrors(pickedText));
 }
