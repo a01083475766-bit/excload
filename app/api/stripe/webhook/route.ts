@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[Stripe Event Type]', event.type);
     console.log('[Stripe Webhook] event type:', event.type);
     console.log('[Stripe Webhook] event id:', event.id);
 
@@ -208,6 +209,7 @@ export async function POST(request: NextRequest) {
       (event.type as string) === 'invoice.payment.paid' ||
       (event.type as string) === 'invoice_payment.paid'
     ) {
+      console.log('[Stripe Event Type]', event.type);
       // Webhook payload 확인을 위한 로그
       console.log(`[Stripe Webhook] ${event.type} payload:`, JSON.stringify(event.data.object, null, 2));
       
@@ -449,6 +451,7 @@ export async function POST(request: NextRequest) {
 
         // userEmail 변수 설정 (로깅 및 Payment 기록용)
         userEmail = user.email;
+        console.log('[Stripe Webhook] userEmail 확인:', userEmail);
 
         // Invoice ID 추출 (중복 체크용)
         const invoiceId = invoice?.id || null;
@@ -494,6 +497,7 @@ export async function POST(request: NextRequest) {
             currentPoints: user.points,
             pointsToSet: 400000,
           });
+          console.log('포인트 지급 실행');
           
           const nextPlan =
             plan === 'PRO' || plan === 'YEARLY'
