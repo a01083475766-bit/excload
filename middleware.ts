@@ -19,16 +19,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /3-logistics-convert 경로는 허용 (3물류주문변환)
-  if (pathname.startsWith('/3-logistics-convert')) {
-    return NextResponse.next();
-  }
-
-  // /3pl-convert 경로는 허용
-  if (pathname.startsWith('/3pl-convert')) {
-    return NextResponse.next();
-  }
-
   // /history 경로는 허용
   if (pathname.startsWith('/history')) {
     return NextResponse.next();

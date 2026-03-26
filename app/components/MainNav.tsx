@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FileSpreadsheet, Warehouse, Package, Clock, HelpCircle, User, CreditCard, LogIn, Shield } from 'lucide-react';
+import { FileSpreadsheet, Warehouse, Clock, HelpCircle, User, CreditCard, LogIn, Shield } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
 /**
@@ -26,12 +26,10 @@ interface MenuItem {
   icon: typeof FileSpreadsheet;
 }
 
-/** 순서: 주문변환 → 물류주문변환 → 3물류주문변환 → 3피엘변환 → 변환내역 → 마이페이지 → 고객문의 → 서비스소개 → 가격 (로고·관리자·로그인은 별도) */
+/** 순서: 주문변환 → 물류주문변환 → 변환내역 → 마이페이지 → 고객문의 → 서비스소개 → 가격 (로고·관리자·로그인은 별도) */
 const menuItems: MenuItem[] = [
   { href: '/order-convert', label: '주문변환', icon: FileSpreadsheet },
   { href: '/logistics-convert', label: '물류주문변환', icon: Warehouse },
-  { href: '/3-logistics-convert', label: '3물류주문변환', icon: Package },
-  { href: '/3pl-convert', label: '3피엘변환', icon: FileSpreadsheet },
   { href: '/history', label: '변환내역', icon: Clock },
   { href: '/mypage', label: '마이페이지', icon: User },
   { href: '/contact', label: '고객문의', icon: HelpCircle },
