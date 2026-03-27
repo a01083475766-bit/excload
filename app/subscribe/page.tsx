@@ -139,6 +139,10 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
           alert('등록된 결제카드가 없습니다. 먼저 "토스로 카드 등록 (빌링)"을 완료해 주세요.');
           return;
         }
+        if (typeof data?.error === 'string' && data.error.includes('이미 이용 중인 구독')) {
+          alert(`${data.error}\n필요하시면 마이페이지에서 해지 예약 또는 환불 신청을 진행하실 수 있습니다.`);
+          return;
+        }
         alert(typeof data.error === 'string' ? data.error : '결제 승인에 실패했습니다.');
         return;
       }
@@ -171,7 +175,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
               선택한 {billingCycleText} 결제 주기에 따라 반복 결제되며, 언제든지 마이페이지에서 해지할 수 있습니다.
             </p>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 text-left">
-              국내 카드로 결제하려면 아래에서 카드를 등록 후 결제를 진행해주세요.
+              결제하실 카드를 등록한 후 결제를 진행해주세요.
             </p>
             {registeredCardSummary && (
               <p className="text-xs text-zinc-500 text-left">

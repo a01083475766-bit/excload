@@ -59,7 +59,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (user.plan === 'PRO' || user.plan === 'YEARLY') {
-      return NextResponse.json({ error: '이미 구독중' }, { status: 400 });
+      return NextResponse.json(
+        { error: '이미 이용 중인 구독입니다. 마이페이지에서 결제 상태를 확인해 주세요.' },
+        { status: 400 }
+      );
     }
 
     if (!user.tossBillingKey) {
@@ -74,7 +77,10 @@ export async function POST(request: NextRequest) {
       select: { plan: true },
     });
     if (userBeforeCharge?.plan === 'PRO' || userBeforeCharge?.plan === 'YEARLY') {
-      return NextResponse.json({ error: '이미 구독중' }, { status: 400 });
+      return NextResponse.json(
+        { error: '이미 이용 중인 구독입니다. 마이페이지에서 결제 상태를 확인해 주세요.' },
+        { status: 400 }
+      );
     }
 
     const res = await fetch(

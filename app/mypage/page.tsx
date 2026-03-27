@@ -250,7 +250,7 @@ export default function MyPage() {
       });
       const requestData = await requestResponse.json();
       if (!requestResponse.ok) {
-        alert(requestData?.error || '수동 환불 신청 처리 중 오류가 발생했습니다.');
+        alert(requestData?.error || '환불 신청 처리 중 오류가 발생했습니다.');
         return;
       }
 
@@ -266,8 +266,8 @@ export default function MyPage() {
       await fetchUser();
       router.refresh();
     } catch (error) {
-      console.error('[MyPage] 수동 환불 신청 실패:', error);
-      alert('수동 환불 신청 처리 중 오류가 발생했습니다.');
+      console.error('[MyPage] 환불 신청 실패:', error);
+      alert('환불 신청 처리 중 오류가 발생했습니다.');
     } finally {
       setIsRequestingRefund(false);
     }
@@ -584,7 +584,7 @@ export default function MyPage() {
       {showRefundModal && (
         <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center px-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-zinc-900 mb-2">수동 환불 신청</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 mb-2">환불 신청 작성</h3>
             <p className="text-sm text-zinc-600 mb-4 leading-relaxed">
               {refundGuideMessage || '환불 신청 정보를 입력해 주세요.'}
             </p>
