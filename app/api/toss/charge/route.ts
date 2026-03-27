@@ -138,23 +138,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await prisma.payment.create({
-      data: {
-        userId: user.id,
-        email: user.email,
-        plan: 'PRO',
-        amount: data.totalAmount ?? amount,
-        currency: 'KRW',
-        paymentProvider: 'TOSS',
-        tossPaymentKey: data.paymentKey,
-        tossOrderId: data.orderId ?? orderId,
-      },
-    });
+    const nextPointDate = new Date();
+    nextPointDate.setMonth(nextPointDate.getMonth() + 1);
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { plan: 'PRO' },
-    });
+    await prisma.$transaction([
+      prisma.payment.create({
+        data: {
+          userId: user.id,
+          email: user.email,
+          plan: 'PRO',
+          amount: data.totalAmount ?? amount,
+          currency: 'KRW',
+          paymentProvider: 'TOSS',
+          tossPaymentKey: data.paymentKey,
+          tossOrderId: data.orderId ?? orderId,
+        },
+      }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          plan: 'PRO',
+          points: 400000,
+          nextPointDate,
+        },
+      }),
+      prisma.pointHistory.create({
+        data: {
+          userId: user.id,
+          change: 400000,
+          reason: 'TOSS_PAYMENT_RESET',
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       ok: true,

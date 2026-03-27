@@ -27,12 +27,10 @@ export default function MyPage() {
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const [isRequestingRefund, setIsRequestingRefund] = useState(false);
   
-  // 컴포넌트 마운트 시 사용자 정보 가져오기
+  // 컴포넌트 마운트 시 사용자 정보를 항상 새로 가져와 최신 포인트/플랜 동기화
   useEffect(() => {
-    if (!user) {
-      fetchUser();
-    }
-  }, [user, fetchUser]);
+    fetchUser();
+  }, [fetchUser]);
 
   const handleLogout = async () => {
     try {
