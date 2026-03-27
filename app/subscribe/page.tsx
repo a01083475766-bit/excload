@@ -182,8 +182,6 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
       <h1 className="text-2xl font-bold mb-6">결제 진행</h1>
 
       <p className="mb-6 text-gray-600">
-        아래 버튼을 누르면 Stripe 안전 결제 페이지로 이동합니다.
-        <br />
         로그인이 필요하며, 미로그인 시 안내에 따라 로그인 후 다시 시도해 주세요.
       </p>
 
@@ -191,20 +189,21 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
         <p className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">선택한 플랜</p>
         <p className="text-lg mb-4 text-zinc-800 dark:text-zinc-200">{paidLabel}</p>
 
-        <p className="mb-4 text-sm text-zinc-700 dark:text-zinc-300 text-left leading-relaxed">
-          해당 상품은 정기결제 상품입니다.
-          <br />
-          매월 자동으로 결제되며, 언제든지 마이페이지에서 해지할 수 있습니다.
-        </p>
-
-        <button
-          type="button"
-          onClick={handleCheckout}
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {loading ? '연결 중…' : '결제 진행하기'}
-        </button>
+        {planKey === 'yearly' && (
+          <>
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? '연결 중…' : '결제 진행하기'}
+            </button>
+            <p className="mt-3 text-xs text-zinc-500 text-left">
+              위 버튼을 누르면 Stripe 안전 결제 페이지로 이동합니다.
+            </p>
+          </>
+        )}
 
         {planKey === 'monthly' && (
           <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-600 space-y-3">
@@ -214,10 +213,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
               매월 자동으로 결제되며, 언제든지 마이페이지에서 해지할 수 있습니다.
             </p>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 text-left">
-              한국 카드(토스)로 PRO 월 구독을 이용하려면 아래에서 카드를 등록한 뒤 결제 승인을 진행하세요.
-              <span className="block mt-1 text-xs text-zinc-500">
-                customerKey는 로그인 사용자 ID와 동일하게 전달됩니다.
-              </span>
+              국내 카드로 결제하려면 아래에서 카드를 등록 후 결제를 진행해주세요.
             </p>
             <button
               type="button"

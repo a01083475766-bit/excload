@@ -37,7 +37,7 @@ function TossSuccessInner() {
           return;
         }
         setStatus('ok');
-        setMessage('카드 등록이 완료되었습니다. 이제 결제 실행을 진행할 수 있습니다.');
+        setMessage('카드 등록이 완료되었습니다.\n이제 결제를 진행해주세요.');
       } catch (e) {
         if (cancelled) return;
         setStatus('error');
@@ -58,19 +58,13 @@ function TossSuccessInner() {
       )}
       {status === 'ok' && (
         <>
-          <p className="text-green-700 dark:text-green-400 mb-6">{message}</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <p className="text-green-700 dark:text-green-400 mb-6 whitespace-pre-line">{message}</p>
+          <div className="flex justify-center">
             <Link
               href="/subscribe?plan=monthly"
               className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700"
             >
-              구독 페이지로
-            </Link>
-            <Link
-              href="/mypage"
-              className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-5 py-2.5 font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-100 dark:hover:bg-zinc-800"
-            >
-              마이페이지
+              결제 진행하기
             </Link>
           </div>
         </>
