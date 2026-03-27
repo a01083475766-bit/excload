@@ -12,6 +12,11 @@ interface SubscriptionState {
   currentPeriodEnd: string | null;
 }
 
+interface TossCardState {
+  hasBillingKey: boolean;
+  cardSummary: string | null;
+}
+
 export default function MyPage() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
@@ -23,6 +28,10 @@ export default function MyPage() {
     status: null,
     cancelAtPeriodEnd: false,
     currentPeriodEnd: null,
+  });
+  const [tossCardState, setTossCardState] = useState<TossCardState>({
+    hasBillingKey: false,
+    cardSummary: null,
   });
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const [isRequestingRefund, setIsRequestingRefund] = useState(false);
@@ -75,6 +84,29 @@ export default function MyPage() {
       }
     };
     loadSubscriptionState();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadTossCardState = async () => {
+      try {
+        const response = await fetch('/api/toss/card', {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          setTossCardState({ hasBillingKey: false, cardSummary: null });
+          return;
+        }
+        const data = await response.json();
+        setTossCardState({
+          hasBillingKey: !!data?.hasBillingKey,
+          cardSummary: typeof data?.cardSummary === 'string' ? data.cardSummary : null,
+        });
+      } catch {
+        setTossCardState({ hasBillingKey: false, cardSummary: null });
+      }
+    };
+    loadTossCardState();
   }, [user]);
 
   // 플랜 타입을 한글로 변환
@@ -436,12 +468,31 @@ export default function MyPage() {
                       <div className="flex items-center gap-3">
                         <CreditCard className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
                         <div>
-                          <p className="font-medium text-zinc-900 dark:text-zinc-100">**** **** **** 1234</p>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400">만료일: 12/25</p>
+                          {tossCardState.hasBillingKey ? (
+                            <>
+                              <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                                {tossCardState.cardSummary || '등록된 카드'}
+                              </p>
+                              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                                자동결제용 카드가 등록되어 있습니다.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium text-zinc-900 dark:text-zinc-100">등록된 결제카드 없음</p>
+                              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                                구독 페이지에서 카드 등록 후 결제를 진행해 주세요.
+                              </p>
+                            </>
+                          )}
                         </div>
                       </div>
-                      <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-                        변경
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/subscribe?plan=${user.plan === 'YEARLY' ? 'yearly' : 'monthly'}`)}
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        {tossCardState.hasBillingKey ? '카드 변경' : '카드 등록'}
                       </button>
                     </div>
                   </div>

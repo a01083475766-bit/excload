@@ -16,6 +16,7 @@ export async function GET() {
         id: true,
         plan: true,
         cancelAtPeriodEnd: true,
+        nextPointDate: true,
       },
     });
 
@@ -41,7 +42,11 @@ export async function GET() {
       subscription: {
         status: subscription?.status ?? null,
         cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? user.cancelAtPeriodEnd ?? false,
-        currentPeriodEnd: subscription?.currentPeriodEnd?.toISOString() ?? null,
+        // Stripe 구독이 없더라도(예: 토스 빌링) 다음 결제 예정일을 표시할 수 있도록 보완
+        currentPeriodEnd:
+          subscription?.currentPeriodEnd?.toISOString() ??
+          user.nextPointDate?.toISOString() ??
+          null,
       },
     });
   } catch (error) {
