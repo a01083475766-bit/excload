@@ -185,8 +185,8 @@ export default function PricingPage() {
               엑클로드는 구독형(정기결제) 서비스입니다.
             </p>
             <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-              <li>신용카드, 간편결제 등 다양한 결제 수단을 지원합니다.</li>
-              <li>결제는 매월 자동으로 갱신됩니다.</li>
+              <li>현재 카드 결제를 지원합니다. (토스 빌링/기존 결제 연동)</li>
+              <li>정기결제는 선택한 플랜 주기(월/연) 기준으로 반복 결제가 진행됩니다.</li>
               <li>마이페이지에서 언제든지 해지 예약이 가능하며, 다음 결제일부터 중단됩니다.</li>
               <li>결제 후 즉시 서비스 이용이 가능합니다.</li>
               <li>서비스 제공기간: 월간 플랜 1개월 단위, 연간 플랜 12개월 단위</li>
@@ -199,8 +199,9 @@ export default function PricingPage() {
             </h2>
             <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
               <li>결제 후 7일 이내 환불 요청 가능</li>
-              <li>서비스 이용 이력이 없는 경우 전액 환불</li>
-              <li>서비스 이용 이력이 있는 경우 사용량에 따라 환불이 제한될 수 있음</li>
+              <li>환불은 환불 신청 접수 후 검토를 통해 처리됩니다.</li>
+              <li>필요 시 환불 계좌 정보 확인이 요청될 수 있습니다.</li>
+              <li>환불 처리 결과는 영업일 기준 3~5일 내 안내됩니다.</li>
             </ul>
             <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
               자세한 내용은{' '}
@@ -230,12 +231,12 @@ export default function PricingPage() {
               },
               {
                 question: '결제는 어떻게 진행되나요?',
-                answer: '현재 신용카드 결제를 지원합니다.',
+                answer: '현재 카드 결제를 지원하며, 플랜 주기에 따라 정기결제가 갱신됩니다.',
               },
               {
                 question: '환불 정책은 어떻게 되나요?',
                 answer:
-                  '결제 후 7일 이내 요청이 가능하며, 서비스 이용 이력이 없으면 전액 환불될 수 있습니다. 이용 이력이 있으면 제한될 수 있습니다. 상세는 환불 정책 페이지를 참고해 주세요.',
+                  '결제 후 7일 이내 환불 신청이 가능하며, 접수 후 정책 기준에 따라 검토·처리됩니다. 처리 결과는 영업일 기준 3~5일 내 안내됩니다. 상세는 환불 정책 페이지를 참고해 주세요.',
               },
             ].map((faq, index) => (
               <div key={index} className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">

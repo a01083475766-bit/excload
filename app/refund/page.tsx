@@ -32,7 +32,7 @@ export default function RefundPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold text-zinc-900">4. 정기결제</h2>
           <p className="mb-2">
-            정기결제는 이용자가 해지하지 않는 한 자동으로 갱신됩니다.
+            정기결제는 선택한 플랜 주기(월/연)에 따라 반복 결제가 진행됩니다.
           </p>
           <p className="mb-2">
             이용자는 언제든지 마이페이지에서 해지할 수 있으며, 해지 시 다음 결제일부터 자동결제가
@@ -45,7 +45,14 @@ export default function RefundPage() {
 
         <section>
           <h2 className="mb-2 text-base font-semibold text-zinc-900">5. 환불 방법</h2>
-          <p>환불은 결제 수단(카드 등)을 통해 동일하게 처리됩니다.</p>
+          <p className="mb-2">
+            환불은 마이페이지에서 신청 접수 후 정책 기준에 따라 검토·처리됩니다.
+          </p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>환불 신청 시 은행명, 계좌번호, 예금주, 회신 이메일 정보를 입력해야 합니다.</li>
+            <li>검토 완료 후 환불 처리 결과를 회신 이메일로 안내합니다.</li>
+            <li>환불 반영까지는 영업일 기준 3~5일이 소요될 수 있습니다.</li>
+          </ul>
         </section>
 
         <section>

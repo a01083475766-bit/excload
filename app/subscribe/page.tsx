@@ -38,6 +38,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
     planKey === 'monthly'
       ? 'PRO 플랜 (월 4,000원, VAT 별도)'
       : '연간 플랜 (년 40,000원, VAT 별도)';
+  const billingCycleText = planKey === 'yearly' ? '연 단위' : '월 단위';
   const tossAmount = planKey === 'yearly' ? 40000 : 4000;
   const tossOrderName = planKey === 'yearly' ? 'EXCLOAD YEARLY 구독' : 'EXCLOAD PRO 구독';
   const tossButtonLabel =
@@ -167,7 +168,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
             <p className="text-sm text-zinc-700 dark:text-zinc-300 text-left leading-relaxed">
               해당 상품은 정기결제 상품입니다.
               <br />
-              매월 자동으로 결제되며, 언제든지 마이페이지에서 해지할 수 있습니다.
+              선택한 {billingCycleText} 결제 주기에 따라 반복 결제되며, 언제든지 마이페이지에서 해지할 수 있습니다.
             </p>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 text-left">
               국내 카드로 결제하려면 아래에서 카드를 등록 후 결제를 진행해주세요.

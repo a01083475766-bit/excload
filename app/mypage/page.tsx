@@ -35,6 +35,12 @@ export default function MyPage() {
   });
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const [isRequestingRefund, setIsRequestingRefund] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundGuideMessage, setRefundGuideMessage] = useState('');
+  const [refundBankName, setRefundBankName] = useState('');
+  const [refundAccountNumber, setRefundAccountNumber] = useState('');
+  const [refundAccountHolder, setRefundAccountHolder] = useState('');
+  const [refundReplyEmail, setRefundReplyEmail] = useState('');
   
   // 컴포넌트 마운트 시 사용자 정보를 항상 새로 가져와 최신 포인트/플랜 동기화
   useEffect(() => {
@@ -170,77 +176,60 @@ export default function MyPage() {
 
   const handleRefundRequest = async () => {
     const ok = window.confirm(
-      '환불 가능 여부를 확인합니다.\n- 결제 직후/미사용: 자동 결제취소\n- 사용 이력 있음: 수동 환불 신청\n진행하시겠습니까?'
+      '환불 신청 정보를 입력하면 접수됩니다.\n검토 후 영업일 기준 3~5일 내 회신 이메일로 안내드립니다.\n진행하시겠습니까?'
     );
     if (!ok) return;
 
+    setRefundGuideMessage(
+      '환불 신청은 접수 후 순차 검토됩니다. 처리 결과는 회신 이메일로 안내드립니다.'
+    );
+    setRefundBankName('');
+    setRefundAccountNumber('');
+    setRefundAccountHolder('');
+    setRefundReplyEmail(user?.email || '');
+    setShowRefundModal(true);
+  };
+
+  const submitManualRefund = async () => {
+    const bankName = refundBankName.trim();
+    const accountNumber = refundAccountNumber.trim();
+    const accountHolder = refundAccountHolder.trim();
+    const replyEmail = refundReplyEmail.trim();
+
+    if (!bankName || !accountNumber || !accountHolder || !replyEmail) {
+      alert('은행명, 계좌번호, 예금주, 회신 이메일을 모두 입력해 주세요.');
+      return;
+    }
+
     try {
       setIsRequestingRefund(true);
-      // 1) 먼저 자동 결제취소 가능 여부를 체크
-      const checkResponse = await fetch('/api/stripe/request-refund', {
+      const requestResponse = await fetch('/api/stripe/request-refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ checkOnly: true }),
+        body: JSON.stringify({
+          bankName,
+          accountNumber,
+          accountHolder,
+          replyEmail,
+        }),
       });
-      const checkData = await checkResponse.json();
-      if (!checkResponse.ok) {
-        alert(checkData?.error || '환불 가능 여부 확인 중 오류가 발생했습니다.');
+      const requestData = await requestResponse.json();
+      if (!requestResponse.ok) {
+        alert(requestData?.error || '수동 환불 신청 처리 중 오류가 발생했습니다.');
         return;
       }
 
-      if (checkData?.manualReview && checkData?.requiresBank) {
-        const bankName = (window.prompt('환불 은행명을 입력해 주세요.') || '').trim();
-        if (!bankName) return;
-        const accountNumber = (window.prompt('환불 계좌번호를 입력해 주세요. (- 없이 입력 가능)') || '').trim();
-        if (!accountNumber) return;
-        const accountHolder = (window.prompt('예금주명을 입력해 주세요.') || '').trim();
-        if (!accountHolder) return;
-
-        const requestResponse = await fetch('/api/stripe/request-refund', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            bankName,
-            accountNumber,
-            accountHolder,
-          }),
-        });
-        const requestData = await requestResponse.json();
-        if (!requestResponse.ok) {
-          alert(requestData?.error || '수동 환불 신청 처리 중 오류가 발생했습니다.');
-          return;
-        }
-
-        alert(
-          requestData?.message ||
-            '환불 신청이 접수되었습니다. 영업일 기준 3~5일 내 처리 결과를 안내드립니다.'
-        );
-      } else {
-        const applyResponse = await fetch('/api/stripe/request-refund', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ checkOnly: false }),
-        });
-        const applyData = await applyResponse.json();
-        if (!applyResponse.ok) {
-          alert(applyData?.error || '자동 결제취소 처리 중 오류가 발생했습니다.');
-          return;
-        }
-
-        alert(
-          applyData?.message ||
-            '결제 취소가 접수되었습니다. 결제 수단 환불 반영까지 영업일 기준 3~5일 소요될 수 있습니다.'
-        );
-      }
-
+      setShowRefundModal(false);
+      alert(
+        requestData?.message ||
+          '환불 신청이 접수되었습니다. 영업일 기준 3~5일 내 처리 결과를 안내드립니다.'
+      );
       await fetchUser();
       router.refresh();
     } catch (error) {
-      console.error('[MyPage] 환불 신청 실패:', error);
-      alert('환불 신청 처리 중 오류가 발생했습니다.');
+      console.error('[MyPage] 수동 환불 신청 실패:', error);
+      alert('수동 환불 신청 처리 중 오류가 발생했습니다.');
     } finally {
       setIsRequestingRefund(false);
     }
@@ -406,7 +395,7 @@ export default function MyPage() {
                           </button>
                         </div>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                          환불 정책 기준에 따라 자동 판정되며, 조건 미충족 시 고객센터 검토 대상으로 안내됩니다.
+                          환불은 신청 접수 후 정책 기준에 따라 검토·처리되며, 결과는 회신 이메일로 안내됩니다.
                         </p>
                       </div>
                     ) : null}
@@ -548,6 +537,65 @@ export default function MyPage() {
           </div>
         </div>
       </main>
+      {showRefundModal && (
+        <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-zinc-900 mb-2">수동 환불 신청</h3>
+            <p className="text-sm text-zinc-600 mb-4 leading-relaxed">
+              {refundGuideMessage || '환불 신청 정보를 입력해 주세요.'}
+            </p>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="은행명"
+                value={refundBankName}
+                onChange={(e) => setRefundBankName(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="계좌번호"
+                value={refundAccountNumber}
+                onChange={(e) => setRefundAccountNumber(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="예금주명"
+                value={refundAccountHolder}
+                onChange={(e) => setRefundAccountHolder(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              />
+              <input
+                type="email"
+                placeholder="회신 이메일"
+                value={refundReplyEmail}
+                onChange={(e) => setRefundReplyEmail(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowRefundModal(false)}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={submitManualRefund}
+                disabled={isRequestingRefund}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {isRequestingRefund ? '신청 중...' : '환불 신청하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
