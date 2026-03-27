@@ -42,7 +42,7 @@ export default function RootLayout({
         </div>
         <footer className="mt-8 border-t border-zinc-200 px-4 py-6 text-center text-xs leading-6 text-zinc-500">
           <p>
-            상호: 엑클로드(EXCLOAD) | 대표자: 최영순 | 사업자등록번호: 834-19-02117 | 주소: 인천시
+            상호: 원클 (엑클로드 EXCLOAD) | 대표자: 최영순 | 사업자등록번호: 834-19-02117 | 주소: 인천시
             미추홀구 낙섬중로129 상가4동 207호
           </p>
           <p>
