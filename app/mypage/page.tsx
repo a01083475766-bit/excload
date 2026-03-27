@@ -102,7 +102,11 @@ export default function MyPage() {
     try {
       setIsUpdatingSubscription(true);
       const action = subscriptionState.cancelAtPeriodEnd ? 'resume' : 'cancel';
-      const response = await fetch('/api/stripe/cancel-subscription', {
+      // Stripe 구독 상태가 있으면 Stripe API, 없으면 일반 해지예약 API를 사용
+      const endpoint = subscriptionState.status
+        ? '/api/stripe/cancel-subscription'
+        : '/api/subscription/cancel-reservation';
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
