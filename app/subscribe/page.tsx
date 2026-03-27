@@ -1,12 +1,26 @@
 /**
- * 플랜별 후속 안내. 무료는 결제 없음, 유료는 Stripe 연동(app/api/stripe/*).
- * ⚠️ EXCLOAD CONSTITUTION v4.2 — 결제 UI는 본 페이지·Stripe API에서만 다룹니다.
+ * 플랜별 후속 안내. 무료는 결제 없음, 유료는 Stripe·토스 연동(app/api/stripe/*, app/api/toss/*).
+ * ⚠️ EXCLOAD CONSTITUTION v4.2 — 결제 UI는 본 페이지·결제 API에서만 다룹니다.
  */
 'use client';
 
 import Link from 'next/link';
 import { Suspense, useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+
+function loadTossPaymentsScript(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  const w = window as Window & { TossPayments?: unknown };
+  if (w.TossPayments) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://js.tosspayments.com/v1/payment';
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('토스 결제창 SDK를 불러오지 못했습니다.'));
+    document.head.appendChild(s);
+  });
+}
 
 const VALID_PLANS = ['free', 'monthly', 'yearly'] as const;
 type PlanKey = (typeof VALID_PLANS)[number];
@@ -17,11 +31,87 @@ function isPlanKey(v: string | null): v is PlanKey {
 
 function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   const [loading, setLoading] = useState(false);
+  const [tossLoading, setTossLoading] = useState(false);
+  const [tossChargeLoading, setTossChargeLoading] = useState(false);
 
   const paidLabel =
     planKey === 'monthly'
       ? 'PRO 플랜 (월 4,000원, VAT 별도)'
       : '연간 플랜 (년 40,000원, VAT 별도)';
+
+  const handleTossBillingAuth = useCallback(async () => {
+    const clientKey =
+      process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY?.trim();
+    if (!clientKey) {
+      alert(
+        'NEXT_PUBLIC_TOSS_CLIENT_KEY가 설정되지 않았습니다. 배포 환경 변수를 확인해 주세요.'
+      );
+      return;
+    }
+
+    try {
+      const sessionRes = await fetch('/api/auth/session', { credentials: 'include' });
+      const session = await sessionRes.json();
+      if (!session?.user?.id) {
+        window.location.href = '/login';
+        return;
+      }
+
+      setTossLoading(true);
+      await loadTossPaymentsScript();
+      const w = window as Window & {
+        TossPayments: (key: string) => {
+          requestBillingAuth: (
+            method: string,
+            params: { customerKey: string; successUrl: string; failUrl: string }
+          ) => Promise<void>;
+        };
+      };
+      const tossPayments = w.TossPayments(clientKey);
+      const origin = window.location.origin;
+      await tossPayments.requestBillingAuth('카드', {
+        customerKey: session.user.id,
+        successUrl: `${origin}/toss/success`,
+        failUrl: `${origin}/toss/fail`,
+      });
+    } catch (error) {
+      console.error(error);
+      if (error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === 'USER_CANCEL') {
+        return;
+      }
+      alert(error instanceof Error ? error.message : '토스 카드 등록을 시작하지 못했습니다.');
+    } finally {
+      setTossLoading(false);
+    }
+  }, []);
+
+  const handleTossCharge = useCallback(async () => {
+    try {
+      setTossChargeLoading(true);
+      const res = await fetch('/api/toss/charge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          amount: 4000,
+          orderName: 'EXCLOAD PRO 구독',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(typeof data.error === 'string' ? data.error : '결제 승인에 실패했습니다.');
+        return;
+      }
+      alert('토스 결제가 완료되었습니다. 마이페이지에서 플랜을 확인해 주세요.');
+      window.location.href = '/mypage';
+    } catch (e) {
+      console.error(e);
+      alert('결제 요청 중 오류가 발생했습니다.');
+    } finally {
+      setTossChargeLoading(false);
+    }
+  }, []);
 
   const handleCheckout = useCallback(async () => {
     console.log('🔥 결제 버튼 클릭됨');
@@ -99,7 +189,13 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
 
       <div className="border rounded-lg p-6 border-zinc-200 dark:border-zinc-700">
         <p className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">선택한 플랜</p>
-        <p className="text-lg mb-6 text-zinc-800 dark:text-zinc-200">{paidLabel}</p>
+        <p className="text-lg mb-4 text-zinc-800 dark:text-zinc-200">{paidLabel}</p>
+
+        <p className="mb-4 text-sm text-zinc-700 dark:text-zinc-300 text-left leading-relaxed">
+          해당 상품은 정기결제 상품입니다.
+          <br />
+          매월 자동으로 결제되며, 언제든지 마이페이지에서 해지할 수 있습니다.
+        </p>
 
         <button
           type="button"
@@ -109,6 +205,38 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
         >
           {loading ? '연결 중…' : '결제 진행하기'}
         </button>
+
+        {planKey === 'monthly' && (
+          <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-600 space-y-3">
+            <p className="text-sm text-zinc-700 dark:text-zinc-300 text-left leading-relaxed">
+              해당 상품은 정기결제 상품입니다.
+              <br />
+              매월 자동으로 결제되며, 언제든지 마이페이지에서 해지할 수 있습니다.
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 text-left">
+              한국 카드(토스)로 PRO 월 구독을 이용하려면 아래에서 카드를 등록한 뒤 결제 승인을 진행하세요.
+              <span className="block mt-1 text-xs text-zinc-500">
+                customerKey는 로그인 사용자 ID와 동일하게 전달됩니다.
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={handleTossBillingAuth}
+              disabled={tossLoading}
+              className="w-full bg-[#0064FF] text-white py-3 rounded-lg hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed text-[15px] font-medium"
+            >
+              {tossLoading ? '토스 연결 중…' : '토스로 카드 등록 (빌링)'}
+            </button>
+            <button
+              type="button"
+              onClick={handleTossCharge}
+              disabled={tossChargeLoading}
+              className="w-full border border-[#0064FF] text-[#0064FF] dark:text-blue-400 dark:border-blue-400 py-3 rounded-lg hover:bg-blue-50 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed text-[15px] font-medium"
+            >
+              {tossChargeLoading ? '결제 처리 중…' : '토스로 PRO 결제 실행 (4,000원)'}
+            </button>
+          </div>
+        )}
       </div>
 
       <p className="mt-8 text-sm text-gray-500">

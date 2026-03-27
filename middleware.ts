@@ -59,6 +59,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /toss — 토스 카드 등록 리다이렉트(success/fail)
+  if (pathname.startsWith('/toss')) {
+    return NextResponse.next();
+  }
+
   // /about 경로는 허용 (서비스 설명 페이지)
   if (pathname.startsWith('/about')) {
     return NextResponse.next();
