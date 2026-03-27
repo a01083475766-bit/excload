@@ -14,6 +14,14 @@ function subtractDays(date: Date, days: number): Date {
 
 export async function POST(_request: NextRequest) {
   try {
+    const body = (await _request.json().catch(() => ({}))) as {
+      checkOnly?: boolean;
+      bankName?: string;
+      accountNumber?: string;
+      accountHolder?: string;
+    };
+    const checkOnly = !!body.checkOnly;
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
@@ -37,6 +45,39 @@ export async function POST(_request: NextRequest) {
     }
 
     const acceptManualReview = async (message: string) => {
+      if (checkOnly) {
+        return NextResponse.json({
+          success: true,
+          manualReview: true,
+          requiresBank: true,
+          message,
+        });
+      }
+
+      const bankName = (body.bankName || '').trim();
+      const accountNumber = (body.accountNumber || '').trim();
+      const accountHolder = (body.accountHolder || '').trim();
+
+      if (!bankName || !accountNumber || !accountHolder) {
+        return NextResponse.json(
+          { error: '수동 환불을 위해 은행명, 계좌번호, 예금주를 입력해 주세요.' },
+          { status: 400 }
+        );
+      }
+
+      await prisma.refundRequest.create({
+        data: {
+          userId: user.id,
+          paymentId: latestPayment?.id ?? null,
+          type: 'REFUND',
+          status: 'REQUESTED',
+          bankName,
+          accountNumber,
+          accountHolder,
+          reason: message,
+        },
+      });
+
       await prisma.pointHistory.create({
         data: {
           userId: user.id,
@@ -48,6 +89,7 @@ export async function POST(_request: NextRequest) {
       return NextResponse.json({
         success: true,
         manualReview: true,
+        requiresBank: false,
         message,
       });
     };
@@ -87,7 +129,7 @@ export async function POST(_request: NextRequest) {
 
     if (usedPointHistory) {
       return acceptManualReview(
-        '환불 신청이 접수되었습니다. 결제 이후 사용 이력이 있어 정책 검토 후 영업일 기준 3일 이내 안내드리겠습니다.'
+        '결제 이후 사용 이력이 확인되어 자동 결제취소는 어렵습니다. 환불 신청 접수 후 영업일 기준 3~5일 내 안내드립니다.'
       );
     }
 
@@ -113,8 +155,17 @@ export async function POST(_request: NextRequest) {
 
     if (!paymentIntentId) {
       return acceptManualReview(
-        '환불 신청이 접수되었습니다. 결제 정보 확인 후 영업일 기준 3일 이내 처리 결과를 안내드리겠습니다.'
+        '결제 정보 확인이 필요하여 수동 환불로 접수됩니다. 영업일 기준 3~5일 내 처리 결과를 안내드립니다.'
       );
+    }
+
+    if (checkOnly) {
+      return NextResponse.json({
+        success: true,
+        manualReview: false,
+        requiresBank: false,
+        message: '결제 직후/미사용 상태로 확인되어 자동 결제취소가 가능합니다.',
+      });
     }
 
     await stripe.refunds.create({
@@ -135,6 +186,16 @@ export async function POST(_request: NextRequest) {
     }
 
     await prisma.$transaction([
+      prisma.refundRequest.create({
+        data: {
+          userId: user.id,
+          paymentId: latestPayment.id,
+          type: 'AUTO_CANCEL',
+          status: 'COMPLETED',
+          reason: '결제 직후/미사용 자동 결제취소',
+          processedAt: new Date(),
+        },
+      }),
       prisma.user.update({
         where: { id: user.id },
         data: {
@@ -153,7 +214,9 @@ export async function POST(_request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: '환불 신청이 접수되어 처리되었습니다. 결제 수단 환불 완료까지 영업일 기준 수 일이 소요될 수 있습니다.',
+      manualReview: false,
+      requiresBank: false,
+      message: '결제 취소가 접수되었습니다. 결제 수단 환불 반영까지 영업일 기준 3~5일 소요될 수 있습니다.',
     });
   } catch (error) {
     console.error('[Refund API] error:', error);

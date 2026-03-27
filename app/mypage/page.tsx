@@ -170,26 +170,72 @@ export default function MyPage() {
 
   const handleRefundRequest = async () => {
     const ok = window.confirm(
-      '환불 정책 기준(결제 후 7일 이내, 결제 이후 포인트 사용 이력 없음)에 따라 환불 가능 여부를 확인합니다. 진행하시겠습니까?'
+      '환불 가능 여부를 확인합니다.\n- 결제 직후/미사용: 자동 결제취소\n- 사용 이력 있음: 수동 환불 신청\n진행하시겠습니까?'
     );
     if (!ok) return;
 
     try {
       setIsRequestingRefund(true);
-      const response = await fetch('/api/stripe/request-refund', {
+      // 1) 먼저 자동 결제취소 가능 여부를 체크
+      const checkResponse = await fetch('/api/stripe/request-refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({ checkOnly: true }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        alert(data?.error || '환불 신청 처리 중 오류가 발생했습니다.');
+      const checkData = await checkResponse.json();
+      if (!checkResponse.ok) {
+        alert(checkData?.error || '환불 가능 여부 확인 중 오류가 발생했습니다.');
         return;
       }
-      alert(
-        data?.message ||
-          '환불 신청이 접수되었습니다. 결제 수단 환불 완료까지 영업일 기준 수 일이 소요될 수 있습니다.'
-      );
+
+      if (checkData?.manualReview && checkData?.requiresBank) {
+        const bankName = (window.prompt('환불 은행명을 입력해 주세요.') || '').trim();
+        if (!bankName) return;
+        const accountNumber = (window.prompt('환불 계좌번호를 입력해 주세요. (- 없이 입력 가능)') || '').trim();
+        if (!accountNumber) return;
+        const accountHolder = (window.prompt('예금주명을 입력해 주세요.') || '').trim();
+        if (!accountHolder) return;
+
+        const requestResponse = await fetch('/api/stripe/request-refund', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            bankName,
+            accountNumber,
+            accountHolder,
+          }),
+        });
+        const requestData = await requestResponse.json();
+        if (!requestResponse.ok) {
+          alert(requestData?.error || '수동 환불 신청 처리 중 오류가 발생했습니다.');
+          return;
+        }
+
+        alert(
+          requestData?.message ||
+            '환불 신청이 접수되었습니다. 영업일 기준 3~5일 내 처리 결과를 안내드립니다.'
+        );
+      } else {
+        const applyResponse = await fetch('/api/stripe/request-refund', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ checkOnly: false }),
+        });
+        const applyData = await applyResponse.json();
+        if (!applyResponse.ok) {
+          alert(applyData?.error || '자동 결제취소 처리 중 오류가 발생했습니다.');
+          return;
+        }
+
+        alert(
+          applyData?.message ||
+            '결제 취소가 접수되었습니다. 결제 수단 환불 반영까지 영업일 기준 3~5일 소요될 수 있습니다.'
+        );
+      }
+
       await fetchUser();
       router.refresh();
     } catch (error) {

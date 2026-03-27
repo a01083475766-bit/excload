@@ -65,6 +65,20 @@ model PointHistory {
   user User @relation(fields: [userId], references: [id])
 }
 
+model RefundRequest {
+  id            String   @id @default(cuid())
+  userId        String
+  paymentId     String?
+  type          String   // AUTO_CANCEL | REFUND
+  status        String   // REQUESTED | APPROVED | REJECTED | COMPLETED
+  bankName      String?
+  accountNumber String?
+  accountHolder String?
+  reason        String?
+  createdAt     DateTime @default(now())
+  processedAt   DateTime?
+}
+
 model Payment {
   id                   String   @id @default(cuid())
   userId               String
