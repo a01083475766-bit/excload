@@ -69,6 +69,7 @@ export default function AkmanClient() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userPlanFilter, setUserPlanFilter] = useState<'ALL' | 'FREE' | 'PRO' | 'YEARLY'>('ALL');
   const [userDateFilter, setUserDateFilter] = useState<'ALL' | 'today' | 'thisMonth'>('ALL');
 
@@ -144,6 +145,34 @@ export default function AkmanClient() {
     setUserPlanFilter(plan);
     setUserDateFilter(date);
     await loadUsers(plan, date);
+  };
+
+  const deleteUserFromList = async (user: AdminUserRow) => {
+    if (deletingUserId) return;
+    const ok = window.confirm(`정말로 ${user.email} 계정을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
+    if (!ok) return;
+
+    setDeletingUserId(user.id);
+    try {
+      const res = await fetch('/api/akman/delete-user', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || '사용자 삭제에 실패했습니다.');
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      alert(typeof data.message === 'string' ? data.message : '사용자가 삭제되었습니다.');
+      // 통계 카드 숫자도 맞춰지도록 재조회
+      await loadUsers(userPlanFilter, userDateFilter);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '사용자 삭제에 실패했습니다.');
+    } finally {
+      setDeletingUserId(null);
+    }
   };
 
   const menuItems: { href: string; title: string; desc: string }[] = [
@@ -271,7 +300,7 @@ export default function AkmanClient() {
                     onClick={() => router.push(`/akman/users/${encodeURIComponent(u.id)}`)}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '2fr 90px 110px 110px',
+                      gridTemplateColumns: '2fr 90px 110px 110px 90px',
                       gap: '8px',
                       alignItems: 'center',
                       padding: '10px 12px',
@@ -284,6 +313,27 @@ export default function AkmanClient() {
                     <div>{u.plan}</div>
                     <div>{fmt(u.points)}P</div>
                     <div>{new Date(u.createdAt).toLocaleDateString('ko-KR')}</div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void deleteUserFromList(u);
+                      }}
+                      disabled={deletingUserId === u.id}
+                      style={{
+                        padding: '6px 10px',
+                        border: '1px solid #ef4444',
+                        color: '#b91c1c',
+                        background: '#fff',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: deletingUserId === u.id ? 'not-allowed' : 'pointer',
+                        opacity: deletingUserId === u.id ? 0.6 : 1,
+                      }}
+                    >
+                      {deletingUserId === u.id ? '삭제 중' : '삭제'}
+                    </button>
                   </div>
                 ))}
               </div>

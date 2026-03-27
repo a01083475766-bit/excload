@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FileSpreadsheet, Warehouse, Clock, HelpCircle, User, CreditCard, LogIn, Shield } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
+import { signOut } from 'next-auth/react';
 
 /**
  * 클라이언트에서 관리자 이메일인지 확인
@@ -26,15 +27,15 @@ interface MenuItem {
   icon: typeof FileSpreadsheet;
 }
 
-/** 순서: 주문변환 → 물류주문변환 → 변환내역 → 마이페이지 → 고객문의 → 서비스소개 → 가격 (로고·관리자·로그인은 별도) */
+/** 순서: 주문변환 → 물류주문변환 → 변환내역 → 고객문의 → 서비스소개 → 가격 → 마이페이지 (로고·관리자·로그인/로그아웃은 별도) */
 const menuItems: MenuItem[] = [
   { href: '/order-convert', label: '주문변환', icon: FileSpreadsheet },
   { href: '/logistics-convert', label: '물류주문변환', icon: Warehouse },
   { href: '/history', label: '변환내역', icon: Clock },
-  { href: '/mypage', label: '마이페이지', icon: User },
   { href: '/contact', label: '고객문의', icon: HelpCircle },
   { href: '/about', label: '서비스소개', icon: HelpCircle },
   { href: '/pricing', label: '가격', icon: CreditCard },
+  { href: '/mypage', label: '마이페이지', icon: User },
 ];
 
 const linkClass = `
@@ -49,6 +50,7 @@ const linkClass = `
 export default function MainNav() {
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
+  const clearUser = useUserStore((state) => state.clearUser);
   const isAdmin = user && isAdminEmailClient(user.email);
 
   const adminMenuItem: MenuItem = { href: '/akman', label: '관리자페이지', icon: Shield };
@@ -117,6 +119,27 @@ export default function MainNav() {
               <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-600" />
             )}
           </Link>
+        )}
+
+        {user && (
+          <button
+            type="button"
+            onClick={async () => {
+              await signOut({ redirect: false });
+              clearUser();
+              window.location.href = '/auth/login';
+            }}
+            className={`
+              ${linkClass}
+              min-w-[100px] max-w-[120px]
+              font-normal text-gray-500 hover:text-blue-600
+              border-0 bg-transparent
+              cursor-pointer
+            `}
+          >
+            <LogIn className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">로그아웃</span>
+          </button>
         )}
       </div>
     </nav>
