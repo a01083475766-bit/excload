@@ -370,15 +370,6 @@ export default function AuthPage() {
             </form>
           )}
 
-          {/* 안내 메시지 */}
-          {mode === 'signup' && (
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-800">
-                💡 무료 회원으로 가입 시 10,000 포인트가 지급됩니다.
-              </p>
-            </div>
-          )}
-
           {/* 테스트 계정 정보 (로그인 모드일 때만) */}
           {mode === 'login' && (
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">

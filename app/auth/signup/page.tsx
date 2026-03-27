@@ -194,13 +194,6 @@ export default function SignupPage() {
               </a>
             </p>
           </div>
-
-          {/* 안내 메시지 */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-800">
-              💡 무료 회원으로 가입 시 10,000 포인트가 지급됩니다.
-            </p>
-          </div>
         </div>
       </div>
     </div>

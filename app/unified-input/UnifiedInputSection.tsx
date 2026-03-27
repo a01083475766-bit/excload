@@ -166,12 +166,11 @@ export function UnifiedInputSection({
           <textarea
             className="w-full h-32 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             placeholder={
-              '예)\n' +
-              '받는사람: 홍길동\n' +
+              '예) 받는 사람: 홍길동\n' +
               '전화번호: 010-1234-5678\n' +
-              '주소: 서울시 강남구 테헤란로 123 4층\n' +
-              '상품: 무선 마우스 블랙 / 수량 2개\n' +
-              '요청사항: 부재 시 경비실에 맡겨주세요'
+              '주소: 서울시 강남구 테헤란로 123\n' +
+              '상품명: 무선 블랙 마우스 / 수량: 2개\n' +
+              '요청사항: 부재 시 문 앞에 놓아주세요'
             }
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
