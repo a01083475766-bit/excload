@@ -5,7 +5,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useMemo, useState, useCallback } from 'react';
+import { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 function loadTossPaymentsScript(): Promise<void> {
@@ -30,14 +30,47 @@ function isPlanKey(v: string | null): v is PlanKey {
 }
 
 function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
-  const [loading, setLoading] = useState(false);
   const [tossLoading, setTossLoading] = useState(false);
   const [tossChargeLoading, setTossChargeLoading] = useState(false);
+  const [registeredCardSummary, setRegisteredCardSummary] = useState<string | null>(null);
 
   const paidLabel =
     planKey === 'monthly'
       ? 'PRO 플랜 (월 4,000원, VAT 별도)'
       : '연간 플랜 (년 40,000원, VAT 별도)';
+  const tossAmount = planKey === 'yearly' ? 40000 : 4000;
+  const tossOrderName = planKey === 'yearly' ? 'EXCLOAD YEARLY 구독' : 'EXCLOAD PRO 구독';
+  const tossButtonLabel =
+    planKey === 'yearly' ? '토스로 YEARLY 결제 실행 (40,000원)' : '토스로 PRO 결제 실행 (4,000원)';
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/toss/card', { credentials: 'include' });
+        if (!res.ok) {
+          if (!cancelled) setRegisteredCardSummary(null);
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.hasBillingKey && typeof data.cardSummary === 'string' && data.cardSummary.trim()) {
+          setRegisteredCardSummary(data.cardSummary.trim());
+        } else if (data?.hasBillingKey) {
+          setRegisteredCardSummary('등록된 카드 정보');
+        } else {
+          setRegisteredCardSummary(null);
+        }
+      } catch {
+        if (!cancelled) setRegisteredCardSummary(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleTossBillingAuth = useCallback(async () => {
     const clientKey =
@@ -72,8 +105,8 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
       const origin = window.location.origin;
       await tossPayments.requestBillingAuth('카드', {
         customerKey: session.user.id,
-        successUrl: `${origin}/toss/success`,
-        failUrl: `${origin}/toss/fail`,
+        successUrl: `${origin}/toss/success?plan=${planKey}`,
+        failUrl: `${origin}/toss/fail?plan=${planKey}`,
       });
     } catch (error) {
       console.error(error);
@@ -94,12 +127,17 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          amount: 4000,
-          orderName: 'EXCLOAD PRO 구독',
+          planType: planKey,
+          amount: tossAmount,
+          orderName: tossOrderName,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
+        if (data?.error === 'billingKey 없음') {
+          alert('등록된 결제카드가 없습니다. 먼저 "토스로 카드 등록 (빌링)"을 완료해 주세요.');
+          return;
+        }
         alert(typeof data.error === 'string' ? data.error : '결제 승인에 실패했습니다.');
         return;
       }
@@ -111,71 +149,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
     } finally {
       setTossChargeLoading(false);
     }
-  }, []);
-
-  const handleCheckout = useCallback(async () => {
-    console.log('🔥 결제 버튼 클릭됨');
-    try {
-      const sessionRes = await fetch('/api/auth/session', { credentials: 'include' });
-      const session = await sessionRes.json();
-      console.log('🔥 세션 체크 결과:', {
-        hasSession: !!session?.user,
-        email: session?.user?.email,
-      });
-      if (!session?.user) {
-        console.log('🔥 세션 없음 -> /login 이동');
-        window.location.href = '/login';
-        return;
-      }
-
-      setLoading(true);
-      try {
-        console.log('🔥 Stripe API 호출 직전');
-        const res = await fetch(
-          `${window.location.origin}/api/stripe/create-checkout-session`,
-          {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            planType: planKey === 'yearly' ? 'yearly' : 'monthly',
-          }),
-          }
-        );
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          alert(typeof data.error === 'string' ? data.error : '결제 연결 실패');
-          return;
-        }
-
-        if (data.changedPlan) {
-          alert('플랜이 즉시 변경되었습니다. 마이페이지에서 상태를 확인해 주세요.');
-          window.location.href = '/mypage';
-          return;
-        }
-
-        if (data.alreadyOnPlan) {
-          alert(typeof data.message === 'string' ? data.message : '이미 해당 플랜을 사용 중입니다.');
-          window.location.href = '/mypage';
-          return;
-        }
-
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          alert('결제 연결 실패');
-        }
-      } finally {
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error(error);
-      alert('결제 오류 발생');
-    }
-  }, [planKey]);
+  }, [planKey, tossAmount, tossOrderName]);
 
   return (
     <div className="max-w-[600px] mx-auto py-20 px-6 text-center">
@@ -189,24 +163,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
         <p className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">선택한 플랜</p>
         <p className="text-lg mb-4 text-zinc-800 dark:text-zinc-200">{paidLabel}</p>
 
-        {planKey === 'yearly' && (
-          <>
-            <button
-              type="button"
-              onClick={handleCheckout}
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? '연결 중…' : '결제 진행하기'}
-            </button>
-            <p className="mt-3 text-xs text-zinc-500 text-left">
-              위 버튼을 누르면 Stripe 안전 결제 페이지로 이동합니다.
-            </p>
-          </>
-        )}
-
-        {planKey === 'monthly' && (
-          <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-600 space-y-3">
+        <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-600 space-y-3">
             <p className="text-sm text-zinc-700 dark:text-zinc-300 text-left leading-relaxed">
               해당 상품은 정기결제 상품입니다.
               <br />
@@ -215,13 +172,22 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
             <p className="text-sm text-zinc-600 dark:text-zinc-400 text-left">
               국내 카드로 결제하려면 아래에서 카드를 등록 후 결제를 진행해주세요.
             </p>
+            {registeredCardSummary && (
+              <p className="text-xs text-zinc-500 text-left">
+                현재 등록된 결제카드: {registeredCardSummary}
+              </p>
+            )}
             <button
               type="button"
               onClick={handleTossBillingAuth}
               disabled={tossLoading}
               className="w-full bg-[#0064FF] text-white py-3 rounded-lg hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed text-[15px] font-medium"
             >
-              {tossLoading ? '토스 연결 중…' : '토스로 카드 등록 (빌링)'}
+              {tossLoading
+                ? '토스 연결 중…'
+                : registeredCardSummary
+                  ? '등록 카드 변경하기'
+                  : '토스로 카드 등록 (빌링)'}
             </button>
             <button
               type="button"
@@ -229,10 +195,9 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
               disabled={tossChargeLoading}
               className="w-full border border-[#0064FF] text-[#0064FF] dark:text-blue-400 dark:border-blue-400 py-3 rounded-lg hover:bg-blue-50 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed text-[15px] font-medium"
             >
-              {tossChargeLoading ? '결제 처리 중…' : '토스로 PRO 결제 실행 (4,000원)'}
+              {tossChargeLoading ? '결제 처리 중…' : tossButtonLabel}
             </button>
-          </div>
-        )}
+        </div>
       </div>
 
       <p className="mt-8 text-sm text-gray-500">

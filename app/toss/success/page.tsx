@@ -8,6 +8,8 @@ function TossSuccessInner() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  const [cardSummary, setCardSummary] = useState('');
+  const plan = searchParams.get('plan') === 'yearly' ? 'yearly' : 'monthly';
 
   useEffect(() => {
     const customerKey = searchParams.get('customerKey') || '';
@@ -36,6 +38,19 @@ function TossSuccessInner() {
           setMessage(typeof data.error === 'string' ? data.error : '빌링키 저장에 실패했습니다.');
           return;
         }
+        const company =
+          typeof data.cardCompany === 'string' && data.cardCompany.trim()
+            ? data.cardCompany.trim()
+            : '';
+        const number =
+          typeof data.maskedCardNumber === 'string' && data.maskedCardNumber.trim()
+            ? data.maskedCardNumber.trim()
+            : '';
+        if (company || number) {
+          setCardSummary([company, number].filter(Boolean).join(' '));
+        } else {
+          setCardSummary('');
+        }
         setStatus('ok');
         setMessage('카드 등록이 완료되었습니다.\n이제 결제를 진행해주세요.');
       } catch (e) {
@@ -59,9 +74,14 @@ function TossSuccessInner() {
       {status === 'ok' && (
         <>
           <p className="text-green-700 dark:text-green-400 mb-6 whitespace-pre-line">{message}</p>
+          {cardSummary && (
+            <p className="text-sm text-zinc-600 mb-4">
+              등록된 결제카드: <span className="font-medium text-zinc-800">{cardSummary}</span>
+            </p>
+          )}
           <div className="flex justify-center">
             <Link
-              href="/subscribe?plan=monthly"
+              href={`/subscribe?plan=${plan}`}
               className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700"
             >
               결제 진행하기
@@ -73,7 +93,7 @@ function TossSuccessInner() {
         <>
           <p className="text-red-600 dark:text-red-400 mb-6">{message}</p>
           <Link
-            href="/subscribe?plan=monthly"
+            href={`/subscribe?plan=${plan}`}
             className="text-blue-600 underline underline-offset-2"
           >
             구독 페이지로 돌아가기

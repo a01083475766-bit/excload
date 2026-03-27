@@ -8,6 +8,7 @@ function TossFailInner() {
   const searchParams = useSearchParams();
   const code = searchParams.get('code') || '';
   const msg = searchParams.get('message') || '';
+  const plan = searchParams.get('plan') === 'yearly' ? 'yearly' : 'monthly';
 
   return (
     <div className="max-w-[560px] mx-auto py-16 px-6 text-center">
@@ -21,7 +22,7 @@ function TossFailInner() {
         <div className="mb-8" />
       )}
       <Link
-        href="/subscribe?plan=monthly"
+        href={`/subscribe?plan=${plan}`}
         className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700"
       >
         구독 페이지로 돌아가기

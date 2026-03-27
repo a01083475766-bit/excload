@@ -31,13 +31,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
-    const body = await request.json().catch(() => ({}));
-    const amount =
-      typeof body.amount === 'number' && body.amount > 0 ? body.amount : DEFAULT_AMOUNT;
+    const body = await request.json().catch(() => ({} as Record<string, unknown>));
+    const planType = body.planType === 'yearly' ? 'YEARLY' : 'PRO';
+    const expectedAmount = planType === 'YEARLY' ? 40000 : DEFAULT_AMOUNT;
+    const amount = expectedAmount;
     const orderName =
       typeof body.orderName === 'string' && body.orderName.trim()
         ? body.orderName.trim()
-        : DEFAULT_ORDER_NAME;
+        : planType === 'YEARLY'
+          ? 'EXCLOAD YEARLY 구독'
+          : DEFAULT_ORDER_NAME;
 
     const { prisma } = await import('@/app/lib/prisma');
     const user = await prisma.user.findUnique({
@@ -146,7 +149,7 @@ export async function POST(request: NextRequest) {
         data: {
           userId: user.id,
           email: user.email,
-          plan: 'PRO',
+          plan: planType,
           amount: data.totalAmount ?? amount,
           currency: 'KRW',
           paymentProvider: 'TOSS',
@@ -157,7 +160,7 @@ export async function POST(request: NextRequest) {
       prisma.user.update({
         where: { id: user.id },
         data: {
-          plan: 'PRO',
+          plan: planType,
           points: 400000,
           nextPointDate,
         },

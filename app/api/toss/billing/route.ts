@@ -57,7 +57,14 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    const data = (await res.json()) as { billingKey?: string; message?: string; code?: string };
+    const data = (await res.json()) as {
+      billingKey?: string;
+      cardCompany?: string;
+      cardNumber?: string;
+      card?: { number?: string };
+      message?: string;
+      code?: string;
+    };
 
     if (!res.ok) {
       console.error('[Toss Billing] issue failed:', res.status, data);
@@ -79,12 +86,22 @@ export async function POST(request: NextRequest) {
     }
 
     const { prisma } = await import('@/app/lib/prisma');
+    const cardCompany = data.cardCompany ?? null;
+    const maskedCardNumber = data.cardNumber ?? data.card?.number ?? null;
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { tossBillingKey: billingKey },
+      data: {
+        tossBillingKey: billingKey,
+        tossCardCompany: cardCompany,
+        tossCardNumberMask: maskedCardNumber,
+      },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      cardCompany,
+      maskedCardNumber,
+    });
   } catch (e) {
     console.error('[Toss Billing]', e);
     return NextResponse.json(

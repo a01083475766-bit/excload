@@ -40,6 +40,8 @@ model User {
 
   /// 토스 자동결제(빌링) — customerKey는 항상 user.id 와 동일하게 사용
   tossBillingKey     String?
+  tossCardCompany    String?
+  tossCardNumberMask String?
 
   pointHistory     PointHistory[]
   subscriptions   Subscription[]
