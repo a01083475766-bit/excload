@@ -51,6 +51,30 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // 무료 플랜 기본 포인트 보정: 기존 계정이 5,000 미만이면 즉시 보정
+      if (user.plan === 'FREE' && user.points < 5000) {
+        const normalizedNextPointDate =
+          user.nextPointDate ??
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const healed = await prisma.user.update({
+          where: { email: userEmail },
+          data: {
+            points: 5000,
+            nextPointDate: normalizedNextPointDate,
+          },
+          select: {
+            id: true,
+            email: true,
+            plan: true,
+            points: true,
+            nextPointDate: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+        Object.assign(user, healed);
+      }
+
       // 월 포인트 자동 지급 (Lazy Update)
       const now = new Date();
       if (user.nextPointDate && now >= user.nextPointDate) {

@@ -65,13 +65,16 @@ export async function POST(request: NextRequest) {
     try {
       const { prisma } = await import('@/app/lib/prisma');
       
-      // 사용자 생성 (이메일 인증 전이므로 points = 0, emailVerified = null)
+      const initialPoints =
+        plan === 'FREE' ? 5000 : plan === 'PRO' || plan === 'YEARLY' ? 400000 : 5000;
+
+      // 사용자 생성
       const newUser = await prisma.user.create({
         data: {
           email,
           passwordHash, // 비밀번호 해시 저장
           plan,
-          points: 0, // 이메일 인증 전에는 포인트 없음
+          points: initialPoints,
           emailVerified: null, // 이메일 인증 전
           deviceId: deviceId || null,
           lastIp: ip,
