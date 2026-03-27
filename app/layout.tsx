@@ -47,7 +47,7 @@ export default function RootLayout({
           </p>
           <p>
             전화번호: 010-8347-5766 | 이메일: sacom5766@naver.com | 통신판매업 신고번호:
-            심사진행중 (승인 후 기재 예정)
+            2026-인천미추홀-0416
           </p>
           <div className="mt-2 flex items-center justify-center gap-3">
             <a href="/terms" className="underline underline-offset-2 hover:text-zinc-700">
