@@ -17,6 +17,11 @@ interface TossCardState {
   cardSummary: string | null;
 }
 
+interface RefundState {
+  hasPendingRefund: boolean;
+  createdAt: string | null;
+}
+
 export default function MyPage() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
@@ -35,6 +40,10 @@ export default function MyPage() {
   });
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const [isRequestingRefund, setIsRequestingRefund] = useState(false);
+  const [refundState, setRefundState] = useState<RefundState>({
+    hasPendingRefund: false,
+    createdAt: null,
+  });
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundGuideMessage, setRefundGuideMessage] = useState('');
   const [refundBankName, setRefundBankName] = useState('');
@@ -90,6 +99,26 @@ export default function MyPage() {
       }
     };
     loadSubscriptionState();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadRefundState = async () => {
+      try {
+        const response = await fetch('/api/user/refund-status', {
+          credentials: 'include',
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setRefundState({
+          hasPendingRefund: !!data?.hasPendingRefund,
+          createdAt: data?.refundRequest?.createdAt ?? null,
+        });
+      } catch (error) {
+        console.error('[MyPage] 환불 상태 조회 실패:', error);
+      }
+    };
+    loadRefundState();
   }, [user]);
 
   useEffect(() => {
@@ -175,6 +204,11 @@ export default function MyPage() {
   };
 
   const handleRefundRequest = async () => {
+    if (refundState.hasPendingRefund) {
+      alert('이미 환불 신청이 접수되어 검토 중입니다.');
+      return;
+    }
+
     const ok = window.confirm(
       '환불 신청 정보를 입력하면 접수됩니다.\n검토 후 영업일 기준 3~5일 내 회신 이메일로 안내드립니다.\n진행하시겠습니까?'
     );
@@ -221,6 +255,10 @@ export default function MyPage() {
       }
 
       setShowRefundModal(false);
+      setRefundState({
+        hasPendingRefund: true,
+        createdAt: new Date().toISOString(),
+      });
       alert(
         requestData?.message ||
           '환불 신청이 접수되었습니다. 영업일 기준 3~5일 내 처리 결과를 안내드립니다.'
@@ -388,14 +426,20 @@ export default function MyPage() {
                           </button>
                           <button
                             onClick={handleRefundRequest}
-                            disabled={isRequestingRefund}
+                            disabled={isRequestingRefund || refundState.hasPendingRefund}
                             className="px-6 py-3 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            {isRequestingRefund ? '확인 중...' : '환불 신청하기'}
+                            {isRequestingRefund
+                              ? '확인 중...'
+                              : refundState.hasPendingRefund
+                                ? '환불 신청 완료'
+                                : '환불 신청하기'}
                           </button>
                         </div>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                          환불은 신청 접수 후 정책 기준에 따라 검토·처리되며, 결과는 회신 이메일로 안내됩니다.
+                          {refundState.hasPendingRefund
+                            ? `환불 신청이 접수되어 검토 중입니다${refundState.createdAt ? ` (${new Date(refundState.createdAt).toLocaleDateString('ko-KR')} 접수)` : ''}. 신청 시점에 잔여 포인트는 차감(보류) 처리됩니다.`
+                            : '환불은 신청 접수 후 정책 기준에 따라 검토·처리되며, 신청 시점에 잔여 포인트는 차감(보류) 처리됩니다. 결과는 회신 이메일로 안내됩니다.'}
                         </p>
                       </div>
                     ) : null}

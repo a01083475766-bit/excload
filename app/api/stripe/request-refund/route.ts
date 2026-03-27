@@ -27,7 +27,7 @@ export async function POST(_request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, email: true, plan: true },
+      select: { id: true, email: true, plan: true, points: true },
     });
 
     if (!user) {
@@ -67,6 +67,23 @@ export async function POST(_request: NextRequest) {
       );
     }
 
+    const existingRequest = await prisma.refundRequest.findFirst({
+      where: {
+        userId: user.id,
+        paymentId: latestPayment.id,
+        status: { in: ['REQUESTED', 'APPROVED'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, status: true },
+    });
+
+    if (existingRequest) {
+      return NextResponse.json(
+        { error: '이미 환불 신청이 접수되어 검토 중입니다.' },
+        { status: 400 }
+      );
+    }
+
     const now = new Date();
     const refundLimit = subtractDays(now, REFUND_WINDOW_DAYS);
     const outOfWindow = latestPayment.createdAt < refundLimit;
@@ -88,6 +105,8 @@ export async function POST(_request: NextRequest) {
       `회신 이메일: ${replyEmail}`,
     ].join(' | ');
 
+    const pointDeductAmount = user.points > 0 ? user.points : 0;
+
     await prisma.$transaction([
       prisma.refundRequest.create({
         data: {
@@ -104,9 +123,13 @@ export async function POST(_request: NextRequest) {
       prisma.pointHistory.create({
         data: {
           userId: user.id,
-          change: 0,
-          reason: 'REFUND_REQUEST_REVIEW',
+          change: -pointDeductAmount,
+          reason: 'REFUND_REQUEST_HOLD',
         },
+      }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: { points: 0 },
       }),
     ]);
 

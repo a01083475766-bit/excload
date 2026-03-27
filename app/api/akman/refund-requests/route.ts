@@ -51,17 +51,75 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'id와 유효한 status가 필요합니다.' }, { status: 400 });
     }
 
-    const updated = await prisma.refundRequest.update({
-      where: { id },
-      data: {
-        status,
-        processedAt: status === 'REQUESTED' ? null : new Date(),
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const current = await tx.refundRequest.findUnique({
+        where: { id },
+        select: { id: true, userId: true, status: true },
+      });
+
+      if (!current) {
+        throw new Error('환불 신청 내역을 찾을 수 없습니다.');
+      }
+
+      const next = await tx.refundRequest.update({
+        where: { id },
+        data: {
+          status,
+          processedAt: status === 'REQUESTED' ? null : new Date(),
+        },
+      });
+
+      // REJECTED 전환 시, 환불 신청 시점에 차감(보류)했던 포인트를 1회 복구
+      const rejectedNow =
+        status === 'REJECTED' && (current.status === 'REQUESTED' || current.status === 'APPROVED');
+
+      if (rejectedNow) {
+        const restoreReason = `REFUND_REQUEST_RESTORE:${id}`;
+        const alreadyRestored = await tx.pointHistory.findFirst({
+          where: {
+            userId: current.userId,
+            reason: restoreReason,
+          },
+          select: { id: true },
+        });
+
+        if (!alreadyRestored) {
+          const holdHistory = await tx.pointHistory.findFirst({
+            where: {
+              userId: current.userId,
+              reason: 'REFUND_REQUEST_HOLD',
+              change: { lt: 0 },
+            },
+            orderBy: { createdAt: 'desc' },
+            select: { change: true },
+          });
+
+          const restoreAmount = holdHistory ? Math.abs(holdHistory.change) : 0;
+          if (restoreAmount > 0) {
+            await tx.user.update({
+              where: { id: current.userId },
+              data: { points: { increment: restoreAmount } },
+            });
+            await tx.pointHistory.create({
+              data: {
+                userId: current.userId,
+                change: restoreAmount,
+                reason: restoreReason,
+              },
+            });
+          }
+        }
+      }
+
+      return next;
     });
 
     return NextResponse.json({ success: true, request: updated });
   } catch (error) {
     console.error('[Akman Refund Requests API][PATCH] error:', error);
-    return NextResponse.json({ error: '환불 신청 상태 변경 실패' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : '환불 신청 상태 변경 실패' },
+      { status: 500 }
+    );
   }
 }
