@@ -1865,21 +1865,10 @@ export default function LogisticsConvertPage() {
         {/* Hero 섹션 - 세로 흐름 구조 (물류 주문 변환 UI 껍데기) */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
-            {/* 서비스 설명 텍스트 영역 + 포인트 표시 */}
-            <div className="relative flex items-center justify-center">
-              {/* 물류 주문 변환 안내 컨테이너 (항상 중앙) */}
-              <div className="flex flex-col gap-2 text-center">
-                <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-                  물류 주문 변환
-                </h1>
-                <p className="text-sm text-gray-500 leading-tight">
-                  엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류센터 업로드 파일로 자동 변환합니다.
-                </p>
-              </div>
-              
-              {/* 포인트 표시 UI (오른쪽 절대 위치) */}
+            {/* 포인트 표시 (타이틀 영역 제거 — 네비게이션에서 페이지 구분) */}
+            <div className="relative flex items-center justify-end">
               {user && (
-                <div className="absolute right-0 bg-gradient-to-r from-blue-500 to-sky-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
+                <div className="bg-gradient-to-r from-blue-500 to-sky-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
                   <div className="flex items-center gap-2 justify-end">
                     <Coins className="w-4 h-4" />
                     <span className="font-medium text-sm">잔여포인트</span>
