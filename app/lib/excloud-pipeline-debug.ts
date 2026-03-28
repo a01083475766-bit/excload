@@ -13,3 +13,11 @@ export function isExcloudPipelineDebugServer(): boolean {
 export function isExcloudPipelineDebugClient(): boolean {
   return process.env.NEXT_PUBLIC_EXCLOUD_DEBUG_PIPELINE === '1';
 }
+
+/** Stage1 mappedBaseHeaders refine 전후 비교 로그 (서버·클라 모두) */
+export function isExcloudPipelineDebugMapping(): boolean {
+  return (
+    process.env.EXCLOUD_DEBUG_PIPELINE === '1' ||
+    process.env.NEXT_PUBLIC_EXCLOUD_DEBUG_PIPELINE === '1'
+  );
+}

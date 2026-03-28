@@ -15,6 +15,8 @@
 import { ALIAS_DICTIONARY } from '../base/alias-dictionary';
 import { BASE_HEADERS } from '../base/base-headers';
 import { prisma } from '@/app/lib/prisma';
+import { isExcloudPipelineDebugMapping } from '@/app/lib/excloud-pipeline-debug';
+import { refineMappedBaseHeadersCouriers } from './refine-mapped-base-headers';
 
 /**
  * 매핑 결과 인터페이스
@@ -297,9 +299,17 @@ export async function mapTemplateToBase(
       throw error;
     }
   }
-  
+
+  const beforeRefine = [...mappedBaseHeaders];
+  const refinedMapped = refineMappedBaseHeadersCouriers(courierHeaders, mappedBaseHeaders);
+
+  if (isExcloudPipelineDebugMapping()) {
+    console.log('[Stage1 mappedBaseHeaders BEFORE refine]', beforeRefine);
+    console.log('[Stage1 mappedBaseHeaders AFTER refine]', refinedMapped);
+  }
+
   return {
-    mappedBaseHeaders,
+    mappedBaseHeaders: refinedMapped,
     unknownHeaders,
   };
 }
