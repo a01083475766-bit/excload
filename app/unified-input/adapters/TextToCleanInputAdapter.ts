@@ -26,14 +26,11 @@ export async function runTextToCleanInputAdapter(text: string) {
   if (!data?.orders || !Array.isArray(data.orders)) {
     throw new Error('normalize-29 응답 형식 오류');
   }
+
+  // 서버는 파싱 실패·빈 orders 시 1건 fallback 주문을 채워 반환하고 meta.usedFallback을 씁니다.
+  // 여기서 에러를 던지면 복구된 행을 쓰지 못해 텍스트 변환이 항상 실패한 것처럼 보입니다.
   if (data?.meta?.usedFallback) {
-    const reason = data?.meta?.fallbackReason;
-    console.warn('[normalize-29 fallback detected]', data.meta);
-    throw new Error(
-      reason === 'json_parse_failed'
-        ? 'AI 응답 파싱에 실패했습니다. 잠시 후 다시 시도해 주세요.'
-        : 'AI가 주문 항목을 제대로 분리하지 못했습니다. 입력 텍스트 형식을 확인해 주세요.'
-    );
+    console.warn('[normalize-29] 서버 fallback 주문 사용', data.meta);
   }
 
   const orders = data.orders;
