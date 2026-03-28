@@ -19,6 +19,7 @@ import type { ExtendedCleanInputFile } from './types';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import type { MergePipelineResult, FixedInput } from '@/app/pipeline/merge/types';
 import { runMergePipeline } from '@/app/pipeline/merge/merge-pipeline';
+import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
 
 export interface UnifiedInputPipelineParams {
   /** Stage0/1을 거치지 않고 생성된 CleanInputFile 확장 타입 */
@@ -68,6 +69,22 @@ export async function runUnifiedInputOrderPipelines(
 
   const orderStandardFile = await response.json();
 
+  const dbg = isExcloudPipelineDebugClient();
+  if (dbg && orderStandardFile?.rows?.[0]) {
+    const standardRow = orderStandardFile.rows[0] as Record<string, string>;
+    console.log(
+      '[EXCLOUD DEBUG ① 브라우저] Stage2 standardRow — 기준헤더 전체(이름·주소·전화·상품명 등 아래 표에서 확인)'
+    );
+    console.table(standardRow);
+    console.log('[EXCLOUD DEBUG ① 브라우저] Stage2 핵심 필드만', {
+      받는사람: standardRow['받는사람'],
+      받는사람전화1: standardRow['받는사람전화1'],
+      받는사람주소1: standardRow['받는사람주소1'],
+      상품명: standardRow['상품명'],
+      수량: standardRow['수량'],
+    });
+  }
+
   // Stage3 실행 가능 여부 확인
   if (!templateBridgeFile) {
     // 템플릿이 없으면 Stage2 결과까지만 반환
@@ -78,6 +95,30 @@ export async function runUnifiedInputOrderPipelines(
   }
 
   const fixedInput: FixedInput = { ...(fixedHeaderValues || {}) };
+
+  if (dbg) {
+    const { courierHeaders, mappedBaseHeaders } = templateBridgeFile;
+    const alignment = courierHeaders.map((courierHeader, index) => ({
+      index,
+      courierHeader,
+      mappedBaseHeader: mappedBaseHeaders[index] ?? '(null)',
+    }));
+    console.log(
+      '[EXCLOUD DEBUG ③ 브라우저] Stage3 — courierHeader ↔ mappedBaseHeader (같은 baseHeader가 여러 열에 붙었는지 확인)'
+    );
+    console.table(alignment);
+    const watch = ['받는사람', '받는사람전화1', '받는사람주소1', '상품명'];
+    for (const base of watch) {
+      const idxs = alignment
+        .filter((row) => row.mappedBaseHeader === base)
+        .map((row) => row.index);
+      if (idxs.length > 1) {
+        console.warn(
+          `[EXCLOUD DEBUG ③] 기준헤더 "${base}" 를 가리키는 택배 열이 ${idxs.length}개입니다 (인덱스: ${idxs.join(', ')})`
+        );
+      }
+    }
+  }
 
   const mergeResult = await runMergePipeline(
     templateBridgeFile,

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { run as runOrderPipeline } from '@/app/pipeline/order/order-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
+import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
 
 /**
  * API Route Handler
@@ -47,7 +48,22 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Stage2 OUTPUT]', result);
-    
+
+    if (isExcloudPipelineDebugServer() && result?.rows?.length) {
+      const row0 = result.rows[0] as Record<string, string>;
+      console.log('[EXCLOUD DEBUG ② 서버] Stage2 rows[0] — 핵심 기준헤더', {
+        받는사람: row0['받는사람'],
+        받는사람전화1: row0['받는사람전화1'],
+        받는사람전화2: row0['받는사람전화2'],
+        받는사람우편번호: row0['받는사람우편번호'],
+        받는사람주소1: row0['받는사람주소1'],
+        받는사람주소2: row0['받는사람주소2'],
+        상품명: row0['상품명'],
+        수량: row0['수량'],
+      });
+      console.log('[EXCLOUD DEBUG ② 서버] Stage2 rows[0] — 전체(JSON)', JSON.stringify(row0, null, 2));
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     console.error('[Order Pipeline API] 에러:', error);

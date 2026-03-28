@@ -34,7 +34,18 @@ export async function runTextToCleanInputAdapter(text: string) {
   }
 
   const orders = data.orders;
-  console.log('[ORDERS]', orders);
+
+  // 브라우저 콘솔에서 AI(또는 fallback)가 넣은 기준헤더 29칸을 표로 확인
+  orders.forEach((order: any, idx: number) => {
+    const row: Record<string, string> = {};
+    for (const h of BASE_HEADERS) {
+      row[h] = order[h] == null ? '' : String(order[h]);
+    }
+    console.log(
+      `[normalize-29] 주문 ${idx + 1}/${orders.length} 기준헤더 — 받는사람·받는사람전화1·받는사람주소1·상품명 등 아래 표에서 확인 (빈 칸은 미추출)`
+    );
+    console.table(row);
+  });
 
   const rows = orders.map((order: any) =>
     BASE_HEADERS.map((header) => order[header] ?? '')
