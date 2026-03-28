@@ -13,6 +13,70 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
+ * AI 비활성/파싱 실패 시: 원문을 주소와 상품명에 중복 넣지 않음.
+ * 상품명 한 칸에만 두어 미리보기에서 주소·상품명이 동일해지는 현상을 막고, 수동 분리를 유도.
+ */
+function buildNormalize29RawFallbackOrder(raw: string): Record<string, string> {
+  const t = raw.trim();
+  return {
+    주문번호: '',
+    보내는사람: '',
+    보내는사람전화1: '',
+    보내는사람전화2: '',
+    보내는사람우편번호: '',
+    보내는사람주소1: '',
+    보내는사람주소2: '',
+    받는사람: '',
+    받는사람전화1: '',
+    받는사람전화2: '',
+    받는사람우편번호: '',
+    받는사람주소1: '',
+    받는사람주소2: '',
+    주문자: '',
+    주문자연락처: '',
+    주문일시: '',
+    결제금액: '',
+    상품명: t ? `[분리필요·원문] ${t}` : '',
+    추가상품: '',
+    상품옵션: '',
+    상품옵션1: '',
+    수량: '1',
+    배송메시지: '',
+    운임구분: '',
+    운임: '',
+    운송장번호: '',
+    창고메모: '',
+    내부메모: t ? '자동 분리 실패. 상품명란 원문을 참고해 이름·전화·주소·상품으로 나눠 주세요.' : '',
+    출고번호: '',
+  };
+}
+
+/**
+ * AI가 원문 한 줄을 주소·상품명에 그대로 복제한 경우 → 한 필드로 모아 사용자가 수동 정리하기 쉽게 함
+ */
+function collapseDuplicateFullLineDump(
+  order: Record<string, string>,
+  userText: string
+): Record<string, string> {
+  const u = userText.trim();
+  if (!u || u.length < 8) return order;
+  const a = (order['받는사람주소1'] || '').trim();
+  const p = (order['상품명'] || '').trim();
+  if (a === p && a === u) {
+    const prevMemo = (order['내부메모'] || '').trim();
+    return {
+      ...order,
+      받는사람주소1: '',
+      상품명: `[분리필요·원문] ${u}`,
+      내부메모: prevMemo
+        ? `${prevMemo} | AI가 주소·상품에 동일 원문을 넣어 상품명으로만 모았습니다.`
+        : 'AI가 주소·상품에 동일 원문을 넣어 상품명으로만 모았습니다.',
+    };
+  }
+  return order;
+}
+
+/**
  * AI Gateway 요청 타입
  */
 type AIGatewayRequest = 
@@ -36,39 +100,7 @@ export async function POST(request: NextRequest) {
       if (type === 'normalize-29') {
         const fallbackText = typeof body?.text === 'string' ? body.text : '';
         return NextResponse.json({
-          orders: [
-            {
-              "주문번호": "",
-              "보내는사람": "",
-              "보내는사람전화1": "",
-              "보내는사람전화2": "",
-              "보내는사람우편번호": "",
-              "보내는사람주소1": "",
-              "보내는사람주소2": "",
-              "받는사람": "",
-              "받는사람전화1": "",
-              "받는사람전화2": "",
-              "받는사람우편번호": "",
-              "받는사람주소1": fallbackText,
-              "받는사람주소2": "",
-              "주문자": "",
-              "주문자연락처": "",
-              "주문일시": "",
-              "결제금액": "",
-              "상품명": fallbackText,
-              "추가상품": "",
-              "상품옵션": "",
-              "상품옵션1": "",
-              "수량": "1",
-              "배송메시지": "",
-              "운임구분": "",
-              "운임": "",
-              "운송장번호": "",
-              "창고메모": "",
-              "내부메모": "",
-              "출고번호": ""
-            }
-          ],
+          orders: [buildNormalize29RawFallbackOrder(fallbackText)],
         });
       }
       return NextResponse.json({ error: '현재 분석 기능을 사용할 수 없습니다.' }, { status: 400 });
@@ -264,6 +296,10 @@ D. 보내는사람
 - 전화번호는 가능한 원문 형태 유지(예: 010-1234-5678).
 - 불필요한 라벨 문자(예: "이름:", "주소:")는 값에서 제거.
 - 공백 정리 후 반환.
+
+[한 줄·라벨 없는 입력 예시 — 반드시 필드 분리]
+입력: 김철수 서울시 강남구 테헤란로 123 010-1234-5678 사과1kg
+→ 받는사람="김철수", 받는사람전화1="010-1234-5678", 받는사람주소1="서울시 강남구 테헤란로 123", 상품명="사과1kg" (주소·상품명에 위 한 줄 전체를 넣지 말 것)
 `;
 
   const apiUrl = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
@@ -320,7 +356,8 @@ D. 보내는사람
     let orders = Array.isArray(parsed?.orders) ? parsed.orders : [];
     orders = orders
       .filter((order: any) => order && typeof order === 'object' && !Array.isArray(order))
-      .map((order: Record<string, any>) => normalizeOrderObject(order));
+      .map((order: Record<string, any>) => normalizeOrderObject(order))
+      .map((order) => collapseDuplicateFullLineDump(order, body.text));
 
     if (!Array.isArray(orders) || orders.length === 0) {
       console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 강제 생성');
@@ -328,37 +365,7 @@ D. 보내는사람
         fallbackReason = 'empty_orders';
       }
 
-      orders = [{
-        "주문번호": "",
-        "보내는사람": "",
-        "보내는사람전화1": "",
-        "보내는사람전화2": "",
-        "보내는사람우편번호": "",
-        "보내는사람주소1": "",
-        "보내는사람주소2": "",
-        "받는사람": "",
-        "받는사람전화1": "",
-        "받는사람전화2": "",
-        "받는사람우편번호": "",
-        "받는사람주소1": body.text || "",
-        "받는사람주소2": "",
-        "주문자": "",
-        "주문자연락처": "",
-        "주문일시": "",
-        "결제금액": "",
-        "상품명": body.text || "",
-        "추가상품": "",
-        "상품옵션": "",
-        "상품옵션1": "",
-        "수량": "1",
-        "배송메시지": "",
-        "운임구분": "",
-        "운임": "",
-        "운송장번호": "",
-        "창고메모": "",
-        "내부메모": "",
-        "출고번호": ""
-      }].map((order) => normalizeOrderObject(order));
+      orders = [normalizeOrderObject(buildNormalize29RawFallbackOrder(body.text || ''))];
     }
 
     console.log('[PARSED ORDERS]', orders);
