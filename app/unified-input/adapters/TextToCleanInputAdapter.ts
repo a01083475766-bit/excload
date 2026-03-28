@@ -1,7 +1,20 @@
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 import { enrichOrdersWithHeuristicLine } from '@/app/lib/heuristic-korean-order-line';
 
-export async function runTextToCleanInputAdapter(text: string) {
+export type TextNormalizeMeta = {
+  usedFallback: boolean;
+  fallbackReason?: string;
+};
+
+/** 텍스트 → CleanInputFile + normalize-29 메타(폴백 여부). Stage2 전달 시 normalizeMeta는 제거하세요. */
+export type TextToCleanInputAdapterResult = {
+  headers: readonly string[];
+  rows: string[][];
+  sourceType: 'text';
+  normalizeMeta: TextNormalizeMeta;
+};
+
+export async function runTextToCleanInputAdapter(text: string): Promise<TextToCleanInputAdapterResult> {
   if (!text || text.trim() === '') {
     throw new Error('텍스트가 비어있습니다.');
   }
@@ -64,9 +77,18 @@ export async function runTextToCleanInputAdapter(text: string) {
     sampleRow: rows[0],
   });
 
+  const normalizeMeta: TextNormalizeMeta = {
+    usedFallback: Boolean(data?.meta?.usedFallback),
+    fallbackReason:
+      typeof data?.meta?.fallbackReason === 'string'
+        ? data.meta.fallbackReason
+        : undefined,
+  };
+
   return {
     headers: BASE_HEADERS,
     rows,
     sourceType: 'text' as const,
+    normalizeMeta,
   };
 }

@@ -33,6 +33,10 @@ import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historySt
 import { useUserStore } from '@/app/store/userStore';
 import { Coins } from 'lucide-react';
 import {
+  NormalizeQualityNoticeModal,
+  isLikelyClientNetworkError,
+} from '@/app/components/NormalizeQualityNoticeModal';
+import {
   applyProductCodeProjection,
   parseProductCodeMapFromMatrix,
   resolveProductCodeColumnHeader,
@@ -327,6 +331,9 @@ export default function LogisticsConvertPage() {
   const [textInput, setTextInput] = useState('');
   const [isProcessingTextImage, setIsProcessingTextImage] = useState(false);
   const [errorMessageTextImage, setErrorMessageTextImage] = useState<string | null>(null);
+  const [qualityNoticeModal, setQualityNoticeModal] = useState<
+    'hidden' | 'heuristic' | 'network'
+  >('hidden');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showTextConvertModal, setShowTextConvertModal] = useState(false);
@@ -1322,7 +1329,8 @@ export default function LogisticsConvertPage() {
     
     setIsProcessingTextImage(true);
     try {
-      const cleanInputFile = await runTextToCleanInputAdapter(trimmed);
+      const adapterResult = await runTextToCleanInputAdapter(trimmed);
+      const { normalizeMeta, ...cleanInputFile } = adapterResult;
       if (cleanInputFile) {
         // CleanInputFile을 받았으므로 바로 Stage2/Stage3 실행
         const fileSessionId = crypto.randomUUID();
@@ -1338,11 +1346,17 @@ export default function LogisticsConvertPage() {
         
         // 텍스트 입력 초기화
         setTextInput('');
+        if (normalizeMeta.usedFallback) {
+          setQualityNoticeModal('heuristic');
+        }
       } else {
         setErrorMessageTextImage('텍스트 물류 주문 변환에 실패했습니다. 다시 시도해주세요.');
       }
     } catch (error) {
       console.error('[LogisticsConvertPage] 텍스트 물류 주문 변환 중 오류:', error);
+      if (isLikelyClientNetworkError(error)) {
+        setQualityNoticeModal('network');
+      }
       setErrorMessageTextImage(
         error instanceof Error ? error.message : '텍스트를 변환하는 중 알 수 없는 오류가 발생했습니다.'
       );
@@ -3343,6 +3357,12 @@ export default function LogisticsConvertPage() {
           </div>
         </div>
       )}
+
+      <NormalizeQualityNoticeModal
+        isOpen={qualityNoticeModal !== 'hidden'}
+        variant={qualityNoticeModal === 'network' ? 'network' : 'heuristic'}
+        onClose={() => setQualityNoticeModal('hidden')}
+      />
 
       {/* 스크린샷 물류 주문 변환 모달 */}
       {showScreenshotModal && (
