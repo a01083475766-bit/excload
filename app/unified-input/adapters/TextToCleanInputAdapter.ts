@@ -1,4 +1,5 @@
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
+import { enrichOrdersWithHeuristicLine } from '@/app/lib/heuristic-korean-order-line';
 
 export async function runTextToCleanInputAdapter(text: string) {
   if (!text || text.trim() === '') {
@@ -33,7 +34,11 @@ export async function runTextToCleanInputAdapter(text: string) {
     console.warn('[normalize-29] 서버 fallback 주문 사용', data.meta);
   }
 
-  const orders = data.orders;
+  const rawOrders = data.orders as Record<string, unknown>[];
+  const orders = enrichOrdersWithHeuristicLine(rawOrders, text.trim());
+  if (rawOrders[0] && orders[0] && JSON.stringify(rawOrders[0]) !== JSON.stringify(orders[0])) {
+    console.log('[heuristic-korean-line] 한 줄 패턴 감지 → 받는사람·주소·전화·상품명 보정');
+  }
 
   // 브라우저 콘솔에서 AI(또는 fallback)가 넣은 기준헤더 29칸을 표로 확인
   orders.forEach((order: any, idx: number) => {

@@ -11,48 +11,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  buildNormalize29HeuristicFallbackRow,
+  sanitizeNormalize29Order,
+  enrichNormalizedOrderWithHeuristicLine,
+  tryHeuristicSplitOneLineKoreanOrder,
+} from '@/app/lib/heuristic-korean-order-line';
 
 /**
- * AI 비활성/파싱 실패 시: 원문을 주소와 상품명에 중복 넣지 않음.
- * 상품명 한 칸에만 두어 미리보기에서 주소·상품명이 동일해지는 현상을 막고, 수동 분리를 유도.
- */
-function buildNormalize29RawFallbackOrder(raw: string): Record<string, string> {
-  const t = raw.trim();
-  return {
-    주문번호: '',
-    보내는사람: '',
-    보내는사람전화1: '',
-    보내는사람전화2: '',
-    보내는사람우편번호: '',
-    보내는사람주소1: '',
-    보내는사람주소2: '',
-    받는사람: '',
-    받는사람전화1: '',
-    받는사람전화2: '',
-    받는사람우편번호: '',
-    받는사람주소1: '',
-    받는사람주소2: '',
-    주문자: '',
-    주문자연락처: '',
-    주문일시: '',
-    결제금액: '',
-    상품명: t ? `[분리필요·원문] ${t}` : '',
-    추가상품: '',
-    상품옵션: '',
-    상품옵션1: '',
-    수량: '1',
-    배송메시지: '',
-    운임구분: '',
-    운임: '',
-    운송장번호: '',
-    창고메모: '',
-    내부메모: t ? '자동 분리 실패. 상품명란 원문을 참고해 이름·전화·주소·상품으로 나눠 주세요.' : '',
-    출고번호: '',
-  };
-}
-
-/**
- * AI가 원문 한 줄을 주소·상품명에 그대로 복제한 경우 → 한 필드로 모아 사용자가 수동 정리하기 쉽게 함
+ * AI가 원문 전체를 받는사람주소1·상품명에 동일하게 넣은 경우 → 휴리스틱 분리 또는 내부메모로만 보관
  */
 function collapseDuplicateFullLineDump(
   order: Record<string, string>,
@@ -63,14 +30,22 @@ function collapseDuplicateFullLineDump(
   const a = (order['받는사람주소1'] || '').trim();
   const p = (order['상품명'] || '').trim();
   if (a === p && a === u) {
+    const h = tryHeuristicSplitOneLineKoreanOrder(u);
+    if (h) {
+      return {
+        ...order,
+        받는사람: h.받는사람,
+        받는사람전화1: h.받는사람전화1,
+        받는사람주소1: h.받는사람주소1,
+        상품명: h.품명,
+      };
+    }
     const prevMemo = (order['내부메모'] || '').trim();
     return {
       ...order,
       받는사람주소1: '',
-      상품명: `[분리필요·원문] ${u}`,
-      내부메모: prevMemo
-        ? `${prevMemo} | AI가 주소·상품에 동일 원문을 넣어 상품명으로만 모았습니다.`
-        : 'AI가 주소·상품에 동일 원문을 넣어 상품명으로만 모았습니다.',
+      상품명: '',
+      내부메모: prevMemo ? `${prevMemo} | 주소·상품 중복 원문: ${u}` : `주소·상품 중복 원문: ${u}`,
     };
   }
   return order;
@@ -100,15 +75,29 @@ export async function POST(request: NextRequest) {
       if (type === 'normalize-29') {
         const fallbackText = typeof body?.text === 'string' ? body.text : '';
         return NextResponse.json({
-          orders: [buildNormalize29RawFallbackOrder(fallbackText)],
+          orders: [sanitizeNormalize29Order(buildNormalize29HeuristicFallbackRow(fallbackText))],
+          meta: {
+            usedFallback: true,
+            fallbackReason: 'ai_disabled',
+          },
         });
       }
       return NextResponse.json({ error: '현재 분석 기능을 사용할 수 없습니다.' }, { status: 400 });
     }
 
-    // 환경변수 확인
+    // 환경변수 확인 (normalize-29만 키 없을 때 휴리스틱 fallback으로 200 — 나머지 타입은 500)
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
+      if (type === 'normalize-29') {
+        const fallbackText = typeof body?.text === 'string' ? body.text : '';
+        return NextResponse.json({
+          orders: [sanitizeNormalize29Order(buildNormalize29HeuristicFallbackRow(fallbackText))],
+          meta: {
+            usedFallback: true,
+            fallbackReason: 'no_openai_api_key',
+          },
+        });
+      }
       return NextResponse.json(
         { error: '시스템 설정 오류가 발생했습니다.' },
         { status: 500 }
@@ -357,15 +346,18 @@ D. 보내는사람
     orders = orders
       .filter((order: any) => order && typeof order === 'object' && !Array.isArray(order))
       .map((order: Record<string, any>) => normalizeOrderObject(order))
-      .map((order) => collapseDuplicateFullLineDump(order, body.text));
+      .map((order) => collapseDuplicateFullLineDump(order, body.text))
+      .map((order) => enrichNormalizedOrderWithHeuristicLine(order, body.text));
 
     if (!Array.isArray(orders) || orders.length === 0) {
-      console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 강제 생성');
+      console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 휴리스틱 fallback 행 생성');
       if (fallbackReason === 'none') {
         fallbackReason = 'empty_orders';
       }
 
-      orders = [normalizeOrderObject(buildNormalize29RawFallbackOrder(body.text || ''))];
+      orders = [
+        normalizeOrderObject(buildNormalize29HeuristicFallbackRow(body.text || '')),
+      ];
     }
 
     console.log('[PARSED ORDERS]', orders);
