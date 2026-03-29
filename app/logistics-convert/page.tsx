@@ -39,9 +39,15 @@ import {
 import {
   applyProductCodeProjection,
   parseProductCodeMapFromMatrix,
+  resolveLogisticsProductNameColumn,
   resolveProductCodeColumnHeader,
   type ProductCodeMap,
 } from '@/app/logistics-convert/product-code-projection';
+import {
+  applyLogisticsStagedColumnMappings,
+  classifyLogisticsMappingMatrix,
+  type LogisticsStagedColumnMapping,
+} from '@/app/logistics-convert/logistics-column-code-mapping';
 
 /** 상품코드 매핑 실패 시 안내 배너용 */
 type ProductCodeMappingNotice = {
@@ -382,6 +388,22 @@ export default function LogisticsConvertPage() {
     useState(false);
   const productCodeCellBackupByRowIdRef = useRef<Map<string, string>>(new Map());
 
+  /** 미리보기 코드매핑 모달 (물류 전용) */
+  const [showColumnCodeMappingModal, setShowColumnCodeMappingModal] =
+    useState(false);
+  const [columnMappingStaging, setColumnMappingStaging] = useState<
+    Record<string, LogisticsStagedColumnMapping>
+  >({});
+  const [columnMappingActiveHeader, setColumnMappingActiveHeader] = useState<
+    string | null
+  >(null);
+  /** 헤더별 매핑 적용 전 셀 값(해당 헤더만 되돌리기) rowId → 문자열 */
+  const [columnCodeMappingSnapshots, setColumnCodeMappingSnapshots] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const columnMappingModalFileRef = useRef<HTMLInputElement | null>(null);
+  const columnMappingPendingHeaderRef = useRef<string | null>(null);
+
   const resetProductCodeColumnToggle = useCallback(() => {
     setIsProductCodeColumnShowingMappedCodes(false);
     productCodeCellBackupByRowIdRef.current = new Map();
@@ -478,6 +500,9 @@ export default function LogisticsConvertPage() {
     setPreviewRows([]);
     setCourierHeaders([]);
     resetProductCodeColumnToggle();
+    setColumnCodeMappingSnapshots({});
+    setColumnMappingStaging({});
+    setShowColumnCodeMappingModal(false);
   }, [templateBridgeFile, resetProductCodeColumnToggle]);
 
   // 물류 상품코드 매핑 목록·선택 복원 (3PL과 동일 패턴)
@@ -600,6 +625,137 @@ export default function LogisticsConvertPage() {
     isProductCodeColumnShowingMappedCodes,
     resetProductCodeColumnToggle,
   ]);
+
+  const handleOpenColumnCodeMappingModal = useCallback(() => {
+    if (courierHeaders.length === 0 || previewRows.length === 0) {
+      alert('미리보기에 변환된 데이터가 있어야 코드매핑을 할 수 있습니다.');
+      return;
+    }
+    setColumnMappingStaging({});
+    setColumnMappingActiveHeader(null);
+    setShowColumnCodeMappingModal(true);
+  }, [courierHeaders.length, previewRows.length]);
+
+  const handleColumnCodeMappingModalCancel = useCallback(() => {
+    setShowColumnCodeMappingModal(false);
+    setColumnMappingStaging({});
+    setColumnMappingActiveHeader(null);
+    columnMappingPendingHeaderRef.current = null;
+  }, []);
+
+  const handleClearColumnCodeMappingForHeader = useCallback(
+    (header: string) => {
+      const snap = columnCodeMappingSnapshots[header];
+      if (!snap) return;
+      setPreviewRows((prev) =>
+        prev.map((row) => ({
+          ...row,
+          data: {
+            ...row.data,
+            [header]: snap[row.rowId] ?? row.data[header] ?? '',
+          },
+        })),
+      );
+      setUserOverrides((prev) => {
+        const next = { ...prev };
+        for (const rowId of Object.keys(snap)) {
+          const rowOv = next[rowId];
+          if (!rowOv) continue;
+          const copy = { ...rowOv };
+          delete copy[header];
+          if (Object.keys(copy).length === 0) delete next[rowId];
+          else next[rowId] = copy;
+        }
+        return next;
+      });
+      setColumnCodeMappingSnapshots((prev) => {
+        const rest = { ...prev };
+        delete rest[header];
+        return rest;
+      });
+    },
+    [columnCodeMappingSnapshots],
+  );
+
+  const handleConfirmColumnCodeMapping = useCallback(() => {
+    const stagedList = courierHeaders
+      .map((h) => columnMappingStaging[h])
+      .filter((x): x is LogisticsStagedColumnMapping => Boolean(x));
+    if (stagedList.length === 0) {
+      alert('헤더를 선택한 뒤 열당 매핑 파일을 등록해 주세요.');
+      return;
+    }
+    const hasProduct = stagedList.some((s) => s.kind === 'product');
+    if (hasProduct && !resolveLogisticsProductNameColumn(courierHeaders)) {
+      alert(
+        '상품 마스터 형식(상품명·옵션·상품코드)은 템플릿에 상품명(또는 품목명) 열이 있어야 합니다.',
+      );
+      return;
+    }
+    const invalidSimple = stagedList.find(
+      (s) => s.kind === 'simple' && Object.keys(s.simpleMap ?? {}).length === 0,
+    );
+    if (invalidSimple) {
+      alert(
+        `「${invalidSimple.targetHeader}」에 올린 파일에서 단순 매핑(원본→코드)을 읽지 못했습니다. 엑셀 형식을 확인해 주세요.`,
+      );
+      return;
+    }
+
+    const baseline = previewRows.map((r) => r.data);
+    setColumnCodeMappingSnapshots((prevSnap) => {
+      const next = { ...prevSnap };
+      for (const spec of stagedList) {
+        const h = spec.targetHeader;
+        if (next[h]) continue;
+        const rowSnap: Record<string, string> = {};
+        for (const row of previewRows) {
+          rowSnap[row.rowId] = String(row.data[h] ?? '');
+        }
+        next[h] = rowSnap;
+      }
+      return next;
+    });
+
+    const merged = applyLogisticsStagedColumnMappings(
+      baseline,
+      courierHeaders,
+      stagedList,
+    );
+
+    setPreviewRows((prev) =>
+      merged.map((data, i) => ({
+        rowId: prev[i]!.rowId,
+        data,
+      })),
+    );
+
+    setUserOverrides((prev) => {
+      const next = { ...prev };
+      const headers = new Set(stagedList.map((s) => s.targetHeader));
+      for (const row of previewRows) {
+        for (const h of headers) {
+          const rowOv = next[row.rowId];
+          if (!rowOv?.[h]) continue;
+          const copy = { ...rowOv };
+          delete copy[h];
+          if (Object.keys(copy).length === 0) delete next[row.rowId];
+          else next[row.rowId] = copy;
+        }
+      }
+      return next;
+    });
+
+    setShowColumnCodeMappingModal(false);
+    setColumnMappingStaging({});
+    setColumnMappingActiveHeader(null);
+    columnMappingPendingHeaderRef.current = null;
+  }, [columnMappingStaging, courierHeaders, previewRows]);
+
+  const triggerColumnMappingFilePick = useCallback((header: string) => {
+    columnMappingPendingHeaderRef.current = header;
+    columnMappingModalFileRef.current?.click();
+  }, []);
 
   // 점 애니메이션 처리 (파일 처리용)
   useEffect(() => {
@@ -1801,6 +1957,9 @@ export default function LogisticsConvertPage() {
           setSortConfig(null);
           setUnknownHeadersWarning([]);
           setSelectedFileName(null);
+          setColumnCodeMappingSnapshots({});
+          setColumnMappingStaging({});
+          setShowColumnCodeMappingModal(false);
 
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
@@ -2031,8 +2190,18 @@ export default function LogisticsConvertPage() {
           <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
             <div className="px-6 pt-6 pb-4">
               {/* 1줄: 미리보기 제목 + 펼치기 버튼 + 선택 삭제 버튼 + 기능 안내 문구 */}
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <h3 className="text-lg font-semibold">미리보기</h3>
+
+                {previewRows.length > 0 && courierHeaders.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleOpenColumnCodeMappingModal}
+                    className="h-9 px-3 inline-flex items-center justify-center text-sm font-semibold rounded-lg border border-indigo-500 bg-indigo-50 text-indigo-900 hover:bg-indigo-100 transition"
+                  >
+                    코드매핑
+                  </button>
+                )}
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
                   <button
@@ -2455,6 +2624,185 @@ export default function LogisticsConvertPage() {
         </section>
 
       </main>
+
+      {/* 물류 전용: 미리보기 코드매핑 (헤더별 마스터 → 모달 확인 시 일괄 반영) */}
+      {showColumnCodeMappingModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+          onClick={handleColumnCodeMappingModalCancel}
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[920px] max-h-[90vh] flex flex-col p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+                코드매핑 (헤더별 마스터 파일)
+              </h2>
+              <button
+                type="button"
+                onClick={handleColumnCodeMappingModalCancel}
+                className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+              </button>
+            </div>
+
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
+              미리보기 열 이름마다 <strong>별도의</strong> 매핑 엑셀을 연결합니다. 상품명 열은 기존 물류{' '}
+              <strong>상품명·옵션·상품코드</strong> 마스터와 같은 형식을 쓸 수 있고, 그 외 열은{' '}
+              <strong>원본 → 코드</strong>(또는 첫 열·둘째 열) 형식을 권장합니다. 아래에서 헤더를 눌러
+              파일을 선택한 뒤, 하단 <strong>확인</strong>을 누르면 미리보기에 한꺼번에 반영됩니다.{' '}
+              <strong>취소</strong>하면 이번에 연 파일만 버립니다.
+            </p>
+
+            <input
+              ref={columnMappingModalFileRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                const headerKey = columnMappingPendingHeaderRef.current;
+                e.target.value = '';
+                if (!f || !headerKey) return;
+                try {
+                  const matrix = await parseExcelRowsForMapping(f);
+                  const cls = classifyLogisticsMappingMatrix(matrix);
+                  if (
+                    cls.kind === 'simple' &&
+                    Object.keys(cls.simpleMap ?? {}).length === 0
+                  ) {
+                    alert(
+                      '매핑으로 읽을 수 있는 행이 없습니다. 원본·코드 열(또는 첫·두 번째 열)을 확인해 주세요.',
+                    );
+                    return;
+                  }
+                  if (
+                    cls.kind === 'product' &&
+                    (!cls.productMap ||
+                      Object.keys(cls.productMap).length === 0)
+                  ) {
+                    alert('상품 마스터 형식으로 읽지 못했습니다.');
+                    return;
+                  }
+                  const entry: LogisticsStagedColumnMapping =
+                    cls.kind === 'product'
+                      ? {
+                          targetHeader: headerKey,
+                          kind: 'product',
+                          fileName: f.name,
+                          productMap: cls.productMap,
+                        }
+                      : {
+                          targetHeader: headerKey,
+                          kind: 'simple',
+                          fileName: f.name,
+                          simpleMap: cls.simpleMap,
+                        };
+                  setColumnMappingStaging((prev) => ({
+                    ...prev,
+                    [headerKey]: entry,
+                  }));
+                } catch (err) {
+                  console.error('[물류 코드매핑] 엑셀 파싱 오류:', err);
+                  alert('엑셀을 읽는 중 오류가 발생했습니다.');
+                }
+              }}
+            />
+
+            <div className="overflow-y-auto flex-1 min-h-0 pr-1 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {courierHeaders.map((h) => {
+                  const staged = columnMappingStaging[h];
+                  const hasSnap = Boolean(columnCodeMappingSnapshots[h]);
+                  const active = columnMappingActiveHeader === h;
+                  return (
+                    <div key={h} className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setColumnMappingActiveHeader((prev) =>
+                              prev === h ? null : h,
+                            )
+                          }
+                          className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${
+                            staged
+                              ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
+                              : active
+                                ? 'border-zinc-500 bg-zinc-100 text-zinc-900'
+                                : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100'
+                          }`}
+                        >
+                          {h}
+                          {staged ? (
+                            <span className="block text-[10px] font-normal truncate max-w-[140px]">
+                              {staged.fileName}
+                            </span>
+                          ) : null}
+                        </button>
+                        {hasSnap ? (
+                          <button
+                            type="button"
+                            onClick={() => handleClearColumnCodeMappingForHeader(h)}
+                            className="text-xs px-2 py-1 rounded border border-rose-300 text-rose-800 hover:bg-rose-50"
+                          >
+                            매핑 해제
+                          </button>
+                        ) : null}
+                      </div>
+                      {active ? (
+                        <div className="flex flex-wrap items-center gap-2 pl-1">
+                          <button
+                            type="button"
+                            onClick={() => triggerColumnMappingFilePick(h)}
+                            className="text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                          >
+                            매핑 파일 선택
+                          </button>
+                          {staged ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setColumnMappingStaging((prev) => {
+                                  const next = { ...prev };
+                                  delete next[h];
+                                  return next;
+                                })
+                              }
+                              className="text-xs px-2 py-1.5 rounded-md border border-zinc-300 text-zinc-700 hover:bg-zinc-100"
+                            >
+                              선택 취소
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleColumnCodeMappingModalCancel}
+                className="px-5 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmColumnCodeMapping}
+                className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 상품코드 매핑 파일 (3PL 페이지와 동일 UX · 물류 문구) */}
       {showMappingModal && (

@@ -161,14 +161,24 @@ export function parseProductCodeMapFromMatrix(matrix: string[][]): ProductCodeMa
   return map;
 }
 
-function resolveNameHeader(courierHeaders: string[]): string | null {
+/** 물류 미리보기 헤더 중 상품명에 해당하는 열 이름 */
+export function resolveLogisticsProductNameColumn(
+  courierHeaders: string[],
+): string | null {
   const exact = courierHeaders.find((h) => normalizeHeaderCell(h) === '상품명');
   if (exact) return exact;
   const idx = findColumnIndex(courierHeaders, ['상품명', '품목명', '제품명']);
   return idx >= 0 ? courierHeaders[idx] : null;
 }
 
-function resolveOptionHeader(courierHeaders: string[]): string | null {
+function resolveNameHeader(courierHeaders: string[]): string | null {
+  return resolveLogisticsProductNameColumn(courierHeaders);
+}
+
+/** 물류 미리보기 헤더 중 옵션에 해당하는 열 이름 */
+export function resolveLogisticsProductOptionColumn(
+  courierHeaders: string[],
+): string | null {
   const idx = findColumnIndex(courierHeaders, [
     '옵션',
     '옵션명',
@@ -178,10 +188,23 @@ function resolveOptionHeader(courierHeaders: string[]): string | null {
   return idx >= 0 ? courierHeaders[idx] : null;
 }
 
+function resolveOptionHeader(courierHeaders: string[]): string | null {
+  return resolveLogisticsProductOptionColumn(courierHeaders);
+}
+
 /**
  * 주문 키 `상품명|옵션`으로 조회 후, 없으면 `상품명|` 폴백,
- * 통합키 열로 등록한 `상품+옵션|` 조회
+ * 통합키 열로 등록한 `상품+옵션|` 조회.
+ * 물류 코드매핑 모달 등에서 상품 마스터 맵 조회용으로 export.
  */
+export function resolveProductCodeFromMap(
+  productCodeMap: ProductCodeMap,
+  name: string,
+  option: string,
+): string | undefined {
+  return resolveCodeFromMap(productCodeMap, name, option);
+}
+
 function resolveCodeFromMap(
   productCodeMap: ProductCodeMap,
   name: string,
