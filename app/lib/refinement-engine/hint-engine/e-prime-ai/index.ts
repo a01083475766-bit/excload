@@ -5,6 +5,12 @@
 
 import type { EntityHint } from '@/app/lib/refinement-engine/types/EntityHint';
 import { NORMALIZATION_SYSTEM_PROMPT } from '@/app/lib/refinement-engine/ai/normalizationPrompt';
+import {
+  BASE_HEADERS,
+  BASE_HEADER_COUNT,
+  createEmptyBaseHeaderRow,
+  type BaseHeaderRow,
+} from '@/app/pipeline/base/base-headers';
 
 // Re-export for backward compatibility
 export { NORMALIZATION_SYSTEM_PROMPT };
@@ -22,7 +28,7 @@ ${originalText}
 ${JSON.stringify(engineHint, null, 2)}
 
 원문을 1차 기준으로 분석하여
-기준헤더 29개 구조에 맞는 JSON을 완성하십시오.
+기준헤더 ${BASE_HEADER_COUNT}개 구조에 맞는 JSON을 완성하십시오.
 `;
 
 export type EPrimeAIResult = {
@@ -243,76 +249,8 @@ async function callAIForExtraction(
   return 'OK';
 }
 
-/**
- * Normalization result type
- * Represents the normalized result with all entity fields
- */
-export type NormalizationResult = {
-  "주문번호": string;
-  "보내는사람": string;
-  "보내는사람전화1": string;
-  "보내는사람전화2": string;
-  "보내는사람우편번호": string;
-  "보내는사람주소1": string;
-  "보내는사람주소2": string;
-  "받는사람": string;
-  "받는사람전화1": string;
-  "받는사람전화2": string;
-  "받는사람우편번호": string;
-  "받는사람주소1": string;
-  "받는사람주소2": string;
-  "주문자": string;
-  "주문자연락처": string;
-  "주문일시": string;
-  "결제금액": string;
-  "상품명": string;
-  "추가상품": string;
-  "상품옵션": string;
-  "상품옵션1": string;
-  "수량": string;
-  "배송메시지": string;
-  "운임구분": string;
-  "운임": string;
-  "운송장번호": string;
-  "창고메모": string;
-  "내부메모": string;
-  "출고번호": string;
-};
-
-/**
- * Base header keys for normalization result validation
- */
-const BASE_HEADER_KEYS = [
-  "주문번호",
-  "보내는사람",
-  "보내는사람전화1",
-  "보내는사람전화2",
-  "보내는사람우편번호",
-  "보내는사람주소1",
-  "보내는사람주소2",
-  "받는사람",
-  "받는사람전화1",
-  "받는사람전화2",
-  "받는사람우편번호",
-  "받는사람주소1",
-  "받는사람주소2",
-  "주문자",
-  "주문자연락처",
-  "주문일시",
-  "결제금액",
-  "상품명",
-  "추가상품",
-  "상품옵션",
-  "상품옵션1",
-  "수량",
-  "배송메시지",
-  "운임구분",
-  "운임",
-  "운송장번호",
-  "창고메모",
-  "내부메모",
-  "출고번호",
-] as const;
+/** normalize-29 / 내부 정규화 결과 — BASE_HEADERS와 동일 키 집합 */
+export type NormalizationResult = BaseHeaderRow;
 
 /**
  * Validate AI normalization response structure
@@ -320,7 +258,7 @@ const BASE_HEADER_KEYS = [
 const isValidNormalizationResult = (data: any): boolean => {
   if (!data || typeof data !== "object") return false;
 
-  return BASE_HEADER_KEYS.every((key) =>
+  return BASE_HEADERS.every((key) =>
     Object.prototype.hasOwnProperty.call(data, key)
   );
 };
@@ -328,37 +266,30 @@ const isValidNormalizationResult = (data: any): boolean => {
 /**
  * Helper: create an empty NormalizationResult with all base headers
  */
-const createEmptyNormalizationResult = (): NormalizationResult => ({
-  "주문번호": "",
-  "보내는사람": "",
-  "보내는사람전화1": "",
-  "보내는사람전화2": "",
-  "보내는사람우편번호": "",
-  "보내는사람주소1": "",
-  "보내는사람주소2": "",
-  "받는사람": "",
-  "받는사람전화1": "",
-  "받는사람전화2": "",
-  "받는사람우편번호": "",
-  "받는사람주소1": "",
-  "받는사람주소2": "",
-  "주문자": "",
-  "주문자연락처": "",
-  "주문일시": "",
-  "결제금액": "",
-  "상품명": "",
-  "추가상품": "",
-  "상품옵션": "",
-  "상품옵션1": "",
-  "수량": "",
-  "배송메시지": "",
-  "운임구분": "",
-  "운임": "",
-  "운송장번호": "",
-  "창고메모": "",
-  "내부메모": "",
-  "출고번호": "",
-});
+const createEmptyNormalizationResult = (): NormalizationResult =>
+  createEmptyBaseHeaderRow();
+
+/** normalize-29 응답 { orders: [...] } 또는 레거시 단일 객체에서 주문 레코드 추출 */
+function extractOrderRecordFromNormalize29Response(
+  data: unknown,
+): Record<string, unknown> {
+  if (!data || typeof data !== 'object') return {};
+  const d = data as Record<string, unknown>;
+  const orders = d.orders;
+  if (
+    Array.isArray(orders) &&
+    orders.length > 0 &&
+    orders[0] &&
+    typeof orders[0] === 'object' &&
+    !Array.isArray(orders[0])
+  ) {
+    return orders[0] as Record<string, unknown>;
+  }
+  if ('주문번호' in d || '받는사람' in d) {
+    return d;
+  }
+  return {};
+}
 
 /**
  * Normalization input type
@@ -380,14 +311,14 @@ export async function callAIOnceForNormalization(
   input: NormalizationInput,
   status?: 'OK' | 'ERROR'
 ): Promise<NormalizationResult> {
-  // status가 'ERROR'인 경우: 모든 필드가 비어 있는 29개 기준헤더 구조 반환
+  // status가 'ERROR'인 경우: 모든 필드가 비어 있는 기준헤더 구조 반환
   if (status === 'ERROR') {
     return createEmptyNormalizationResult();
   }
 
   const { originalText, engineHint } = input;
 
-  // 입력 검증: originalText가 유효하지 않으면 빈 29 구조 반환
+  // 입력 검증: originalText가 유효하지 않으면 빈 구조 반환
   if (!originalText || typeof originalText !== 'string' || originalText.trim() === '') {
     console.error('[callAIOnceForNormalization] originalText가 비어있거나 문자열이 아닙니다.');
     return createEmptyNormalizationResult();
@@ -405,6 +336,7 @@ export async function callAIOnceForNormalization(
       },
       body: JSON.stringify({
         type: 'normalize-29',
+        text: originalText,
         originalText,
         engineHint,
       }),
@@ -421,7 +353,7 @@ export async function callAIOnceForNormalization(
       return createEmptyNormalizationResult();
     }
 
-    // JSON.parse 실패 시 빈 29구조 반환
+    // JSON.parse 실패 시 빈 구조 반환
     let data: unknown;
     try {
       data = await response.json();
@@ -430,19 +362,18 @@ export async function callAIOnceForNormalization(
       return createEmptyNormalizationResult();
     }
 
-    // 응답 정규화: 29개 키 모두 존재하도록 보정 + undefined/null → ""
+    const orderPayload = extractOrderRecordFromNormalize29Response(data);
+
+    // 응답 정규화: 기준헤더 키 모두 존재하도록 보정 + undefined/null → ""
     const normalized: NormalizationResult = createEmptyNormalizationResult();
-    if (data && typeof data === 'object') {
-      for (const key of BASE_HEADER_KEYS) {
-        const rawValue = (data as Record<string, unknown>)[key];
-        if (rawValue === null || rawValue === undefined) {
-          normalized[key] = '';
-        } else if (typeof rawValue === 'string') {
-          normalized[key] = rawValue;
-        } else {
-          // 숫자/boolean/객체 등은 문자열로 변환
-          normalized[key] = String(rawValue);
-        }
+    for (const key of BASE_HEADERS) {
+      const rawValue = orderPayload[key];
+      if (rawValue === null || rawValue === undefined) {
+        normalized[key] = '';
+      } else if (typeof rawValue === 'string') {
+        normalized[key] = rawValue;
+      } else {
+        normalized[key] = String(rawValue);
       }
     }
 

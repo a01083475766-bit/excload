@@ -17,6 +17,20 @@ import {
   enrichNormalizedOrderWithHeuristicLine,
   tryHeuristicSplitOneLineKoreanOrder,
 } from '@/app/lib/heuristic-korean-order-line';
+import {
+  BASE_HEADERS,
+  BASE_HEADER_COUNT,
+  buildNormalize29OrdersJsonExample,
+} from '@/app/pipeline/base/base-headers';
+
+/** 클라이언트가 text 또는 originalText만 보내는 경우 모두 수용 */
+function resolveNormalize29InboundText(body: Record<string, unknown>): string {
+  const t = body.text;
+  const o = body.originalText;
+  if (typeof t === 'string' && t.trim() !== '') return t;
+  if (typeof o === 'string' && o.trim() !== '') return o;
+  return '';
+}
 
 /**
  * AI가 원문 전체를 받는사람주소1·상품명에 동일하게 넣은 경우 → 휴리스틱 분리 또는 내부메모로만 보관
@@ -55,7 +69,7 @@ function collapseDuplicateFullLineDump(
  * AI Gateway 요청 타입
  */
 type AIGatewayRequest = 
-  | { type: 'normalize-29'; text: string }
+  | { type: 'normalize-29'; text?: string; originalText?: string; engineHint?: unknown }
   | { type: 'header-map'; unknownHeaders: string[]; baseHeaders: readonly string[] }
   | { type: 'extract'; originalText: string; remainingText: string; engineConfirmed: boolean; hints: any }
   | { type: 'ocr'; image: string }
@@ -73,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (process.env.NEXT_PUBLIC_AI_ENABLED !== 'true') {
       // AI 비활성화여도 normalize-29는 최소 1건 fallback을 반환
       if (type === 'normalize-29') {
-        const fallbackText = typeof body?.text === 'string' ? body.text : '';
+        const fallbackText = resolveNormalize29InboundText(body);
         return NextResponse.json({
           orders: [sanitizeNormalize29Order(buildNormalize29HeuristicFallbackRow(fallbackText))],
           meta: {
@@ -89,7 +103,7 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       if (type === 'normalize-29') {
-        const fallbackText = typeof body?.text === 'string' ? body.text : '';
+        const fallbackText = resolveNormalize29InboundText(body);
         return NextResponse.json({
           orders: [sanitizeNormalize29Order(buildNormalize29HeuristicFallbackRow(fallbackText))],
           meta: {
@@ -133,46 +147,20 @@ export async function POST(request: NextRequest) {
 
 /**
  * normalize-29 핸들러
- * 텍스트 주문 변환: 텍스트를 29개 기준헤더 구조의 orders 배열로 변환
- * 
+ * 텍스트 주문 변환: 텍스트를 기준헤더(BASE_HEADERS) 구조의 orders 배열로 변환
+ *
  * ⚠️ 헌법 준수: 서버 내부에서 직접 import하여 호출 가능하도록 export
  */
 export async function handleNormalize29(
-  body: { type: 'normalize-29'; text: string },
+  body: Record<string, unknown>,
   apiKey: string
 ): Promise<NextResponse> {
+  const text = resolveNormalize29InboundText(body);
+  if (!text) {
+    return NextResponse.json({ error: 'text is required' }, { status: 400 });
+  }
+
   let fallbackReason: 'none' | 'json_parse_failed' | 'empty_orders' = 'none';
-  const BASE_HEADERS_29 = [
-    '주문번호',
-    '보내는사람',
-    '보내는사람전화1',
-    '보내는사람전화2',
-    '보내는사람우편번호',
-    '보내는사람주소1',
-    '보내는사람주소2',
-    '받는사람',
-    '받는사람전화1',
-    '받는사람전화2',
-    '받는사람우편번호',
-    '받는사람주소1',
-    '받는사람주소2',
-    '주문자',
-    '주문자연락처',
-    '주문일시',
-    '결제금액',
-    '상품명',
-    '추가상품',
-    '상품옵션',
-    '상품옵션1',
-    '수량',
-    '배송메시지',
-    '운임구분',
-    '운임',
-    '운송장번호',
-    '창고메모',
-    '내부메모',
-    '출고번호',
-  ] as const;
 
   const stripCodeFence = (input: string) =>
     input
@@ -191,7 +179,7 @@ export async function handleNormalize29(
 
   const normalizeOrderObject = (order: Record<string, any>): Record<string, string> => {
     const normalized: Record<string, string> = {};
-    for (const header of BASE_HEADERS_29) {
+    for (const header of BASE_HEADERS) {
       const value = order?.[header];
       normalized[header] = value == null ? '' : String(value).trim();
     }
@@ -201,55 +189,14 @@ export async function handleNormalize29(
     return normalized;
   };
 
-  const { text } = body;
-
-  if (!text || typeof text !== 'string') {
-    return NextResponse.json(
-      { error: 'text is required' },
-      { status: 400 }
-    );
-  }
+  const ordersJsonExample = buildNormalize29OrdersJsonExample();
 
   const systemPrompt = `
-너는 한국어 주문 텍스트를 29개 기준헤더 JSON으로 변환하는 파서다.
+너는 한국어 주문 텍스트를 ${BASE_HEADER_COUNT}개 기준헤더 JSON으로 변환하는 파서다.
 반드시 JSON 객체 1개만 반환한다. 설명/코드블록/주석 금지.
 
-[출력 형식]
-{
-  "orders": [
-    {
-      "주문번호": "",
-      "보내는사람": "",
-      "보내는사람전화1": "",
-      "보내는사람전화2": "",
-      "보내는사람우편번호": "",
-      "보내는사람주소1": "",
-      "보내는사람주소2": "",
-      "받는사람": "",
-      "받는사람전화1": "",
-      "받는사람전화2": "",
-      "받는사람우편번호": "",
-      "받는사람주소1": "",
-      "받는사람주소2": "",
-      "주문자": "",
-      "주문자연락처": "",
-      "주문일시": "",
-      "결제금액": "",
-      "상품명": "",
-      "추가상품": "",
-      "상품옵션": "",
-      "상품옵션1": "",
-      "수량": "",
-      "배송메시지": "",
-      "운임구분": "",
-      "운임": "",
-      "운송장번호": "",
-      "창고메모": "",
-      "내부메모": "",
-      "출고번호": ""
-    }
-  ]
-}
+[출력 형식 — 키 이름·개수는 아래 예시와 정확히 일치]
+${ordersJsonExample}
 
 [절대 규칙]
 1) 모든 필드를 반드시 포함한다.
@@ -276,6 +223,20 @@ C. 배송메시지
 
 D. 보내는사람
 - 발신인/보내는사람이 명시된 경우만 채움. 없으면 "".
+
+E. 일자
+- 원문에 "주문일자"만 있으면 주문일시에 넣는다.
+
+F. 3PL·물류 확장 필드
+- SKU/바코드/품목코드 등이 보이면 상품코드에 넣는다.
+- 서브SKU·옵션코드 등 → 옵션코드
+- 센터코드·창고코드 → 센터코드
+- 박스·합포·박스수량 → 박스수량
+- 출고유형(일반·긴급 등) → 출고타입
+- 출고요청일·요청일자 → 출고요청일
+- 쇼핑몰 주문ID 등 고유 식별자 → 주문ID (주문번호와 다를 수 있음)
+- 출고지시·피킹지시·창고지시 → 출고지시사항 (단순 배송요청 문구는 배송메시지)
+- 판매처·채널·몰명 → 판매처
 
 [주문 분리 규칙]
 - 이름+전화+주소 세트가 반복되거나 주소가 바뀌면 새 주문으로 분리.
@@ -346,8 +307,8 @@ D. 보내는사람
     orders = orders
       .filter((order: any) => order && typeof order === 'object' && !Array.isArray(order))
       .map((order: Record<string, any>) => normalizeOrderObject(order))
-      .map((order) => collapseDuplicateFullLineDump(order, body.text))
-      .map((order) => enrichNormalizedOrderWithHeuristicLine(order, body.text));
+      .map((order) => collapseDuplicateFullLineDump(order, text))
+      .map((order) => enrichNormalizedOrderWithHeuristicLine(order, text));
 
     if (!Array.isArray(orders) || orders.length === 0) {
       console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 휴리스틱 fallback 행 생성');
@@ -355,9 +316,7 @@ D. 보내는사람
         fallbackReason = 'empty_orders';
       }
 
-      orders = [
-        normalizeOrderObject(buildNormalize29HeuristicFallbackRow(body.text || '')),
-      ];
+      orders = [normalizeOrderObject(buildNormalize29HeuristicFallbackRow(text))];
     }
 
     console.log('[PARSED ORDERS]', orders);
@@ -408,7 +367,7 @@ export async function handleHeaderMap(
   
   const prompt = `다음 택배사 헤더들을 한글 기준헤더로 매핑하세요.
 
-**기준헤더 목록 (29개):**
+**기준헤더 목록 (${baseHeaders.length}개):**
 ${baseHeaderList}
 
 **매핑할 헤더:**

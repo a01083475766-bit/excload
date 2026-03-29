@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI } from '@/app/lib/ai/openai-client';
-import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
+import { BASE_HEADERS, BASE_HEADER_COUNT } from '@/app/pipeline/base/base-headers';
 
 /**
  * API Route Handler
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     
     const prompt = `다음 택배사 헤더들을 한글 기준헤더로 매핑하세요.
 
-**기준헤더 목록 (29개):**
+**기준헤더 목록 (${BASE_HEADER_COUNT}개):**
 ${baseHeaderList}
 
 **매핑할 헤더:**

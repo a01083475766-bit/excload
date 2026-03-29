@@ -72,9 +72,8 @@ export function OrderConfirmModal({
     return null;
   }
 
-  // 편집 가능한 필드 정의 (기준헤더 29개 중 사용자에게 의미 있는 핵심 필드만 노출)
-  // 기준헤더는 내부 구조지만, 여기서는 "한글 헤더 그대로"를 라벨로 사용하고
-  // InternalOrderFormat의 필드 키도 1:1로 사용한다.
+  // 편집 가능한 필드 정의 (기준헤더 전체 중 핵심·3PL 필드만 노출)
+  // 기준헤더는 내부 구조지만, 여기서는 "한글 헤더 그대로"를 라벨로 사용한다.
   const editableFields = [
     {
       key: '받는사람' as keyof InternalOrderFormat,
@@ -118,6 +117,60 @@ export function OrderConfirmModal({
       value: editedOrder.배송메시지 || '',
       type: 'textarea' as const,
     },
+    {
+      key: '상품코드' as keyof InternalOrderFormat,
+      label: '상품코드',
+      value: editedOrder.상품코드 || '',
+      type: 'text' as const,
+    },
+    {
+      key: '옵션코드' as keyof InternalOrderFormat,
+      label: '옵션코드',
+      value: editedOrder.옵션코드 || '',
+      type: 'text' as const,
+    },
+    {
+      key: '센터코드' as keyof InternalOrderFormat,
+      label: '센터코드',
+      value: editedOrder.센터코드 || '',
+      type: 'text' as const,
+    },
+    {
+      key: '박스수량' as keyof InternalOrderFormat,
+      label: '박스수량',
+      value: editedOrder.박스수량 || '',
+      type: 'text' as const,
+    },
+    {
+      key: '출고타입' as keyof InternalOrderFormat,
+      label: '출고타입',
+      value: editedOrder.출고타입 || '',
+      type: 'text' as const,
+    },
+    {
+      key: '출고요청일' as keyof InternalOrderFormat,
+      label: '출고요청일',
+      value: editedOrder.출고요청일 || '',
+      type: 'text' as const,
+    },
+    {
+      key: '주문ID' as keyof InternalOrderFormat,
+      label: '주문ID',
+      value: editedOrder.주문ID || '',
+      type: 'text' as const,
+    },
+    {
+      key: '출고지시사항' as keyof InternalOrderFormat,
+      label: '출고지시사항',
+      value: editedOrder.출고지시사항 || '',
+      type: 'textarea' as const,
+    },
+    {
+      key: '판매처' as keyof InternalOrderFormat,
+      label: '판매처',
+      value: editedOrder.판매처 || '',
+      type: 'text' as const,
+    },
   ];
 
   // 필드 값 업데이트 핸들러
@@ -149,11 +202,12 @@ export function OrderConfirmModal({
   };
 
   // 주문 요약 정보 추출 (빈 값은 표시하지 않음) - 편집 모드가 아닐 때만 필터링
-  const orderSummary = isEditing 
+  const orderSummary = isEditing
     ? editableFields
-    : editableFields.filter(item => {
-        if (item.key === 'quantity') {
-          return editedOrder.quantity > 0;
+    : editableFields.filter((item) => {
+        if (item.key === '수량') {
+          const n = parseFloat(String(editedOrder.수량 || '').trim());
+          return !Number.isNaN(n) && n > 0;
         }
         return item.value && item.value.trim() !== '';
       });

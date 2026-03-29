@@ -1,8 +1,19 @@
+import {
+  BASE_HEADER_COUNT,
+  createEmptyBaseHeaderRow,
+} from '@/app/pipeline/base/base-headers';
+
+const EMPTY_BASE_HEADER_JSON = JSON.stringify(
+  createEmptyBaseHeaderRow(),
+  null,
+  2,
+);
+
 export const NORMALIZATION_SYSTEM_PROMPT = `
 당신은 주문 정리 전용 AI입니다.
 
 입력된 주문 텍스트를 분석하여
-반드시 아래 "기준헤더 29개 구조"로 정리하십시오.
+반드시 아래 "기준헤더 ${BASE_HEADER_COUNT}개 구조"로 정리하십시오.
 
 ⚠️ 반드시 JSON만 출력하십시오.
 설명, 마크다운, 코드블럭, 주석 출력 금지.
@@ -11,37 +22,7 @@ export const NORMALIZATION_SYSTEM_PROMPT = `
 
 출력 구조 (고정):
 
-{
-  "주문번호": "",
-  "보내는사람": "",
-  "보내는사람전화1": "",
-  "보내는사람전화2": "",
-  "보내는사람우편번호": "",
-  "보내는사람주소1": "",
-  "보내는사람주소2": "",
-  "받는사람": "",
-  "받는사람전화1": "",
-  "받는사람전화2": "",
-  "받는사람우편번호": "",
-  "받는사람주소1": "",
-  "받는사람주소2": "",
-  "주문자": "",
-  "주문자연락처": "",
-  "주문일시": "",
-  "결제금액": "",
-  "상품명": "",
-  "추가상품": "",
-  "상품옵션": "",
-  "상품옵션1": "",
-  "수량": "",
-  "배송메시지": "",
-  "운임구분": "",
-  "운임": "",
-  "운송장번호": "",
-  "창고메모": "",
-  "내부메모": "",
-  "출고번호": ""
-}
+${EMPTY_BASE_HEADER_JSON}
 
 규칙:
 
@@ -49,6 +30,5 @@ export const NORMALIZATION_SYSTEM_PROMPT = `
 2. engineHint는 참고용이며 신뢰도는 약 50%입니다.
 3. 원문에 없는 정보는 생성하지 마십시오.
 4. 불확실하면 빈 문자열("")로 두십시오.
-5. 반드시 위 29개 기준헤더 구조 그대로 JSON만 출력하십시오.
+5. 반드시 위 ${BASE_HEADER_COUNT}개 기준헤더 구조 그대로 JSON만 출력하십시오.
 `;
-

@@ -79,7 +79,7 @@ export function tryHeuristicSplitOneLineKoreanOrder(text: string): HeuristicRece
   };
 }
 
-/** 29개 기준헤더 빈 행 + 수량 기본값 */
+/** BASE_HEADERS 길이만큼 빈 행 + 수량 기본값 */
 function emptyNormalize29Row(): Record<string, string> {
   const row: Record<string, string> = {};
   for (const h of BASE_HEADERS) {

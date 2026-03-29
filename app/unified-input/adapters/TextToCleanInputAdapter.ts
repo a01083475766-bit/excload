@@ -53,7 +53,7 @@ export async function runTextToCleanInputAdapter(text: string): Promise<TextToCl
     console.log('[heuristic-korean-line] 한 줄 패턴 감지 → 받는사람·주소·전화·상품명 보정');
   }
 
-  // 브라우저 콘솔에서 AI(또는 fallback)가 넣은 기준헤더 29칸을 표로 확인
+  // 브라우저 콘솔에서 AI(또는 fallback)가 넣은 기준헤더 칸을 표로 확인
   orders.forEach((order: any, idx: number) => {
     const row: Record<string, string> = {};
     for (const h of BASE_HEADERS) {

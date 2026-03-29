@@ -1,16 +1,15 @@
 /**
- * EXCLOAD 기준헤더 정의 (컬럼 기반 v2.0)
- * 
+ * EXCLOAD 기준헤더 정의 (컬럼 기반 v3.0)
+ *
  * ⚠️ 기준헤더는 내부 전용 Base Header입니다.
  * - UI 노출 금지
  * - 한글 컬럼 기준 구조
- * - 29개 고정 컬럼 집합
+ * - v2: 29개 → v3: 3PL 확장 9개 추가 (총 38개)
  */
 
 /**
- * 기준헤더 배열 (29개)
+ * 기준헤더 배열
  * 내부 표준 컬럼 집합으로, 모든 입력의 1차 통일 구조입니다.
- * 한글 컬럼 기준으로 정의됩니다.
  */
 export const BASE_HEADERS = [
   '주문번호',
@@ -42,4 +41,38 @@ export const BASE_HEADERS = [
   '창고메모',
   '내부메모',
   '출고번호',
+  // v3 확장 — 3PL 물류
+  '상품코드',
+  '옵션코드',
+  '센터코드',
+  '박스수량',
+  '출고타입',
+  '출고요청일',
+  '주문ID',
+  '출고지시사항',
+  '판매처',
 ] as const;
+
+/** 기준헤더 개수 (프롬프트·검증용) */
+export const BASE_HEADER_COUNT = BASE_HEADERS.length;
+
+export type BaseHeaderKey = (typeof BASE_HEADERS)[number];
+
+/** 기준헤더 키 → 문자열 값 (행 1건) */
+export type BaseHeaderRow = Record<BaseHeaderKey, string>;
+
+/** 빈 기준헤더 행 (모든 키 빈 문자열) */
+export function createEmptyBaseHeaderRow(): BaseHeaderRow {
+  const row = {} as BaseHeaderRow;
+  for (const h of BASE_HEADERS) {
+    row[h] = '';
+  }
+  return row;
+}
+
+/**
+ * normalize-29 AI 프롬프트용 예시 JSON: { orders: [ { ...빈 필드 } ] }
+ */
+export function buildNormalize29OrdersJsonExample(): string {
+  return JSON.stringify({ orders: [createEmptyBaseHeaderRow()] }, null, 2);
+}
