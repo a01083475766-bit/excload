@@ -76,3 +76,19 @@ export function createEmptyBaseHeaderRow(): BaseHeaderRow {
 export function buildNormalize29OrdersJsonExample(): string {
   return JSON.stringify({ orders: [createEmptyBaseHeaderRow()] }, null, 2);
 }
+
+/**
+ * 행 객체에 BASE_HEADERS 키가 모두 있는지 검사 (개수 비교가 아닌 키 존재 여부).
+ * 누락 시에만 console.warn — 변환 파이프라인은 계속 진행한다.
+ */
+export function warnIfBaseHeaderKeysMissing(
+  row: Record<string, unknown>,
+  context: string
+): void {
+  const missing = BASE_HEADERS.filter(
+    (k) => !Object.prototype.hasOwnProperty.call(row, k)
+  );
+  if (missing.length > 0) {
+    console.warn(`[${context}] BASE_HEADERS 키 누락`, { missing });
+  }
+}

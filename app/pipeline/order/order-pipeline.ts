@@ -192,7 +192,23 @@ export async function run(cleanInputFile: CleanInputFile, fileSessionId?: string
             }
           }
         }
-        
+
+        const nonEmptyDistinct = [
+          ...new Set(
+            sourceIndices
+              .map((idx) => String(row[idx] || '').trim())
+              .filter((v) => v.length > 0)
+          ),
+        ];
+        if (nonEmptyDistinct.length > 1) {
+          console.warn('[Stage2] 동일 기준헤더로 매핑된 열에 서로 다른 값', {
+            baseHeader,
+            rowIndex,
+            values: nonEmptyDistinct,
+            sourceHeaders: sourceIndices.map((i) => headers[i]),
+          });
+        }
+
         // 선택된 값이 있으면 사용, 없으면 첫 번째 인덱스의 값 사용 (빈 값일 수 있음)
         if (selectedValue) {
           transformedRow[baseHeader] = selectedValue;

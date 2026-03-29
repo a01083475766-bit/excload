@@ -9,6 +9,7 @@ import {
   BASE_HEADERS,
   BASE_HEADER_COUNT,
   createEmptyBaseHeaderRow,
+  warnIfBaseHeaderKeysMissing,
   type BaseHeaderRow,
 } from '@/app/pipeline/base/base-headers';
 
@@ -291,6 +292,38 @@ function extractOrderRecordFromNormalize29Response(
   return {};
 }
 
+/** orders 비어 있음·형식 이상 시 관측용 warn (throw 없음, 이후 빈 구조 병합) */
+function warnIfNormalize29ResponseHadNoUsableOrder(data: unknown): void {
+  if (!data || typeof data !== 'object') {
+    console.warn(
+      '[callAIOnceForNormalization] normalize-29 응답이 객체가 아님 → 빈 기준헤더 행으로 병합'
+    );
+    return;
+  }
+  const d = data as Record<string, unknown>;
+  const orders = d.orders;
+  if (!Array.isArray(orders)) {
+    if (!('주문번호' in d || '받는사람' in d)) {
+      console.warn(
+        '[callAIOnceForNormalization] normalize-29 응답에 orders 없음(레거시 단일 주문 객체도 아님) → 빈 행 병합'
+      );
+    }
+    return;
+  }
+  if (orders.length === 0) {
+    console.warn(
+      '[callAIOnceForNormalization] normalize-29 응답 orders 비어 있음 → 빈 행 병합'
+    );
+    return;
+  }
+  const first = orders[0];
+  if (!first || typeof first !== 'object' || Array.isArray(first)) {
+    console.warn(
+      '[callAIOnceForNormalization] normalize-29 응답 orders[0] 없음/형식 오류 → 빈 행 병합'
+    );
+  }
+}
+
 /**
  * Normalization input type
  */
@@ -362,6 +395,8 @@ export async function callAIOnceForNormalization(
       return createEmptyNormalizationResult();
     }
 
+    warnIfNormalize29ResponseHadNoUsableOrder(data);
+
     const orderPayload = extractOrderRecordFromNormalize29Response(data);
 
     // 응답 정규화: 기준헤더 키 모두 존재하도록 보정 + undefined/null → ""
@@ -376,6 +411,8 @@ export async function callAIOnceForNormalization(
         normalized[key] = String(rawValue);
       }
     }
+
+    warnIfBaseHeaderKeysMissing(normalized, 'callAIOnceForNormalization');
 
     return normalized;
   } catch (error) {
