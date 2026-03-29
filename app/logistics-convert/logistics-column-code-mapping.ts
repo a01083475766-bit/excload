@@ -8,6 +8,7 @@ import {
   parseProductCodeMapFromMatrix,
   resolveLogisticsProductNameColumn,
   resolveLogisticsProductOptionColumn,
+  resolveProductCodeColumnHeader,
   resolveProductCodeFromMap,
 } from '@/app/logistics-convert/product-code-projection';
 
@@ -117,7 +118,9 @@ function lookupSimpleMap(
 
 /**
  * 모달 「확인」 시 일괄 적용.
- * - product: 행의 상품명·옵션은 baselineRows(확인 시점 스냅샷) 기준으로 조회해 targetHeader에 기록.
+ * - product + 상품명 열 있음: baseline의 상품명·옵션으로 조회 → targetHeader에 기록.
+ * - product + 상품명 열 없음: 템플릿의 상품코드·바코드·코드 열을 대상으로 했을 때만,
+ *   그 칸 문자열을 상품명처럼 보고 조회(기존 「상품명↔상품코드 변환」과 동일 철학).
  * - simple: 직전 단계까지 반영된 행에서 targetHeader 셀 값을 키로 조회.
  */
 export function applyLogisticsStagedColumnMappings(
@@ -130,28 +133,53 @@ export function applyLogisticsStagedColumnMappings(
   let next = baselineRows.map((r) => ({ ...r }));
   const nameCol = resolveLogisticsProductNameColumn(courierHeaders);
   const optCol = resolveLogisticsProductOptionColumn(courierHeaders);
+  const codeCol = resolveProductCodeColumnHeader(courierHeaders);
 
   for (const spec of staged) {
     const isProduct = spec.kind === 'product' && spec.productMap;
     if (isProduct) {
-      if (!nameCol) {
-        console.warn(
-          '[코드매핑] 상품 마스터는 템플릿에 상품명(또는 품목명) 열이 있어야 합니다.',
-        );
-        continue;
-      }
       const pmap = spec.productMap!;
-      next = next.map((row, i) => {
-        const out = { ...row };
-        const base = baselineRows[i] ?? row;
-        const name = String(base[nameCol] ?? '').trim();
-        const option = optCol ? String(base[optCol] ?? '').trim() : '';
-        const code = resolveProductCodeFromMap(pmap, name, option);
-        if (code !== undefined && code !== '') {
-          out[spec.targetHeader] = code;
-        }
-        return out;
-      });
+      if (nameCol) {
+        next = next.map((row, i) => {
+          const out = { ...row };
+          const base = baselineRows[i] ?? row;
+          const name = String(base[nameCol] ?? '').trim();
+          const option = optCol ? String(base[optCol] ?? '').trim() : '';
+          const code = resolveProductCodeFromMap(pmap, name, option);
+          if (code !== undefined && code !== '') {
+            out[spec.targetHeader] = code;
+          }
+          return out;
+        });
+      } else if (codeCol && spec.targetHeader === codeCol) {
+        const mapOutputValues = new Set(
+          Object.values(pmap).filter(
+            (v) => v !== undefined && String(v).trim() !== '',
+          ),
+        );
+        next = next.map((row, i) => {
+          const out = { ...row };
+          const base = baselineRows[i] ?? row;
+          const existingCell = String(base[codeCol] ?? '').trim();
+          if (existingCell && mapOutputValues.has(existingCell)) {
+            return out;
+          }
+          if (!existingCell) {
+            return out;
+          }
+          const option = optCol ? String(base[optCol] ?? '').trim() : '';
+          const code = resolveProductCodeFromMap(pmap, existingCell, option);
+          if (code !== undefined && code !== '') {
+            out[spec.targetHeader] = code;
+          }
+          return out;
+        });
+      } else {
+        console.warn(
+          '[코드매핑] 상품 마스터: 상품명 열이 없으면 매핑 대상을 상품코드·바코드·코드 열로 지정해야 합니다.',
+          { targetHeader: spec.targetHeader, codeCol },
+        );
+      }
     } else if (spec.kind === 'simple' && spec.simpleMap) {
       const sm = spec.simpleMap;
       next = next.map((row) => {

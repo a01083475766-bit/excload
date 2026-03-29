@@ -238,6 +238,7 @@ export function resolveProductCodeColumnHeader(
     '상품코드',
     '품목코드',
     '바코드',
+    '박스코드',
     '코드',
   ]);
   return idx >= 0 ? courierHeaders[idx] : null;

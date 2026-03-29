@@ -685,10 +685,16 @@ export default function LogisticsConvertPage() {
       alert('헤더를 선택한 뒤 열당 매핑 파일을 등록해 주세요.');
       return;
     }
-    const hasProduct = stagedList.some((s) => s.kind === 'product');
-    if (hasProduct && !resolveLogisticsProductNameColumn(courierHeaders)) {
+    const nameColForProduct = resolveLogisticsProductNameColumn(courierHeaders);
+    const codeColForProduct = resolveProductCodeColumnHeader(courierHeaders);
+    for (const s of stagedList) {
+      if (s.kind !== 'product') continue;
+      if (nameColForProduct) continue;
+      if (codeColForProduct && s.targetHeader === codeColForProduct) continue;
       alert(
-        '상품 마스터 형식(상품명·옵션·상품코드)은 템플릿에 상품명(또는 품목명) 열이 있어야 합니다.',
+        codeColForProduct
+          ? `템플릿에 상품명 열이 없을 때는, 원문이 들어 있는 「${codeColForProduct}」열을 코드매핑 대상으로 선택해 주세요. (현재: 「${s.targetHeader}」)`
+          : '상품 마스터를 쓰려면 템플릿에 상품명·품목명 열 또는 상품코드·바코드·코드 열이 있어야 합니다.',
       );
       return;
     }
@@ -2649,11 +2655,13 @@ export default function LogisticsConvertPage() {
             </div>
 
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-              미리보기 열 이름마다 <strong>별도의</strong> 매핑 엑셀을 연결합니다. 상품명 열은 기존 물류{' '}
-              <strong>상품명·옵션·상품코드</strong> 마스터와 같은 형식을 쓸 수 있고, 그 외 열은{' '}
-              <strong>원본 → 코드</strong>(또는 첫 열·둘째 열) 형식을 권장합니다. 아래에서 헤더를 눌러
-              파일을 선택한 뒤, 하단 <strong>확인</strong>을 누르면 미리보기에 한꺼번에 반영됩니다.{' '}
-              <strong>취소</strong>하면 이번에 연 파일만 버립니다.
+              미리보기 열 이름마다 <strong>별도의</strong> 매핑 엑셀을 연결합니다.{' '}
+              <strong>상품명·옵션·상품코드</strong> 마스터는 템플릿에 상품명 열이 있으면 그 값으로
+              조회하고, <strong>상품명 열 없이 상품코드·바코드 열만</strong> 있는 경우에는 그 열을
+              선택해 같은 마스터를 쓰면 됩니다(칸에 적힌 글자를 상품명처럼 매칭). 그 외 열은{' '}
+              <strong>원본 → 코드</strong>(또는 첫 열·둘째 열) 형식을 권장합니다. 헤더를 눌러 파일을
+              선택한 뒤 하단 <strong>확인</strong> 시 한꺼번에 반영되며, <strong>취소</strong>하면 이번에
+              연 파일만 버립니다.
             </p>
 
             <input
