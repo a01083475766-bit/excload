@@ -94,6 +94,48 @@ type LogisticsMappingFileFormat = {
 
 const LOGISTICS_MAPPING_STORAGE_KEY = 'logistics_recent_mapping_formats_v1';
 const LOGISTICS_MAPPING_SELECTED_KEY = 'logistics_selected_mapping_id_v1';
+/** simple 코드매핑(열 헤더명 → 원본→변환 맵) — productCodeMap과 별도 */
+const LOGISTICS_SIMPLE_COLUMN_MAPS_KEY = 'logistics_simple_column_code_maps_v1';
+
+function loadSimpleColumnMapsByUser(
+  userId: string | null | undefined,
+): Record<string, Record<string, string>> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const key = getLogisticsScopedKey(LOGISTICS_SIMPLE_COLUMN_MAPS_KEY, userId);
+    const raw = localStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+      return {};
+    return parsed as Record<string, Record<string, string>>;
+  } catch {
+    return {};
+  }
+}
+
+function saveSimpleColumnMapForHeader(
+  userId: string | null | undefined,
+  header: string,
+  map: Record<string, string>,
+): void {
+  const all = loadSimpleColumnMapsByUser(userId);
+  all[header] = map;
+  const key = getLogisticsScopedKey(LOGISTICS_SIMPLE_COLUMN_MAPS_KEY, userId);
+  localStorage.setItem(key, JSON.stringify(all));
+}
+
+function buildSimpleMapFromEditorRows(
+  rows: Array<{ key: string; value: string }>,
+): Record<string, string> {
+  const m: Record<string, string> = {};
+  for (const r of rows) {
+    const v = String(r.value ?? '').trim();
+    if (!v) continue;
+    m[r.key] = v;
+  }
+  return m;
+}
 
 function getLogisticsScopedKey(baseKey: string, userId: string | null | undefined): string {
   const suffix = userId && userId.trim() !== '' ? userId : 'guest';
@@ -581,6 +623,8 @@ export default function LogisticsConvertPage() {
     key: string; // 내부키: name|option
     displayKey: string; // UI 표시: name / option
     value: string; // 변환값(상품코드)
+    /** true: +행 추가로 만든 행만 원본값 입력 가능 (기본 10칸·미리보기 유도 행은 읽기 전용) */
+    manualRow?: boolean;
   };
 
   const makeColumnCodeMappingEditorRowId = () =>
@@ -619,6 +663,7 @@ export default function LogisticsConvertPage() {
       key: '',
       displayKey: '',
       value: '',
+      manualRow: false,
     }));
 
   const createRowsFromProductCodeMap = (
@@ -632,6 +677,7 @@ export default function LogisticsConvertPage() {
         key: k,
         displayKey: toProductDisplayKey(k),
         value: String(v ?? ''),
+        manualRow: false,
       }));
 
   // (헤더별) 고정 2열 편집기: 원본값 / 변환값
@@ -1044,6 +1090,7 @@ export default function LogisticsConvertPage() {
             key,
             displayKey,
             value: productCodeMap?.[key] ?? '',
+            manualRow: false,
           }),
         );
 
@@ -1081,6 +1128,7 @@ export default function LogisticsConvertPage() {
           key,
           displayKey,
           value: '',
+          manualRow: false,
         }));
 
         // 미리보기에서 뽑힌 원본값이 0개면: 기본 10칸을 열어서 직접 입력 가능하게
@@ -1090,6 +1138,30 @@ export default function LogisticsConvertPage() {
           );
         }
 
+        const savedByHeader = loadSimpleColumnMapsByUser(userId);
+        const savedSimple = savedByHeader[header] ?? {};
+        nextRows = nextRows.map((row) => ({
+          ...row,
+          value:
+            savedSimple[row.key] !== undefined
+              ? savedSimple[row.key]!
+              : row.value,
+        }));
+
+        const rowKeySet = new Set(nextRows.map((r) => r.key));
+        for (const k of Object.keys(savedSimple)) {
+          if (rowKeySet.has(k)) continue;
+          rowKeySet.add(k);
+          nextRows.push({
+            id: makeColumnCodeMappingEditorRowId(),
+            key: k,
+            displayKey: k,
+            value: savedSimple[k] ?? '',
+            manualRow: true,
+          });
+        }
+
+        setColumnCodeMappingEditorSimpleMap(savedSimple);
         setColumnCodeMappingEditorRows(nextRows);
       }
 
@@ -1109,6 +1181,7 @@ export default function LogisticsConvertPage() {
       columnCodeMappingSnapshots,
       handleColumnCodeMappingModalCancel,
       handleClearColumnCodeMappingForHeader,
+      userId,
     ],
   );
 
@@ -1202,12 +1275,37 @@ export default function LogisticsConvertPage() {
         key: '',
         displayKey: '',
         value: '',
+        manualRow: true,
       },
     ]);
   }, []);
 
   // (헤더별) 고정 2열 편집기에서 만든 매핑을 “지난 변환 보기”에 재사용 저장
   const handleSaveColumnCodeMappingForReuse = useCallback(() => {
+    if (columnCodeMappingEditorMode === 'simple') {
+      if (!columnMappingActiveHeader) return;
+      const sm = buildSimpleMapFromEditorRows(columnCodeMappingEditorRows);
+      if (Object.keys(sm).length === 0) {
+        setColumnCodeMappingSavedMessage('저장할 내용이 없습니다.');
+        setTimeout(() => setColumnCodeMappingSavedMessage(null), 2000);
+        return;
+      }
+      try {
+        saveSimpleColumnMapForHeader(userId, columnMappingActiveHeader, sm);
+        setColumnCodeMappingEditorSimpleMap(sm);
+      } catch (e) {
+        console.error('[물류] simple 매핑 저장 오류:', e);
+        setColumnCodeMappingSavedMessage('저장 중 오류가 발생했습니다.');
+        setTimeout(() => setColumnCodeMappingSavedMessage(null), 2500);
+        return;
+      }
+      setColumnCodeMappingSavedMessage(
+        '저장되었습니다. 다음에도 자동으로 불러옵니다.',
+      );
+      setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
+      return;
+    }
+
     const productMap = columnCodeMappingEditorMap;
     if (!productMap || Object.keys(productMap).length === 0) {
       setColumnCodeMappingSavedMessage('저장할 내용이 없습니다.');
@@ -1250,7 +1348,11 @@ export default function LogisticsConvertPage() {
     setColumnCodeMappingSavedMessage('저장되었습니다. 다음에도 자동으로 불러옵니다.');
     setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
   }, [
+    columnCodeMappingEditorMode,
+    columnMappingActiveHeader,
+    columnCodeMappingEditorRows,
     columnCodeMappingEditorMap,
+    userId,
     setRecentMappingFormats,
     setTempSelectedMappingId,
   ]);
@@ -3366,7 +3468,7 @@ export default function LogisticsConvertPage() {
                   <tbody>
                     {columnCodeMappingEditorRows.map((r) => {
                       const displayTrimmed = String(r.displayKey ?? '').trim();
-                      const isKeyEmpty = displayTrimmed === '';
+                      const canEditOriginal = Boolean(r.manualRow);
 
                       return (
                         <tr
@@ -3377,8 +3479,8 @@ export default function LogisticsConvertPage() {
                               : ''
                           }`}
                         >
-                          <td className="p-2 align-top text-xs text-zinc-800 dark:text-zinc-100 whitespace-nowrap">
-                            {isKeyEmpty ? (
+                          <td className="p-2 align-top text-xs text-zinc-800 dark:text-zinc-100 max-w-[280px]">
+                            {canEditOriginal ? (
                               <input
                                 className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 text-xs bg-white dark:bg-zinc-900 outline-none"
                                 value={r.displayKey}
@@ -3397,7 +3499,6 @@ export default function LogisticsConvertPage() {
                                       : String(nextDisplayKey ?? '')
                                           .trim();
 
-                                  // 행 자체 갱신(원본값 표시 + 내부키)
                                   setColumnCodeMappingEditorRows((prev) =>
                                     prev.map((row) =>
                                       row.id === r.id
@@ -3410,7 +3511,6 @@ export default function LogisticsConvertPage() {
                                     ),
                                   );
 
-                                  // 내부키 변경 시 editorMap도 동기화
                                   const trimmedValue = String(r.value ?? '')
                                     .trim();
 
@@ -3438,7 +3538,18 @@ export default function LogisticsConvertPage() {
                                 }}
                               />
                             ) : (
-                              r.displayKey
+                              <div
+                                className="min-h-[28px] px-2 py-1 rounded-md text-xs whitespace-normal break-words bg-zinc-50 dark:bg-zinc-800/60 text-zinc-800 dark:text-zinc-100"
+                                title={
+                                  displayTrimmed !== ''
+                                    ? r.displayKey
+                                    : '미리보기에서 가져온 값이 없습니다. 변환값만 입력하거나 +행 추가로 원본을 입력하세요.'
+                                }
+                              >
+                                {displayTrimmed !== ''
+                                  ? r.displayKey
+                                  : '(비어 있음)'}
+                              </div>
                             )}
                           </td>
                           <td className="p-2">
