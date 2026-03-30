@@ -624,16 +624,6 @@ export default function LogisticsConvertPage() {
         value: String(v ?? ''),
       }));
 
-  // 혹시 모달 진입 시 editorRows가 비어있는 케이스가 생기면,
-  // 항상 최소 10칸을 보여주도록 안전장치 추가합니다.
-  useEffect(() => {
-    if (!showColumnCodeMappingModal) return;
-    if (columnCodeMappingEditorRows.length > 0) return;
-    setColumnCodeMappingEditorRows(
-      createEmptyEditorRows(DEFAULT_COLUMN_CODE_MAPPING_ROWS_COUNT),
-    );
-  }, [showColumnCodeMappingModal, columnCodeMappingEditorRows.length]);
-
   // (헤더별) 고정 2열 편집기: 원본값 / 변환값
   const [columnCodeMappingEditorRows, setColumnCodeMappingEditorRows] = useState<
     ColumnCodeMappingEditorRow[]
@@ -661,6 +651,16 @@ export default function LogisticsConvertPage() {
   } | null>(null);
 
   const [columnCodeMappingSavedMessage, setColumnCodeMappingSavedMessage] = useState<string | null>(null);
+
+  // 혹시 모달 진입 시 editorRows가 비어있는 케이스가 생기면,
+  // 항상 최소 10칸을 보여주도록 안전장치 추가합니다.
+  useEffect(() => {
+    if (!showColumnCodeMappingModal) return;
+    if (columnCodeMappingEditorRows.length > 0) return;
+    setColumnCodeMappingEditorRows(
+      createEmptyEditorRows(DEFAULT_COLUMN_CODE_MAPPING_ROWS_COUNT),
+    );
+  }, [showColumnCodeMappingModal, columnCodeMappingEditorRows.length]);
 
   const resetProductCodeColumnToggle = useCallback(() => {
     setIsProductCodeColumnShowingMappedCodes(false);
