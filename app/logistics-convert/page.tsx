@@ -248,11 +248,21 @@ async function parseTwoColumnSimpleKeyValueMapFromFile(
   for (let i = startIdx; i < rows.length; i++) {
     const keyRaw = String(rows[i]?.[0] ?? '').trim();
     const valRaw = String(rows[i]?.[1] ?? '').trim();
+    const val = String(valRaw ?? '').trim();
+    if (!val) continue;
+    // 원본 칸이 비어 있고 변환값만 있는 행: 미리보기 빈 셀에 적용
+    if (keyRaw === '') {
+      const key = '';
+      map[key] = val; // last wins
+      const prev = counts.get(key);
+      if (prev)
+        counts.set(key, { count: prev.count + 1, lastValue: val });
+      else counts.set(key, { count: 1, lastValue: val });
+      continue;
+    }
     if (!keyRaw) continue;
     const key = normalizeSimpleKey(keyRaw);
-    const val = String(valRaw ?? '').trim();
     if (!key) continue;
-    if (!val) continue;
 
     map[key] = val; // last wins
 
@@ -3407,7 +3417,7 @@ export default function LogisticsConvertPage() {
                                   if (columnCodeMappingEditorMode === 'product') {
                                     setColumnCodeMappingEditorMap((prev) => {
                                       const next = { ...prev };
-                                      if (r.key) delete next[r.key];
+                                      delete next[r.key];
                                       if (nextKey && trimmedValue) {
                                         next[nextKey] = trimmedValue;
                                       }
@@ -3417,8 +3427,8 @@ export default function LogisticsConvertPage() {
                                     setColumnCodeMappingEditorSimpleMap(
                                       (prev) => {
                                         const next = { ...prev };
-                                        if (r.key) delete next[r.key];
-                                        if (nextKey && trimmedValue) {
+                                        delete next[r.key];
+                                        if (trimmedValue) {
                                           next[nextKey] = trimmedValue;
                                         }
                                         return next;
@@ -3448,10 +3458,9 @@ export default function LogisticsConvertPage() {
                                   ),
                                 );
 
-                                // 내부키가 있을 때만 editorMap 동기화
-                                if (!r.key) return;
-
+                                // simple: 원본키가 빈 문자열('')이어도 "빈 셀 → 변환값" 매핑으로 저장
                                 if (columnCodeMappingEditorMode === 'product') {
+                                  if (!r.key) return;
                                   setColumnCodeMappingEditorMap((prev) => {
                                     const next = { ...prev };
                                     if (!trimmed) delete next[r.key];

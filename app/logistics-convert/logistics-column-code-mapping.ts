@@ -79,7 +79,12 @@ export function parseSimpleColumnMapFromMatrix(
     const row = matrix[r];
     const keyRaw = String(row[k] ?? '').trim();
     const val = String(row[v] ?? '').trim();
-    if (!keyRaw || !val) continue;
+    if (!val) continue;
+    // 원본 칸이 비어 있고 변환값만 있는 행: 빈 셀일 때 적용할 기본값
+    if (!keyRaw) {
+      map[''] = val;
+      continue;
+    }
     map[keyRaw] = val;
     const nk = normalizeMapKey(keyRaw);
     if (nk !== keyRaw) map[nk] = val;
@@ -108,7 +113,11 @@ function lookupSimpleMap(
   cell: string,
 ): string | undefined {
   const raw = String(cell ?? '').trim();
-  if (!raw) return undefined;
+  if (!raw) {
+    const emptyKey = map[''];
+    if (emptyKey !== undefined) return emptyKey;
+    return undefined;
+  }
   const a = map[raw];
   if (a !== undefined && a !== '') return a;
   const b = map[normalizeMapKey(raw)];
