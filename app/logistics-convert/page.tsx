@@ -40,6 +40,7 @@ import {
   applyProductCodeProjection,
   parseProductCodeMapFromMatrix,
   resolveLogisticsProductNameColumn,
+  resolveLogisticsProductOptionColumn,
   resolveProductCodeColumnHeader,
   type ProductCodeMap,
 } from '@/app/logistics-convert/product-code-projection';
@@ -106,6 +107,93 @@ function parseExcelRowsForMapping(file: File): Promise<string[][]> {
     const headerIndex = detectHeaderRowIndex(filtered);
     return alignRowsFromHeader(filtered, headerIndex);
   });
+}
+
+type ColumnCodeMapDuplicateNotice = {
+  key: string; // 내부 key: name|option (option 없으면 name|)
+  count: number;
+  lastValue: string;
+};
+
+type ParseTwoColumnCodeMapResult = {
+  map: ProductCodeMap;
+  duplicates: ColumnCodeMapDuplicateNotice[];
+};
+
+function normalizeInternalCompositeKey(rawKey: string): string {
+  let s = String(rawKey ?? '').trim();
+  if (!s) return '|';
+
+  // 사용자가 습관적으로 쓰는 "///" 또는 슬래시 구분자를 내부 "|"(name|option)로 통일
+  s = s.replace(/\s*\/\/\/\s*/g, '|');
+
+  // " / " 형태(예: 사과 / 대)도 내부 "|"로 환산 (문구가 아니라 데이터일 가능성이 높을 때만)
+  if (!s.includes('|') && s.includes(' / ')) {
+    const parts = s.split(' / ').map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) s = `${parts[0]}|${parts[1]}`;
+  }
+
+  // "name/option" (공백 없는 슬래시)도 2파트일 때만 변환
+  if (!s.includes('|') && s.includes('/') && !s.includes('http')) {
+    const parts = s.split('/').map((p) => p.trim()).filter(Boolean);
+    if (parts.length === 2) s = `${parts[0]}|${parts[1]}`;
+  }
+
+  // 내부 포맷은 항상 name|option 구조로 유지
+  if (!s.includes('|')) s = `${s}|`;
+
+  return s;
+}
+
+async function parseTwoColumnKeyValueMapFromFile(
+  file: File,
+): Promise<ParseTwoColumnCodeMapResult> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const firstName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[firstName];
+  if (!sheet) return { map: {}, duplicates: [] };
+
+  const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
+  const rows = (matrix ?? []).map((r) =>
+    (r ?? []).map((c) => String(c ?? '').trim()),
+  );
+
+  if (!rows.length) return { map: {}, duplicates: [] };
+
+  // 첫 행이 템플릿 헤더(원본값/변환값)처럼 보이면 스킵
+  let startIdx = 0;
+  const k0 = String(rows[0]?.[0] ?? '').trim();
+  const v0 = String(rows[0]?.[1] ?? '').trim();
+  const looksLikeHeader =
+    (/(원본|찾을|키|매핑키|상품명)/i.test(k0) && /(변환|바꿀|코드|매핑값|value)/i.test(v0)) ||
+    ((k0.includes('원본') || k0 === '원본값') && (v0.includes('변환') || v0 === '변환값'));
+  if (looksLikeHeader) startIdx = 1;
+
+  const map: ProductCodeMap = {};
+  const counts = new Map<string, { count: number; lastValue: string }>();
+
+  for (let i = startIdx; i < rows.length; i++) {
+    const keyRaw = String(rows[i]?.[0] ?? '').trim();
+    const valRaw = String(rows[i]?.[1] ?? '').trim();
+    if (!keyRaw) continue;
+
+    const internalKey = normalizeInternalCompositeKey(keyRaw);
+    map[internalKey] = valRaw; // last wins
+
+    const prev = counts.get(internalKey);
+    if (prev) counts.set(internalKey, { count: prev.count + 1, lastValue: valRaw });
+    else counts.set(internalKey, { count: 1, lastValue: valRaw });
+  }
+
+  const duplicates: ColumnCodeMapDuplicateNotice[] = [];
+  for (const [key, v] of counts.entries()) {
+    if (v.count > 1) duplicates.push({ key, count: v.count, lastValue: v.lastValue });
+  }
+  // 안정적인 UI를 위해 키 기준 정렬(입력 순서는 필요하면 확장 가능)
+  duplicates.sort((a, b) => a.key.localeCompare(b.key));
+
+  return { map, duplicates };
 }
 
 const isSenderColumn = (headerName: string): boolean => {
@@ -404,6 +492,33 @@ export default function LogisticsConvertPage() {
   const columnMappingModalFileRef = useRef<HTMLInputElement | null>(null);
   const columnMappingPendingHeaderRef = useRef<string | null>(null);
 
+  type ColumnCodeMappingEditorRow = {
+    key: string; // 내부키: name|option
+    displayKey: string; // UI 표시: name / option
+    value: string; // 변환값(상품코드)
+  };
+
+  // (헤더별) 고정 2열 편집기: 원본값 / 변환값
+  const [columnCodeMappingEditorRows, setColumnCodeMappingEditorRows] = useState<
+    ColumnCodeMappingEditorRow[]
+  >([]);
+  const [columnCodeMappingEditorMap, setColumnCodeMappingEditorMap] = useState<
+    ProductCodeMap
+  >({});
+
+  // 업로드 파일 내 중복 원본키 경고(최대 5개 표시)
+  const [columnCodeMappingDuplicatePopup, setColumnCodeMappingDuplicatePopup] = useState<{
+    items: Array<{
+      key: string;
+      displayKey: string;
+      count: number;
+      lastValue: string;
+    }>;
+    moreCount: number;
+  } | null>(null);
+
+  const [columnCodeMappingSavedMessage, setColumnCodeMappingSavedMessage] = useState<string | null>(null);
+
   const resetProductCodeColumnToggle = useCallback(() => {
     setIsProductCodeColumnShowingMappedCodes(false);
     productCodeCellBackupByRowIdRef.current = new Map();
@@ -640,6 +755,10 @@ export default function LogisticsConvertPage() {
     setShowColumnCodeMappingModal(false);
     setColumnMappingStaging({});
     setColumnMappingActiveHeader(null);
+    setColumnCodeMappingEditorRows([]);
+    setColumnCodeMappingEditorMap({});
+    setColumnCodeMappingDuplicatePopup(null);
+    setColumnCodeMappingSavedMessage(null);
     columnMappingPendingHeaderRef.current = null;
   }, []);
 
@@ -676,6 +795,217 @@ export default function LogisticsConvertPage() {
     },
     [columnCodeMappingSnapshots],
   );
+
+  /**
+   * 미리보기 테이블 헤더 체크박스 동작
+   * - 체크: 해당 열을 active로 두고 코드매핑 설정 모달을 즉시 오픈
+   * - 체크 해제: (해당 열에 적용된 스냅샷이 있으면) 매핑 해제
+   */
+  const handleHeaderCodeMappingCheckboxChange = useCallback(
+    (header: string, checked: boolean) => {
+      if (!checked) {
+        const hasSnap = Boolean(columnCodeMappingSnapshots[header]);
+
+        // 모달을 통해 작업 중이었다면 먼저 닫습니다.
+        if (
+          showColumnCodeMappingModal &&
+          columnMappingActiveHeader === header
+        ) {
+          handleColumnCodeMappingModalCancel();
+          if (hasSnap) handleClearColumnCodeMappingForHeader(header);
+          return;
+        }
+
+        // 이미 적용된 매핑 스냅샷이 있다면 해제합니다.
+        if (hasSnap) {
+          handleClearColumnCodeMappingForHeader(header);
+        }
+        return;
+      }
+
+      if (courierHeaders.length === 0 || previewRows.length === 0) {
+        alert('미리보기에 변환된 데이터가 있어야 코드매핑을 할 수 있습니다.');
+        return;
+      }
+
+      // 체크 즉시 모달 오픈
+      // - (옵션 있음) 원본키는 상품명|옵션명
+      // - (옵션 없음) 원본키는 상품명| (뒤 |는 빈 옵션)
+      const nameCol = resolveLogisticsProductNameColumn(courierHeaders);
+      const optCol = resolveLogisticsProductOptionColumn(courierHeaders);
+      const codeCol = resolveProductCodeColumnHeader(courierHeaders);
+
+      // 상품명 컬럼이 없으면: “해당 헤더가 상품코드(또는 바코드/코드) 열”일 때만 역으로 이름을 그 칸의 문자열로 사용
+      const sourceNameCol =
+        nameCol ?? (codeCol && header === codeCol ? codeCol : null);
+
+      if (!sourceNameCol) {
+        alert(
+          '상품 마스터를 쓰려면 템플릿에 상품명·품목명 열 또는 상품코드·바코드·코드 열이 필요합니다.',
+        );
+        return;
+      }
+
+      const keyDisplayMap = new Map<
+        string,
+        { displayKey: string; key: string }
+      >();
+
+      for (const row of previewRows) {
+        const nameVal = String(row.data[sourceNameCol] ?? '').trim();
+        if (!nameVal) continue;
+        const optionVal = optCol ? String(row.data[optCol] ?? '').trim() : '';
+        const internalKey = `${nameVal}|${optionVal}`;
+        if (!keyDisplayMap.has(internalKey)) {
+          const displayKey = optionVal ? `${nameVal} / ${optionVal}` : nameVal;
+          keyDisplayMap.set(internalKey, { displayKey, key: internalKey });
+        }
+      }
+
+      const nextRows = Array.from(keyDisplayMap.values()).map(({ key, displayKey }) => ({
+        key,
+        displayKey,
+        value: productCodeMap?.[key] ?? '',
+      }));
+
+      setColumnMappingStaging({}); // 새 모달은 editor 상태로만 처리
+      setColumnMappingActiveHeader(header);
+      setColumnCodeMappingEditorMap({ ...productCodeMap });
+      setColumnCodeMappingEditorRows(nextRows);
+      setColumnCodeMappingDuplicatePopup(null);
+      setColumnCodeMappingSavedMessage(null);
+      setShowColumnCodeMappingModal(true);
+    },
+    [
+      showColumnCodeMappingModal,
+      columnMappingActiveHeader,
+      courierHeaders.length,
+      previewRows.length,
+      productCodeMap,
+      productCodeFileName,
+      columnCodeMappingSnapshots,
+      handleColumnCodeMappingModalCancel,
+      handleClearColumnCodeMappingForHeader,
+    ],
+  );
+
+  // (헤더별) 고정 2열 편집기에서 만든 매핑을 미리보기로 즉시 적용
+  const handleApplyColumnCodeMappingFromEditor = useCallback(() => {
+    if (!columnMappingActiveHeader) return;
+
+    const header = columnMappingActiveHeader;
+    const productMap = columnCodeMappingEditorMap;
+
+    // 스냅샷은 "처음 적용"할 때만 저장 (이후 재적용 후에도 되돌리기 유지)
+    const snap: Record<string, string> = {};
+    for (const row of previewRows) {
+      snap[row.rowId] = String(row.data[header] ?? '');
+    }
+
+    setColumnCodeMappingSnapshots((prev) => {
+      if (prev[header]) return prev;
+      return { ...prev, [header]: snap };
+    });
+
+    const baseline = previewRows.map((r) => r.data);
+    const merged = applyLogisticsStagedColumnMappings(
+      baseline,
+      courierHeaders,
+      [
+        {
+          targetHeader: header,
+          kind: 'product',
+          fileName: '직접입력',
+          productMap,
+        },
+      ],
+    );
+
+    setPreviewRows((prev) =>
+      merged.map((data, i) => ({
+        rowId: prev[i]!.rowId,
+        data,
+      })),
+    );
+
+    // 적용한 헤더에 대한 수동 수정 오버라이드는 제거
+    setUserOverrides((prev) => {
+      const next = { ...prev };
+      for (const row of previewRows) {
+        const rowOv = next[row.rowId];
+        if (!rowOv || rowOv[header] === undefined) continue;
+        const copy = { ...rowOv };
+        delete copy[header];
+        if (Object.keys(copy).length === 0) delete next[row.rowId];
+        else next[row.rowId] = copy;
+      }
+      return next;
+    });
+
+    // 모달 닫기 + 편집기 초기화
+    setShowColumnCodeMappingModal(false);
+    setColumnMappingActiveHeader(null);
+    setColumnMappingStaging({});
+    setColumnCodeMappingEditorRows([]);
+    setColumnCodeMappingEditorMap({});
+    setColumnCodeMappingDuplicatePopup(null);
+    setColumnCodeMappingSavedMessage(null);
+    columnMappingPendingHeaderRef.current = null;
+  }, [
+    columnMappingActiveHeader,
+    columnCodeMappingEditorMap,
+    previewRows,
+    courierHeaders,
+  ]);
+
+  // (헤더별) 고정 2열 편집기에서 만든 매핑을 “지난 변환 보기”에 재사용 저장
+  const handleSaveColumnCodeMappingForReuse = useCallback(() => {
+    const productMap = columnCodeMappingEditorMap;
+    if (!productMap || Object.keys(productMap).length === 0) {
+      setColumnCodeMappingSavedMessage('저장할 내용이 없습니다.');
+      setTimeout(() => setColumnCodeMappingSavedMessage(null), 2000);
+      return;
+    }
+
+    const rows: string[][] = [];
+    rows.push(['상품명', '옵션명', '상품코드']);
+
+    for (const [internalKey, code] of Object.entries(productMap)) {
+      const codeTrim = String(code ?? '').trim();
+      if (!codeTrim) continue;
+      const idx = internalKey.indexOf('|');
+      const name = idx >= 0 ? internalKey.slice(0, idx) : internalKey;
+      const option = idx >= 0 ? internalKey.slice(idx + 1) : '';
+      rows.push([name, option, codeTrim]);
+    }
+
+    if (rows.length <= 1) {
+      setColumnCodeMappingSavedMessage('변환값이 비어있어 저장할 수 없습니다.');
+      setTimeout(() => setColumnCodeMappingSavedMessage(null), 2500);
+      return;
+    }
+
+    const newId = `logistics-mapping-direct-${Date.now()}`;
+    const displayName = '상품코드 매핑(직접입력)';
+    const nextMapping: LogisticsMappingFileFormat = {
+      id: newId,
+      displayName,
+      createdAt: new Date().toISOString(),
+      rows,
+    };
+
+    setRecentMappingFormats((prev) => [nextMapping, ...prev]);
+    setTempSelectedMappingId(newId);
+    setProductCodeMap({ ...productMap });
+    setProductCodeFileName(displayName);
+
+    setColumnCodeMappingSavedMessage('저장되었습니다. 다음에도 자동으로 불러옵니다.');
+    setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
+  }, [
+    columnCodeMappingEditorMap,
+    setRecentMappingFormats,
+    setTempSelectedMappingId,
+  ]);
 
   const handleConfirmColumnCodeMapping = useCallback(() => {
     const stagedList = courierHeaders
@@ -2201,16 +2531,6 @@ export default function LogisticsConvertPage() {
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
                   <button
-                    type="button"
-                    onClick={handleOpenColumnCodeMappingModal}
-                    className="h-9 px-3 inline-flex items-center justify-center text-sm font-semibold rounded-lg border border-indigo-500 bg-indigo-50 text-indigo-900 hover:bg-indigo-100 transition"
-                  >
-                    코드매핑
-                  </button>
-                )}
-
-                {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <button
                     className="w-20 h-9 inline-flex items-center justify-center text-sm border rounded transition"
                     onClick={() => setIsPreviewExpanded(prev => !prev)}
                   >
@@ -2290,7 +2610,7 @@ export default function LogisticsConvertPage() {
                       ⚠ 상품코드 매핑: {productCodeMappingNotice.failCount}건이 매핑되지 않았습니다.
                     </p>
                     <p className="mb-2 leading-relaxed">
-                      「<strong>상품명 ↔ 상품코드 변환</strong>」 적용 후, 물류 템플릿의{' '}
+                      「<strong>코드매핑 설정</strong>」 적용 후, 물류 템플릿의{' '}
                       <span className="font-semibold text-rose-800">
                         「{productCodeMappingNotice.targetHeader}」
                       </span>{' '}
@@ -2312,33 +2632,10 @@ export default function LogisticsConvertPage() {
                 <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
                   isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
                 }`}>
-                  <div className="px-3 py-2 border-b bg-gray-50 flex-shrink-0 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={handleApplyProductNameToCodeConversion}
-                      disabled={previewRows.length === 0 || courierHeaders.length === 0}
-                      title={
-                        isProductCodeColumnShowingMappedCodes
-                          ? '변환 직전 상품명으로 되돌립니다'
-                          : '매핑 파일 기준으로 상품코드 칸을 코드로 바꿉니다'
-                      }
-                      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs sm:text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                        isProductCodeColumnShowingMappedCodes
-                          ? 'bg-amber-50 border-amber-400 text-amber-900 hover:bg-amber-100'
-                          : 'bg-white border-slate-400 text-slate-800 hover:bg-slate-50 shadow-sm'
-                      }`}
-                    >
-                      <ArrowRightLeft
-                        className={`w-4 h-4 shrink-0 ${
-                          isProductCodeColumnShowingMappedCodes ? 'text-amber-800' : 'text-slate-600'
-                        }`}
-                      />
-                      <span className="whitespace-nowrap">
-                        {isProductCodeColumnShowingMappedCodes
-                          ? '상품코드 → 상품명 복원'
-                          : '상품명 ↔ 상품코드 변환'}
-                      </span>
-                    </button>
+                  <div className="px-3 py-2 border-b bg-gray-50 flex-shrink-0 flex items-center gap-2">
+                    <p className="text-xs text-gray-600">
+                      헤더 체크박스를 선택하면 해당 열의 코드매핑 설정 모달이 열립니다.
+                    </p>
                   </div>
                   <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}>
                     <table className="min-w-max text-sm border border-gray-300 border-collapse">
@@ -2372,30 +2669,48 @@ export default function LogisticsConvertPage() {
                                 });
                               }}
                             >
-                              <div className="flex items-center gap-1">
-                                <span
-                                  className={
-                                    sortConfig?.header === header
-                                      ? sortConfig.direction === 'asc'
-                                        ? 'text-blue-600 font-semibold'
-                                        : 'text-red-600 font-semibold'
-                                      : ''
-                                  }
-                                >
-                                  {header}
-                                </span>
-
-                                {sortConfig?.header === header && (
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    className="w-3 h-3"
+                                    checked={
+                                      Boolean(columnCodeMappingSnapshots[header]) ||
+                                      columnMappingActiveHeader === header
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      handleHeaderCodeMappingCheckboxChange(
+                                        header,
+                                        e.target.checked,
+                                      );
+                                    }}
+                                  />
                                   <span
                                     className={
-                                      sortConfig.direction === 'asc'
-                                        ? 'text-blue-600 text-xs'
-                                        : 'text-red-600 text-xs'
+                                      sortConfig?.header === header
+                                        ? sortConfig.direction === 'asc'
+                                          ? 'text-blue-600 font-semibold'
+                                          : 'text-red-600 font-semibold'
+                                        : ''
                                     }
                                   >
-                                    {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                                    {header}
                                   </span>
-                                )}
+
+                                  {sortConfig?.header === header && (
+                                    <span
+                                      className={
+                                        sortConfig.direction === 'asc'
+                                          ? 'text-blue-600 text-xs'
+                                          : 'text-red-600 text-xs'
+                                      }
+                                    >
+                                      {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </th>
                           ))}
@@ -2513,12 +2828,12 @@ export default function LogisticsConvertPage() {
         {/* 기능 설명 섹션 레이아웃 */}
         <section className="relative pt-4 pb-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
-            {/* 카드 1: 물류센터 양식 + 상품코드 매핑 (상품명↔코드 변환은 미리보기 테이블 상단 오른쪽) */}
-            <div className="h-[120px] flex flex-col gap-2">
+            {/* 템플릿 + 상품코드 매핑 업로드 */}
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={handleOpenCourierTemplateModal}
-                className="h-[56px] bg-gray-200 border border-gray-300 rounded-xl px-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
+                className="h-[56px] bg-white border border-zinc-200 rounded-lg px-5 flex flex-col justify-center transition-colors hover:bg-zinc-50"
               >
                 <div className="flex items-center justify-center gap-3">
                   <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100">
@@ -2535,14 +2850,14 @@ export default function LogisticsConvertPage() {
               <button
                 type="button"
                 onClick={() => setShowMappingModal(true)}
-                className="h-[56px] bg-gray-200 border border-gray-300 rounded-xl px-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
+                className="h-[56px] bg-white border border-zinc-200 rounded-lg px-5 flex flex-col justify-center transition-colors hover:bg-zinc-50"
               >
                 <div className="flex items-center justify-center gap-3">
                   <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100">
                     <Upload className="w-4 h-4 text-gray-500" />
                   </div>
                   <h3 className="text-[12px] font-semibold text-gray-900 text-center leading-tight">
-                    상품코드 매핑 파일 업로드
+                    상품코드 매핑 업로드
                   </h3>
                 </div>
                 <p className="text-[10px] text-gray-500 mt-0.5 text-center leading-tight">
@@ -2643,7 +2958,7 @@ export default function LogisticsConvertPage() {
           >
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                코드매핑 (헤더별 마스터 파일)
+                코드매핑 설정
               </h2>
               <button
                 type="button"
@@ -2655,13 +2970,8 @@ export default function LogisticsConvertPage() {
             </div>
 
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-              미리보기 열 이름마다 <strong>별도의</strong> 매핑 엑셀을 연결합니다.{' '}
-              <strong>상품명·옵션·상품코드</strong> 마스터는 템플릿에 상품명 열이 있으면 그 값으로
-              조회하고, <strong>상품명 열 없이 상품코드·바코드 열만</strong> 있는 경우에는 그 열을
-              선택해 같은 마스터를 쓰면 됩니다(칸에 적힌 글자를 상품명처럼 매칭). 그 외 열은{' '}
-              <strong>원본 → 코드</strong>(또는 첫 열·둘째 열) 형식을 권장합니다. 헤더를 눌러 파일을
-              선택한 뒤 하단 <strong>확인</strong> 시 한꺼번에 반영되며, <strong>취소</strong>하면 이번에
-              연 파일만 버립니다.
+              이 모달에서 <strong>원본값(왼쪽)</strong>과 <strong>변환값(오른쪽)</strong>을
+              만들어 미리보기 데이터를 코드로 치환합니다.
             </p>
 
             <input
@@ -2671,47 +2981,64 @@ export default function LogisticsConvertPage() {
               className="hidden"
               onChange={async (e) => {
                 const f = e.target.files?.[0];
-                const headerKey = columnMappingPendingHeaderRef.current;
                 e.target.value = '';
-                if (!f || !headerKey) return;
+                if (!f) return;
+
                 try {
-                  const matrix = await parseExcelRowsForMapping(f);
-                  const cls = classifyLogisticsMappingMatrix(matrix);
-                  if (
-                    cls.kind === 'simple' &&
-                    Object.keys(cls.simpleMap ?? {}).length === 0
-                  ) {
-                    alert(
-                      '매핑으로 읽을 수 있는 행이 없습니다. 원본·코드 열(또는 첫·두 번째 열)을 확인해 주세요.',
-                    );
-                    return;
+                  const parsed = await parseTwoColumnKeyValueMapFromFile(f);
+
+                  const toDisplayKey = (internalKey: string) => {
+                    const idx = internalKey.indexOf('|');
+                    if (idx < 0) return internalKey;
+                    const name = internalKey.slice(0, idx);
+                    const option = internalKey.slice(idx + 1);
+                    return option ? `${name} / ${option}` : name;
+                  };
+
+                  // 중복 경고 팝업(최대 5개만 표시)
+                  if (parsed.duplicates.length > 0) {
+                    const showItems = parsed.duplicates.slice(0, 5).map((d) => ({
+                      key: d.key,
+                      displayKey: toDisplayKey(d.key),
+                      count: d.count,
+                      lastValue: d.lastValue,
+                    }));
+                    const moreCount = Math.max(0, parsed.duplicates.length - 5);
+                    setColumnCodeMappingDuplicatePopup({
+                      items: showItems,
+                      moreCount,
+                    });
+                  } else {
+                    setColumnCodeMappingDuplicatePopup(null);
                   }
-                  if (
-                    cls.kind === 'product' &&
-                    (!cls.productMap ||
-                      Object.keys(cls.productMap).length === 0)
-                  ) {
-                    alert('상품 마스터 형식으로 읽지 못했습니다.');
-                    return;
-                  }
-                  const entry: LogisticsStagedColumnMapping =
-                    cls.kind === 'product'
-                      ? {
-                          targetHeader: headerKey,
-                          kind: 'product',
-                          fileName: f.name,
-                          productMap: cls.productMap,
-                        }
-                      : {
-                          targetHeader: headerKey,
-                          kind: 'simple',
-                          fileName: f.name,
-                          simpleMap: cls.simpleMap,
-                        };
-                  setColumnMappingStaging((prev) => ({
-                    ...prev,
-                    [headerKey]: entry,
-                  }));
+
+                  // editorMap / rows 동기화
+                  setColumnCodeMappingEditorMap((prev) => {
+                    const next: ProductCodeMap = { ...prev };
+                    for (const [k, v] of Object.entries(parsed.map)) {
+                      const trimmed = String(v ?? '').trim();
+                      if (!trimmed) {
+                        delete next[k];
+                      } else {
+                        next[k] = trimmed;
+                      }
+                    }
+                    return next;
+                  });
+
+                  setColumnCodeMappingEditorRows((prevRows) =>
+                    prevRows.map((r) => {
+                      const has = Object.prototype.hasOwnProperty.call(
+                        parsed.map,
+                        r.key,
+                      );
+                      if (!has) return r;
+                      const nv = String(parsed.map[r.key] ?? '').trim();
+                      return { ...r, value: nv };
+                    }),
+                  );
+
+                  setColumnCodeMappingSavedMessage(null);
                 } catch (err) {
                   console.error('[물류 코드매핑] 엑셀 파싱 오류:', err);
                   alert('엑셀을 읽는 중 오류가 발생했습니다.');
@@ -2719,80 +3046,132 @@ export default function LogisticsConvertPage() {
               }}
             />
 
-            <div className="overflow-y-auto flex-1 min-h-0 pr-1 space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {courierHeaders.map((h) => {
-                  const staged = columnMappingStaging[h];
-                  const hasSnap = Boolean(columnCodeMappingSnapshots[h]);
-                  const active = columnMappingActiveHeader === h;
-                  return (
-                    <div key={h} className="flex flex-col gap-1">
-                      <div className="flex flex-wrap items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setColumnMappingActiveHeader((prev) =>
-                              prev === h ? null : h,
-                            )
-                          }
-                          className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${
-                            staged
-                              ? 'border-indigo-500 bg-indigo-50 text-indigo-900'
-                              : active
-                                ? 'border-zinc-500 bg-zinc-100 text-zinc-900'
-                                : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100'
+            <div className="relative overflow-y-auto flex-1 min-h-0 pr-1">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                  선택된 헤더: <span className="font-semibold">{columnMappingActiveHeader ?? '-'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => columnMappingModalFileRef.current?.click()}
+                  className="text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  매핑 엑셀 추가
+                </button>
+              </div>
+
+              <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-800 w-1/3">
+                        원본값
+                      </th>
+                      <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-800 w-2/3">
+                        변환값
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {columnCodeMappingEditorRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="p-4 text-xs text-zinc-500">
+                          미리보기에서 원본값 목록을 찾지 못했습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      columnCodeMappingEditorRows.map((r) => (
+                        <tr
+                          key={r.key}
+                          className={`border-b border-zinc-100 dark:border-zinc-700 last:border-b-0 ${
+                            String(r.value ?? '').trim() === ''
+                              ? 'bg-amber-50'
+                              : ''
                           }`}
                         >
-                          {h}
-                          {staged ? (
-                            <span className="block text-[10px] font-normal truncate max-w-[140px]">
-                              {staged.fileName}
-                            </span>
-                          ) : null}
-                        </button>
-                        {hasSnap ? (
-                          <button
-                            type="button"
-                            onClick={() => handleClearColumnCodeMappingForHeader(h)}
-                            className="text-xs px-2 py-1 rounded border border-rose-300 text-rose-800 hover:bg-rose-50"
-                          >
-                            매핑 해제
-                          </button>
-                        ) : null}
-                      </div>
-                      {active ? (
-                        <div className="flex flex-wrap items-center gap-2 pl-1">
-                          <button
-                            type="button"
-                            onClick={() => triggerColumnMappingFilePick(h)}
-                            className="text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
-                          >
-                            매핑 파일 선택
-                          </button>
-                          {staged ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setColumnMappingStaging((prev) => {
+                          <td className="p-2 align-top text-xs text-zinc-800 dark:text-zinc-100 whitespace-nowrap">
+                            {r.displayKey}
+                          </td>
+                          <td className="p-2">
+                            <input
+                              className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 text-xs bg-white dark:bg-zinc-900 outline-none"
+                              value={r.value}
+                              onChange={(e) => {
+                                const nextVal = e.target.value;
+                                setColumnCodeMappingEditorRows((prev) =>
+                                  prev.map((row) =>
+                                    row.key === r.key
+                                      ? { ...row, value: nextVal }
+                                      : row,
+                                  ),
+                                );
+                                setColumnCodeMappingEditorMap((prev) => {
+                                  const trimmed = String(nextVal ?? '').trim();
                                   const next = { ...prev };
-                                  delete next[h];
+                                  if (!trimmed) delete next[r.key];
+                                  else next[r.key] = trimmed;
                                   return next;
-                                })
-                              }
-                              className="text-xs px-2 py-1.5 rounded-md border border-zinc-300 text-zinc-700 hover:bg-zinc-100"
-                            >
-                              선택 취소
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                                });
+                              }}
+                              placeholder="코드를 입력하세요"
+                            />
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
+
+              {columnCodeMappingDuplicatePopup && (
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center p-3 z-50">
+                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-lg w-full max-w-[520px]">
+                    <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                          원본값 중복 안내
+                        </div>
+                        <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                          원본값이 여러 번 정의되어 있습니다. 아래의 변환값으로 적용됩니다. 확인해주세요.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        onClick={() => setColumnCodeMappingDuplicatePopup(null)}
+                      >
+                        <X className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+                      </button>
+                    </div>
+                    <div className="p-4 max-h-[240px] overflow-auto">
+                      <div className="space-y-2">
+                        {columnCodeMappingDuplicatePopup.items.map((it) => (
+                          <div key={it.key} className="text-xs text-zinc-800 dark:text-zinc-100">
+                            {it.displayKey}({it.count}건) → {it.lastValue || '-'}
+                          </div>
+                        ))}
+                        {columnCodeMappingDuplicatePopup.moreCount > 0 && (
+                          <div className="text-xs text-zinc-500">
+                            …외 {columnCodeMappingDuplicatePopup.moreCount}건
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setColumnCodeMappingDuplicatePopup(null)}
+                        className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      >
+                        확인
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex-shrink-0">
+            <div className="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex-shrink-0">
               <button
                 type="button"
                 onClick={handleColumnCodeMappingModalCancel}
@@ -2800,13 +3179,31 @@ export default function LogisticsConvertPage() {
               >
                 취소
               </button>
-              <button
-                type="button"
-                onClick={handleConfirmColumnCodeMapping}
-                className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
-              >
-                확인
-              </button>
+
+              <div className="flex-1 text-center">
+                {columnCodeMappingSavedMessage ? (
+                  <div className="text-xs text-emerald-700 dark:text-emerald-300">
+                    {columnCodeMappingSavedMessage}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveColumnCodeMappingForReuse}
+                  className="px-5 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  다음에도 사용하기
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyColumnCodeMappingFromEditor}
+                  className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+                >
+                  미리보기로 적용
+                </button>
+              </div>
             </div>
           </div>
         </div>
