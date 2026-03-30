@@ -53,6 +53,14 @@ export const BASE_HEADERS = [
   '판매처',
 ] as const;
 
+/** v2 코어 필드 개수 (3PL 확장 9개 제외) — 텍스트 주문 AI는 이 구간을 주(主), 나머지는 보조로 안내 */
+export const CORE_BASE_HEADER_COUNT = 29;
+
+/** 물류·3PL 보조 필드 (코어 29개 다음). 텍스트 변환 시 라벨이 명시될 때만 채움(프롬프트 규칙). */
+export const AUXILIARY_BASE_HEADERS = BASE_HEADERS.slice(
+  CORE_BASE_HEADER_COUNT
+) as readonly BaseHeaderKey[];
+
 /** 기준헤더 개수 (프롬프트·검증용) */
 export const BASE_HEADER_COUNT = BASE_HEADERS.length;
 
