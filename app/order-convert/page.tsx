@@ -1654,7 +1654,7 @@ export default function OrderConvertPage() {
             {/* 서비스 설명 텍스트 영역 + 포인트 표시 */}
             <div className="relative flex items-center justify-center">
               {/* 주문변환 안내 컨테이너 (항상 중앙) */}
-              <div className="flex flex-col gap-2 text-center">
+              <div className="flex flex-col gap-2 text-center min-h-[32px]">
                 <p className="text-sm text-gray-500 leading-tight">
                   엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 택배 업로드 파일로 자동 변환합니다.
                 </p>

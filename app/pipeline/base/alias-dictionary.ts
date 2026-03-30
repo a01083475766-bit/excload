@@ -433,6 +433,8 @@ export const ALIAS_DICTIONARY: Record<string, string> = {
   '사이즈': '상품옵션',
   '상품상세': '상품옵션',
   '상품상세1': '상품옵션',
+  '제품상세': '상품옵션',
+  '제품상세1': '상품옵션',
   'item_option': '상품옵션',
   'product_option': '상품옵션',
   'option_name': '상품옵션',

@@ -196,6 +196,80 @@ async function parseTwoColumnKeyValueMapFromFile(
   return { map, duplicates };
 }
 
+type ParseSimpleKeyValueMapResult = {
+  map: Record<string, string>;
+  duplicates: Array<{
+    key: string;
+    count: number;
+    lastValue: string;
+  }>;
+};
+
+function normalizeSimpleKey(rawKey: string): string {
+  return String(rawKey ?? '').trim();
+}
+
+/**
+ * (고정 2열) 1열=원본값, 2열=변환값 을 simple 변환용 맵으로 파싱
+ * - 헤더명은 무시(1행이 안내/헤더처럼 보이면 스킵)
+ * - 중복 원본값은 마지막 값 우선
+ */
+async function parseTwoColumnSimpleKeyValueMapFromFile(
+  file: File,
+): Promise<ParseSimpleKeyValueMapResult> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const firstName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[firstName];
+  if (!sheet) return { map: {}, duplicates: [] };
+
+  const matrix = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    defval: '',
+  }) as unknown[][];
+
+  const rows = (matrix ?? []).map((r) =>
+    (r ?? []).map((c) => String(c ?? '').trim()),
+  );
+  if (!rows.length) return { map: {}, duplicates: [] };
+
+  let startIdx = 0;
+  const k0 = String(rows[0]?.[0] ?? '').trim();
+  const v0 = String(rows[0]?.[1] ?? '').trim();
+  const looksLikeHeader =
+    (/(원본|찾을|키|매핑키)/i.test(k0) && /(변환|바꿀|코드|매핑값|value)/i.test(v0)) ||
+    ((k0.includes('원본') || k0 === '원본값') &&
+      (v0.includes('변환') || v0.includes('변환값')));
+  if (looksLikeHeader) startIdx = 1;
+
+  const map: Record<string, string> = {};
+  const counts = new Map<string, { count: number; lastValue: string }>();
+
+  for (let i = startIdx; i < rows.length; i++) {
+    const keyRaw = String(rows[i]?.[0] ?? '').trim();
+    const valRaw = String(rows[i]?.[1] ?? '').trim();
+    if (!keyRaw) continue;
+    const key = normalizeSimpleKey(keyRaw);
+    const val = String(valRaw ?? '').trim();
+    if (!key) continue;
+    if (!val) continue;
+
+    map[key] = val; // last wins
+
+    const prev = counts.get(key);
+    if (prev) counts.set(key, { count: prev.count + 1, lastValue: val });
+    else counts.set(key, { count: 1, lastValue: val });
+  }
+
+  const duplicates = Array.from(counts.entries()).map(([key, v]) => ({
+    key,
+    count: v.count,
+    lastValue: v.lastValue,
+  }));
+  duplicates.sort((a, b) => a.key.localeCompare(b.key));
+  return { map, duplicates };
+}
+
 const isSenderColumn = (headerName: string): boolean => {
   const normalized = headerName.toLowerCase().trim();
   const senderKeywords = ['보내는사람', '송화인', '발송인', '출고자'];
@@ -506,6 +580,13 @@ export default function LogisticsConvertPage() {
     ProductCodeMap
   >({});
 
+  const [columnCodeMappingEditorMode, setColumnCodeMappingEditorMode] = useState<
+    'product' | 'simple'
+  >('product');
+
+  const [columnCodeMappingEditorSimpleMap, setColumnCodeMappingEditorSimpleMap] =
+    useState<Record<string, string>>({});
+
   // 업로드 파일 내 중복 원본키 경고(최대 5개 표시)
   const [columnCodeMappingDuplicatePopup, setColumnCodeMappingDuplicatePopup] = useState<{
     items: Array<{
@@ -757,6 +838,8 @@ export default function LogisticsConvertPage() {
     setColumnMappingActiveHeader(null);
     setColumnCodeMappingEditorRows([]);
     setColumnCodeMappingEditorMap({});
+    setColumnCodeMappingEditorSimpleMap({});
+    setColumnCodeMappingEditorMode('product');
     setColumnCodeMappingDuplicatePopup(null);
     setColumnCodeMappingSavedMessage(null);
     columnMappingPendingHeaderRef.current = null;
@@ -829,49 +912,95 @@ export default function LogisticsConvertPage() {
       }
 
       // 체크 즉시 모달 오픈
-      // - (옵션 있음) 원본키는 상품명|옵션명
-      // - (옵션 없음) 원본키는 상품명| (뒤 |는 빈 옵션)
-      const nameCol = resolveLogisticsProductNameColumn(courierHeaders);
-      const optCol = resolveLogisticsProductOptionColumn(courierHeaders);
-      const codeCol = resolveProductCodeColumnHeader(courierHeaders);
+      const lower = String(header ?? '').toLowerCase();
+      const isProductMode =
+        lower.includes('상품') ||
+        lower.includes('품목') ||
+        lower.includes('제품') ||
+        lower.includes('옵션') ||
+        lower.includes('option') ||
+        lower.includes('상품코드') ||
+        lower.includes('품목코드') ||
+        lower.includes('바코드') ||
+        lower.includes('박스코드') ||
+        lower.includes('code');
 
-      // 상품명 컬럼이 없으면: “해당 헤더가 상품코드(또는 바코드/코드) 열”일 때만 역으로 이름을 그 칸의 문자열로 사용
-      const sourceNameCol =
-        nameCol ?? (codeCol && header === codeCol ? codeCol : null);
+      if (isProductMode) {
+        setColumnCodeMappingEditorMode('product');
 
-      if (!sourceNameCol) {
-        alert(
-          '상품 마스터를 쓰려면 템플릿에 상품명·품목명 열 또는 상품코드·바코드·코드 열이 필요합니다.',
-        );
-        return;
-      }
+        const nameCol = resolveLogisticsProductNameColumn(courierHeaders);
+        const optCol = resolveLogisticsProductOptionColumn(courierHeaders);
+        const codeCol = resolveProductCodeColumnHeader(courierHeaders);
 
-      const keyDisplayMap = new Map<
-        string,
-        { displayKey: string; key: string }
-      >();
+        // 상품명 컬럼이 없으면: “해당 헤더가 상품코드(또는 바코드/코드) 열”일 때만 역으로 이름을 그 칸의 문자열로 사용
+        const sourceNameCol =
+          nameCol ?? (codeCol && header === codeCol ? codeCol : null);
 
-      for (const row of previewRows) {
-        const nameVal = String(row.data[sourceNameCol] ?? '').trim();
-        if (!nameVal) continue;
-        const optionVal = optCol ? String(row.data[optCol] ?? '').trim() : '';
-        const internalKey = `${nameVal}|${optionVal}`;
-        if (!keyDisplayMap.has(internalKey)) {
-          const displayKey = optionVal ? `${nameVal} / ${optionVal}` : nameVal;
-          keyDisplayMap.set(internalKey, { displayKey, key: internalKey });
+        if (!sourceNameCol) {
+          alert(
+            '상품 마스터를 쓰려면 템플릿에 상품명·품목명 열 또는 상품코드·바코드·코드 열이 필요합니다.',
+          );
+          return;
         }
-      }
 
-      const nextRows = Array.from(keyDisplayMap.values()).map(({ key, displayKey }) => ({
-        key,
-        displayKey,
-        value: productCodeMap?.[key] ?? '',
-      }));
+        const keyDisplayMap = new Map<
+          string,
+          { displayKey: string; key: string }
+        >();
+
+        for (const row of previewRows) {
+          const nameVal = String(row.data[sourceNameCol] ?? '').trim();
+          if (!nameVal) continue;
+          const optionVal = optCol
+            ? String(row.data[optCol] ?? '').trim()
+            : '';
+          const internalKey = normalizeInternalCompositeKey(
+            `${nameVal}|${optionVal}`,
+          );
+          if (!keyDisplayMap.has(internalKey)) {
+            const displayKey = optionVal ? `${nameVal} / ${optionVal}` : nameVal;
+            keyDisplayMap.set(internalKey, {
+              displayKey,
+              key: internalKey,
+            });
+          }
+        }
+
+        const nextRows = Array.from(keyDisplayMap.values()).map(
+          ({ key, displayKey }) => ({
+            key,
+            displayKey,
+            value: productCodeMap?.[key] ?? '',
+          }),
+        );
+
+        setColumnCodeMappingEditorMap({ ...productCodeMap });
+        setColumnCodeMappingEditorSimpleMap({});
+        setColumnCodeMappingEditorRows(nextRows);
+      } else {
+        // simple 모드: 선택한 헤더 자체의 값들을 원본값 목록으로 사용
+        setColumnCodeMappingEditorMode('simple');
+        setColumnCodeMappingEditorMap({});
+        setColumnCodeMappingEditorSimpleMap({});
+
+        const unique = new Map<string, string>(); // key -> displayKey
+        for (const row of previewRows) {
+          const raw = String(row.data[header] ?? '').trim();
+          if (!raw) continue;
+          if (!unique.has(raw)) unique.set(raw, raw);
+        }
+
+        const nextRows = Array.from(unique.entries()).map(([key, displayKey]) => ({
+          key,
+          displayKey,
+          value: '',
+        }));
+
+        setColumnCodeMappingEditorRows(nextRows);
+      }
 
       setColumnMappingStaging({}); // 새 모달은 editor 상태로만 처리
       setColumnMappingActiveHeader(header);
-      setColumnCodeMappingEditorMap({ ...productCodeMap });
-      setColumnCodeMappingEditorRows(nextRows);
       setColumnCodeMappingDuplicatePopup(null);
       setColumnCodeMappingSavedMessage(null);
       setShowColumnCodeMappingModal(true);
@@ -895,6 +1024,7 @@ export default function LogisticsConvertPage() {
 
     const header = columnMappingActiveHeader;
     const productMap = columnCodeMappingEditorMap;
+    const simpleMap = columnCodeMappingEditorSimpleMap;
 
     // 스냅샷은 "처음 적용"할 때만 저장 (이후 재적용 후에도 되돌리기 유지)
     const snap: Record<string, string> = {};
@@ -912,12 +1042,19 @@ export default function LogisticsConvertPage() {
       baseline,
       courierHeaders,
       [
-        {
-          targetHeader: header,
-          kind: 'product',
-          fileName: '직접입력',
-          productMap,
-        },
+        columnCodeMappingEditorMode === 'product'
+          ? {
+              targetHeader: header,
+              kind: 'product',
+              fileName: '직접입력',
+              productMap,
+            }
+          : {
+              targetHeader: header,
+              kind: 'simple',
+              fileName: '직접입력',
+              simpleMap,
+            },
       ],
     );
 
@@ -948,12 +1085,16 @@ export default function LogisticsConvertPage() {
     setColumnMappingStaging({});
     setColumnCodeMappingEditorRows([]);
     setColumnCodeMappingEditorMap({});
+    setColumnCodeMappingEditorSimpleMap({});
+    setColumnCodeMappingEditorMode('product');
     setColumnCodeMappingDuplicatePopup(null);
     setColumnCodeMappingSavedMessage(null);
     columnMappingPendingHeaderRef.current = null;
   }, [
     columnMappingActiveHeader,
     columnCodeMappingEditorMap,
+    columnCodeMappingEditorSimpleMap,
+    columnCodeMappingEditorMode,
     previewRows,
     courierHeaders,
   ]);
@@ -2360,14 +2501,23 @@ export default function LogisticsConvertPage() {
         {/* Hero 섹션 - 세로 흐름 구조 (물류 주문 변환 UI 껍데기) */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
-            {/* 포인트 표시 (타이틀 영역 제거 — 네비게이션에서 페이지 구분) */}
-            <div className="relative flex items-center justify-end">
+            {/* 주문 변환 안내 + 포인트 (order-convert와 동일 높이 유지) */}
+            <div className="relative flex items-center justify-center">
+            <div className="flex flex-col gap-2 text-center min-h-[32px]">
+                <p className="text-sm text-gray-500 leading-tight">
+                  엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.
+                </p>
+              </div>
+
+              {/* 포인트 표시는 레이아웃 영향 없이 오른쪽 절대 위치 */}
               {user && (
-                <div className="bg-gradient-to-r from-blue-500 to-sky-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
+                <div className="absolute right-0 bg-gradient-to-r from-blue-500 to-sky-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
                   <div className="flex items-center gap-2 justify-end">
                     <Coins className="w-4 h-4" />
                     <span className="font-medium text-sm">잔여포인트</span>
-                    <span className="text-lg font-bold">:{user.points.toLocaleString()}</span>
+                    <span className="text-lg font-bold">
+                      :{user.points.toLocaleString()}
+                    </span>
                   </div>
                 </div>
               )}
@@ -2828,43 +2978,26 @@ export default function LogisticsConvertPage() {
         {/* 기능 설명 섹션 레이아웃 */}
         <section className="relative pt-4 pb-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
-            {/* 템플릿 + 상품코드 매핑 업로드 */}
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleOpenCourierTemplateModal}
-                className="h-[56px] bg-white border border-zinc-200 rounded-lg px-5 flex flex-col justify-center transition-colors hover:bg-zinc-50"
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100">
-                    <Truck className="w-4 h-4 text-gray-500" />
-                  </div>
-                  <h3 className="text-[12px] font-semibold text-gray-900 text-center leading-tight">
-                    물류센터 업로드 양식 등록
-                  </h3>
+            {/* 카드 1: 물류센터 업로드 양식 */}
+            <button
+              type="button"
+              onClick={handleOpenCourierTemplateModal}
+              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
+            >
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
+                  <Truck className="w-5 h-5 text-gray-500" />
                 </div>
-                <p className="text-[10px] text-gray-500 mt-0.5 text-center leading-tight">
-                  양식 선택
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowMappingModal(true)}
-                className="h-[56px] bg-white border border-zinc-200 rounded-lg px-5 flex flex-col justify-center transition-colors hover:bg-zinc-50"
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100">
-                    <Upload className="w-4 h-4 text-gray-500" />
-                  </div>
-                  <h3 className="text-[12px] font-semibold text-gray-900 text-center leading-tight">
-                    상품코드 매핑 업로드
-                  </h3>
-                </div>
-                <p className="text-[10px] text-gray-500 mt-0.5 text-center leading-tight">
-                  매핑 엑셀 업로드
-                </p>
-              </button>
-            </div>
+                <h3 className="text-sm font-semibold text-gray-900 text-center">
+                  물류센터 업로드 양식 등록
+                </h3>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 text-center">
+                실제 물류센터 업로드에 사용하는 엑셀 양식을 등록해주세요.
+                <br />
+                등록하신 양식 그대로 자동 설정됩니다.
+              </p>
+            </button>
 
             {/* 카드 2: 고정입력 */}
             <button
@@ -2985,58 +3118,109 @@ export default function LogisticsConvertPage() {
                 if (!f) return;
 
                 try {
-                  const parsed = await parseTwoColumnKeyValueMapFromFile(f);
+                  if (columnCodeMappingEditorMode === 'product') {
+                    const parsed = await parseTwoColumnKeyValueMapFromFile(f);
 
-                  const toDisplayKey = (internalKey: string) => {
-                    const idx = internalKey.indexOf('|');
-                    if (idx < 0) return internalKey;
-                    const name = internalKey.slice(0, idx);
-                    const option = internalKey.slice(idx + 1);
-                    return option ? `${name} / ${option}` : name;
-                  };
+                    const toDisplayKey = (internalKey: string) => {
+                      const idx = internalKey.indexOf('|');
+                      if (idx < 0) return internalKey;
+                      const name = internalKey.slice(0, idx);
+                      const option = internalKey.slice(idx + 1);
+                      return option ? `${name} / ${option}` : name;
+                    };
 
-                  // 중복 경고 팝업(최대 5개만 표시)
-                  if (parsed.duplicates.length > 0) {
-                    const showItems = parsed.duplicates.slice(0, 5).map((d) => ({
-                      key: d.key,
-                      displayKey: toDisplayKey(d.key),
-                      count: d.count,
-                      lastValue: d.lastValue,
-                    }));
-                    const moreCount = Math.max(0, parsed.duplicates.length - 5);
-                    setColumnCodeMappingDuplicatePopup({
-                      items: showItems,
-                      moreCount,
-                    });
-                  } else {
-                    setColumnCodeMappingDuplicatePopup(null);
-                  }
-
-                  // editorMap / rows 동기화
-                  setColumnCodeMappingEditorMap((prev) => {
-                    const next: ProductCodeMap = { ...prev };
-                    for (const [k, v] of Object.entries(parsed.map)) {
-                      const trimmed = String(v ?? '').trim();
-                      if (!trimmed) {
-                        delete next[k];
-                      } else {
-                        next[k] = trimmed;
-                      }
-                    }
-                    return next;
-                  });
-
-                  setColumnCodeMappingEditorRows((prevRows) =>
-                    prevRows.map((r) => {
-                      const has = Object.prototype.hasOwnProperty.call(
-                        parsed.map,
-                        r.key,
+                    // 중복 경고 팝업(최대 5개만 표시)
+                    if (parsed.duplicates.length > 0) {
+                      const showItems = parsed.duplicates
+                        .slice(0, 5)
+                        .map((d) => ({
+                          key: d.key,
+                          displayKey: toDisplayKey(d.key),
+                          count: d.count,
+                          lastValue: d.lastValue,
+                        }));
+                      const moreCount = Math.max(
+                        0,
+                        parsed.duplicates.length - 5,
                       );
-                      if (!has) return r;
-                      const nv = String(parsed.map[r.key] ?? '').trim();
-                      return { ...r, value: nv };
-                    }),
-                  );
+                      setColumnCodeMappingDuplicatePopup({
+                        items: showItems,
+                        moreCount,
+                      });
+                    } else {
+                      setColumnCodeMappingDuplicatePopup(null);
+                    }
+
+                    // editorMap / rows 동기화
+                    setColumnCodeMappingEditorMap((prev) => {
+                      const next: ProductCodeMap = { ...prev };
+                      for (const [k, v] of Object.entries(parsed.map)) {
+                        const trimmed = String(v ?? '').trim();
+                        if (!trimmed) delete next[k];
+                        else next[k] = trimmed;
+                      }
+                      return next;
+                    });
+                    setColumnCodeMappingEditorSimpleMap({});
+
+                    setColumnCodeMappingEditorRows((prevRows) =>
+                      prevRows.map((r) => {
+                        if (!Object.prototype.hasOwnProperty.call(parsed.map, r.key))
+                          return r;
+                        const nv = String(parsed.map[r.key] ?? '').trim();
+                        return { ...r, value: nv };
+                      }),
+                    );
+                  } else {
+                    const parsed = await parseTwoColumnSimpleKeyValueMapFromFile(
+                      f,
+                    );
+
+                    // 중복 경고 팝업(최대 5개만 표시)
+                    if (parsed.duplicates.length > 0) {
+                      const showItems = parsed.duplicates.slice(0, 5).map((d) => ({
+                        key: d.key,
+                        displayKey: d.key,
+                        count: d.count,
+                        lastValue: d.lastValue,
+                      }));
+                      const moreCount = Math.max(
+                        0,
+                        parsed.duplicates.length - 5,
+                      );
+                      setColumnCodeMappingDuplicatePopup({
+                        items: showItems,
+                        moreCount,
+                      });
+                    } else {
+                      setColumnCodeMappingDuplicatePopup(null);
+                    }
+
+                    setColumnCodeMappingEditorSimpleMap((prev) => {
+                      const next = { ...prev };
+                      for (const [k, v] of Object.entries(parsed.map)) {
+                        const trimmed = String(v ?? '').trim();
+                        if (!trimmed) delete next[k];
+                        else next[k] = trimmed;
+                      }
+                      return next;
+                    });
+                    setColumnCodeMappingEditorMap({});
+
+                    setColumnCodeMappingEditorRows((prevRows) =>
+                      prevRows.map((r) => {
+                        if (
+                          !Object.prototype.hasOwnProperty.call(
+                            parsed.map,
+                            r.key,
+                          )
+                        )
+                          return r;
+                        const nv = String(parsed.map[r.key] ?? '').trim();
+                        return { ...r, value: nv };
+                      }),
+                    );
+                  }
 
                   setColumnCodeMappingSavedMessage(null);
                 } catch (err) {
@@ -3105,13 +3289,24 @@ export default function LogisticsConvertPage() {
                                       : row,
                                   ),
                                 );
-                                setColumnCodeMappingEditorMap((prev) => {
-                                  const trimmed = String(nextVal ?? '').trim();
-                                  const next = { ...prev };
-                                  if (!trimmed) delete next[r.key];
-                                  else next[r.key] = trimmed;
-                                  return next;
-                                });
+                                const trimmed = String(nextVal ?? '').trim();
+                                if (columnCodeMappingEditorMode === 'product') {
+                                  setColumnCodeMappingEditorMap((prev) => {
+                                    const next = { ...prev };
+                                    if (!trimmed) delete next[r.key];
+                                    else next[r.key] = trimmed;
+                                    return next;
+                                  });
+                                } else {
+                                  setColumnCodeMappingEditorSimpleMap(
+                                    (prev) => {
+                                      const next = { ...prev };
+                                      if (!trimmed) delete next[r.key];
+                                      else next[r.key] = trimmed;
+                                      return next;
+                                    },
+                                  );
+                                }
                               }}
                               placeholder="코드를 입력하세요"
                             />
@@ -3202,272 +3397,6 @@ export default function LogisticsConvertPage() {
                   className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
                 >
                   미리보기로 적용
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 상품코드 매핑 파일 (3PL 페이지와 동일 UX · 물류 문구) */}
-      {showMappingModal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowMappingModal(false)}
-        >
-          <div
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[900px] h-[798px] max-h-[798px] flex flex-col p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                물류 매핑 파일 등록 선택
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowMappingModal(false)}
-                className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              >
-                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-              </button>
-            </div>
-
-            <div className="space-y-2 mb-6 overflow-y-auto flex-1 min-h-0">
-              <div className="w-full px-4 py-4 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800">
-                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-2">
-                  상품코드 매핑 파일을 등록해주세요
-                </h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-                  매핑 파일은 물류센터 업로드 양식과 별도로 관리됩니다.
-                  <br />
-                  업로드한 엑셀의 행·열 구조를 그대로 표시합니다. (상품명 · 옵션 · 상품코드 열 권장)
-                  <br />
-                  <strong>매핑키</strong>(또는 통합키·상품+옵션 등) 열에 상품+옵션을 한 칸에 적으면, 주문의 상품명과 옵션을{' '}
-                  <code className="text-xs bg-zinc-100 dark:bg-zinc-700 px-1 rounded">+</code>로 이은 문자열과 매칭합니다.
-                  <br />
-                  매핑 파일에 옵션 열이 없으면 주문의 옵션정보와 관계없이 상품명만으로 코드를 찾습니다. 동일 상품명이 여러 행이면 마지막 행의 코드가 적용됩니다.
-                  <br />
-                  미리보기의 상품코드 칸에는 <strong>상품명(원문)</strong>이 표시됩니다. 물류센터에 넣을 <strong>코드</strong>로 바꾸려면 미리보기 테이블{' '}
-                  <strong>위쪽 오른쪽</strong>의 <strong>「상품명 ↔ 상품코드 변환」</strong> 버튼을 눌러 주세요.
-                </p>
-
-                <input
-                  ref={mappingInputRef}
-                  type="file"
-                  accept=".xlsx,.xls"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    try {
-                      const rows = await parseExcelRowsForMapping(f);
-                      const newId = `logistics-mapping-${Date.now()}`;
-                      const nextMapping: LogisticsMappingFileFormat = {
-                        id: newId,
-                        displayName: f.name.replace(/\.[^.]+$/, ''),
-                        createdAt: new Date().toISOString(),
-                        rows,
-                      };
-                      setRecentMappingFormats((prev) => [nextMapping, ...prev]);
-                      setTempSelectedMappingId(newId);
-                      setShowRecentMapping(true);
-                      setMappingRegistrationMessage('등록이 완료되었습니다');
-                      setTimeout(() => setMappingRegistrationMessage(null), 3500);
-                    } catch (err) {
-                      console.error('[물류] 매핑 엑셀 파싱 오류:', err);
-                      setMappingRegistrationMessage('엑셀을 읽는 중 오류가 발생했습니다.');
-                      setTimeout(() => setMappingRegistrationMessage(null), 3500);
-                    }
-                    e.target.value = '';
-                  }}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => mappingInputRef.current?.click()}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white h-11 rounded-lg font-medium text-sm"
-                >
-                  내 매핑 파일 등록하기
-                </button>
-
-                {mappingRegistrationMessage && (
-                  <p className="mt-2 text-xs text-green-600 dark:text-green-400">
-                    {mappingRegistrationMessage}
-                  </p>
-                )}
-              </div>
-
-              {Array.isArray(recentMappingFormats) && recentMappingFormats.length > 0 && (
-                <div className="space-y-2 mt-4">
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setMappingPreviewMode((prev) => (prev === 'vertical' ? 'horizontal' : 'vertical'))
-                      }
-                      className="px-3 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                    >
-                      {mappingPreviewMode === 'vertical' ? '가로 보기' : '세로 보기'}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowRecentMapping(!showRecentMapping)}
-                    className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-left hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
-                  >
-                    <span className="text-sm font-bold text-zinc-600 dark:text-zinc-400">
-                      등록된 매핑 파일
-                      {recentMappingFormats.length > 0 ? ` (${recentMappingFormats.length})` : ''}
-                    </span>
-                  </button>
-
-                  {showRecentMapping &&
-                    recentMappingFormats.map((format, index) => {
-                      const savedDate = new Date(format.createdAt);
-                      const dateStr = `${savedDate.getFullYear()}-${String(savedDate.getMonth() + 1).padStart(2, '0')}-${String(savedDate.getDate()).padStart(2, '0')} ${String(savedDate.getHours()).padStart(2, '0')}:${String(savedDate.getMinutes()).padStart(2, '0')}`;
-                      const defaultDisplayName =
-                        recentMappingFormats.length > 1 ? `등록된 매핑 파일 ${index + 1}` : '등록된 매핑 파일';
-
-                      return (
-                        <div
-                          key={`${format.id}-${index}`}
-                          className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-left transition-colors min-h-[120px]"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 pt-0.5">
-                              <input
-                                type="radio"
-                                name="logisticsSelectedMappingFormat"
-                                checked={tempSelectedMappingId === format.id}
-                                onChange={() => setTempSelectedMappingId(format.id)}
-                                className="w-4 h-4 text-purple-600 border-gray-300 dark:border-gray-600 dark:bg-zinc-800"
-                              />
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                                  {format.displayName || defaultDisplayName}
-                                </span>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={(ev) => {
-                                      ev.stopPropagation();
-                                      setRecentMappingFormats((prev) => {
-                                        const next = prev.filter((p) => p.id !== format.id);
-                                        if (tempSelectedMappingId === format.id) {
-                                          const nextId = next[0]?.id ?? '';
-                                          setTempSelectedMappingId(nextId);
-                                          const nf = next[0];
-                                          if (nf?.rows?.length) {
-                                            setProductCodeMap(parseProductCodeMapFromMatrix(nf.rows));
-                                            setProductCodeFileName(nf.displayName ?? '매핑');
-                                          } else {
-                                            setProductCodeMap({});
-                                            setProductCodeFileName(null);
-                                          }
-                                        }
-                                        return next;
-                                      });
-                                    }}
-                                    className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                                  >
-                                    삭제
-                                  </button>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</span>
-                                </div>
-                              </div>
-
-                              <div
-                                className={`h-[22px] ${
-                                  tempSelectedMappingId === format.id ? 'visible' : 'invisible'
-                                }`}
-                              >
-                                <div className="text-xs text-green-600 dark:text-green-400 mt-0.5 mb-1">
-                                  ✔ 이 매핑 파일이 사용됩니다
-                                </div>
-                              </div>
-
-                              {mappingPreviewMode === 'vertical' ? (
-                                <div className="mt-1 border border-zinc-200 dark:border-zinc-700 rounded-md bg-zinc-50 dark:bg-zinc-900 max-h-[190px] overflow-y-auto">
-                                  <table className="w-full text-[11px] text-zinc-700 dark:text-zinc-300">
-                                    <tbody>
-                                      {format.rows.length > 0 ? (
-                                        format.rows.map((row, rowIdx) => (
-                                          <tr
-                                            key={`${format.id}-row-${rowIdx}`}
-                                            className="border-b last:border-b-0 border-zinc-200 dark:border-zinc-700"
-                                          >
-                                            {row.length > 0 ? (
-                                              row.map((cell, colIdx) => (
-                                                <td
-                                                  key={`${format.id}-cell-${rowIdx}-${colIdx}`}
-                                                  className="px-2 py-1.5 align-top whitespace-pre-wrap break-words"
-                                                >
-                                                  {cell || '-'}
-                                                </td>
-                                              ))
-                                            ) : (
-                                              <td className="px-2 py-1.5 text-zinc-400">(빈 행)</td>
-                                            )}
-                                          </tr>
-                                        ))
-                                      ) : (
-                                        <tr>
-                                          <td className="px-2 py-2 text-zinc-400">데이터가 없습니다.</td>
-                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              ) : (
-                                <div className="mt-1 border border-zinc-200 dark:border-zinc-700 rounded-md bg-zinc-50 dark:bg-zinc-900 px-2 py-2 overflow-x-auto">
-                                  <div className="text-[11px] text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
-                                    {format.rows.flatMap((row) => row).filter((cell) => String(cell).trim() !== '')
-                                      .length > 0
-                                      ? format.rows
-                                          .flatMap((row) => row)
-                                          .filter((cell) => String(cell).trim() !== '')
-                                          .join(' · ')
-                                      : '데이터가 없습니다.'}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                등록된 매핑 파일은 브라우저에 안전하게 저장되며, 물류 주문 변환 페이지에서만 사용됩니다.
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMappingModal(false)}
-                  className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const fmt = recentMappingFormats.find((f) => f.id === tempSelectedMappingId);
-                    if (fmt?.rows?.length) {
-                      setProductCodeMap(parseProductCodeMapFromMatrix(fmt.rows));
-                      setProductCodeFileName(fmt.displayName ?? '매핑');
-                    }
-                    setShowMappingModal(false);
-                  }}
-                  className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-sm text-white font-medium"
-                >
-                  확인
                 </button>
               </div>
             </div>

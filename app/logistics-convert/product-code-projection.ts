@@ -5,6 +5,7 @@
 
 import * as XLSX from 'xlsx';
 import type { PreviewRow } from '@/app/pipeline/merge/types';
+import { ALIAS_DICTIONARY } from '@/app/pipeline/base/alias-dictionary';
 
 /**
  * 매핑 키 (내부 저장 형식)
@@ -53,6 +54,26 @@ function normalizeHeaderCell(h: string): string {
   return String(h ?? '')
     .trim()
     .replace(/\s+/g, '');
+}
+
+const ALIAS_NORMALIZED: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  for (const [alias, base] of Object.entries(ALIAS_DICTIONARY)) {
+    out[normalizeHeaderCell(alias)] = base;
+  }
+  return out;
+})();
+
+function findColumnIndexByBaseHeaderAlias(
+  headerRow: string[],
+  baseHeader: string,
+  fallbackCandidates: string[],
+): number {
+  for (let i = 0; i < headerRow.length; i++) {
+    const base = ALIAS_NORMALIZED[normalizeHeaderCell(headerRow[i] ?? '')];
+    if (base === baseHeader) return i;
+  }
+  return findColumnIndex(headerRow, fallbackCandidates);
 }
 
 function findColumnIndex(headerRow: string[], candidates: string[]): number {
@@ -106,13 +127,16 @@ export function parseProductCodeMapFromMatrix(matrix: string[][]): ProductCodeMa
     '상품+옵션',
     '상품옵션묶음',
   ]);
-  const nameIdx = findColumnIndex(headerRow, ['상품명', '품목명', '제품명', '상품']);
-  const optionIdx = findColumnIndex(headerRow, [
-    '옵션',
-    '옵션명',
+  const nameIdx = findColumnIndexByBaseHeaderAlias(
+    headerRow,
+    '상품명',
+    ['상품명', '품목명', '제품명', '상품'],
+  );
+  const optionIdx = findColumnIndexByBaseHeaderAlias(
+    headerRow,
     '상품옵션',
-    '옵션정보',
-  ]);
+    ['옵션', '옵션명', '상품옵션', '옵션정보'],
+  );
   const codeIdx = findColumnIndex(headerRow, ['상품코드', '품목코드', '바코드', '코드']);
 
   if (codeIdx < 0) {
@@ -165,9 +189,11 @@ export function parseProductCodeMapFromMatrix(matrix: string[][]): ProductCodeMa
 export function resolveLogisticsProductNameColumn(
   courierHeaders: string[],
 ): string | null {
-  const exact = courierHeaders.find((h) => normalizeHeaderCell(h) === '상품명');
-  if (exact) return exact;
-  const idx = findColumnIndex(courierHeaders, ['상품명', '품목명', '제품명']);
+  const idx = findColumnIndexByBaseHeaderAlias(
+    courierHeaders,
+    '상품명',
+    ['상품명', '품목명', '제품명', '상품'],
+  );
   return idx >= 0 ? courierHeaders[idx] : null;
 }
 
@@ -179,12 +205,11 @@ function resolveNameHeader(courierHeaders: string[]): string | null {
 export function resolveLogisticsProductOptionColumn(
   courierHeaders: string[],
 ): string | null {
-  const idx = findColumnIndex(courierHeaders, [
-    '옵션',
-    '옵션명',
+  const idx = findColumnIndexByBaseHeaderAlias(
+    courierHeaders,
     '상품옵션',
-    '옵션정보',
-  ]);
+    ['옵션', '옵션명', '상품옵션', '옵션정보'],
+  );
   return idx >= 0 ? courierHeaders[idx] : null;
 }
 
