@@ -137,11 +137,24 @@ export function parseProductCodeMapFromMatrix(matrix: string[][]): ProductCodeMa
     '상품옵션',
     ['옵션', '옵션명', '상품옵션', '옵션정보'],
   );
-  const codeIdx = findColumnIndex(headerRow, ['상품코드', '품목코드', '바코드', '코드']);
+  const codeIdx = findColumnIndexByBaseHeaderAlias(
+    headerRow,
+    '상품코드',
+    [
+      '상품코드',
+      '품목코드',
+      '바코드',
+      '박스코드',
+      'SKU',
+      'sku',
+      'SKU코드',
+      '코드',
+    ],
+  );
 
   if (codeIdx < 0) {
     console.warn(
-      '[parseProductCodeMap] 상품코드 열을 찾지 못했습니다. 헤더:',
+      '[parseProductCodeMap] 상품코드·바코드·SKU 등 코드 열을 찾지 못했습니다. 헤더:',
       headerRow,
     );
     return {};
@@ -255,17 +268,27 @@ function resolveCodeFromMap(
   return undefined;
 }
 
-/** 미리보기/다운로드 헤더에서 상품코드(또는 바코드·코드) 열 이름 */
+/**
+ * 미리보기/다운로드 헤더에서 상품 식별 코드 열 이름
+ * (상품코드·바코드·SKU 등 — 기준헤더 `상품코드` 별칭 + 문자열 보조 매칭)
+ */
 export function resolveProductCodeColumnHeader(
   courierHeaders: string[],
 ): string | null {
-  const idx = findColumnIndex(courierHeaders, [
+  const idx = findColumnIndexByBaseHeaderAlias(
+    courierHeaders,
     '상품코드',
-    '품목코드',
-    '바코드',
-    '박스코드',
-    '코드',
-  ]);
+    [
+      '상품코드',
+      '품목코드',
+      '바코드',
+      '박스코드',
+      'SKU',
+      'sku',
+      'SKU코드',
+      '코드',
+    ],
+  );
   return idx >= 0 ? courierHeaders[idx] : null;
 }
 
@@ -420,7 +443,7 @@ export function applyProductCodeProjection(
 
   if (!codeKey) {
     console.warn(
-      '[applyProductCodeProjection] 템플릿에 상품코드/바코드/코드 열을 찾지 못했습니다. 투영 생략.',
+      '[applyProductCodeProjection] 템플릿에 상품코드·바코드·SKU 등 코드 열을 찾지 못했습니다. 투영 생략.',
     );
     console.log('[상품코드 매핑] 실패 개수:', 0, '(코드 열 없음)');
     return {

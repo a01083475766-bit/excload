@@ -1041,6 +1041,7 @@ export default function LogisticsConvertPage() {
         lower.includes('품목코드') ||
         lower.includes('바코드') ||
         lower.includes('박스코드') ||
+        lower.includes('sku') ||
         lower.includes('code');
 
       if (isProductMode) {
