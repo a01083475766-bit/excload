@@ -27,9 +27,9 @@ interface MenuItem {
   icon: typeof FileSpreadsheet;
 }
 
-/** 순서: 주문변환 → 물류주문변환 → 변환내역 → 고객문의 → 서비스소개 → 가격 → 마이페이지 (로고·관리자·로그인/로그아웃은 별도) */
+/** 순서: 택배주문변환 → 물류주문변환 → 변환내역 → 고객문의 → 서비스소개 → 가격 → 마이페이지 (로고·관리자·로그인/로그아웃은 별도) */
 const menuItems: MenuItem[] = [
-  { href: '/order-convert', label: '주문변환', icon: FileSpreadsheet },
+  { href: '/order-convert', label: '택배주문변환', icon: FileSpreadsheet },
   { href: '/logistics-convert', label: '물류주문변환', icon: Warehouse },
   { href: '/history', label: '변환내역', icon: Clock },
   { href: '/contact', label: '고객문의', icon: HelpCircle },

@@ -2720,7 +2720,7 @@ export default function LogisticsConvertPage() {
 
               {/* 포인트 표시는 레이아웃 영향 없이 오른쪽 절대 위치 */}
               {user && (
-                <div className="absolute right-0 bg-gradient-to-r from-blue-500 to-sky-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
+                <div className="absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
                   <div className="flex items-center gap-2 justify-end">
                     <Coins className="w-4 h-4" />
                     <span className="font-medium text-sm">잔여포인트</span>
@@ -2733,7 +2733,7 @@ export default function LogisticsConvertPage() {
             </div>
 
             {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
-            <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">
+            <div className="w-full border-2 border-emerald-500 rounded-xl bg-white p-5">
               <div className="flex flex-col lg:flex-row gap-5">
                 {/* 왼쪽: 파일선택 영역 (엑셀 + 이미지 드래그존) */}
                 <div 
@@ -2748,8 +2748,8 @@ export default function LogisticsConvertPage() {
                     style={{ cursor: 'pointer' }}
                     className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
                       isDragging 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-blue-400'
+                        ? 'border-emerald-500 bg-emerald-50' 
+                        : 'border-gray-300 hover:border-emerald-400'
                     }`}
                   >
                     <div className="flex-1 flex flex-col items-center justify-center gap-2.5 text-center">
@@ -2774,7 +2774,7 @@ export default function LogisticsConvertPage() {
 
                           <span className="w-[110px] text-right inline-block">
                             {fileProcessingStatus === "processing" && (
-                              <span className="text-blue-600 font-medium">
+                              <span className="text-emerald-600 font-medium">
                                 ⏳ 처리중{processingDots}
                               </span>
                             )}
@@ -2799,7 +2799,7 @@ export default function LogisticsConvertPage() {
                   />
                   <button
                     type="button"
-                    className="w-full mt-2.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+                    className="w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
                     onClick={() => setShowScreenshotModal(true)}
                   >
                     캡처화면 물류 주문 변환 (스크린샷 물류 주문 변환)
@@ -2815,7 +2815,7 @@ export default function LogisticsConvertPage() {
                   <div className="space-y-2.5">
                     <textarea
                       ref={textInputRef}
-                      className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                       placeholder={
                         '예) 받는 사람: 홍길동\n' +
                         '전화번호: 010-1234-5678\n' +
@@ -2837,7 +2837,7 @@ export default function LogisticsConvertPage() {
                     />
                     <button
                       type="button"
-                      className="w-full px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -2938,7 +2938,7 @@ export default function LogisticsConvertPage() {
                       업로드한 파일의 항목 이름이 일반적인 물류센터 양식과 달라 일부 데이터가 자동으로 분류되지 않았습니다.
                     </p>
 
-                    <div className="mb-2 text-blue-600 font-semibold text-base">
+                    <div className="mb-2 text-emerald-600 font-semibold text-base">
                       [인식되지 않은 항목]
                     </div>
 
@@ -2946,7 +2946,7 @@ export default function LogisticsConvertPage() {
                       (주문 엑셀 파일의 보내는분 / 받는분 / 주소 / 상품 등의 항목)
                     </div>
 
-                    <div className="mb-3 text-blue-600 font-semibold text-base">
+                    <div className="mb-3 text-emerald-600 font-semibold text-base">
                       {unknownHeadersWarning.join(', ')}
                     </div>
 
@@ -3050,7 +3050,7 @@ export default function LogisticsConvertPage() {
                                     className={
                                       sortConfig?.header === header
                                         ? sortConfig.direction === 'asc'
-                                          ? 'text-blue-600 font-semibold'
+                                          ? 'text-emerald-600 font-semibold'
                                           : 'text-red-600 font-semibold'
                                         : ''
                                     }
@@ -3062,7 +3062,7 @@ export default function LogisticsConvertPage() {
                                     <span
                                       className={
                                         sortConfig.direction === 'asc'
-                                          ? 'text-blue-600 text-xs'
+                                          ? 'text-emerald-600 text-xs'
                                           : 'text-red-600 text-xs'
                                       }
                                     >
@@ -3084,7 +3084,7 @@ export default function LogisticsConvertPage() {
                             className={`transition-colors
                               ${
                                 selectedRows.includes(row.rowId)
-                                  ? "bg-blue-100"
+                                  ? "bg-emerald-100"
                                   : isNewRow
                                   ? "bg-green-100 animate-pulse"
                                   : "hover:bg-gray-50"
@@ -3255,8 +3255,8 @@ export default function LogisticsConvertPage() {
           {/* 사용중 양식 표시 */}
           {isValidCourierTemplate(courierUploadTemplate) && (
             <div className="w-full mt-4">
-              <p className="text-xs text-blue-600 w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-blue-50 text-blue-600">사용 중인 양식 :</span>{' '}
+              <p className="text-xs text-emerald-600 w-full whitespace-nowrap overflow-hidden text-ellipsis">
+                <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600">사용 중인 양식 :</span>{' '}
                 {courierUploadTemplate.headers
                   .filter((header) => !header.isEmpty && header.name.trim() !== '')
                   .map((header) => header.name)
@@ -3264,8 +3264,8 @@ export default function LogisticsConvertPage() {
               </p>
               {/* 고정 입력 정보 표시 */}
               {FIXED_HEADER_ORDER.some(headerName => fixedHeaderValues[headerName] && fixedHeaderValues[headerName].trim() !== '') && (
-                <p className="text-xs text-blue-500 w-full whitespace-nowrap overflow-hidden text-ellipsis mt-1">
-                  <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-blue-50 text-blue-600">고정 입력 정보 :</span>{' '}
+                <p className="text-xs text-emerald-500 w-full whitespace-nowrap overflow-hidden text-ellipsis mt-1">
+                  <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600">고정 입력 정보 :</span>{' '}
                   {FIXED_HEADER_ORDER
                     .filter(headerName => fixedHeaderValues[headerName] && fixedHeaderValues[headerName].trim() !== '')
                     .map(headerName => `${headerName} ${fixedHeaderValues[headerName]}`)
@@ -3276,8 +3276,8 @@ export default function LogisticsConvertPage() {
           )}
           {selectedMappingSummary && (
             <div className="w-full mt-4">
-              <p className="text-xs text-blue-500 w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-blue-50 text-blue-600">
+              <p className="text-xs text-emerald-500 w-full whitespace-nowrap overflow-hidden text-ellipsis">
+                <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600">
                   상품코드 매핑 :
                 </span>{' '}
                 {selectedMappingSummary}
@@ -3447,7 +3447,7 @@ export default function LogisticsConvertPage() {
                 <button
                   type="button"
                   onClick={() => columnMappingModalFileRef.current?.click()}
-                  className="text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                  className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
                 >
                   매핑 엑셀 추가
                 </button>
@@ -3689,7 +3689,7 @@ export default function LogisticsConvertPage() {
                 <button
                   type="button"
                   onClick={handleApplyColumnCodeMappingFromEditor}
-                  className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+                  className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700"
                 >
                   미리보기로 적용
                 </button>
@@ -3741,7 +3741,7 @@ export default function LogisticsConvertPage() {
                 />
                 <button
                   onClick={handleTemplateFileClick}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-lg font-medium text-sm"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 rounded-lg font-medium text-sm"
                 >
                   내 업로드 파일 등록하기
                 </button>
@@ -3791,7 +3791,7 @@ export default function LogisticsConvertPage() {
                                 name="selectedFormat"
                                 checked={tempSelectedFormatId === format.id}
                                 onChange={() => handleTemplateSelect(format.id)}
-                                className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 dark:bg-zinc-800"
+                                className="w-4 h-4 text-emerald-600 border-gray-300 dark:border-gray-600 dark:bg-zinc-800"
                               />
                             </div>
 
@@ -3820,7 +3820,7 @@ export default function LogisticsConvertPage() {
                                           e.stopPropagation();
                                           handleConfirmEditName(format.id);
                                         }}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs whitespace-nowrap"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs whitespace-nowrap"
                                       >
                                         확인
                                       </button>
@@ -3917,7 +3917,7 @@ export default function LogisticsConvertPage() {
                 <button
                   type="button"
                   onClick={handleConfirmCourierTemplateModal}
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
+                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-sm text-white font-medium"
                 >
                   확인
                 </button>
@@ -4036,7 +4036,7 @@ export default function LogisticsConvertPage() {
               </button>
               <button
                 onClick={handleOpenCourierTemplateFromNoTemplateModal}
-                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
+                className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-sm text-white font-medium"
               >
                 물류센터 업로드 양식 등록하기
               </button>
@@ -4147,7 +4147,7 @@ export default function LogisticsConvertPage() {
                               }));
                               setEditingHeaderIndex(null);
                             }}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium transition-colors"
                           >
                             확인
                           </button>
@@ -4192,7 +4192,7 @@ export default function LogisticsConvertPage() {
                         type="button"
                         className={`px-6 py-2 rounded-lg font-medium cursor-pointer flex flex-col items-center transition-colors relative ${
                           hasValue
-                            ? 'border border-zinc-300 dark:border-zinc-700 bg-blue-50 dark:bg-blue-950/30 text-zinc-900 dark:text-zinc-100 hover:bg-blue-100 dark:hover:bg-blue-950/50'
+                            ? 'border border-zinc-300 dark:border-zinc-700 bg-emerald-50 dark:bg-emerald-950/30 text-zinc-900 dark:text-zinc-100 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
                             : 'border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-700'
                         }`}
                         onClick={() => {
@@ -4209,7 +4209,7 @@ export default function LogisticsConvertPage() {
                         }}
                       >
                         {hasValue && (
-                          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm">
+                          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm">
                             <Check className="w-3 h-3 text-white" />
                           </div>
                         )}
@@ -4259,7 +4259,7 @@ export default function LogisticsConvertPage() {
             <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0">
               <button
                 onClick={handleCloseSenderModal}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-lg font-medium"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 rounded-lg font-medium"
               >
                 확인
               </button>
@@ -4314,7 +4314,7 @@ export default function LogisticsConvertPage() {
                 </button>
                 <button
                   onClick={executeTextConvert}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
                 >
                   주문목록으로 추가
                 </button>
@@ -4384,8 +4384,8 @@ export default function LogisticsConvertPage() {
               }}
               className={`w-full min-h-[300px] border-2 border-dashed rounded-lg p-6 mb-4 transition-colors ${
                 screenshotStage === 'processing'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 bg-gray-50 hover:border-blue-400 cursor-pointer'
+                  ? 'border-emerald-500 bg-emerald-50'
+                  : 'border-gray-300 bg-gray-50 hover:border-emerald-400 cursor-pointer'
               }`}
               style={{ outline: 'none', userSelect: 'none' }}
             >
@@ -4407,7 +4407,7 @@ export default function LogisticsConvertPage() {
                     className="max-w-full max-h-[400px] rounded-lg shadow-md mb-4"
                   />
                   {screenshotStage === 'processing' ? (
-                    <div className="flex items-center gap-2 text-blue-600">
+                    <div className="flex items-center gap-2 text-emerald-600">
                       <Loader2 className="w-5 h-5 animate-spin" />
                       <span className="text-sm font-medium">주문 데이터를 정리중입니다...</span>
                     </div>
@@ -4421,7 +4421,7 @@ export default function LogisticsConvertPage() {
                         주문정보를 처리하기 위해 텍스트로 변환하고 있습니다
                       </p>
                       <p className="text-xs text-gray-600">
-                        텍스트 완성이 되면 오른쪽 <span className="font-semibold text-blue-600">텍스트 물류 주문 변환</span> 버튼을 눌러주세요
+                        텍스트 완성이 되면 오른쪽 <span className="font-semibold text-emerald-600">텍스트 물류 주문 변환</span> 버튼을 눌러주세요
                       </p>
                     </div>
                   ) : null}
@@ -4464,7 +4464,7 @@ export default function LogisticsConvertPage() {
             <div className="flex flex-col items-center justify-center text-center">
               {screenshotStage === 'processing' ? (
                 <>
-                  <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+                  <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
                   <p className="text-lg font-semibold text-gray-900 mb-2">
                     {textProcessingSource === 'screenshot' 
                       ? '스크린샷에서 텍스트를 정리중입니다'
@@ -4485,7 +4485,7 @@ export default function LogisticsConvertPage() {
                   </p>
                   <button
                     onClick={() => setShowTextProcessingModal(false)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                   >
                     확인
                   </button>
