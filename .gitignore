@@ -7,3 +7,6 @@ logs
 # 과거 빌드/비교용 (ZIP 해제본·백업 — 커밋하지 않음)
 _onekl-no01_extracted/
 onekl-no01.zip
+
+# TypeScript incremental build info (커밋/풀리퀘 용도 아님)
+tsconfig.tsbuildinfo
