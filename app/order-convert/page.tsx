@@ -1757,11 +1757,8 @@ export default function OrderConvertPage() {
                       ref={textInputRef}
                       className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                       placeholder={
-                        '예) 받는 사람: 홍길동\n' +
-                        '전화번호: 010-1234-5678\n' +
-                        '주소: 서울시 강남구 테헤란로 123\n' +
-                        '상품명: 무선 블랙 마우스 / 수량: 2개\n' +
-                        '요청사항: 부재 시 문 앞에 놓아주세요'
+                        '예) 홍길동 010-1234-5766   무선마우스 2개\n' +
+                        '서울시 강남구 테헤란로 123  문앞에 놓아주세요'
                       }
                       value={textInput}
                       onChange={(e) => {

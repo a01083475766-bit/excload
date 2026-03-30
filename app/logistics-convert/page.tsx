@@ -2816,14 +2816,14 @@ export default function LogisticsConvertPage() {
                   <div className="space-y-2.5">
                     <textarea
                       ref={textInputRef}
-                      className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                      className="w-full min-h-[180px] h-44 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                       placeholder={
-                        '※ 아래는 형식 예시입니다. 붙여넣기·일부만 입력 가능.\n' +
-                        '예) 받는 사람: 홍길동\n' +
-                        '전화번호: 010-1234-5678\n' +
-                        '주소: 서울시 강남구 테헤란로 123\n' +
-                        '상품명: 무선 블랙 마우스 / 수량: 2개\n' +
-                        '요청사항: 부재 시 문 앞에 놓아주세요'
+                        '예) 홍길동 010-1234-5766   무선마우스 2개\n' +
+                        '서울시 강남구 테헤란로 123  문앞에 놓아주세요\n' +
+                        '\n' +
+                        '\n' +
+                        '※ 상품코드·출고요청일 등 물류 항목은 [ 항목명 : 값 ] 형태가  아닌경우에는 반영되지 않습니다.\n' +
+                        '좋은예) 상품코드:B-1234     나쁜예)   B-1234'
                       }
                       value={textInput}
                       onChange={(e) => {
