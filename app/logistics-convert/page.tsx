@@ -2997,7 +2997,7 @@ export default function LogisticsConvertPage() {
                       헤더 체크박스를 선택하면 원하는 값을 설정할 수 있습니다. 미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.
                     </p>
                   </div>
-                  <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}>
+                  <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar-emerald`}>
                     <table className="min-w-max text-sm border border-gray-300 border-collapse">
                       <thead className="bg-gray-50 sticky top-0 z-20">
                         <tr>

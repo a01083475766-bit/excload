@@ -175,6 +175,31 @@ body {
   background: #a855f7; /* purple-500 */
 }
 
+/* 물류주문변환 미리보기: 에메랄드 톤 (페이지 버튼·테두리와 정합) */
+.preview-scrollbar-emerald {
+  scrollbar-color: #34d399 #f1f1f1;
+  scrollbar-width: auto;
+}
+
+.preview-scrollbar-emerald::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+}
+
+.preview-scrollbar-emerald::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.preview-scrollbar-emerald::-webkit-scrollbar-thumb {
+  background: #34d399; /* emerald-400 */
+  border-radius: 6px;
+}
+
+.preview-scrollbar-emerald::-webkit-scrollbar-thumb:hover {
+  background: #10b981; /* emerald-500 */
+}
+
 /* 다크모드 스크롤바 스타일 */
 @media (prefers-color-scheme: dark) {
   .preview-scrollbar::-webkit-scrollbar-track {
@@ -199,5 +224,21 @@ body {
 
   .preview-scrollbar-purple::-webkit-scrollbar-thumb:hover {
     background: #a855f7;
+  }
+
+  .preview-scrollbar-emerald {
+    scrollbar-color: #059669 #2a2a2a;
+  }
+
+  .preview-scrollbar-emerald::-webkit-scrollbar-track {
+    background: #2a2a2a;
+  }
+
+  .preview-scrollbar-emerald::-webkit-scrollbar-thumb {
+    background: #059669; /* emerald-600 */
+  }
+
+  .preview-scrollbar-emerald::-webkit-scrollbar-thumb:hover {
+    background: #10b981; /* emerald-500 */
   }
 }
