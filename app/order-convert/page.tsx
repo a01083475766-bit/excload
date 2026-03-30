@@ -36,6 +36,7 @@ import {
   NormalizeQualityNoticeModal,
   isLikelyClientNetworkError,
 } from '@/app/components/NormalizeQualityNoticeModal';
+import { ORDER_TEXT_INPUT_COMBINED_PLACEHOLDER } from '@/app/lib/text-order-input-placeholder';
 
 type PreviewRowWithId = {
   rowId: string;
@@ -1750,19 +1751,13 @@ export default function OrderConvertPage() {
                 <div className="w-full lg:w-1/2 border-l-0 lg:border-l border-gray-200 pl-0 lg:pl-5 flex flex-col">
                   <h3 className="text-base font-semibold text-gray-900 mb-2.5">텍스트 주문입력</h3>
                   <p className="text-xs text-gray-600 mb-2.5 leading-relaxed">
-                    카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣으면 주문변환할 수 있습니다
+                    카카오톡·문자·주문메시지 등에서 받은 주문내용을 붙여넣으면 주문변환할 수 있습니다
                   </p>
                   <div className="space-y-2.5">
                     <textarea
                       ref={textInputRef}
-                      className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                      placeholder={
-                        '예) 받는 사람: 홍길동\n' +
-                        '전화번호: 010-1234-5678\n' +
-                        '주소: 서울시 강남구 테헤란로 123\n' +
-                        '상품명: 무선 블랙 마우스 / 수량: 2개\n' +
-                        '요청사항: 부재 시 문 앞에 놓아주세요'
-                      }
+                      className="w-full min-h-[320px] h-[320px] rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      placeholder={ORDER_TEXT_INPUT_COMBINED_PLACEHOLDER}
                       value={textInput}
                       onChange={(e) => {
                         const newValue = e.target.value;
