@@ -175,16 +175,7 @@ body {
   background: #a855f7; /* purple-500 */
 }
 
-/* 물류주문변환 미리보기: 에메랄드 톤 — 두께는 주문변환과 동일(24px) */
-.preview-scrollbar-emerald {
-  scrollbar-color: #34d399 #f1f1f1;
-  scrollbar-width: auto;
-}
-
-.preview-scrollbar-emerald::-webkit-scrollbar {
-  width: 24px;
-  height: 24px;
-}
+/* 물류주문변환 미리보기: 주문 스크롤바 규격을 그대로 쓰고 색만 에메랄드로 덮음 */
 
 .preview-scrollbar-emerald::-webkit-scrollbar-track {
   background: #f1f1f1;
@@ -224,10 +215,6 @@ body {
 
   .preview-scrollbar-purple::-webkit-scrollbar-thumb:hover {
     background: #a855f7;
-  }
-
-  .preview-scrollbar-emerald {
-    scrollbar-color: #059669 #2a2a2a;
   }
 
   .preview-scrollbar-emerald::-webkit-scrollbar-track {
