@@ -137,7 +137,8 @@ body {
 
 /* 미리보기 스크롤바: 주문·물류 동일 — 가로/세로 모두 클릭하기 쉽게 두껍게 */
 :root {
-  --preview-scrollbar-size: 32px;
+  /* 미리보기 테이블 스크롤바 가로·세로 두께 (클릭 영역 확대) */
+  --preview-scrollbar-size: 96px;
 }
 
 .preview-scrollbar {
