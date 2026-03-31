@@ -135,14 +135,19 @@ body {
   }
 }
 
-/* 미리보기 스크롤바: 주문·물류 동일 두께(24px) — Firefox는 thumb 색만 테마별로 다름 */
+/* 미리보기 스크롤바: 주문·물류 동일 — 가로/세로 모두 클릭하기 쉽게 두껍게 */
+:root {
+  --preview-scrollbar-size: 32px;
+}
+
 .preview-scrollbar {
   scrollbar-color: #93c5fd #f1f1f1;
+  scrollbar-width: auto; /* Firefox: thin 금지, 얇은 막대 방지 */
 }
 
 .preview-scrollbar::-webkit-scrollbar {
-  width: 24px;
-  height: 24px;
+  width: var(--preview-scrollbar-size);
+  height: var(--preview-scrollbar-size);
 }
 
 .preview-scrollbar::-webkit-scrollbar-track {
@@ -160,9 +165,13 @@ body {
 }
 
 /* 3PL 미리보기 스크롤바: 크기는 동일, 색상만 보라 계열 */
+.preview-scrollbar-purple {
+  scrollbar-width: auto;
+}
+
 .preview-scrollbar-purple::-webkit-scrollbar {
-  width: 24px;
-  height: 24px;
+  width: var(--preview-scrollbar-size);
+  height: var(--preview-scrollbar-size);
 }
 
 .preview-scrollbar-purple::-webkit-scrollbar-track {
@@ -179,14 +188,15 @@ body {
   background: #a855f7; /* purple-500 */
 }
 
-/* 물류주문변환 미리보기: 에메랄드 톤 (두께는 .preview-scrollbar 와 동일) */
+/* 물류주문변환 미리보기: 에메랄드 톤 (두께는 주문변환과 동일) */
 .preview-scrollbar-emerald {
   scrollbar-color: #34d399 #f1f1f1;
+  scrollbar-width: auto;
 }
 
 .preview-scrollbar-emerald::-webkit-scrollbar {
-  width: 24px;
-  height: 24px;
+  width: var(--preview-scrollbar-size);
+  height: var(--preview-scrollbar-size);
 }
 
 .preview-scrollbar-emerald::-webkit-scrollbar-track {
