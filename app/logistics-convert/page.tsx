@@ -142,6 +142,28 @@ function getLogisticsScopedKey(baseKey: string, userId: string | null | undefine
   return `${baseKey}_${suffix}`;
 }
 
+/**
+ * 물류 전용 매핑(localStorage) 복원 중 과거 포맷/깨진 JSON이 섞이면 콘솔에만 에러가 남을 수 있음.
+ * 기능엔 영향이 없는 “잔재”로 보고 자동 정리(키 삭제)하도록 처리한다.
+ */
+function clearLogisticsMappingLocalStorage(userId: string | null | undefined): void {
+  if (typeof window === 'undefined') return;
+
+  const mappingKey = getLogisticsScopedKey(LOGISTICS_MAPPING_STORAGE_KEY, userId);
+  const mappingSelectedKey = getLogisticsScopedKey(LOGISTICS_MAPPING_SELECTED_KEY, userId);
+
+  // 현재 스코프 키
+  localStorage.removeItem(mappingKey);
+  localStorage.removeItem(mappingSelectedKey);
+
+  // 레거시(스코프 미적용) 키도 함께 정리
+  localStorage.removeItem(LOGISTICS_MAPPING_STORAGE_KEY);
+  localStorage.removeItem(LOGISTICS_MAPPING_SELECTED_KEY);
+
+  // 관련 단순 매핑 레거시도 함께 정리
+  localStorage.removeItem(LOGISTICS_SIMPLE_COLUMN_MAPS_KEY);
+}
+
 function parseExcelRowsForMapping(file: File): Promise<string[][]> {
   return file.arrayBuffer().then((buffer) => {
     const rawData = readFirstSheetMatrixFromArrayBuffer(buffer);
@@ -832,20 +854,25 @@ export default function LogisticsConvertPage() {
 
       if (savedMappings) {
         const parsed = JSON.parse(savedMappings) as LogisticsMappingFileFormat[];
-        if (Array.isArray(parsed)) {
-          setRecentMappingFormats(parsed);
-          if (savedMappingSelected) {
-            setTempSelectedMappingId(savedMappingSelected);
-            const fmt = parsed.find((f) => f.id === savedMappingSelected);
-            if (fmt?.rows?.length) {
-              setProductCodeMap(parseProductCodeMapFromMatrix(fmt.rows));
-              setProductCodeFileName(fmt.displayName ?? '매핑');
-            }
+        if (!Array.isArray(parsed)) {
+          // 과거 포맷/깨진 값일 가능성이 높음 → 잔재 정리
+          clearLogisticsMappingLocalStorage(userId);
+          return;
+        }
+
+        setRecentMappingFormats(parsed);
+        if (savedMappingSelected) {
+          setTempSelectedMappingId(savedMappingSelected);
+          const fmt = parsed.find((f) => f.id === savedMappingSelected);
+          if (fmt?.rows?.length) {
+            setProductCodeMap(parseProductCodeMapFromMatrix(fmt.rows));
+            setProductCodeFileName(fmt.displayName ?? '매핑');
           }
         }
       }
     } catch (err) {
-      console.error('[물류] 매핑 localStorage 복원 오류:', err);
+      // 과거 잔재/포맷 불일치로 인한 JSON parse 실패는 기능 오류가 아니라 “정리 대상”
+      clearLogisticsMappingLocalStorage(userId);
     } finally {
       setIsLogisticsMappingStorageHydrated(true);
     }
@@ -861,7 +888,7 @@ export default function LogisticsConvertPage() {
       const hasSelected = recentMappingFormats.some((f) => f.id === tempSelectedMappingId);
       localStorage.setItem(mappingSelectedKey, hasSelected ? tempSelectedMappingId : '');
     } catch (err) {
-      console.error('[물류] 매핑 localStorage 저장 오류:', err);
+      // 저장 실패는 사용자가 이후 매핑을 다시 저장하면 되므로 “잔재 정리” 관점에서 조용히 무시
     }
   }, [recentMappingFormats, tempSelectedMappingId, userId, isLogisticsMappingStorageHydrated]);
 
