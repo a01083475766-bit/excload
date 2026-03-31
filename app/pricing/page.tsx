@@ -231,7 +231,7 @@ export default function PricingPage() {
               },
               {
                 question: '무료 플랜에 제한이 있나요?',
-                answer: '무료 플랜은 월 10개 파일 처리 제한이 있으며, 기본 기능만 사용할 수 있습니다.',
+                answer: '무료 플랜은 월 5개 파일 처리 제한이 있으며, 기본 기능만 사용할 수 있습니다.',
               },
               {
                 question: '결제는 어떻게 진행되나요?',
