@@ -740,6 +740,8 @@ export default function LogisticsConvertPage() {
   const courierFileInputRef = useRef<HTMLInputElement | null>(null);
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
+  /** 텍스트 변환 중복 클릭·포인트 차감 이중 호출 방지 */
+  const textConvertInFlightRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
   const isCancelledRef = useRef<boolean>(false);
@@ -2117,65 +2119,51 @@ export default function LogisticsConvertPage() {
 
   // 텍스트 물류 주문 변환 처리 (실제 변환 로직)
   const handleTextConvert = async () => {
-    console.log('[handleTextConvert] 함수 시작', { 
-      textInput: textInput.trim().substring(0, 50),
-      hasTemplate: !!courierUploadTemplate,
-      user: user 
-    });
+    if (textConvertInFlightRef.current || isProcessingTextImage) {
+      return;
+    }
     setErrorMessageTextImage(null);
-    
-    // 물류센터 업로드 양식이 없는 경우 안내 모달 표시
+
     if (!isValidCourierTemplate(courierUploadTemplate)) {
-      console.log('[handleTextConvert] 물류센터 양식 없음 - 모달 표시');
       setNoTemplateModalType('convert');
       setIsNoTemplateModalOpen(true);
       return;
     }
-    
+
     const trimmed = textInput.trim();
     if (!trimmed) {
-      console.log('[handleTextConvert] 텍스트 입력 없음');
       setErrorMessageTextImage('변환할 텍스트를 입력해 주세요.');
       return;
     }
 
-    // 텍스트 변환 실행 직전 포인트 체크
     const textLength = trimmed.length;
-    
-    // 사용자 정보 확인
+
     if (!user) {
       alert('로그인이 필요합니다.');
       router.push('/auth/login');
       return;
     }
-    
-    // 포인트 부족 체크
+
     if (user.points < textLength) {
       setErrorMessageTextImage('포인트가 부족합니다');
       return;
     }
-    
-    // 포인트 차감 (API 호출)
-    console.log('[handleTextConvert] 포인트 차감 시작', { textLength, userPoints: user?.points });
-    const pointsDeducted = await usePoints(textLength, 'text');
-    if (!pointsDeducted) {
-      console.log('[handleTextConvert] 포인트 차감 실패 - 중단');
-      return; // 포인트 부족으로 차단
-    }
-    console.log('[handleTextConvert] 포인트 차감 성공 - 변환 진행');
-    
-    // 이미지에서 온 텍스트가 아니면 텍스트 직접 입력으로 기록
-    if (!selectedImage) {
-      setInputSourceType('text');
-    }
-    // selectedImage가 있으면 이미지에서 온 것이므로 inputSourceType은 이미 'image'로 설정되어 있음
-    
+
+    textConvertInFlightRef.current = true;
     setIsProcessingTextImage(true);
     try {
+      const pointsDeducted = await usePoints(textLength, 'text');
+      if (!pointsDeducted) {
+        return;
+      }
+
+      if (!selectedImage) {
+        setInputSourceType('text');
+      }
+
       const adapterResult = await runTextToCleanInputAdapter(trimmed);
       const { normalizeMeta, ...cleanInputFile } = adapterResult;
       if (cleanInputFile) {
-        // CleanInputFile을 받았으므로 바로 Stage2/Stage3 실행
         const fileSessionId = crypto.randomUUID();
         const pipelineResult = await runUnifiedInputOrderPipelines({
           cleanInputFile,
@@ -2183,11 +2171,9 @@ export default function LogisticsConvertPage() {
           fixedHeaderValues,
           fileSessionId,
         });
-        
-        // 결과를 미리보기에 추가
+
         handleUnifiedPipelinesCompleted(pipelineResult);
-        
-        // 텍스트 입력 초기화
+
         setTextInput('');
         if (normalizeMeta.usedFallback) {
           setQualityNoticeModal('heuristic');
@@ -2205,6 +2191,7 @@ export default function LogisticsConvertPage() {
       );
     } finally {
       setIsProcessingTextImage(false);
+      textConvertInFlightRef.current = false;
     }
   };
 
@@ -3108,20 +3095,6 @@ export default function LogisticsConvertPage() {
                             </td>
                             {courierHeaders.map((header) => {
                               const cellValue = row.data[header] ?? '';
-                              // 상품명 관련 헤더 디버깅 로그 (첫 번째 행만)
-                              if (previewRows.indexOf(row) === 0) {
-                                const normalizedHeader = header.toLowerCase().trim();
-                                if (normalizedHeader.includes('상품') || 
-                                    normalizedHeader.includes('product') || 
-                                    normalizedHeader.includes('제품') ||
-                                    normalizedHeader.includes('item')) {
-                                  console.log(`[미리보기][상품명 표시] Row ${row.rowId}, Header "${header}":`, {
-                                    cellValue,
-                                    rowKeys: Object.keys(row.data),
-                                    hasValue: cellValue !== '',
-                                  });
-                                }
-                              }
                               const overrideValue = userOverrides[row.rowId]?.[header];
                               const displayValue = overrideValue ?? cellValue;
                               
