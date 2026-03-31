@@ -135,7 +135,11 @@ body {
   }
 }
 
-/* 주문변환 페이지 미리보기 스크롤바 스타일 */
+/* 미리보기 스크롤바: 주문·물류 동일 두께(24px) — Firefox는 thumb 색만 테마별로 다름 */
+.preview-scrollbar {
+  scrollbar-color: #93c5fd #f1f1f1;
+}
+
 .preview-scrollbar::-webkit-scrollbar {
   width: 24px;
   height: 24px;
@@ -175,10 +179,9 @@ body {
   background: #a855f7; /* purple-500 */
 }
 
-/* 물류주문변환 미리보기: 에메랄드 톤 (페이지 버튼·테두리와 정합) */
+/* 물류주문변환 미리보기: 에메랄드 톤 (두께는 .preview-scrollbar 와 동일) */
 .preview-scrollbar-emerald {
   scrollbar-color: #34d399 #f1f1f1;
-  scrollbar-width: auto;
 }
 
 .preview-scrollbar-emerald::-webkit-scrollbar {
@@ -202,6 +205,10 @@ body {
 
 /* 다크모드 스크롤바 스타일 */
 @media (prefers-color-scheme: dark) {
+  .preview-scrollbar {
+    scrollbar-color: #93c5fd #2a2a2a;
+  }
+
   .preview-scrollbar::-webkit-scrollbar-track {
     background: #2a2a2a;
   }

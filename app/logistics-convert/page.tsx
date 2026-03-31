@@ -1471,48 +1471,6 @@ export default function LogisticsConvertPage() {
     return () => clearInterval(interval);
   }, [isProcessingTextImage]);
 
-  // courierHeaders 변경 시 출력
-  useEffect(() => {
-    if (courierHeaders.length === 0) return;
-    
-    console.log('========================================');
-    console.log('📋 [현재 사용 중인 courierHeaders 배열]');
-    console.log('========================================');
-    console.log('배열 길이:', courierHeaders.length);
-    console.log('전체 배열:', courierHeaders);
-    console.log('\n인덱스별 상세 출력:');
-    courierHeaders.forEach((header, index) => {
-      console.log(`  [${index}] "${header}"`);
-    });
-    
-    // 상품 관련 헤더 확인
-    const productRelatedHeaders = courierHeaders.filter(header => {
-      const normalized = header.toLowerCase().trim();
-      return normalized.includes('상품') || 
-             normalized.includes('제품') || 
-             normalized.includes('품목') ||
-             normalized.includes('product') ||
-             normalized.includes('item') ||
-             normalized.includes('goods') ||
-             normalized.includes('옵션') ||
-             normalized.includes('option');
-    });
-    
-    console.log('\n========================================');
-    console.log('🛍️ [상품 관련 헤더]');
-    console.log('========================================');
-    if (productRelatedHeaders.length > 0) {
-      console.log(`상품 관련 헤더 개수: ${productRelatedHeaders.length}`);
-      productRelatedHeaders.forEach((header) => {
-        const headerIndex = courierHeaders.indexOf(header);
-        console.log(`  [${headerIndex}] "${header}"`);
-      });
-    } else {
-      console.log('상품 관련 헤더가 없습니다.');
-    }
-    console.log('========================================\n');
-  }, [courierHeaders]);
-
   const handleOpenCourierTemplateModal = () => {
     const formats = loadRecentExcelFormats();
     setRecentExcelFormats(formats);
@@ -1571,15 +1529,9 @@ export default function LogisticsConvertPage() {
     setUploadedFileMeta([]);
 
     try {
-      console.log('[UI] Stage1 Pipeline Start');
-      console.log(`[템플릿 파일명] ${file.name}`);
-
       const templateResult = await runTemplatePipeline(file, undefined, newTemplateSessionId);
       setOrderStandardFile(null);
       setTemplateBridgeFile(templateResult.bridgeFile);
-      
-      // 템플릿 실행 결과 로깅
-      console.log('[템플릿 실행 결과] bridgeFile.courierHeaders:', templateResult.bridgeFile.courierHeaders);
 
       // Stage1 성공 시 bridgeFile을 localStorage에 저장
       if (typeof window !== 'undefined') {
@@ -1592,9 +1544,6 @@ export default function LogisticsConvertPage() {
           console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
         }
       }
-
-      console.log('[UI] Stage1 Pipeline Completed:', templateResult.bridgeFile);
-      console.log('[변수명 출력] Stage1 실행 결과 변수명: templateResult');
 
       // templateResult.bridgeFile 기반으로 CourierUploadTemplate 생성
       // bridgeFile.courierHeaders를 CourierUploadHeader[]로 변환
@@ -1664,13 +1613,8 @@ export default function LogisticsConvertPage() {
   };
 
   const handleTemplateSelect = (formatId: string) => {
-    console.log("==== 물류센터 업로드 양식 선택됨 ====");
-    console.log("선택된 formatId:", formatId);
-    console.log("선택된 전체 format 객체:", recentExcelFormats.find((format) => format.id === formatId));
     const selected = recentExcelFormats.find((format) => format.id === formatId);
-    console.log("선택된 bridgeFile:", selected?.bridgeFile);
-    console.log("현재 기존 templateBridgeFile 상태:", templateBridgeFile);
-    
+
     if (!selected) {
       return;
     }
@@ -1703,8 +1647,6 @@ export default function LogisticsConvertPage() {
 
     // 3. 선택된 템플릿의 bridgeFile 적용
     if (selected.bridgeFile) {
-      console.log("Selected bridgeFile:", selected.bridgeFile);
-      
       // setTemplateBridgeFile 실행 - 새 객체로 복사하여 전달 (React 객체 동일성 비교 문제 해결)
       setTemplateBridgeFile(JSON.parse(JSON.stringify(selected.bridgeFile)));
       
@@ -2055,7 +1997,6 @@ export default function LogisticsConvertPage() {
     let currentUser = useUserStore.getState().user;
     
     if (!currentUser) {
-      console.log('[usePoints] 사용자 정보 없음 - 사용자 정보 다시 가져오기 시도');
       // 사용자 정보 다시 가져오기 시도
       try {
         await fetchUser();
@@ -2281,9 +2222,6 @@ export default function LogisticsConvertPage() {
     const headerIndex = detectHeaderRowIndex(filteredRows);
     const alignedRawData = alignRowsFromHeader(filteredRows, headerIndex);
 
-    // 보고: rows.length 값(필터+정렬 후)
-    console.log('[Order UI] parsed excel rows.length:', alignedRawData.length);
-
     // ExcelPreprocessPipeline(Stage0)을 통과하여 CleanInputFile 생성
     const preprocessPipeline = new ExcelPreprocessPipeline();
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
@@ -2306,10 +2244,6 @@ export default function LogisticsConvertPage() {
 
     const stage2Result = await response.json();
 
-    console.log('[Stage2 Connected]');
-    console.log(stage2Result);
-    console.log('[변수명 출력] Stage2 실행 결과 변수명: stage2Result');
-    
     // Stage2 완료 직후 상태 설정
     setFileProcessingStatus("done");
     setTimeout(() => {
@@ -2328,7 +2262,6 @@ export default function LogisticsConvertPage() {
     
     // Stage3 실행 (handleExcelUpload 내부에서만 실행)
     if (templateBridgeFile) {
-      console.log('[UI] Stage3 Pipeline Start');
       const stage3Result = await runMergePipeline(
         templateBridgeFile,
         stage2Result,     // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
@@ -2368,62 +2301,19 @@ export default function LogisticsConvertPage() {
       }, 3000);
       
       setCourierHeaders(stage3Result.courierHeaders);
-      
-      // 📋 courierHeaders 배열 전체 출력
-      console.log('========================================');
-      console.log('📋 [courierHeaders 배열 전체 출력]');
-      console.log('========================================');
-      console.log('배열 길이:', stage3Result.courierHeaders.length);
-      console.log('전체 배열:', stage3Result.courierHeaders);
-      console.log('\n인덱스별 상세 출력:');
-      stage3Result.courierHeaders.forEach((header, index) => {
-        console.log(`  [${index}] "${header}"`);
-      });
-      
-      // 상품 관련 헤더 확인
-      const productRelatedHeaders = stage3Result.courierHeaders.filter(header => {
-        const normalized = header.toLowerCase().trim();
-        return normalized.includes('상품') || 
-               normalized.includes('제품') || 
-               normalized.includes('품목') ||
-               normalized.includes('product') ||
-               normalized.includes('item') ||
-               normalized.includes('goods') ||
-               normalized.includes('옵션') ||
-               normalized.includes('option');
-      });
-      
-      console.log('\n========================================');
-      console.log('🛍️ [상품 관련 헤더]');
-      console.log('========================================');
-      if (productRelatedHeaders.length > 0) {
-        console.log(`상품 관련 헤더 개수: ${productRelatedHeaders.length}`);
-        productRelatedHeaders.forEach((header, index) => {
-          const headerIndex = stage3Result.courierHeaders.indexOf(header);
-          console.log(`  [${headerIndex}] "${header}"`);
-        });
-      } else {
-        console.log('상품 관련 헤더가 없습니다.');
-      }
-      console.log('========================================\n');
-      
+
       // Stage3 성공 후 메타데이터 저장
       setUploadedFileMeta(prev => [
         { name: file.name, size: file.size },
         ...prev
       ]);
-      
-      console.log('[UI] Stage3 Pipeline Completed');
     } else {
       console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
     }
     
-    // 테스트용: 전역 변수에 결과 저장 (브라우저 콘솔에서 확인 가능)
     if (typeof window !== 'undefined') {
       (window as any).__lastOrderResult = stage2Result;
       (window as any).__lastOrderFile = file.name;
-      console.log('[테스트] 결과가 window.__lastOrderResult에 저장되었습니다.');
-      console.log('[테스트] 확인 방법: window.__lastOrderResult');
     }
   };
   
@@ -2828,19 +2718,12 @@ export default function LogisticsConvertPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('[텍스트 물류 주문 변환 버튼] 클릭됨', { 
-                          textInput: textInput.trim(), 
-                          isProcessing: isProcessingTextImage,
-                          user: user 
-                        });
                         const today = new Date().toDateString();
                         const saved = localStorage.getItem("hideLogisticsTextConvertModal");
 
                         if (saved === today) {
-                          console.log('[텍스트 물류 주문 변환] 모달 스킵, 바로 실행');
                           handleTextConvert(); // 바로 실행
                         } else {
-                          console.log('[텍스트 물류 주문 변환] 모달 표시');
                           setShowTextConvertModal(true);
                         }
                       }}
