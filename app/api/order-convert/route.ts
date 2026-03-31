@@ -2,12 +2,12 @@
  * 텍스트 주문 변환 API
  * 
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
- * 포인트 시스템은 파이프라인 구조와 독립적으로 동작합니다.
+ * 사용량 시스템은 파이프라인 구조와 독립적으로 동작합니다.
  * 
  * POST /api/order-convert
  * body: { inputText: string }
  * 
- * 텍스트 주문 변환 실행 시 포인트 차감 기능 포함
+ * 텍스트 주문 변환 실행 시 사용량 차감 기능 포함
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -24,7 +24,7 @@ const rateLimitMap = new Map<string, { count: number; time: number }>();
 
 /**
  * POST /api/order-convert
- * 텍스트 주문 변환 (포인트 차감 포함)
+ * 텍스트 주문 변환 (사용량 차감 포함)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6-1. 월 포인트 자동 지급 (Lazy Update)
+    // 6-1. 월간 사용량 자동 제공 (Lazy Update)
     const now = new Date();
     if (user.nextPointDate && now >= user.nextPointDate) {
       let newPoints = user.points;
@@ -163,10 +163,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. 포인트 부족 검사
+    // 7. 사용량 부족 검사
     if (user.points < textLength) {
       return NextResponse.json(
-        { error: '포인트가 부족합니다.' },
+        { error: '사용량이 부족합니다.' },
         { status: 400 }
       );
     }
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 9. 변환 성공 후 포인트 차감
+    // 9. 변환 성공 후 사용량 차감
     const updatedUser = await prisma.user.update({
       where: { email: userEmail },
       data: {
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 포인트 차감 로그 기록
+    // 사용량 차감 로그 기록
     await prisma.pointHistory.create({
       data: {
         userId: updatedUser.id,

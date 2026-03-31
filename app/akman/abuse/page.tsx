@@ -89,7 +89,7 @@ export default function AbusePage() {
                       onClick={() => action(u.id, 'removePoints')}
                       className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
                     >
-                      포인트 제거
+                      사용량 제거
                     </button>
                     <button
                       onClick={() => action(u.id, 'unblock')}

@@ -11,7 +11,7 @@ export default function HomePage() {
       name: '무료',
       priceLabel: '무료',
       description: '무료 이용 플랜',
-      features: ['매월 5,000 포인트 지급', '텍스트 입력 최대 5,000자', '엑셀 다운로드 1회 1,000 포인트 차감'],
+      features: ['매월 5,000 사용량 제공', '텍스트 입력 최대 5,000자', '엑셀 다운로드 1회 1,000 사용량 차감'],
       popular: false,
     },
     {
@@ -19,7 +19,7 @@ export default function HomePage() {
       name: '프로',
       priceLabel: '₩4,000 / 월',
       description: '꾸준한 주문 처리를 위한 플랜',
-      features: ['매월 400,000 포인트 지급', '텍스트 변환 시 글자수 만큼 포인트 차감', '엑셀 다운로드 무제한'],
+      features: ['매월 400,000 사용량 제공', '텍스트 변환 시 글자수만큼 사용량 차감', '엑셀 다운로드 무제한'],
       popular: true,
     },
     {
@@ -27,7 +27,7 @@ export default function HomePage() {
       name: '연간',
       priceLabel: '₩40,000 / 년',
       description: '장기 이용자를 위한 연간 플랜',
-      features: ['20% 할인', '매월 400,000 포인트 지급', '엑셀 다운로드 무제한'],
+      features: ['20% 할인', '매월 400,000 사용량 제공', '엑셀 다운로드 무제한'],
       popular: false,
     },
   ];

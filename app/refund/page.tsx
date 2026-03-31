@@ -18,7 +18,7 @@ export default function RefundPage() {
           <p className="mb-2">다음 조건을 모두 만족할 경우 전액 환불이 가능합니다.</p>
           <ul className="list-disc space-y-1 pl-5">
             <li>서비스 이용 이력이 없는 경우</li>
-            <li>포인트 사용 내역이 없는 경우</li>
+            <li>서비스 사용(사용량 차감) 이력이 없는 경우</li>
           </ul>
         </section>
 

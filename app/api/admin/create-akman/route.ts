@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         email: 'akman', // 이메일 형식이 아닌 아이디
         passwordHash,
         plan: 'PRO', // 관리자는 PRO 플랜
-        points: 999999999, // 관리자 포인트
+        points: 999999999, // 관리자 테스트용 사용량
         emailVerified: new Date(), // 이메일 인증 완료 처리
       },
       select: {

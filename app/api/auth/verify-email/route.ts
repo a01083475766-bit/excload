@@ -79,7 +79,7 @@ export async function GET(req: Request) {
       }
     }
 
-    // 3. 이메일 인증 완료 및 포인트/로그 처리
+    // 3. 이메일 인증 완료 및 사용량/로그 처리
     const updatedUser = await prisma.user.update({
       where: { email: record.email },
       data: {

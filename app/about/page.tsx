@@ -55,7 +55,7 @@ export default function AboutPage() {
 
       <section className="mt-10 text-left border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 lg:p-8 bg-white dark:bg-zinc-900/50">
         <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-          엑클로드는 구독형(SaaS) 서비스로, 정기결제를 통해 매월 포인트를 제공받아 이용할 수 있습니다.
+          엑클로드는 구독형(SaaS) 서비스로, 정기결제를 통해 매월 사용량(이용 한도)을 제공받아 이용할 수 있습니다.
         </p>
       </section>
     </div>

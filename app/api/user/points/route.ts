@@ -1,12 +1,12 @@
 /**
- * 사용자 포인트 정보 조회 API
+ * 사용자 사용량 정보 조회 API
  * 
  * ⚠️ EXCLOAD CONSTITUTION v4.3 준수
- * 포인트 시스템은 파이프라인 구조와 독립적으로 동작합니다.
+ * 사용량 시스템은 파이프라인 구조와 독립적으로 동작합니다.
  * 
  * GET /api/user/points
  * 
- * 현재 로그인한 사용자의 포인트 정보를 반환합니다.
+ * 현재 로그인한 사용자의 사용량 정보를 반환합니다.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,7 +16,7 @@ import { prisma } from '@/app/lib/prisma';
 
 /**
  * GET /api/user/points
- * 사용자 포인트 정보 조회
+ * 사용자 사용량 정보 조회
  */
 export async function GET(request: NextRequest) {
   try {

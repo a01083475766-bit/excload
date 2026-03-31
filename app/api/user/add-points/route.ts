@@ -1,5 +1,5 @@
 /**
- * 포인트 지급 API
+ * 사용량 제공(증가) API
  * 
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
  * 사용자 DB는 파이프라인 구조와 독립적으로 동작합니다.
@@ -18,7 +18,7 @@ interface AddPointsRequest {
 
 /**
  * POST /api/user/add-points
- * 포인트 지급
+ * 사용량 제공(증가)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -52,12 +52,12 @@ export async function POST(request: NextRequest) {
     // 유효성 검사
     if (!amount || amount <= 0) {
       return NextResponse.json(
-        { error: '유효한 포인트 금액이 필요합니다.' },
+        { error: '유효한 사용량 수치가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    // Prisma를 사용하여 DB에서 포인트 지급
+    // Prisma를 사용하여 DB에서 사용량 증가
     try {
       const { prisma } = await import('@/app/lib/prisma');
       
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 2. 포인트 지급 (increment 사용)
+      // 2. 사용량 증가 (increment 사용)
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -93,12 +93,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 3. 포인트 지급 로그 기록
+      // 3. 사용량 변경 로그 기록
       await prisma.pointHistory.create({
         data: {
           userId: user.id,
           change: amount,
-          reason: reason || '포인트 지급',
+          reason: reason || '사용량 제공',
         },
       });
 
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
           points: updatedUser.points,
         },
         addedAmount: amount,
-        reason: reason || '포인트 지급',
+        reason: reason || '사용량 제공',
       });
     } catch (dbError) {
       console.error('[Add Points API] DB 업데이트 실패:', dbError);
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       // DB 업데이트 실패 시 에러 반환
       return NextResponse.json(
         {
-          error: '포인트 지급 처리 중 오류가 발생했습니다.',
+          error: '사용량 제공 처리 중 오류가 발생했습니다.',
           details: dbError instanceof Error ? dbError.message : String(dbError),
         },
         { status: 500 }
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Add Points API] 에러:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : '포인트 지급 실패' },
+      { error: error instanceof Error ? error.message : '사용량 제공 실패' },
       { status: 500 }
     );
   }

@@ -325,7 +325,7 @@ export default function OrderConvertPage() {
   const courierFileInputRef = useRef<HTMLInputElement | null>(null);
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
-  /** 텍스트 변환 중복 클릭·포인트 차감 이중 호출 방지 (await 전에 state가 안 올라가는 레이스 대비) */
+  /** 텍스트 변환 중복 클릭·사용량 차감 이중 호출 방지 (await 전에 state가 안 올라가는 레이스 대비) */
   const textConvertInFlightRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
@@ -947,7 +947,7 @@ export default function OrderConvertPage() {
     }
   }, [showScreenshotModal]);
   
-  // 포인트 차감 헬퍼 함수
+  // 사용량 차감 헬퍼 함수
   const usePoints = async (amount: number, type: 'text' | 'download'): Promise<boolean> => {
     // 현재 사용자 정보 가져오기 (최신 상태)
     let currentUser = useUserStore.getState().user;
@@ -970,9 +970,9 @@ export default function OrderConvertPage() {
       }
     }
 
-    // 포인트 부족 확인
+    // 사용량 부족 확인
     if (currentUser.points < amount) {
-      alert('포인트가 부족합니다');
+      alert('사용량이 부족합니다');
       router.push('/pricing');
       return false;
     }
@@ -992,12 +992,12 @@ export default function OrderConvertPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        if (data.error === '포인트가 부족합니다.') {
-          alert('포인트가 부족합니다');
+        if (data.error === '사용량이 부족합니다.') {
+          alert('사용량이 부족합니다');
           router.push('/pricing');
           return false;
         }
-        throw new Error(data.error || '포인트 차감 실패');
+        throw new Error(data.error || '사용량 차감 실패');
       }
 
       const result = await response.json();
@@ -1009,7 +1009,7 @@ export default function OrderConvertPage() {
 
       return false;
     } catch (error) {
-      console.error('[OrderConvertPage] 포인트 차감 중 오류:', error);
+      console.error('[OrderConvertPage] 사용량 차감 중 오류:', error);
       return false;
     }
   };
@@ -1043,7 +1043,7 @@ export default function OrderConvertPage() {
     }
 
     if (user.points < textLength) {
-      setErrorMessageTextImage('포인트가 부족합니다');
+      setErrorMessageTextImage('사용량이 부족합니다');
       return;
     }
 
@@ -1322,7 +1322,7 @@ export default function OrderConvertPage() {
       return;
     }
 
-    // 엑셀 다운로드 실행 직전 포인트 체크 (FREE 플랜만)
+    // 엑셀 다운로드 실행 직전 사용량 체크 (FREE 플랜만)
     if (user?.plan === 'FREE') {
       // 사용자 정보 확인
       if (!user) {
@@ -1331,16 +1331,16 @@ export default function OrderConvertPage() {
         return;
       }
       
-      // 포인트 부족 체크 (1000 포인트 필요)
+      // 사용량 부족 체크 (다운로드 1회 1,000 사용량 필요)
       if (user.points < 1000) {
-        alert('포인트가 부족합니다');
+        alert('사용량이 부족합니다');
         return;
       }
       
-      // 포인트 차감 (API 호출)
+      // 사용량 차감 (API 호출)
       const pointsDeducted = await usePoints(1000, 'download');
       if (!pointsDeducted) {
-        return; // 포인트 부족으로 차단
+        return; // 사용량 부족으로 차단
       }
     }
     // PRO / YEARLY 플랜은 다운로드 차감 없음
@@ -1529,7 +1529,7 @@ export default function OrderConvertPage() {
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
-            {/* 서비스 설명 텍스트 영역 + 포인트 표시 */}
+            {/* 서비스 설명 텍스트 영역 + 사용량 표시 */}
             <div className="relative flex items-center justify-center">
               {/* 주문변환 안내 컨테이너 (항상 중앙) */}
               <div className="flex flex-col gap-2 text-center min-h-[32px]">
@@ -1538,12 +1538,12 @@ export default function OrderConvertPage() {
                 </p>
               </div>
               
-              {/* 포인트 표시 UI (오른쪽 절대 위치) */}
+              {/* 사용량 표시 UI (오른쪽 절대 위치) */}
               {user && (
                 <div className="absolute right-0 bg-gradient-to-r from-blue-500 to-sky-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
                   <div className="flex items-center gap-2 justify-end">
                     <Coins className="w-4 h-4" />
-                    <span className="font-medium text-sm">잔여포인트</span>
+                    <span className="font-medium text-sm">잔여 사용량</span>
                     <span className="text-lg font-bold">:{user.points.toLocaleString()}</span>
                   </div>
                 </div>

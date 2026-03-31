@@ -75,25 +75,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 플랜 변경에 따른 포인트 조정
+    // 플랜 변경에 따른 사용량 조정
     let newPoints = user.points;
     let pointsChange = 0;
 
     if (plan === 'PRO' || plan === 'YEARLY') {
-      // PRO/YEARLY로 변경 시 포인트 400000으로 설정
+      // PRO/YEARLY로 변경 시 사용량 400000으로 설정
       if (user.plan === 'FREE') {
         pointsChange = 400000 - user.points;
         newPoints = 400000;
       }
     } else if (plan === 'FREE') {
-      // FREE로 변경 시 포인트 5000으로 설정
+      // FREE로 변경 시 사용량 5000으로 설정
       if (user.plan !== 'FREE') {
         pointsChange = 5000 - user.points;
         newPoints = 5000;
       }
     }
 
-    // 플랜 및 포인트 업데이트
+    // 플랜 및 사용량 업데이트
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 포인트 변경 로그 기록 (변경이 있는 경우)
+    // 사용량 변경 로그 기록 (변경이 있는 경우)
     if (pointsChange !== 0) {
       await prisma.pointHistory.create({
         data: {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       success: true,
       user: updatedUser,
       pointsChange,
-      message: `플랜이 ${plan}로 변경되었습니다.${pointsChange !== 0 ? ` 포인트가 ${pointsChange >= 0 ? '+' : ''}${pointsChange.toLocaleString()} 변경되었습니다.` : ''}`,
+      message: `플랜이 ${plan}로 변경되었습니다.${pointsChange !== 0 ? ` 사용량이 ${pointsChange >= 0 ? '+' : ''}${pointsChange.toLocaleString()} 변경되었습니다.` : ''}`,
     });
   } catch (error) {
     console.error('[Admin Update Plan API] 에러:', error);

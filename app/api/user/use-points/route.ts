@@ -1,5 +1,5 @@
 /**
- * 포인트 차감 API
+ * 사용량 차감 API
  * 
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
  * 사용자 DB는 파이프라인 구조와 독립적으로 동작합니다.
@@ -17,7 +17,7 @@ interface UsePointsRequest {
 
 /**
  * POST /api/user/use-points
- * 포인트 차감
+ * 사용량 차감
  */
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // 유효성 검사
     if (!amount || amount <= 0) {
       return NextResponse.json(
-        { error: '유효한 포인트 금액이 필요합니다.' },
+        { error: '유효한 사용량 수치가 필요합니다.' },
         { status: 400 }
       );
     }
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const userEmail = session.user.email;
 
-    // Prisma를 사용하여 DB에서 포인트 차감
+    // Prisma를 사용하여 DB에서 사용량 차감
     try {
       const { prisma } = await import('@/app/lib/prisma');
       
@@ -73,15 +73,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 2. 포인트 부족 확인
+      // 2. 사용량 부족 확인
       if (user.points < amount) {
         return NextResponse.json(
-          { error: '포인트가 부족합니다.' },
+          { error: '사용량이 부족합니다.' },
           { status: 400 }
         );
       }
 
-      // 3. 포인트 차감 및 DB 업데이트
+      // 3. 사용량 차감 및 DB 업데이트
       const updatedUser = await prisma.user.update({
         where: { email: userEmail },
         data: {
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
           points: updatedUser.points,
         },
         usedAmount: amount,
-        reason: reason || '포인트 사용',
+        reason: reason || '사용량 차감',
       });
     } catch (dbError) {
       console.error('[Use Points API] DB 업데이트 실패:', dbError);
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         success: true,
         user: updatedUser,
         usedAmount: amount,
-        reason: reason || '포인트 사용',
+        reason: reason || '사용량 차감',
       });
     }
 
@@ -132,12 +132,12 @@ export async function POST(request: NextRequest) {
       success: true,
       user: updatedUser,
       usedAmount: amount,
-      reason: reason || '포인트 사용',
+      reason: reason || '사용량 차감',
     });
   } catch (error) {
     console.error('[Use Points API] 에러:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : '포인트 차감 실패' },
+      { error: error instanceof Error ? error.message : '사용량 차감 실패' },
       { status: 500 }
     );
   }

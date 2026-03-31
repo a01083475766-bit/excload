@@ -19,7 +19,7 @@ interface ManualPaymentProcessRequest {
 
 /**
  * POST /api/admin/manual-payment-process
- * 관리자가 수동으로 결제 처리 (플랜 업데이트 + 포인트 지급)
+ * 관리자가 수동으로 결제 처리 (플랜 업데이트 + 사용량 제공)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 2. 포인트 지급 로그 기록
+    // 2. 사용량 제공 로그 기록
     await prisma.pointHistory.create({
       data: {
         userId: user.id,

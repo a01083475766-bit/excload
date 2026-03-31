@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
         
         // invoice_payment의 status가 'paid'인지 확인
         if (invoicePayment.status !== 'paid') {
-          console.log('[Stripe Webhook] invoice_payment status가 paid가 아님 → 포인트 지급 건너뜀', {
+          console.log('[Stripe Webhook] invoice_payment status가 paid가 아님 → 사용량 제공 건너뜀', {
             invoicePaymentId: invoicePayment.id,
             status: invoicePayment.status,
           });
@@ -337,7 +337,7 @@ export async function POST(request: NextRequest) {
         
         // 결제 성공 여부 검증 (invoice.paid 대신 invoice.status 사용)
         if (invoice.status !== 'paid') {
-          console.log('[Stripe Webhook] invoice.status가 paid가 아님 → 포인트 지급 건너뜀', {
+          console.log('[Stripe Webhook] invoice.status가 paid가 아님 → 사용량 제공 건너뜀', {
             invoiceId: invoice.id,
             status: invoice.status,
           });
@@ -508,7 +508,7 @@ export async function POST(request: NextRequest) {
         let skipPaymentCreate = false;
 
         // 중복 지급 방지: 같은 invoice ID가 이미 처리되었다면
-        // 포인트/이력/결제 생성을 모두 건너뛰고 이벤트만 처리 완료로 마킹한다.
+        // 사용량/이력/결제 생성을 모두 건너뛰고 이벤트만 처리 완료로 마킹한다.
         if (invoiceId) {
           const existingPayment = await prisma.payment.findFirst({
             where: {
@@ -541,21 +541,21 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // 포인트 지급 및 플랜 업데이트 (400000 포인트) - 조건 없이 항상 실행
+        // 사용량 제공 및 플랜 업데이트 (400000) - 조건 없이 항상 실행
         try {
           // user 존재 여부 재확인 (안전을 위해)
           if (!user || !user.id) {
             throw new Error('사용자 정보가 없습니다.');
           }
           
-          console.log('[Stripe Webhook] 포인트 지급 시작 (리셋):', {
+          console.log('[Stripe Webhook] 사용량 제공 시작 (리셋):', {
             userId: user.id,
             email: userEmail,
             plan: plan,
             currentPoints: user.points,
             pointsToSet: 400000,
           });
-          console.log('포인트 지급 실행');
+          console.log('사용량 제공 실행');
           
           const nextPlan =
             plan === 'PRO' || plan === 'YEARLY'
@@ -568,7 +568,7 @@ export async function POST(request: NextRequest) {
             where: { id: user.id },
             data: {
               plan: nextPlan,
-              points: 400000, // 매달 고정 포인트로 리셋 (누적 아님)
+              points: 400000, // 매달 고정 사용량으로 리셋 (누적 아님)
             },
             select: {
               id: true,
@@ -584,7 +584,7 @@ export async function POST(request: NextRequest) {
             points: 400000,
           });
           
-          // 포인트 지급 로그 기록 (리셋)
+          // 사용량 제공 로그 기록 (리셋)
           const pointsChange = 400000 - user.points; // 실제 변경량 계산
           await prisma.pointHistory.create({
             data: {
@@ -636,7 +636,7 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          console.log('[Stripe Webhook] 포인트 지급 및 플랜 업데이트 완료:', {
+          console.log('[Stripe Webhook] 사용량 제공 및 플랜 업데이트 완료:', {
             userId: user.id,
             email: userEmail,
             plan: updatedUser.plan,
@@ -644,7 +644,7 @@ export async function POST(request: NextRequest) {
             newPoints: updatedUser.points,
           });
         } catch (updateError) {
-          console.error('[Stripe Webhook] 포인트 지급 및 플랜 업데이트 실패:', updateError);
+          console.error('[Stripe Webhook] 사용량 제공 및 플랜 업데이트 실패:', updateError);
           console.error('[Stripe Webhook] Webhook update error:', {
             error: updateError instanceof Error ? updateError.message : String(updateError),
             stack: updateError instanceof Error ? updateError.stack : undefined,

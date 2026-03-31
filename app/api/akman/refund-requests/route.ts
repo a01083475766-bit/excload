@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest) {
         },
       });
 
-      // REJECTED 전환 시, 환불 신청 시점에 차감(보류)했던 포인트를 1회 복구
+      // REJECTED 전환 시, 환불 신청 시점에 차감(보류)했던 사용량을 1회 복구
       const rejectedNow =
         status === 'REJECTED' && (current.status === 'REQUESTED' || current.status === 'APPROVED');
 

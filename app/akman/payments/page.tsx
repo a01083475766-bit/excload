@@ -109,7 +109,7 @@ export default function PaymentsPage() {
             fontWeight: '500',
           }}
         >
-          포인트 로그 →
+          사용량 로그 →
         </Link>
       </div>
 

@@ -51,7 +51,7 @@ export default function MyPage() {
   const [refundAccountHolder, setRefundAccountHolder] = useState('');
   const [refundReplyEmail, setRefundReplyEmail] = useState('');
   
-  // 컴포넌트 마운트 시 사용자 정보를 항상 새로 가져와 최신 포인트/플랜 동기화
+  // 컴포넌트 마운트 시 사용자 정보를 항상 새로 가져와 최신 사용량/플랜 동기화
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
@@ -398,7 +398,7 @@ export default function MyPage() {
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                      <span>잔여 포인트: {user.points.toLocaleString()}P</span>
+                      <span>잔여 사용량: {user.points.toLocaleString()}</span>
                     </div>
                     
                     {hasPaidPlan ? (
@@ -438,8 +438,8 @@ export default function MyPage() {
                         </div>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                           {refundState.hasPendingRefund
-                            ? `환불 신청이 접수되어 검토 중입니다${refundState.createdAt ? ` (${new Date(refundState.createdAt).toLocaleDateString('ko-KR')} 접수)` : ''}. 신청 시점에 잔여 포인트는 차감(보류) 처리됩니다.`
-                            : '환불은 신청 접수 후 정책 기준에 따라 검토·처리되며, 신청 시점에 잔여 포인트는 차감(보류) 처리됩니다. 결과는 회신 이메일로 안내됩니다.'}
+                            ? `환불 신청이 접수되어 검토 중입니다${refundState.createdAt ? ` (${new Date(refundState.createdAt).toLocaleDateString('ko-KR')} 접수)` : ''}. 신청 시점에 잔여 사용량은 차감(보류) 처리됩니다.`
+                            : '환불은 신청 접수 후 정책 기준에 따라 검토·처리되며, 신청 시점에 잔여 사용량은 차감(보류) 처리됩니다. 결과는 회신 이메일로 안내됩니다.'}
                         </p>
                       </div>
                     ) : null}
@@ -454,14 +454,14 @@ export default function MyPage() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="p-6 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">잔여 포인트</p>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">잔여 사용량</p>
                       <p className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
                         {user.points.toLocaleString()}
                       </p>
                     </div>
                     
                     <div className="p-6 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">월간 포인트</p>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">월간 제공 사용량</p>
                       <p className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
                         {user.monthlyPoints?.toLocaleString() || '0'}
                       </p>

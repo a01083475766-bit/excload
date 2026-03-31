@@ -1,5 +1,5 @@
 /**
- * 월 포인트 자동 지급 API
+ * 월간 사용량 자동 제공 API
  * 
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
  * 사용자 DB는 파이프라인 구조와 독립적으로 동작합니다.
@@ -11,8 +11,8 @@ import { authOptions } from '@/app/lib/auth';
 
 /**
  * POST /api/user/grant-monthly-points
- * 월 포인트 자동 지급
- * - 무료 회원(free): 매월 5000 포인트
+ * 월간 사용량 자동 제공
+ * - 무료 회원(free): 매월 5000 사용량
  * - 유료 회원(pro, yearly): 지급 대상 아님
  */
 export async function POST(request: NextRequest) {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     //   return NextResponse.json({
     //     success: true,
     //     alreadyGranted: true,
-    //     message: '이번 달 포인트는 이미 지급되었습니다.',
+    //     message: '이번 달 사용량은 이미 제공되었습니다.',
     //     user: {
     //       id: user.id,
     //       email: user.email,
@@ -65,11 +65,11 @@ export async function POST(request: NextRequest) {
     // if (user.plan_type !== 'free') {
     //   return NextResponse.json({
     //     success: false,
-    //     message: 'free 플랜만 월 포인트 지급 대상입니다',
+    //     message: 'free 플랜만 월간 사용량 제공 대상입니다',
     //   });
     // }
     //
-    // 4. 포인트 지급 (free 플랜만)
+    // 4. 사용량 제공 (free 플랜만)
     // const grantAmount = 5000;
     // const { data: updatedUser, error: updateError } = await supabase
     //   .from('users')
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     //   .select()
     //   .single();
 
-    // Prisma를 사용하여 DB에서 월 포인트 지급
+    // Prisma를 사용하여 DB에서 월간 사용량 제공
     try {
       const { prisma } = await import('@/app/lib/prisma');
       const now = new Date();
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           alreadyGranted: true,
-          message: '이번 달 포인트는 이미 지급되었습니다.',
+          message: '이번 달 사용량은 이미 제공되었습니다.',
           user: {
             id: user.id,
             email: user.email,
@@ -131,12 +131,12 @@ export async function POST(request: NextRequest) {
       if (user.plan !== 'FREE') {
         return NextResponse.json({
           success: false,
-          message: 'FREE 플랜만 월 포인트 지급 대상입니다',
+          message: 'FREE 플랜만 월간 사용량 제공 대상입니다',
           alreadyGranted: true, // PRO/YEARLY 플랜은 지급 대상 아님
         });
       }
 
-      // 4. 포인트 지급 (FREE 플랜만)
+      // 4. 사용량 제공 (FREE 플랜만)
       const grantAmount = 5000;
       const updatedUser = await prisma.user.update({
         where: { email: userEmail },
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
         success: true,
         alreadyGranted: false,
         grantedAmount: grantAmount,
-        message: '월 포인트가 지급되었습니다.',
+        message: '월간 사용량이 제공되었습니다.',
         user: {
           id: updatedUser.id,
           email: updatedUser.email,
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       if (plan !== 'FREE') {
         return NextResponse.json({
           success: false,
-          message: 'FREE 플랜만 월 포인트 지급 대상입니다',
+          message: 'FREE 플랜만 월간 사용량 제공 대상입니다',
           alreadyGranted: true,
         });
       }
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
         success: true,
         alreadyGranted: false,
         grantedAmount: grantAmount,
-        message: '월 포인트가 지급되었습니다.',
+        message: '월간 사용량이 제공되었습니다.',
         user: updatedUser,
       });
     }
@@ -207,13 +207,13 @@ export async function POST(request: NextRequest) {
       success: true,
       alreadyGranted: false,
       grantedAmount: grantAmount,
-      message: '월 포인트가 지급되었습니다.',
+      message: '월간 사용량이 제공되었습니다.',
       user: updatedUser,
     });
   } catch (error) {
     console.error('[Grant Monthly Points API] 에러:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : '월 포인트 지급 실패' },
+      { error: error instanceof Error ? error.message : '월간 사용량 제공 실패' },
       { status: 500 }
     );
   }

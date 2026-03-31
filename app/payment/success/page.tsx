@@ -59,7 +59,7 @@ export default function PaymentSuccessPage() {
               결제가 완료되었습니다!
             </h1>
             <p className="text-zinc-600 dark:text-zinc-400 mb-6">
-              플랜과 포인트가 업데이트되었습니다.
+              플랜과 사용량이 업데이트되었습니다.
             </p>
             {user && (
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
@@ -67,9 +67,9 @@ export default function PaymentSuccessPage() {
                 <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
                   {user.plan === 'PRO' ? '프로' : user.plan === 'YEARLY' ? '연간' : '무료'}
                 </p>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 mb-1">보유 포인트</p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 mb-1">보유 사용량</p>
                 <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
-                  {user.points.toLocaleString()}P
+                  {user.points.toLocaleString()}
                 </p>
               </div>
             )}

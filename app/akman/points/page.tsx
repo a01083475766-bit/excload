@@ -1,5 +1,5 @@
 /**
- * EXCLOAD 관리자 포인트 로그 페이지
+ * EXCLOAD 관리자 사용량 로그 페이지
  * 
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
  * 관리자 시스템은 파이프라인 구조와 독립적으로 동작합니다.
@@ -39,7 +39,7 @@ export default async function PointLogPage() {
 
   console.log('[Point Log Page] ADMIN ACCESS GRANTED');
 
-  // 3. 포인트 로그 조회
+  // 3. 사용량 로그 조회
   const logs = await prisma.pointHistory.findMany({
     include: {
       user: true,
@@ -65,9 +65,9 @@ export default async function PointLogPage() {
         </Link>
       </div>
 
-      <h1 style={{ marginBottom: '20px' }}>Point History</h1>
+      <h1 style={{ marginBottom: '20px' }}>Usage History</h1>
       <p style={{ color: '#666', marginBottom: '30px' }}>
-        총 {logs.length}개의 포인트 로그 (최근 100개)
+        총 {logs.length}개의 사용량 로그 (최근 100개)
       </p>
 
       <table
@@ -107,7 +107,7 @@ export default async function PointLogPage() {
                   color: '#999',
                 }}
               >
-                포인트 로그가 없습니다.
+                사용량 로그가 없습니다.
               </td>
             </tr>
           ) : (

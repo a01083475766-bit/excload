@@ -16,9 +16,9 @@ export default function PricingPage() {
       period: '월',
       description: '무료 이용 플랜',
       features: [
-        '매월 5,000 포인트 지급',
-        '텍스트 변환 시 글자수 만큼 포인트 차감',
-        '엑셀 다운로드 1회 1,000 포인트 차감',
+        '매월 5,000 사용량 제공',
+        '텍스트 변환 시 글자수만큼 사용량 차감',
+        '엑셀 다운로드 1회 1,000 사용량 차감',
         '텍스트 입력 최대 5,000자',
       ],
       recommendations: [
@@ -36,8 +36,8 @@ export default function PricingPage() {
       period: '월',
       description: '꾸준한 주문 처리를 위한 플랜',
       features: [
-        '매월 400,000 포인트 지급',
-        '텍스트 변환 시 글자수 만큼 포인트 차감',
+        '매월 400,000 사용량 제공',
+        '텍스트 변환 시 글자수만큼 사용량 차감',
         '엑셀 다운로드 무제한',
       ],
       recommendations: [
@@ -59,8 +59,8 @@ export default function PricingPage() {
       description: '장기 이용자를 위한 연간 플랜',
       features: [
         '20% 할인',
-        '매월 400,000 포인트 지급',
-        '텍스트 변환 시 글자수 만큼 포인트 차감',
+        '매월 400,000 사용량 제공',
+        '텍스트 변환 시 글자수만큼 사용량 차감',
         '엑셀 다운로드 무제한',
       ],
       recommendations: [
@@ -183,6 +183,10 @@ export default function PricingPage() {
             </h2>
             <p className="text-zinc-700 dark:text-zinc-300 mb-4">
               엑클로드는 구독형(정기결제) 서비스입니다.
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-4 py-3 border border-zinc-200 dark:border-zinc-700">
+              본 서비스는 선불 충전 방식이 아니며, 구독에 따른 월간 사용량(이용 한도)을 제공하고 기능 이용 시
+              사용량이 차감되는 사용량 기반 과금입니다.
             </p>
             <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
               <li>현재 카드 결제를 지원합니다. (토스 빌링/기존 결제 연동)</li>

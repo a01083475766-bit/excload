@@ -2,12 +2,12 @@
  * 엑셀 다운로드 API
  * 
  * ⚠️ EXCLOAD CONSTITUTION v4.3 준수
- * 포인트 시스템은 파이프라인 구조와 독립적으로 동작합니다.
+ * 사용량 시스템은 파이프라인 구조와 독립적으로 동작합니다.
  * 
  * POST /api/download
  * body: { excelData: any[][], fileName: string }
  * 
- * 엑셀 다운로드 실행 시 포인트 차감 기능 포함
+ * 엑셀 다운로드 실행 시 사용량 차감 기능 포함
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,7 +23,7 @@ interface DownloadRequest {
 
 /**
  * POST /api/download
- * 엑셀 다운로드 (포인트 차감 포함)
+ * 엑셀 다운로드 (사용량 차감 포함)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -74,12 +74,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. FREE 플랜일 경우만 포인트 검사
+    // 4. FREE 플랜일 경우만 사용량 검사
     let usedPoints = 0;
     if (user.plan === 'FREE') {
       if (user.points < 1000) {
         return NextResponse.json(
-          { error: '포인트가 부족합니다.' },
+          { error: '사용량이 부족합니다.' },
           { status: 400 }
         );
       }
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     // 엑셀 파일을 Buffer로 변환
     const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
-    // 6. 다운로드 성공 후 포인트 차감 (FREE 플랜만)
+    // 6. 다운로드 성공 후 사용량 차감 (FREE 플랜만)
     if (user.plan === 'FREE') {
       const updatedUser = await prisma.user.update({
         where: { email: userEmail },
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 포인트 차감 로그 기록
+      // 사용량 차감 로그 기록
       await prisma.pointHistory.create({
         data: {
           userId: updatedUser.id,
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       usedPoints = 1000;
     }
 
-    // 7. 성공 응답 반환 (엑셀 파일 + 사용 포인트 정보)
+    // 7. 성공 응답 반환 (엑셀 파일 + 사용량 정보)
     return new NextResponse(excelBuffer, {
       status: 200,
       headers: {

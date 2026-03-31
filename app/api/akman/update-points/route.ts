@@ -1,5 +1,5 @@
 /**
- * 관리자 포인트 수정 API
+ * 관리자 사용량 수정 API
  * 
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
  * 관리자 시스템은 파이프라인 구조와 독립적으로 동작합니다.
@@ -19,7 +19,7 @@ interface UpdatePointsRequest {
 
 /**
  * POST /api/akman/update-points
- * 관리자가 사용자 포인트 수정
+ * 관리자가 사용자 사용량 수정
  */
 export async function POST(request: NextRequest) {
   try {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 포인트 계산
+    // 사용량 계산
     let newPoints: number;
     let change: number;
 
@@ -95,15 +95,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 포인트가 음수가 되지 않도록 보호
+    // 사용량이 음수가 되지 않도록 보호
     if (newPoints < 0) {
       return NextResponse.json(
-        { error: '포인트는 0보다 작을 수 없습니다.' },
+        { error: '사용량은 0보다 작을 수 없습니다.' },
         { status: 400 }
       );
     }
 
-    // 포인트 업데이트
+    // 사용량 업데이트
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 포인트 변경 로그 기록
+    // 사용량 변경 로그 기록
     if (change !== 0) {
       await prisma.pointHistory.create({
         data: {
@@ -132,13 +132,13 @@ export async function POST(request: NextRequest) {
       success: true,
       user: updatedUser,
       change,
-      message: `포인트가 ${change >= 0 ? '+' : ''}${change.toLocaleString()} 변경되었습니다. (현재: ${updatedUser.points.toLocaleString()})`,
+      message: `사용량이 ${change >= 0 ? '+' : ''}${change.toLocaleString()} 변경되었습니다. (현재: ${updatedUser.points.toLocaleString()})`,
     });
   } catch (error) {
     console.error('[Admin Update Points API] 에러:', error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : '포인트 수정 실패',
+        error: error instanceof Error ? error.message : '사용량 수정 실패',
       },
       { status: 500 }
     );

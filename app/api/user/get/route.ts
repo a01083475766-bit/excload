@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // 무료 플랜 기본 포인트 보정: 기존 계정이 5,000 미만이면 즉시 보정
+      // 무료 플랜 기본 사용량 보정: 기존 계정이 5,000 미만이면 즉시 보정
       if (user.plan === 'FREE' && user.points < 5000) {
         const normalizedNextPointDate =
           user.nextPointDate ??
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         Object.assign(user, healed);
       }
 
-      // 월 포인트 자동 지급 (Lazy Update)
+      // 월간 사용량 자동 제공 (Lazy Update)
       const now = new Date();
       if (user.nextPointDate && now >= user.nextPointDate) {
         let newPoints = user.points;
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
         id: session.user.id || 'temp-id',
         email: userEmail,
         plan: 'PRO' as const, // 테스트 계정: 유료 플랜
-        points: 400000, // 테스트 계정 포인트: 40만 포인트
+        points: 400000, // 테스트 계정 사용량: 40만
         monthlyPoints: undefined,
         lastMonthlyGrant: null as string | null,
         createdAt: new Date().toISOString(),

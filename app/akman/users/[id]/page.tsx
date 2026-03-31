@@ -77,7 +77,7 @@ export default function UserDetailPage() {
     }
   }, [userId, router]);
 
-  // 포인트 증감
+  // 사용량 증감
   const handleAdjustPoints = async (amount: number) => {
     if (!user) return;
 
@@ -95,11 +95,11 @@ export default function UserDetailPage() {
       if (response.ok && data.success) {
         fetchUserDetail();
       } else {
-        alert(data.error || '포인트 조정에 실패했습니다.');
+        alert(data.error || '사용량 조정에 실패했습니다.');
       }
     } catch (error) {
-      console.error('[User Detail Page] 포인트 조정 실패:', error);
-      alert('포인트 조정 중 오류가 발생했습니다.');
+      console.error('[User Detail Page] 사용량 조정 실패:', error);
+      alert('사용량 조정 중 오류가 발생했습니다.');
     }
   };
 
@@ -232,7 +232,7 @@ export default function UserDetailPage() {
             <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{user.plan}</div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Points</div>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Usage</div>
             <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0066cc' }}>
               {user.points.toLocaleString()}
             </div>
@@ -372,7 +372,7 @@ export default function UserDetailPage() {
 
       {/* Point History 테이블 */}
       <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ marginBottom: '16px', fontSize: '20px' }}>Point History</h2>
+        <h2 style={{ marginBottom: '16px', fontSize: '20px' }}>Usage History</h2>
         <table
           style={{
             borderCollapse: 'collapse',
@@ -399,7 +399,7 @@ export default function UserDetailPage() {
                     color: '#999',
                   }}
                 >
-                  포인트 내역이 없습니다.
+                  사용량 내역이 없습니다.
                 </td>
               </tr>
             ) : (

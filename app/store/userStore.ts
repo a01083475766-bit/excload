@@ -76,7 +76,7 @@ export const useUserStore = create<UserStoreState>()(
                 },
               });
 
-              // 사용자 정보 조회 후 자동으로 월 포인트 지급 확인
+              // 사용자 정보 조회 후 자동으로 월간 사용량 제공 확인
               await get().grantMonthlyPoints();
             } else {
               set({ user: null });
@@ -115,7 +115,7 @@ export const useUserStore = create<UserStoreState>()(
             return;
           }
 
-          // 월 포인트 지급 API 호출
+          // 월간 사용량 제공 API 호출
           const response = await fetch('/api/user/grant-monthly-points', {
             method: 'POST',
             headers: {
@@ -139,8 +139,8 @@ export const useUserStore = create<UserStoreState>()(
             }
           }
         } catch (error) {
-          console.error('[User Store] 월 포인트 지급 실패:', error);
-          // 월 포인트 지급 실패는 치명적이지 않으므로 조용히 처리
+          console.error('[User Store] 월간 사용량 제공 실패:', error);
+          // 월간 사용량 제공 실패는 치명적이지 않으므로 조용히 처리
         }
       },
     }),
