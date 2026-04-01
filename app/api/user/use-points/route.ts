@@ -1,6 +1,6 @@
 /**
  * 사용량 차감 API
- * 
+ *
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
  * 사용자 DB는 파이프라인 구조와 독립적으로 동작합니다.
  */
@@ -21,7 +21,6 @@ interface UsePointsRequest {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 세션 확인
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user || !session.user.email) {
@@ -34,7 +33,6 @@ export async function POST(request: NextRequest) {
     const body: UsePointsRequest = await request.json();
     const { amount, type, reason } = body;
 
-    // 유효성 검사
     if (!amount || amount <= 0) {
       return NextResponse.json(
         { error: '유효한 사용량 수치가 필요합니다.' },
@@ -51,11 +49,9 @@ export async function POST(request: NextRequest) {
 
     const userEmail = session.user.email;
 
-    // Prisma를 사용하여 DB에서 사용량 차감
     try {
       const { prisma } = await import('@/app/lib/prisma');
-      
-      // 1. 현재 사용자 조회
+
       const user = await prisma.user.findUnique({
         where: { email: userEmail },
         select: {
@@ -73,7 +69,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 2. 사용량 부족 확인
       if (user.points < amount) {
         return NextResponse.json(
           { error: '사용량이 부족합니다.' },
@@ -81,7 +76,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 3. 사용량 차감 및 DB 업데이트
       const updatedUser = await prisma.user.update({
         where: { email: userEmail },
         data: {
@@ -110,30 +104,11 @@ export async function POST(request: NextRequest) {
       });
     } catch (dbError) {
       console.error('[Use Points API] DB 업데이트 실패:', dbError);
-      
-      // DB 업데이트 실패 시 임시 응답 (개발 환경)
-      const currentPoints = 400000;
-      const updatedUser = {
-        id: session.user.id || 'temp-id',
-        email: userEmail,
-        plan: 'PRO' as const,
-        points: Math.max(0, currentPoints - amount),
-      };
-      
-      return NextResponse.json({
-        success: true,
-        user: updatedUser,
-        usedAmount: amount,
-        reason: reason || '사용량 차감',
-      });
+      return NextResponse.json(
+        { error: '사용량 처리 중 오류가 발생했습니다.' },
+        { status: 500 }
+      );
     }
-
-    return NextResponse.json({
-      success: true,
-      user: updatedUser,
-      usedAmount: amount,
-      reason: reason || '사용량 차감',
-    });
   } catch (error) {
     console.error('[Use Points API] 에러:', error);
     return NextResponse.json(

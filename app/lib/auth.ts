@@ -8,6 +8,10 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET is required');
+}
+
 const AKMAN_ADMIN_EMAIL = 'akman@excload.com';
 const AKMAN_ADMIN_BCRYPT_HASH = '$2b$10$D/vXwv29tMyLzUTvKmLfDOTr9AR79NdPlJEqzQ13pNd4T8kM5kyim';
 
@@ -182,5 +186,5 @@ export const authOptions: NextAuthOptions = {
   },
 
   // 보안 설정
-  secret: process.env.NEXTAUTH_SECRET || 'your-secret-key-change-in-production',
+  secret: process.env.NEXTAUTH_SECRET,
 };

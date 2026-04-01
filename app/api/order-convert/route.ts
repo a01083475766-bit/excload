@@ -104,7 +104,6 @@ export async function POST(request: NextRequest) {
         email: true,
         plan: true,
         points: true,
-        nextPointDate: true,
         isBlocked: true,
       },
     });
@@ -123,45 +122,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6-1. 월간 사용량 자동 제공 (Lazy Update)
-    const now = new Date();
-    if (user.nextPointDate && now >= user.nextPointDate) {
-      let newPoints = user.points;
-
-      if (user.plan === 'FREE') {
-        newPoints = 5000;
-      }
-
-      if (user.plan === 'PRO' || user.plan === 'YEARLY') {
-        newPoints = 400000;
-      }
-
-      const nextMonth = new Date(user.nextPointDate);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-
-      await prisma.user.update({
-        where: { email: userEmail },
-        data: {
-          points: newPoints,
-          nextPointDate: nextMonth,
-        },
-      });
-
-      // 업데이트된 사용자 정보 다시 조회
-      const updatedUser = await prisma.user.findUnique({
-        where: { email: userEmail },
-        select: {
-          id: true,
-          email: true,
-          plan: true,
-          points: true,
-        },
-      });
-
-      if (updatedUser) {
-        Object.assign(user, updatedUser);
-      }
-    }
+    // 월간 포인트 지급/리셋은 POST /api/user/grant-monthly-points 에서만 처리합니다.
 
     // 7. 사용량 부족 검사
     if (user.points < textLength) {

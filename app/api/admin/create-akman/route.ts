@@ -23,11 +23,17 @@ interface CreateAkmanRequest {
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.ADMIN_CREATE_SECRET) {
+      return NextResponse.json(
+        { error: '관리자 계정 생성 서비스를 사용할 수 없습니다.' },
+        { status: 503 }
+      );
+    }
+
     const body: CreateAkmanRequest = await request.json();
     const { password, adminSecret } = body;
 
-    // 보안: 환경 변수로 보호 (선택적)
-    if (process.env.ADMIN_CREATE_SECRET && adminSecret !== process.env.ADMIN_CREATE_SECRET) {
+    if (typeof adminSecret !== 'string' || adminSecret !== process.env.ADMIN_CREATE_SECRET) {
       return NextResponse.json(
         { error: '인증 실패' },
         { status: 401 }

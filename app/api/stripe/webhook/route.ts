@@ -8,6 +8,61 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
+import type { PrismaClient } from '@prisma/client';
+
+const STRIPE_POINT_GRANT_REASONS = [
+  'STRIPE_PAYMENT_RESET',
+  'STRIPE_CHECKOUT_COMPLETED',
+] as const;
+
+/** 동일 Checkout/Invoice 결제에 대한 포인트 중복 지급 방지 (sessionId 우선, invoiceId 보조) */
+async function findExistingStripePointGrant(
+  prisma: PrismaClient,
+  userId: string,
+  opts: { stripeSessionId?: string | null; stripeInvoiceId?: string | null }
+) {
+  const or: Array<{ stripeSessionId: string } | { stripeInvoiceId: string }> = [];
+  if (opts.stripeSessionId) or.push({ stripeSessionId: opts.stripeSessionId });
+  if (opts.stripeInvoiceId) or.push({ stripeInvoiceId: opts.stripeInvoiceId });
+  if (or.length === 0) return null;
+
+  return prisma.pointHistory.findFirst({
+    where: {
+      userId,
+      reason: { in: [...STRIPE_POINT_GRANT_REASONS] },
+      OR: or,
+    },
+  });
+}
+
+/** STRIPE_MONTHLY_PRICE_ID → PRO, STRIPE_YEARLY_PRICE_ID → YEARLY */
+function resolvePlanFromStripePriceId(
+  priceId: string | null | undefined
+): 'PRO' | 'YEARLY' | null {
+  if (!priceId) return null;
+  const monthly = process.env.STRIPE_MONTHLY_PRICE_ID;
+  const yearly = process.env.STRIPE_YEARLY_PRICE_ID;
+  if (monthly && priceId === monthly) return 'PRO';
+  if (yearly && priceId === yearly) return 'YEARLY';
+  return null;
+}
+
+function priceIdFromStripePrice(price: string | Stripe.Price | null | undefined): string | null {
+  if (!price) return null;
+  return typeof price === 'string' ? price : price.id;
+}
+
+function firstPriceIdFromSubscription(sub: Stripe.Subscription): string | null {
+  const item = sub.items?.data?.[0];
+  if (!item) return null;
+  return priceIdFromStripePrice(item.price as Stripe.Price | string);
+}
+
+function firstPriceIdFromInvoice(inv: Stripe.Invoice): string | null {
+  const line = inv.lines?.data?.[0];
+  if (!line?.price) return null;
+  return priceIdFromStripePrice(line.price as Stripe.Price);
+}
 
 /**
  * POST /api/stripe/webhook
@@ -30,21 +85,12 @@ export async function POST(request: NextRequest) {
 
     // Raw body 처리 (중요: JSON.parse 하지 않고 text()로 처리)
     const body = await request.text();
-    console.log('[Stripe Webhook] Raw body 길이:', body.length);
-    console.log('[Stripe Webhook] Raw body 처음 200자:', body.substring(0, 200));
-    
+
     const headersList = await headers();
     const signature = headersList.get('stripe-signature');
-    console.log('[Stripe Webhook] signature:', signature);
 
     if (!signature) {
-      console.error('[Stripe Webhook] 400 에러: stripe-signature 헤더가 없습니다.');
-      console.error('[Stripe Webhook] 요청 헤더:', {
-        'stripe-signature': signature,
-        'content-type': headersList.get('content-type'),
-        'user-agent': headersList.get('user-agent'),
-        'all-headers': Object.fromEntries(headersList.entries()),
-      });
+      console.error('[Stripe Webhook] stripe-signature 헤더 없음');
       return NextResponse.json(
         { error: 'Stripe 서명이 없습니다.' },
         { status: 400 }
@@ -52,7 +98,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Webhook 이벤트 검증
-    console.log('[Stripe Webhook] ENV SECRET:', process.env.STRIPE_WEBHOOK_SECRET);
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(
@@ -61,59 +106,51 @@ export async function POST(request: NextRequest) {
         process.env.STRIPE_WEBHOOK_SECRET
       );
     } catch (err) {
-      console.error('[Stripe Webhook] 400 에러: 서명 검증 실패');
-      console.error('[Stripe Webhook] 서명 검증 실패 상세:', {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        name: err instanceof Error ? err.name : undefined,
-      });
-      console.error('[Stripe Webhook] 검증 시도 정보:', {
-        bodyLength: body.length,
-        signature: signature ? `${signature.substring(0, 50)}...` : null,
-        secretExists: !!process.env.STRIPE_WEBHOOK_SECRET,
-        secretLength: process.env.STRIPE_WEBHOOK_SECRET?.length || 0,
-      });
+      console.error(
+        '[Stripe Webhook] 서명 검증 실패:',
+        err instanceof Error ? err.message : String(err)
+      );
       return NextResponse.json(
         { error: 'Webhook 서명 검증 실패' },
         { status: 400 }
       );
     }
 
-    console.log('[Stripe Event Type]', event.type);
-    console.log('[Stripe Webhook] event type:', event.type);
-    console.log('[Stripe Webhook] event id:', event.id);
+    console.log('[Stripe Webhook] 이벤트 수신:', event.type, event.id);
 
-    // Stripe 이벤트 중복 방지
     const { prisma } = await import('@/app/lib/prisma');
-    const existingEvent = await prisma.stripeEvent.findUnique({
-      where: { eventId: event.id },
-    });
 
-    if (existingEvent) {
-      console.log('[Stripe Webhook] 이미 처리된 Stripe 이벤트:', event.id);
-      return NextResponse.json({ received: true });
+    const releaseEventClaim = async () => {
+      try {
+        await prisma.stripeEvent.deleteMany({ where: { eventId: event.id } });
+      } catch {
+        /* ignore */
+      }
+    };
+
+    // 처리 전 멱등 키 선점: 동일 eventId 재전달 시 즉시 종료
+    try {
+      await prisma.stripeEvent.create({
+        data: { eventId: event.id },
+      });
+    } catch (e: unknown) {
+      const code = (e as { code?: string })?.code;
+      if (code === 'P2002') {
+        return NextResponse.json({ received: true });
+      }
+      throw e;
     }
 
     // 이벤트 타입별 처리
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      
-      // Checkout 세션 metadata에서 정보 가져오기
+
       const metadata = session.metadata || {};
-      const userId = metadata.userId;
       const userEmail = metadata.email || metadata.userEmail || session.customer_email;
-      // planType을 plan으로 변환하고 값 형식 통일
-      const planTypeFromMetadata = metadata.planType || 'pro';
-      const plan = planTypeFromMetadata === 'pro' ? 'PRO' : planTypeFromMetadata === 'yearly' ? 'YEARLY' : 'PRO';
 
       if (!userEmail) {
-        console.error('[Stripe Webhook] 400 에러: 사용자 이메일을 찾을 수 없습니다.');
-        console.error('[Stripe Webhook] 세션 정보:', {
-          sessionId: session.id,
-          metadata: session.metadata,
-          customerEmail: session.customer_email,
-          customer: session.customer,
-        });
+        console.error('[Stripe Webhook] checkout metadata에 이메일 없음 sessionId=', session.id);
+        await releaseEventClaim();
         return NextResponse.json(
           { error: '사용자 정보를 찾을 수 없습니다.' },
           { status: 400 }
@@ -121,27 +158,67 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // 사용자 ID 조회
-        const { prisma } = await import('@/app/lib/prisma');
+        const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+          expand: ['line_items.data.price', 'invoice'],
+        });
+
+        let priceId: string | null = null;
+        const firstLine = fullSession.line_items?.data?.[0];
+        if (firstLine?.price) {
+          priceId = priceIdFromStripePrice(firstLine.price as Stripe.Price);
+        }
+        if (!priceId && fullSession.subscription) {
+          const sub = await stripe.subscriptions.retrieve(fullSession.subscription as string);
+          priceId = firstPriceIdFromSubscription(sub);
+        }
+
+        const planResolved = resolvePlanFromStripePriceId(priceId);
+        if (!planResolved) {
+          await releaseEventClaim();
+          return NextResponse.json(
+            {
+              error:
+                'Stripe Price ID로 플랜을 판별할 수 없습니다. STRIPE_MONTHLY_PRICE_ID / STRIPE_YEARLY_PRICE_ID를 확인하세요.',
+            },
+            { status: 400 }
+          );
+        }
+        const plan = planResolved;
+
         const user = await prisma.user.findUnique({
           where: { email: userEmail },
-          select: { id: true },
+          select: { id: true, points: true },
         });
 
         if (!user) {
-          console.error('[Stripe Webhook] 400 에러: 사용자를 찾을 수 없습니다.');
-          console.error('[Stripe Webhook] 사용자 조회 실패 정보:', {
-            userEmail,
-            sessionId: session.id,
-            metadata: session.metadata,
-          });
+          console.error('[Stripe Webhook] checkout 사용자 없음 sessionId=', session.id);
+          await releaseEventClaim();
           return NextResponse.json(
             { error: '사용자를 찾을 수 없습니다.' },
             { status: 400 }
           );
         }
 
-        // checkout 완료 시점에도 구독 주기 정보를 저장해 "다음 결제 예정일"이 비지 않게 보정
+        const invRef = fullSession.invoice;
+        const stripeInvoiceIdForDedupe =
+          typeof invRef === 'string'
+            ? invRef
+            : invRef && typeof invRef === 'object' && 'id' in invRef
+              ? (invRef as Stripe.Invoice).id
+              : null;
+
+        const skipPointsDuplicate = !!(await findExistingStripePointGrant(prisma, user.id, {
+          stripeSessionId: session.id,
+          stripeInvoiceId: stripeInvoiceIdForDedupe,
+        }));
+        if (skipPointsDuplicate) {
+          console.log(
+            '[Stripe Webhook] checkout: 동일 session/invoice로 포인트 이미 지급됨 → 포인트/이력만 스킵, 결제·구독 동기화는 계속'
+          );
+        }
+
+        const pointsBefore = user.points;
+
         if (session.subscription) {
           try {
             const subscription = await stripe.subscriptions.retrieve(
@@ -191,7 +268,6 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // 1. 결제 기록 생성
         const amount = plan === 'PRO' ? 4000 : 40000;
         await prisma.payment.create({
           data: {
@@ -206,62 +282,59 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // 2. 사용자 플랜 변경 (PRO / YEARLY) - 직접 DB 업데이트
-        try {
+        if (!skipPointsDuplicate) {
           await prisma.user.update({
             where: { id: user.id },
             data: {
-              plan: plan,
+              plan,
               stripeCustomerId: session.customer as string | null,
+              points: 400000,
             },
           });
 
-          console.log('[Stripe Webhook] 플랜 업데이트 완료:', {
-            userId: user.id,
-            email: userEmail,
-            plan: plan,
+          await prisma.pointHistory.create({
+            data: {
+              userId: user.id,
+              change: 400000 - pointsBefore,
+              reason: 'STRIPE_CHECKOUT_COMPLETED',
+              stripeSessionId: session.id,
+              stripeInvoiceId: stripeInvoiceIdForDedupe,
+            },
           });
-        } catch (planError) {
-          console.error('[Stripe Webhook] 플랜 업데이트 실패:', planError);
-          throw planError; // 플랜 업데이트 실패 시 전체 트랜잭션 롤백
+        } else {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              plan,
+              stripeCustomerId: session.customer as string | null,
+            },
+          });
         }
+
+        console.log('[Stripe Webhook] checkout 완료 userId=', user.id, 'plan=', plan, 'points=400000');
       } catch (error) {
-        console.error('[Stripe Webhook] 처리 중 오류 발생:', error);
-        console.error('[Stripe Webhook] 오류 상세:', {
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          userEmail,
-          plan,
-          sessionId: session.id,
-        });
-        // 오류 발생 시 500 반환하여 Stripe가 재시도할 수 있도록 함
+        console.error('[Stripe Webhook] checkout 처리 오류:', error instanceof Error ? error.message : String(error));
+        await releaseEventClaim();
         return NextResponse.json(
           { error: 'Webhook 처리 중 오류가 발생했습니다.' },
           { status: 500 }
         );
       }
 
-      // Stripe 이벤트 처리 완료 기록
-      await prisma.stripeEvent.create({
-        data: {
-          eventId: event.id,
-        },
-      });
+      console.log(
+        '[Stripe Webhook] checkout.session.completed 완료 eventId=',
+        event.id,
+        'sessionId=',
+        session.id
+      );
 
-      console.log('[Stripe Webhook] checkout.session.completed 처리 완료:', {
-        userEmail,
-        plan,
-        sessionId: session.id,
-        eventId: event.id,
-      });
+      return NextResponse.json({ received: true });
     } else if (
       event.type === 'invoice.payment_succeeded' ||
       (event.type as string) === 'invoice.payment.paid' ||
       (event.type as string) === 'invoice_payment.paid'
     ) {
-      console.log('[Stripe Event Type]', event.type);
-      // Webhook payload 확인을 위한 로그
-      console.log(`[Stripe Webhook] ${event.type} payload:`, JSON.stringify(event.data.object, null, 2));
+      console.log('[Stripe Webhook] invoice 계열 이벤트:', event.type, event.id);
       
       // invoice_payment.paid는 invoice_payment 객체를 전달함
       let invoice: Stripe.Invoice | null = null;
@@ -284,6 +357,7 @@ export async function POST(request: NextRequest) {
             invoicePaymentId: invoicePayment.id,
             invoice: invoicePayment.invoice,
           });
+          await releaseEventClaim();
           return NextResponse.json(
             { error: 'Invoice ID를 찾을 수 없습니다.' },
             { status: 400 }
@@ -309,6 +383,7 @@ export async function POST(request: NextRequest) {
           });
         } catch (invoiceError) {
           console.error('[Stripe Webhook] Invoice 조회 실패:', invoiceError);
+          await releaseEventClaim();
           return NextResponse.json(
             { error: 'Invoice 조회 실패' },
             { status: 400 }
@@ -326,6 +401,7 @@ export async function POST(request: NextRequest) {
             invoiceId: invoice.id,
             customer: invoice.customer,
           });
+          await releaseEventClaim();
           return NextResponse.json(
             { error: 'Customer ID를 찾을 수 없습니다.' },
             { status: 400 }
@@ -355,6 +431,7 @@ export async function POST(request: NextRequest) {
             invoiceId: invoice.id,
             customer: invoice.customer,
           });
+          await releaseEventClaim();
           return NextResponse.json(
             { error: 'Customer ID를 찾을 수 없습니다.' },
             { status: 400 }
@@ -376,64 +453,48 @@ export async function POST(request: NextRequest) {
         console.log('[Stripe Webhook] subscriptionId 없음 - invoice 이벤트 처리 계속 진행');
       }
 
-      // catch 블록에서 사용할 변수들을 try 블록 밖에서 선언
       let userEmail: string | null = null;
-      let plan: string = 'PRO';
+      let plan: 'PRO' | 'YEARLY' = 'PRO';
       let subscription: Stripe.Subscription | null = null;
-      
+
       try {
-        // Subscription 조회 (있을 경우만)
         if (subscriptionId) {
           subscription = await stripe.subscriptions.retrieve(subscriptionId);
-
-          // subscription 객체 null 체크
           if (!subscription || !subscription.id) {
             console.error('[Stripe Webhook] Subscription을 찾을 수 없거나 ID가 없습니다.');
-            console.error('[Stripe Webhook] Subscription 조회 실패 정보:', {
-              subscriptionId,
-              invoiceId: invoice?.id,
-            });
-            // Subscription 조회 실패해도 계속 진행 (일회성 결제일 수 있음)
-          } else {
-            // subscription metadata에서 정보 가져오기
-            const metadata = subscription.metadata || {};
-            // planType을 plan으로 변환하고 값 형식 통일
-            const planTypeFromMetadata = metadata.planType || 'pro';
-            plan = planTypeFromMetadata === 'pro' ? 'PRO' : planTypeFromMetadata === 'yearly' ? 'YEARLY' : 'PRO';
-            
-            console.log('[Stripe Webhook] Subscription metadata에서 plan 추출:', {
-              planTypeFromMetadata,
-              plan,
-              metadata: metadata,
-            });
           }
         }
 
-        // plan 값 undefined 체크 (기본값 'PRO'가 있지만 안전을 위해 확인)
-        if (!plan || plan === undefined) {
-          plan = 'PRO'; // 기본값 설정
+        let priceId: string | null = null;
+        if (subscription) {
+          priceId = firstPriceIdFromSubscription(subscription);
         }
-        
-        // customerId는 이미 위에서 추출했으므로 재확인만 수행
+        if (!priceId && invoice) {
+          priceId = firstPriceIdFromInvoice(invoice);
+        }
+
+        const planResolved = resolvePlanFromStripePriceId(priceId);
+        if (!planResolved) {
+          await releaseEventClaim();
+          return NextResponse.json(
+            {
+              error:
+                'Invoice/Subscription에서 Stripe Price ID로 플랜을 판별할 수 없습니다. STRIPE_MONTHLY_PRICE_ID / STRIPE_YEARLY_PRICE_ID를 확인하세요.',
+            },
+            { status: 400 }
+          );
+        }
+        plan = planResolved;
+
         if (!customerId) {
-          console.error('[Stripe Webhook] 400 에러: Customer ID를 찾을 수 없습니다.');
-          console.error('[Stripe Webhook] 정보:', {
-            invoiceId: invoice?.id,
-            subscriptionId,
-            customer: invoice?.customer,
-          });
+          await releaseEventClaim();
           return NextResponse.json(
             { error: 'Customer ID를 찾을 수 없습니다.' },
             { status: 400 }
           );
         }
 
-        // 사용자 조회 - customerId 기반
-        const { prisma } = await import('@/app/lib/prisma');
-        console.log('[Stripe Webhook] 사용자 조회 시작 (customerId 기반):', {
-          customerId,
-          plan,
-        });
+        console.log('[Stripe Webhook] 사용자 조회 시작 (customerId 기반) plan=', plan);
         
         let user = await prisma.user.findUnique({
           where: { stripeCustomerId: customerId },
@@ -447,10 +508,7 @@ export async function POST(request: NextRequest) {
 
         // stripeCustomerId로 찾지 못한 경우, invoice의 customer_email로 조회 시도
         if (!user && invoice?.customer_email) {
-          console.log('[Stripe Webhook] stripeCustomerId로 사용자를 찾지 못함, email로 재조회 시도:', {
-            customerId,
-            email: invoice.customer_email,
-          });
+          console.log('[Stripe Webhook] customerId로 미조회, invoice 기준 email 재조회 시도 customerId=', customerId);
           
           user = await prisma.user.findUnique({
             where: { email: invoice.customer_email },
@@ -464,11 +522,7 @@ export async function POST(request: NextRequest) {
           
           // email로 찾은 경우 stripeCustomerId 업데이트
           if (user) {
-            console.log('[Stripe Webhook] email로 사용자 찾음, stripeCustomerId 업데이트:', {
-              userId: user.id,
-              email: user.email,
-              customerId,
-            });
+            console.log('[Stripe Webhook] 사용자 매칭 후 stripeCustomerId 업데이트 userId=', user.id);
             
             await prisma.user.update({
               where: { id: user.id },
@@ -477,31 +531,19 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        console.log('[Stripe Webhook] 사용자 조회 결과:', {
-          customerId,
-          userFound: !!user,
-          userId: user?.id,
-          userEmail: user?.email,
-          currentPoints: user?.points,
-        });
+        console.log('[Stripe Webhook] 사용자 조회 customerId=', customerId, 'userId=', user?.id);
 
         // 4️⃣ prisma.user.update 실행 전에 user 존재 여부 확인
         if (!user || !user.id) {
-          console.error('[Stripe Webhook] 사용자를 찾을 수 없습니다:', {
-            customerId,
-            invoiceEmail: invoice?.customer_email,
-            userExists: !!user,
-            userId: user?.id,
-          });
+          console.error('[Stripe Webhook] 사용자를 찾을 수 없음 customerId=', customerId);
+          await releaseEventClaim();
           return NextResponse.json(
             { error: '사용자를 찾을 수 없습니다. stripeCustomerId 및 email로 조회 실패.' },
             { status: 400 }
           );
         }
 
-        // userEmail 변수 설정 (로깅 및 Payment 기록용)
         userEmail = user.email;
-        console.log('[Stripe Webhook] userEmail 확인:', userEmail);
 
         // Invoice ID 추출 (중복 체크용)
         const invoiceId = invoice?.id || null;
@@ -531,70 +573,109 @@ export async function POST(request: NextRequest) {
             });
             skipPaymentCreate = true;
 
-            await prisma.stripeEvent.upsert({
-              where: { eventId: event.id },
-              update: {},
-              create: { eventId: event.id },
-            });
-
             return NextResponse.json({ received: true });
           }
         }
 
-        // 사용량 제공 및 플랜 업데이트 (400000) - 조건 없이 항상 실행
+        const recentCheckoutPayment =
+          invoice?.billing_reason === 'subscription_create'
+            ? await prisma.payment.findFirst({
+                where: {
+                  userId: user.id,
+                  stripeSessionId: { not: null },
+                },
+              })
+            : null;
+
+        const skipPointsBecauseCheckoutHandled =
+          invoice?.billing_reason === 'subscription_create' && !!recentCheckoutPayment;
+
+        // 사용량 제공 및 플랜 업데이트 (400000) — 갱신 주기 인보이스만 풀 리셋 (첫 구독은 checkout에서 이미 반영)
         try {
-          // user 존재 여부 재확인 (안전을 위해)
           if (!user || !user.id) {
             throw new Error('사용자 정보가 없습니다.');
           }
-          
-          console.log('[Stripe Webhook] 사용량 제공 시작 (리셋):', {
-            userId: user.id,
-            email: userEmail,
-            plan: plan,
-            currentPoints: user.points,
-            pointsToSet: 400000,
-          });
-          console.log('사용량 제공 실행');
-          
-          const nextPlan =
-            plan === 'PRO' || plan === 'YEARLY'
-              ? plan
-              : user.plan === 'PRO' || user.plan === 'YEARLY'
-                ? user.plan
-                : 'PRO';
 
-          const updatedUser = await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              plan: nextPlan,
-              points: 400000, // 매달 고정 사용량으로 리셋 (누적 아님)
-            },
-            select: {
-              id: true,
-              points: true,
-              plan: true,
-            },
-          });
+          let updatedUser: {
+            id: string;
+            points: number;
+            plan: string;
+          };
 
-          console.log('[Stripe Webhook] Points granted', updatedUser);
-          console.log('[Stripe Webhook] 결제 성공 감지', {
-            customerId,
-            email: user.email,
-            points: 400000,
-          });
-          
-          // 사용량 제공 로그 기록 (리셋)
-          const pointsChange = 400000 - user.points; // 실제 변경량 계산
-          await prisma.pointHistory.create({
-            data: {
-              userId: user.id,
-              change: pointsChange,
-              reason: 'STRIPE_PAYMENT_RESET',
-            },
-          });
+          if (skipPointsBecauseCheckoutHandled) {
+            console.log(
+              '[Stripe Webhook] subscription_create 인보이스: checkout에서 포인트·플랜 반영됨 → 인보이스에서 리셋 생략'
+            );
+            updatedUser = {
+              id: user.id,
+              points: user.points,
+              plan: user.plan,
+            };
+          } else {
+            const linkedSessionId = subscription?.id
+              ? (
+                  await prisma.payment.findFirst({
+                    where: {
+                      userId: user.id,
+                      stripeSubscriptionId: subscription.id,
+                      stripeSessionId: { not: null },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    select: { stripeSessionId: true },
+                  })
+                )?.stripeSessionId ?? null
+              : null;
 
-          // 결제 정보 저장 (invoice.payment_succeeded/invoice.payment.paid/invoice_payment.paid는 session.id가 없으므로 null)
+            const existingInvoiceGrant = await findExistingStripePointGrant(prisma, user.id, {
+              stripeSessionId: linkedSessionId,
+              stripeInvoiceId: invoiceId,
+            });
+
+            if (existingInvoiceGrant) {
+              console.log(
+                '[Stripe Webhook] invoice: 동일 session/invoice로 포인트 이미 지급됨 → 포인트/이력만 스킵, Payment·구독 동기화는 계속'
+              );
+              updatedUser = {
+                id: user.id,
+                points: user.points,
+                plan: user.plan,
+              };
+            } else {
+              console.log('[Stripe Webhook] 사용량 제공 시작 (리셋):', {
+                userId: user.id,
+                plan: plan,
+                currentPoints: user.points,
+                pointsToSet: 400000,
+              });
+
+              updatedUser = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  plan,
+                  points: 400000,
+                },
+                select: {
+                  id: true,
+                  points: true,
+                  plan: true,
+                },
+              });
+
+              const pointsChange = 400000 - user.points;
+              await prisma.pointHistory.create({
+                data: {
+                  userId: user.id,
+                  change: pointsChange,
+                  reason: 'STRIPE_PAYMENT_RESET',
+                  stripeSessionId: linkedSessionId,
+                  stripeInvoiceId: invoiceId,
+                },
+              });
+            }
+          }
+
+          console.log('[Stripe Webhook] 포인트 처리 완료 userId=', user.id, 'eventId=', event.id);
+
           const amount = updatedUser.plan === 'PRO' ? 4000 : 40000;
 
           // 5️⃣ prisma.payment.create 실행 시 unique 제약 충돌 여부 확인
@@ -710,13 +791,6 @@ export async function POST(request: NextRequest) {
             console.log('[Stripe Webhook] Subscription 없음 - Subscription 저장 건너뜀');
           }
 
-          // Stripe 이벤트 처리 완료 기록
-          await prisma.stripeEvent.create({
-            data: {
-              eventId: event.id,
-            },
-          });
-
           console.log(`[Stripe Webhook] ${event.type} 처리 완료:`, {
             userEmail,
             plan,
@@ -736,6 +810,7 @@ export async function POST(request: NextRequest) {
             errorCode: (error as any)?.code,
             errorMeta: (error as any)?.meta,
           });
+          await releaseEventClaim();
           // 오류 발생 시 500 반환하여 Stripe가 재시도할 수 있도록 함
           return NextResponse.json(
             { 
@@ -745,6 +820,8 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           );
         }
+
+      return NextResponse.json({ received: true });
     } else if (event.type === 'invoice.payment_failed') {
       const invoice = event.data.object as Stripe.Invoice & {
         subscription?: string | Stripe.Subscription | null;
@@ -767,7 +844,6 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        const { prisma } = await import('@/app/lib/prisma');
         const user = await prisma.user.findUnique({
           where: {
             stripeCustomerId: customerId,
@@ -794,13 +870,6 @@ export async function POST(request: NextRequest) {
           invoiceId: invoice.id,
           eventId: event.id,
         });
-
-        // Stripe 이벤트 처리 완료 기록
-        await prisma.stripeEvent.create({
-          data: {
-            eventId: event.id,
-          },
-        });
       } catch (error) {
         console.error('[Stripe Webhook] invoice.payment_failed 처리 중 오류 발생:', error);
         console.error('[Stripe Webhook] 오류 상세:', {
@@ -808,12 +877,14 @@ export async function POST(request: NextRequest) {
           stack: error instanceof Error ? error.stack : undefined,
           subscriptionId,
         });
-        // 오류 발생 시 500 반환하여 Stripe가 재시도할 수 있도록 함
+        await releaseEventClaim();
         return NextResponse.json(
           { error: 'Webhook 처리 중 오류가 발생했습니다.' },
           { status: 500 }
         );
       }
+
+      return NextResponse.json({ received: true });
     } else if (event.type === 'customer.subscription.updated') {
       const subscription = event.data.object as Stripe.Subscription & {
         current_period_start?: number | null;
@@ -823,6 +894,7 @@ export async function POST(request: NextRequest) {
 
       if (!customerId) {
         console.error('[Stripe Webhook] customer.subscription.updated: customer ID가 없습니다.');
+        await releaseEventClaim();
         return NextResponse.json(
           { error: 'Customer ID를 찾을 수 없습니다.' },
           { status: 400 }
@@ -898,13 +970,6 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Stripe 이벤트 처리 완료 기록
-        await prisma.stripeEvent.create({
-          data: {
-            eventId: event.id,
-          },
-        });
-
         console.log('[Stripe Webhook] 구독 상태 업데이트:', {
           userId: user.id,
           email: user.email,
@@ -920,18 +985,21 @@ export async function POST(request: NextRequest) {
           stack: error instanceof Error ? error.stack : undefined,
           customerId,
         });
-        // 오류 발생 시 500 반환하여 Stripe가 재시도할 수 있도록 함
+        await releaseEventClaim();
         return NextResponse.json(
           { error: 'Webhook 처리 중 오류가 발생했습니다.' },
           { status: 500 }
         );
       }
+
+      return NextResponse.json({ received: true });
     } else if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription;
       const customerId = subscription.customer as string;
 
       if (!customerId) {
         console.error('[Stripe Webhook] customer.subscription.deleted: customer ID가 없습니다.');
+        await releaseEventClaim();
         return NextResponse.json(
           { error: 'Customer ID를 찾을 수 없습니다.' },
           { status: 400 }
@@ -979,13 +1047,6 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Stripe 이벤트 처리 완료 기록
-        await prisma.stripeEvent.create({
-          data: {
-            eventId: event.id,
-          },
-        });
-
         console.log('[Stripe Webhook] 구독 취소 처리 완료 (cancelAtPeriodEnd 설정):', {
           userId: user.id,
           email: user.email,
@@ -1001,12 +1062,14 @@ export async function POST(request: NextRequest) {
           stack: error instanceof Error ? error.stack : undefined,
           customerId,
         });
-        // 오류 발생 시 500 반환하여 Stripe가 재시도할 수 있도록 함
+        await releaseEventClaim();
         return NextResponse.json(
           { error: 'Webhook 처리 중 오류가 발생했습니다.' },
           { status: 500 }
         );
       }
+
+      return NextResponse.json({ received: true });
     } else if (event.type === 'charge.refunded') {
       const charge = event.data.object as Stripe.Charge & {
         invoice?: string | Stripe.Invoice | null;
@@ -1019,7 +1082,6 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const { prisma } = await import('@/app/lib/prisma');
         const user = await prisma.user.findUnique({
           where: {
             stripeCustomerId: customerId,
@@ -1091,13 +1153,6 @@ export async function POST(request: NextRequest) {
           // 환불 기록 실패는 전체 트랜잭션을 롤백하지 않음 (로깅만)
         }
 
-        // Stripe 이벤트 처리 완료 기록
-        await prisma.stripeEvent.create({
-          data: {
-            eventId: event.id,
-          },
-        });
-
         console.log('[Stripe Webhook] 환불 처리 완료:', {
           userId: user.id,
           email: user.email,
@@ -1114,28 +1169,17 @@ export async function POST(request: NextRequest) {
           stack: error instanceof Error ? error.stack : undefined,
           customerId,
         });
-        // 오류 발생 시 500 반환하여 Stripe가 재시도할 수 있도록 함
+        await releaseEventClaim();
         return NextResponse.json(
           { error: 'Webhook 처리 중 오류가 발생했습니다.' },
           { status: 500 }
         );
       }
+
+      return NextResponse.json({ received: true });
     }
 
-    // 다른 이벤트 타입은 로그만 남기고 성공 응답
     console.log('[Stripe Webhook] 처리된 이벤트 (기타):', event.type);
-
-    // Stripe 이벤트 처리 완료 기록 (기타 이벤트도 기록)
-    // upsert 사용: 이미 존재하면 아무 작업 안함, 없으면 새로 저장
-    await prisma.stripeEvent.upsert({
-      where: {
-        eventId: event.id,
-      },
-      update: {},
-      create: {
-        eventId: event.id,
-      },
-    });
 
     return NextResponse.json({ received: true });
   } catch (error) {
