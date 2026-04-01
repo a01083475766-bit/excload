@@ -37,25 +37,31 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-6">
         {/* Hero 섹션 */}
         <section className="pt-4 pb-12 lg:pt-6 lg:pb-16">
-          <div className="flex flex-col items-center text-center gap-4">
-            {/* 첫 번째 줄 - 가장 넓게 */}
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-950 dark:text-zinc-100 leading-tight max-w-4xl">
-              반복되는 주문 정리, 엑클로드에서 한 번에 끝내세요.
-            </h1>
+          <div className="flex flex-col gap-8">
+            {/* 히어로: 텍스트 + 체험 CTA (네비에는 없음, 이 링크로만 진입) */}
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 lg:gap-8">
+              <div className="flex flex-col items-center lg:items-start text-center lg:text-left gap-4 flex-1 min-w-0">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-950 dark:text-zinc-100 leading-tight max-w-4xl">
+                  반복되는 주문 정리, 엑클로드에서 한 번에 끝내세요.
+                </h1>
+                <p className="text-base sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
+                  카톡·상세페이지·엑셀 주문을 택배 업로드 양식으로 자동 변환합니다.
+                </p>
+                <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-500 max-w-lg leading-relaxed">
+                  커피 한 잔을, 당신의 시간에 양보하세요.
+                </p>
+              </div>
+              <div className="flex justify-center lg:justify-end shrink-0 lg:pt-1">
+                <Link
+                  href="/trial"
+                  className="inline-flex items-center justify-center rounded-xl border-2 border-zinc-900 dark:border-zinc-100 px-5 py-3 text-sm sm:text-base font-semibold text-zinc-950 dark:text-zinc-100 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+                >
+                  체험하기 (테스트해보기)
+                </Link>
+              </div>
+            </div>
 
-            {/* 두 번째 줄 - 중간 넓이 */}
-            <p className="text-base sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
-              카톡·상세페이지·엑셀 주문을 택배 업로드 양식으로 자동 변환합니다.
-            </p>
-            
-            {/* 세 번째 줄 - 가장 좁게 */}
-            <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-500 max-w-lg leading-relaxed">
-              커피 한 잔을, 당신의 시간에 양보하세요.
-            </p>
-            
-              
-            {/* 데모 애니메이션 */}
-            <div className="w-full mt-12">
+            <div className="w-full">
               <DemoAnimation />
             </div>
           </div>
