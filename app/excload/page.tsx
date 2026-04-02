@@ -40,27 +40,34 @@ export default function HomePage() {
           <div className="flex flex-col gap-8">
             <div className="flex flex-col items-center text-center gap-4">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-950 dark:text-zinc-100 leading-tight max-w-4xl">
-                반복되는 주문 정리, 엑클로드에서 한 번에 끝내세요.
+                기획·채팅·포장까지 혼자라면, 주문 표 정리는 짧게 끝내세요.
               </h1>
               <p className="text-base sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
-                카톡·상세페이지·엑셀 주문을 택배 업로드 양식으로 자동 변환합니다.
+                카톡으로 온 문자, 메모에 적어 둔 주소, 형식이 제각각인 엑셀까지.{' '}
+                <strong className="font-semibold text-zinc-800 dark:text-zinc-200">
+                  복사해 붙이거나 파일만 올리면
+                </strong>{' '}
+                택배·물류 업로드에 맞는 열 구조로 맞춰 드립니다.
               </p>
-              <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-500 max-w-lg leading-relaxed">
-                커피 한 잔을, 당신의 시간에 양보하세요.
+              <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-500 max-w-2xl leading-relaxed">
+                행 옮기기·셀 맞추기에 쓰던 시간을 줄이고, 포장과 발송 준비에 더 쓰실 수 있게요.
               </p>
             </div>
 
-            {/* 문구와 데모 사이: 체험 안내 (네비에는 노출하지 않음) */}
-            <div className="flex flex-col items-center text-center gap-3 max-w-xl mx-auto px-2">
-              <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                가입 없이 샘플 데이터로 변환 과정을 먼저 경험해 보세요. 다운로드는 회원가입 후 이용할 수 있습니다.
-              </p>
+            {/* 체험 CTA: 로그인 없이 미리보기 (다운로드는 정식 서비스) */}
+            <div className="flex flex-col items-center text-center gap-2 max-w-lg mx-auto px-2">
               <Link
                 href="/trial"
-                className="inline-flex items-center justify-center rounded-xl border-2 border-zinc-900 dark:border-zinc-100 px-5 py-3 text-sm sm:text-base font-semibold text-zinc-950 dark:text-zinc-100 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-colors w-full sm:w-auto min-w-[min(100%,280px)]"
               >
-                체험하기 (테스트해보기)
+                지금 내 주문으로 무료 체험하기
               </Link>
+              <p className="text-xs text-zinc-500 dark:text-zinc-500 leading-snug">
+                로그인 없이 시작 · 미리보기까지 이용 (엑셀 저장·다운로드는 가입 후 정식 서비스)
+              </p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed mt-1">
+                체험에는 사용량이 제공되며, 횟수·네트워크별 제한이 있을 수 있습니다.
+              </p>
             </div>
 
             <div className="w-full">
@@ -73,17 +80,21 @@ export default function HomePage() {
         <section className="py-12 lg:py-16">
           <div className="max-w-3xl mx-auto text-center space-y-4">
             <h2 className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-              주문 정리 때문에 스트레스 받으셨나요?
+              송장·발송 전, 표부터 덜어내고 싶다면
             </h2>
             <div className="space-y-3 text-base sm:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
               <p>
-                카톡 주문을 엑셀로 옮기고, 엑셀을 다시 택배 양식에 맞게 수정하는 번거로운 작업, 이제 그만하세요.
+                한 건 한 건 옮기고 열 이름 맞추다 보면 하루가 금방 갑니다. 들어오는 채널이 늘수록 부담도 커지죠.
               </p>
               <p>
-                여러 경로로 들어온 주문을 자동 분석해 택배 업로드 파일로 한 번에 정리합니다.
+                엑클로드는 여러 형식의 주문을 같은 파이프라인으로 넘겨,{' '}
+                <strong className="font-medium text-zinc-800 dark:text-zinc-200">
+                  업로드용 열 구조에 맞는 표
+                </strong>
+                로 정리하는 데 초점을 둡니다.
               </p>
-              <p className="text-zinc-700 dark:text-zinc-300">
-                어렵지 않습니다. 몇 번의 클릭이면 충분합니다.
+              <p className="text-zinc-700 dark:text-zinc-300 text-base">
+                복잡한 대시보드 대신, 입력·미리보기 중심으로 빠르게 손에 익히실 수 있게 만들었습니다.
               </p>
             </div>
           </div>
@@ -102,11 +113,11 @@ export default function HomePage() {
                 <div
                   key={plan.planKey}
                   className={`relative p-6 rounded-2xl border-2 bg-white dark:bg-zinc-900 shadow-lg transition-all ${
-                    plan.popular ? 'border-blue-500' : 'border-zinc-200 dark:border-zinc-800'
+                    plan.popular ? 'border-emerald-500' : 'border-zinc-200 dark:border-zinc-800'
                   }`}
                 >
                   {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
                       인기 플랜
                     </div>
                   )}
@@ -118,7 +129,7 @@ export default function HomePage() {
                   <ul className="space-y-2 mb-6">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                        <Check className="w-4 h-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <Check className="w-4 h-4 mt-0.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -126,7 +137,7 @@ export default function HomePage() {
 
                   <Link
                     href={`/subscribe?plan=${encodeURIComponent(plan.planKey)}`}
-                    className="block w-full rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
+                    className="block w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700"
                   >
                     {plan.name} 시작하기
                   </Link>
@@ -136,7 +147,7 @@ export default function HomePage() {
 
             <p className="mt-6 text-center text-xs text-zinc-500">자세한 비교는 가격 페이지에서 확인하세요.</p>
             <div className="mt-3 text-center">
-              <Link href="/pricing" className="text-sm text-blue-600 hover:underline underline-offset-2">
+              <Link href="/pricing" className="text-sm text-emerald-700 dark:text-emerald-400 hover:underline underline-offset-2">
                 가격 페이지 전체 보기
               </Link>
             </div>

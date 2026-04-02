@@ -2833,10 +2833,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   id="trial-download-modal-title"
                   className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug"
                 >
-                  미리보기까지, 무료 체험
+                  표 정리는 여기까지예요. 엑셀은 가입 후 이어가세요
                 </h2>
                 <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                  엑셀 저장·다운로드는 정식 서비스에서 이용하세요
+                  발송·송장 업무에 쓰실 파일은 정식 서비스에서 받으실 수 있어요
                 </p>
               </div>
             </div>
@@ -2846,24 +2846,26 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed"
             >
               <p>
-                이 화면은 <strong>주문이 어떻게 정리되는지</strong> 변환 과정과 미리보기로 확인해 보시도록
-                준비했습니다. 체험 범위에는 <strong>엑셀 파일로 저장하거나 내려받는 단계</strong>를 넣지
-                않았습니다.
+                체험판에서는 <strong>변환 결과를 화면에서 확인</strong>하는 단계까지 제공합니다.{' '}
+                <strong>엑셀 파일로 저장·다운로드</strong>하는 기능은 체험 범위에 포함하지 않았습니다.
               </p>
               <p>
-                <strong>회원가입 후</strong> 정식 주문 변환 화면에서 요금제에 따라 엑셀 다운로드 등 전체
-                기능을 이어서 이용하실 수 있습니다. 무료 플랜부터 선택 가능하며, 비교는 가격 페이지에서
-                확인해 주세요.
+                <strong>무료 회원가입 후</strong> 정식 주문 변환 화면으로 넘어가시면, 요금제에 맞게 엑셀
+                다운로드 등 전체 기능을 이어서 쓰실 수 있습니다. 방금 보신 것과 같은 흐름으로 작업을
+                이어가시면 됩니다.
+              </p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                무료 플랜부터 시작할 수 있어요. 플랜별 조건은 요금제 페이지에서 확인해 주세요.
               </p>
             </div>
 
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end sm:items-center">
               <button
                 type="button"
-                className="sm:order-1 px-4 py-2.5 text-sm rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="sm:order-1 px-4 py-2.5 text-sm rounded-lg text-zinc-500 dark:text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
-                닫기
+                나중에 하기
               </button>
               <Link
                 href="/pricing"
@@ -2877,7 +2879,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 className="sm:order-3 w-full sm:w-auto px-4 py-2.5 text-sm rounded-lg bg-emerald-600 text-white text-center font-medium hover:bg-emerald-700"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
-                회원가입하고 정식 이용하기
+                무료 가입하고 엑셀 받기
               </Link>
             </div>
           </div>
@@ -2906,7 +2908,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <div className="flex flex-col gap-2 text-center min-h-[32px]">
                 <p className="text-sm text-gray-500 leading-tight">
                   {trialMode
-                    ? '체험판 · 엑셀·텍스트·이미지로 넣은 주문을 업로드용 열 구성으로 미리 맞춰 볼 수 있습니다.'
+                    ? '체험판 · 카톡·메모·엑셀처럼 제각각인 입력도, 업로드용 표로 미리 맞춰 볼 수 있습니다.'
                     : '엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.'}
                 </p>
               </div>
