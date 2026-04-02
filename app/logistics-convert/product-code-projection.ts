@@ -6,6 +6,9 @@
 import * as XLSX from 'xlsx';
 import type { PreviewRow } from '@/app/pipeline/merge/types';
 import { ALIAS_DICTIONARY } from '@/app/pipeline/base/alias-dictionary';
+import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
+
+const dbg = () => isExcloudPipelineDebugClient();
 
 /**
  * 매핑 키 (내부 저장 형식)
@@ -153,18 +156,22 @@ export function parseProductCodeMapFromMatrix(matrix: string[][]): ProductCodeMa
   );
 
   if (codeIdx < 0) {
-    console.warn(
-      '[parseProductCodeMap] 상품코드·바코드·SKU 등 코드 열을 찾지 못했습니다. 헤더:',
-      headerRow,
-    );
+    if (dbg()) {
+      console.warn(
+        '[parseProductCodeMap] 상품코드·바코드·SKU 등 코드 열을 찾지 못했습니다. 헤더:',
+        headerRow,
+      );
+    }
     return {};
   }
 
   if (nameIdx < 0 && compositeIdx < 0) {
-    console.warn(
-      '[parseProductCodeMap] 상품명(또는 매핑키/통합키) 열을 찾지 못했습니다. 헤더:',
-      headerRow,
-    );
+    if (dbg()) {
+      console.warn(
+        '[parseProductCodeMap] 상품명(또는 매핑키/통합키) 열을 찾지 못했습니다. 헤더:',
+        headerRow,
+      );
+    }
     return {};
   }
 
@@ -192,9 +199,11 @@ export function parseProductCodeMapFromMatrix(matrix: string[][]): ProductCodeMa
     }
   }
 
-  console.log(
-    `[parseProductCodeMap] 로드 완료: ${Object.keys(map).length}건 (상품명열 ${nameIdx >= 0 ? 'O' : 'X'}, 옵션열 ${optionIdx >= 0 ? 'O' : 'X'}, 통합키열 ${compositeIdx >= 0 ? 'O' : 'X'})`,
-  );
+  if (dbg()) {
+    console.log(
+      `[parseProductCodeMap] 로드 완료: ${Object.keys(map).length}건 (상품명열 ${nameIdx >= 0 ? 'O' : 'X'}, 옵션열 ${optionIdx >= 0 ? 'O' : 'X'}, 통합키열 ${compositeIdx >= 0 ? 'O' : 'X'})`,
+    );
+  }
   return map;
 }
 
@@ -323,9 +332,11 @@ function applyProductCodeProjectionCodeColumnAsName(
   const codeKey = resolveCodeHeader(courierHeaders);
 
   if (!codeKey) {
-    console.warn(
-      '[applyProductCodeProjection] code_column_as_name: 코드 열 없음. 투영 생략.',
-    );
+    if (dbg()) {
+      console.warn(
+        '[applyProductCodeProjection] code_column_as_name: 코드 열 없음. 투영 생략.',
+      );
+    }
     return {
       rows: mergedRows.map((row) => ({ ...row })),
       meta: emptyMeta('no_code_column', courierHeaders),
@@ -347,17 +358,21 @@ function applyProductCodeProjectionCodeColumnAsName(
 
     if (existingCell && mapOutputValues.has(existingCell)) {
       successCount += 1;
-      console.log(
-        `[applyProductCodeProjection] code_column_as_name row=${rowIndex} 「${codeKey}」에 이미 매핑 코드 유지: "${existingCell}"`,
-      );
+      if (dbg()) {
+        console.log(
+          `[applyProductCodeProjection] code_column_as_name row=${rowIndex} 「${codeKey}」에 이미 매핑 코드 유지: "${existingCell}"`,
+        );
+      }
       return out;
     }
 
     if (!existingCell) {
       failCount += 1;
-      console.log(
-        `[applyProductCodeProjection] code_column_as_name 실패 row=${rowIndex} ${codeKey} 비어 있음`,
-      );
+      if (dbg()) {
+        console.log(
+          `[applyProductCodeProjection] code_column_as_name 실패 row=${rowIndex} ${codeKey} 비어 있음`,
+        );
+      }
       return out;
     }
 
@@ -369,24 +384,30 @@ function applyProductCodeProjectionCodeColumnAsName(
     if (code !== undefined && code !== '') {
       out[codeKey] = code;
       successCount += 1;
-      console.log(
-        `[applyProductCodeProjection] code_column_as_name 성공 row=${rowIndex} key="${mapKey}" → ${codeKey}="${code}"`,
-      );
+      if (dbg()) {
+        console.log(
+          `[applyProductCodeProjection] code_column_as_name 성공 row=${rowIndex} key="${mapKey}" → ${codeKey}="${code}"`,
+        );
+      }
     } else {
       failCount += 1;
-      console.log(
-        `[applyProductCodeProjection] code_column_as_name 실패 row=${rowIndex} key="${mapKey}" (매핑 없음) — 상품명 유지`,
-      );
+      if (dbg()) {
+        console.log(
+          `[applyProductCodeProjection] code_column_as_name 실패 row=${rowIndex} key="${mapKey}" (매핑 없음) — 상품명 유지`,
+        );
+      }
     }
     return out;
   });
 
-  console.log(
-    '[상품코드 매핑 code_column_as_name] 성공:',
-    successCount,
-    '실패(상품명 유지):',
-    failCount,
-  );
+  if (dbg()) {
+    console.log(
+      '[상품코드 매핑 code_column_as_name] 성공:',
+      successCount,
+      '실패(상품명 유지):',
+      failCount,
+    );
+  }
 
   return {
     rows: result,
@@ -430,7 +451,9 @@ export function applyProductCodeProjection(
   }
 
   if (!productCodeMap || Object.keys(productCodeMap).length === 0) {
-    console.log('[상품코드 매핑] 실패 개수:', 0, '(매핑 맵 없음)');
+    if (dbg()) {
+      console.log('[상품코드 매핑] 실패 개수:', 0, '(매핑 맵 없음)');
+    }
     return {
       rows: mergedRows.map((row) => ({ ...row })),
       meta: emptyMeta('no_map', courierHeaders),
@@ -442,10 +465,12 @@ export function applyProductCodeProjection(
   const codeKey = resolveCodeHeader(courierHeaders);
 
   if (!codeKey) {
-    console.warn(
-      '[applyProductCodeProjection] 템플릿에 상품코드·바코드·SKU 등 코드 열을 찾지 못했습니다. 투영 생략.',
-    );
-    console.log('[상품코드 매핑] 실패 개수:', 0, '(코드 열 없음)');
+    if (dbg()) {
+      console.warn(
+        '[applyProductCodeProjection] 템플릿에 상품코드·바코드·SKU 등 코드 열을 찾지 못했습니다. 투영 생략.',
+      );
+      console.log('[상품코드 매핑] 실패 개수:', 0, '(코드 열 없음)');
+    }
     return {
       rows: mergedRows.map((row) => ({ ...row })),
       meta: emptyMeta('no_code_column', courierHeaders),
@@ -453,10 +478,12 @@ export function applyProductCodeProjection(
   }
 
   if (!nameKey) {
-    console.warn(
-      '[applyProductCodeProjection] 템플릿에 상품명(또는 품목명) 열을 찾지 못했습니다. 투영 생략.',
-    );
-    console.log('[상품코드 매핑] 실패 개수:', 0, '(상품명 열 없음)');
+    if (dbg()) {
+      console.warn(
+        '[applyProductCodeProjection] 템플릿에 상품명(또는 품목명) 열을 찾지 못했습니다. 투영 생략.',
+      );
+      console.log('[상품코드 매핑] 실패 개수:', 0, '(상품명 열 없음)');
+    }
     return {
       rows: mergedRows.map((row) => ({ ...row })),
       meta: emptyMeta('no_name_column', courierHeaders),
@@ -485,27 +512,33 @@ export function applyProductCodeProjection(
     if (code !== undefined && code !== '') {
       out[codeKey] = code;
       successCount += 1;
-      console.log(
-        `[applyProductCodeProjection] 성공 row=${rowIndex} key="${mapKey}"` +
-          (usedNameOnlyFallback ? ` (폴백: "${name}|")` : '') +
-          ` → ${codeKey}="${code}"`,
-      );
+      if (dbg()) {
+        console.log(
+          `[applyProductCodeProjection] 성공 row=${rowIndex} key="${mapKey}"` +
+            (usedNameOnlyFallback ? ` (폴백: "${name}|")` : '') +
+            ` → ${codeKey}="${code}"`,
+        );
+      }
     } else {
       failCount += 1;
       out[codeKey] = '';
-      console.log(
-        `[applyProductCodeProjection] 실패 row=${rowIndex} key="${mapKey}" (매핑 없음) → ${codeKey} 비움`,
-      );
+      if (dbg()) {
+        console.log(
+          `[applyProductCodeProjection] 실패 row=${rowIndex} key="${mapKey}" (매핑 없음) → ${codeKey} 비움`,
+        );
+      }
     }
     return out;
   });
 
-  console.log(
-    '[상품코드 매핑] 성공:',
-    successCount,
-    '실패(열 비움):',
-    failCount,
-  );
+  if (dbg()) {
+    console.log(
+      '[상품코드 매핑] 성공:',
+      successCount,
+      '실패(열 비움):',
+      failCount,
+    );
+  }
 
   return {
     rows: result,
