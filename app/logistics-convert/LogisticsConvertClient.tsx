@@ -2807,7 +2807,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         </div>
       )}
 
-      {/* 체험판: 다운로드 안내 (회원가입·요금제·미리보기와 동일 결과) */}
+      {/* 체험판: 다운로드 안내 — 미리보기 취지와 정식 서비스(엑셀) 구분 */}
       {showTrialDownloadModal && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
@@ -2819,48 +2819,65 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-labelledby="trial-download-modal-title"
+            aria-describedby="trial-download-modal-desc"
           >
-            <h2
-              id="trial-download-modal-title"
-              className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3"
+            <div className="flex gap-3 items-start mb-4">
+              <div
+                className="flex-shrink-0 w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center border border-emerald-200/80 dark:border-emerald-800"
+                aria-hidden
+              >
+                <FileSpreadsheet className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2
+                  id="trial-download-modal-title"
+                  className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug"
+                >
+                  미리보기까지, 무료 체험
+                </h2>
+                <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                  엑셀 저장·다운로드는 정식 서비스에서 이용하세요
+                </p>
+              </div>
+            </div>
+
+            <div
+              id="trial-download-modal-desc"
+              className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed"
             >
-              다운로드 안내
-            </h2>
-            <div className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
               <p>
-                체험 모드에서는 <strong>엑셀 파일 다운로드</strong>를 제공하지 않습니다. 다운로드는{' '}
-                <strong>회원가입 후</strong> 정식 서비스의 주문 변환 화면에서 이용하실 수 있습니다.
+                이 화면은 <strong>주문이 어떻게 정리되는지</strong> 변환 과정과 미리보기로 확인해 보시도록
+                준비했습니다. 체험 범위에는 <strong>엑셀 파일로 저장하거나 내려받는 단계</strong>를 넣지
+                않았습니다.
               </p>
               <p>
-                가입하시면 <strong>무료·프로·연간</strong> 등 요금제 중에서 선택해 사용할 수 있습니다. 자세한
-                비교는 가격 페이지에서 확인하실 수 있습니다.
-              </p>
-              <p>
-                정식 서비스에서 내려받는 파일은 <strong>미리보기에 보이는 주문 데이터와 동일한 내용</strong>이
-                엑셀 형태로 저장됩니다. 충분히 테스트해 보신 뒤 가입하시는 것을 권장드립니다.
+                <strong>회원가입 후</strong> 정식 주문 변환 화면에서 요금제에 따라 엑셀 다운로드 등 전체
+                기능을 이어서 이용하실 수 있습니다. 무료 플랜부터 선택 가능하며, 비교는 가격 페이지에서
+                확인해 주세요.
               </p>
             </div>
-            <div className="mt-6 flex flex-col sm:flex-row gap-2 sm:justify-end">
+
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end sm:items-center">
               <button
                 type="button"
-                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="sm:order-1 px-4 py-2.5 text-sm rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
                 닫기
               </button>
               <Link
                 href="/pricing"
-                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-center text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="sm:order-2 px-4 py-2.5 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-center text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
                 요금제 보기
               </Link>
               <Link
                 href="/auth/signup"
-                className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white text-center font-medium hover:bg-emerald-700"
+                className="sm:order-3 w-full sm:w-auto px-4 py-2.5 text-sm rounded-lg bg-emerald-600 text-white text-center font-medium hover:bg-emerald-700"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
-                회원가입
+                회원가입하고 정식 이용하기
               </Link>
             </div>
           </div>
@@ -2879,7 +2896,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   비로그인으로{' '}
                   <strong>{TRIAL_INITIAL_POINTS.toLocaleString()} 사용량</strong>이 제공됩니다. 텍스트 변환은
                   입력 글자 수만큼 차감됩니다. 저장된 업로드 양식이 없으면 예시 엑셀 양식이 자동 적용됩니다. 직접
-                  양식을 올리면 그걸로 바뀝니다. 엑셀 다운로드는 회원가입 후 이용할 수 있습니다.
+                  양식을 올리면 그걸로 바뀝니다. 체험은 <strong>미리보기 확인</strong>까지이며, 엑셀 다운로드는
+                  가입 후 정식 서비스에서 이용할 수 있습니다.
                 </p>
               </div>
             )}
@@ -3446,9 +3464,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               <p className="text-xs text-gray-500 mt-1 text-center">
                 {trialMode ? (
                   <>
-                    변환된 주문 데이터를 엑셀로 받는 단계입니다.
+                    정식 서비스에서는 이 단계에서 엑셀을 받을 수 있습니다.
                     <br />
-                    체험판에서는 클릭 시 안내만 표시됩니다.
+                    체험판은 취지상 다운로드 없이, 클릭 시 안내만 표시됩니다.
                   </>
                 ) : (
                   <>
@@ -4498,7 +4516,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500">
                     {trialMode
-                      ? '설정된 고정 입력 값은 미리보기·변환 결과에 반영됩니다. (체험판에서는 파일 다운로드가 제공되지 않습니다)'
+                      ? '설정된 고정 입력 값은 미리보기·변환 결과에 반영됩니다. 엑셀 다운로드는 정식 서비스에서 이용할 수 있습니다.'
                       : '설정된 고정 입력 값은 물류센터 업로드 파일 다운로드 시 자동으로 입력됩니다.'}
                   </p>
                 </div>
