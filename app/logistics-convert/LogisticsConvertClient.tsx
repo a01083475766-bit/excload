@@ -443,10 +443,30 @@ const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean
   return nonEmptyHeaders.length > 0;
 };
 
-const loadCourierUploadTemplate = (): CourierUploadTemplate | null => {
+/** 체험판(/trial)은 별도 키 — 본 서비스 물류 페이지에 등록한 긴 양식과 섞이지 않도록 */
+function logisticsCourierTemplateKey(trialMode: boolean) {
+  return trialMode
+    ? 'trial_logistics_convert_onc_courier_template_v1'
+    : 'logistics_convert_onc_courier_template_v1';
+}
+function logisticsRecentFormatsKey(trialMode: boolean) {
+  return trialMode
+    ? 'trial_logistics_convert_recent_excel_formats_v1'
+    : 'logistics_convert_recent_excel_formats_v1';
+}
+function logisticsActiveBridgeFileKey(trialMode: boolean) {
+  return trialMode ? 'trial_logistics_activeCourierBridgeFile' : 'logistics_activeCourierBridgeFile';
+}
+function logisticsFixedHeaderValuesKey(trialMode: boolean) {
+  return trialMode
+    ? 'trial_logistics_convert_fixed_header_values_v1'
+    : 'logistics_convert_fixed_header_values_v1';
+}
+
+const loadCourierUploadTemplate = (trialMode = false): CourierUploadTemplate | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const stored = localStorage.getItem('logistics_convert_onc_courier_template_v1');
+    const stored = localStorage.getItem(logisticsCourierTemplateKey(trialMode));
     if (stored) {
       const parsed = JSON.parse(stored) as CourierUploadTemplate;
       // headers가 없거나 빈 배열이면 null 반환
@@ -461,23 +481,24 @@ const loadCourierUploadTemplate = (): CourierUploadTemplate | null => {
   return null;
 };
 
-const saveCourierUploadTemplate = (template: CourierUploadTemplate | null) => {
+const saveCourierUploadTemplate = (template: CourierUploadTemplate | null, trialMode = false) => {
   if (typeof window === 'undefined') return;
+  const key = logisticsCourierTemplateKey(trialMode);
   try {
     if (template) {
-      localStorage.setItem('logistics_convert_onc_courier_template_v1', JSON.stringify(template));
+      localStorage.setItem(key, JSON.stringify(template));
     } else {
-      localStorage.removeItem('logistics_convert_onc_courier_template_v1');
+      localStorage.removeItem(key);
     }
   } catch (error) {
     console.error('localStorage에 물류센터 양식 정보를 저장하는 중 오류 발생:', error);
   }
 };
 
-const loadRecentExcelFormats = (): RecentExcelFormat[] => {
+const loadRecentExcelFormats = (trialMode = false): RecentExcelFormat[] => {
   if (typeof window === 'undefined') return [];
   try {
-    const stored = localStorage.getItem('logistics_convert_recent_excel_formats_v1');
+    const stored = localStorage.getItem(logisticsRecentFormatsKey(trialMode));
     if (stored) {
       const parsed = JSON.parse(stored) as RecentExcelFormat[];
       return parsed;
@@ -494,9 +515,10 @@ const saveRecentExcelFormat = (
   bridgeFile?: TemplateBridgeFile,
   displayName?: string,
   protectedFromDeletion?: boolean,
+  trialMode = false,
 ) => {
   try {
-    const formats = loadRecentExcelFormats();
+    const formats = loadRecentExcelFormats(trialMode);
     const columnOrder = Array.isArray(template.headers) ? template.headers.map((header) => header.name) : [];
 
     const newFormat: RecentExcelFormat = {
@@ -509,7 +531,7 @@ const saveRecentExcelFormat = (
     };
 
     const updatedFormats = [newFormat, ...formats];
-    localStorage.setItem('logistics_convert_recent_excel_formats_v1', JSON.stringify(updatedFormats));
+    localStorage.setItem(logisticsRecentFormatsKey(trialMode), JSON.stringify(updatedFormats));
     setRecentExcelFormats(updatedFormats);
     return newFormat.id;
   } catch (error) {
@@ -581,7 +603,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>(() => {
     if (typeof window === 'undefined') return {};
     try {
-      const saved = localStorage.getItem('logistics_convert_fixed_header_values_v1');
+      const saved = localStorage.getItem(logisticsFixedHeaderValuesKey(trialMode));
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -861,23 +883,26 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem('logistics_convert_fixed_header_values_v1', JSON.stringify(fixedHeaderValues));
+      localStorage.setItem(
+        logisticsFixedHeaderValuesKey(trialMode),
+        JSON.stringify(fixedHeaderValues),
+      );
     } catch (error) {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
-  }, [fixedHeaderValues]);
+  }, [fixedHeaderValues, trialMode]);
 
   useEffect(() => {
-    const loadedTemplate = loadCourierUploadTemplate();
+    const loadedTemplate = loadCourierUploadTemplate(trialMode);
     setCourierUploadTemplate(loadedTemplate);
 
-    const formats = loadRecentExcelFormats();
+    const formats = loadRecentExcelFormats(trialMode);
     setRecentExcelFormats(formats);
 
     // 컴포넌트 마운트 시 bridgeFile 자동 복원
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('logistics_activeCourierBridgeFile');
+        const saved = localStorage.getItem(logisticsActiveBridgeFileKey(trialMode));
         if (saved) {
           const parsed = JSON.parse(saved) as TemplateBridgeFile;
           setTemplateBridgeFile(parsed);
@@ -886,7 +911,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         console.error('localStorage에서 bridgeFile을 불러오는 중 오류 발생:', error);
       }
     }
-  }, []);
+  }, [trialMode]);
 
   // templateBridgeFile 변경 시 기존 Stage2/Stage3 결과 초기화
   useEffect(() => {
@@ -1570,7 +1595,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   }, [isProcessingTextImage]);
 
   const handleOpenCourierTemplateModal = () => {
-    const formats = loadRecentExcelFormats();
+    const formats = loadRecentExcelFormats(trialMode);
     setRecentExcelFormats(formats);
     setShowRecentTemplate(formats.length > 0);
 
@@ -1636,8 +1661,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(
-            'logistics_activeCourierBridgeFile',
-            JSON.stringify(templateResult.bridgeFile)
+            logisticsActiveBridgeFileKey(trialMode),
+            JSON.stringify(templateResult.bridgeFile),
           );
         } catch (error) {
           console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
@@ -1664,9 +1689,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         templateResult.bridgeFile,
         options?.formatDisplayName,
         options?.protectedFromDeletion,
+        trialMode,
       );
       setCourierUploadTemplate(template);
-      saveCourierUploadTemplate(template);
+      saveCourierUploadTemplate(template, trialMode);
 
       if (newFormatId) {
         setTempSelectedFormatId(newFormatId);
@@ -1679,14 +1705,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         }, 3500);
       }
     },
-    [],
+    [trialMode],
   );
 
   /** 체험판: 저장된 양식이 없을 때 public의 기본 xlsx로 자동 등록 (텍스트/주문 테스트만으로 미리보기 가능) */
   useEffect(() => {
     if (!trialMode) return;
 
-    const existing = loadCourierUploadTemplate();
+    const existing = loadCourierUploadTemplate(trialMode);
     if (isValidCourierTemplate(existing)) {
       return;
     }
@@ -1744,11 +1770,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   const saveFormatDisplayName = (formatId: string, displayName: string) => {
     try {
-      const formats = loadRecentExcelFormats();
+      const formats = loadRecentExcelFormats(trialMode);
       const updatedFormats = formats.map((format) =>
         format.id === formatId ? { ...format, displayName: displayName.trim() || undefined } : format,
       );
-      localStorage.setItem('logistics_convert_recent_excel_formats_v1', JSON.stringify(updatedFormats));
+      localStorage.setItem(logisticsRecentFormatsKey(trialMode), JSON.stringify(updatedFormats));
       setRecentExcelFormats(updatedFormats);
       setEditingFormatId(null);
       setEditingDisplayName('');
@@ -1799,7 +1825,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     };
 
     setCourierUploadTemplate(template);
-    saveCourierUploadTemplate(template);
+    saveCourierUploadTemplate(template, trialMode);
 
     // 템플릿 변경 시 메타 초기화
     setUploadedFileMeta([]);
@@ -1809,12 +1835,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       // setTemplateBridgeFile 실행 - 새 객체로 복사하여 전달 (React 객체 동일성 비교 문제 해결)
       setTemplateBridgeFile(JSON.parse(JSON.stringify(selected.bridgeFile)));
       
-      // localStorage(logistics_activeCourierBridgeFile)도 함께 갱신
+      // localStorage(활성 bridgeFile)도 함께 갱신
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(
-            'logistics_activeCourierBridgeFile',
-            JSON.stringify(selected.bridgeFile)
+            logisticsActiveBridgeFileKey(trialMode),
+            JSON.stringify(selected.bridgeFile),
           );
         } catch (error) {
           console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
@@ -1824,7 +1850,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   };
 
   const handleDeleteFormat = (formatId: string) => {
-    const formats = loadRecentExcelFormats();
+    const formats = loadRecentExcelFormats(trialMode);
     const formatToDelete = formats.find((format) => format.id === formatId);
     if (isTrialDefaultProtectedFormat(formatToDelete)) {
       alert('체험용으로 제공된 기본 양식은 삭제할 수 없습니다.');
@@ -1845,11 +1871,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             currentHeaders.every((header, index) => header === formatHeaders[index])) {
           // 현재 사용 중인 템플릿이면 초기화
           setCourierUploadTemplate(null);
-          saveCourierUploadTemplate(null);
+          saveCourierUploadTemplate(null, trialMode);
           // bridgeFile도 함께 삭제
           if (typeof window !== 'undefined') {
             try {
-              localStorage.removeItem('logistics_activeCourierBridgeFile');
+              localStorage.removeItem(logisticsActiveBridgeFileKey(trialMode));
               setTemplateBridgeFile(null);
             } catch (error) {
               console.error('localStorage에서 bridgeFile을 삭제하는 중 오류 발생:', error);
@@ -1859,7 +1885,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       }
       
       const updatedFormats = formats.filter((format) => format.id !== formatId);
-      localStorage.setItem('logistics_convert_recent_excel_formats_v1', JSON.stringify(updatedFormats));
+      localStorage.setItem(logisticsRecentFormatsKey(trialMode), JSON.stringify(updatedFormats));
       setRecentExcelFormats(updatedFormats);
 
       if (tempSelectedFormatId === formatId) {
