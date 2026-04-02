@@ -2915,7 +2915,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
               {/* 사용량 표시는 레이아웃 영향 없이 오른쪽 절대 위치 */}
               {trialMode ? (
-                <div className="absolute right-0 bg-gradient-to-r from-amber-500 to-amber-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[140px]">
+                <div className="absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md shadow-emerald-600/30 min-w-[140px]">
                   <div className="flex flex-col items-end gap-0.5">
                     <span className="text-[11px] font-medium opacity-90">체험 잔여 사용량</span>
                     <div className="flex items-center gap-1.5">
