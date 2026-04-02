@@ -9,6 +9,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /trial 체험판 (랜딩에서만 링크, 네비 비노출)
+  if (pathname.startsWith('/trial')) {
+    return NextResponse.next();
+  }
+
   // /order-convert 경로는 허용
   if (pathname.startsWith('/order-convert')) {
     return NextResponse.next();
