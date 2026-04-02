@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
@@ -480,6 +481,7 @@ const saveRecentExcelFormat = (
   template: CourierUploadTemplate,
   setRecentExcelFormats: (formats: RecentExcelFormat[]) => void,
   bridgeFile?: TemplateBridgeFile,
+  displayName?: string,
 ) => {
   try {
     const formats = loadRecentExcelFormats();
@@ -490,6 +492,7 @@ const saveRecentExcelFormat = (
       createdAt: new Date().toISOString(),
       columnOrder,
       bridgeFile,
+      ...(displayName?.trim() ? { displayName: displayName.trim() } : {}),
     };
 
     const updatedFormats = [newFormat, ...formats];
@@ -501,6 +504,37 @@ const saveRecentExcelFormat = (
     return null;
   }
 };
+
+/** 체험판: 비로그인 사용자용 로컬 사용량 (sessionStorage, 탭 단위) */
+const TRIAL_INITIAL_POINTS = 2000;
+const TRIAL_POINTS_STORAGE_KEY = 'logistics_trial_points_v1';
+
+function readTrialPointsFromStorage(): number {
+  if (typeof window === 'undefined') return TRIAL_INITIAL_POINTS;
+  try {
+    const raw = sessionStorage.getItem(TRIAL_POINTS_STORAGE_KEY);
+    if (raw === null) {
+      sessionStorage.setItem(TRIAL_POINTS_STORAGE_KEY, String(TRIAL_INITIAL_POINTS));
+      return TRIAL_INITIAL_POINTS;
+    }
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 0) {
+      sessionStorage.setItem(TRIAL_POINTS_STORAGE_KEY, String(TRIAL_INITIAL_POINTS));
+      return TRIAL_INITIAL_POINTS;
+    }
+    return n;
+  } catch {
+    return TRIAL_INITIAL_POINTS;
+  }
+}
+
+function writeTrialPointsToStorage(value: number): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(TRIAL_POINTS_STORAGE_KEY, String(Math.max(0, value)));
+}
+
+/** public 폴더의 체험용 기본 물류 업로드 양식 (등록 없이 미리보기 가능하도록) */
+const TRIAL_DEFAULT_TEMPLATE_PUBLIC_PATH = '/trial-default-upload-template.xlsx';
 
 export function LogisticsConvertClient({ trialMode = false }: { trialMode?: boolean }) {
   const router = useRouter();
@@ -585,15 +619,26 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     'idle' | 'processing' | 'completed'
   >('idle');
 
-  // 사용자 정보 가져오기 (컴포넌트 마운트 시)
+  /** 체험판 잔여 사용량 (클라이언트 마운트 후 sessionStorage와 동기화) */
+  const [trialPoints, setTrialPoints] = useState<number | null>(null);
+
   useEffect(() => {
+    if (!trialMode) return;
+    setTrialPoints(readTrialPointsFromStorage());
+  }, [trialMode]);
+
+  // 사용자 정보 가져오기 (컴포넌트 마운트 시). 체험판은 비로그인 전제라 호출 시 401이 콘솔에 찍히므로 생략
+  useEffect(() => {
+    if (trialMode) return;
     fetchUser();
-  }, [fetchUser]);
+  }, [fetchUser, trialMode]);
   const [screenshotImagePreview, setScreenshotImagePreview] = useState<string | null>(null);
   const [showTextProcessingModal, setShowTextProcessingModal] = useState(false);
   const [textProcessingSource, setTextProcessingSource] = useState<'screenshot' | 'imageFile'>('screenshot');
   const [downloadModalFileName, setDownloadModalFileName] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "processing" | "done">("idle");
+  /** 체험판: 다운로드 클릭 시 상세 안내 모달 */
+  const [showTrialDownloadModal, setShowTrialDownloadModal] = useState(false);
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -846,6 +891,17 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   // 물류 상품코드 매핑 목록·선택 복원 (3PL과 동일 패턴)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // 체험판: 비로그인(guest)과 동일 키를 쓰면 과거 테스트 매핑 잔재가 그대로 보이므로 LS를 읽지 않음
+    if (trialMode) {
+      setRecentMappingFormats([]);
+      setTempSelectedMappingId('');
+      setProductCodeMap({});
+      setProductCodeFileName(null);
+      setIsLogisticsMappingStorageHydrated(true);
+      return;
+    }
+
     try {
       const mappingKey = getLogisticsScopedKey(LOGISTICS_MAPPING_STORAGE_KEY, userId);
       const mappingSelectedKey = getLogisticsScopedKey(LOGISTICS_MAPPING_SELECTED_KEY, userId);
@@ -876,11 +932,13 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     } finally {
       setIsLogisticsMappingStorageHydrated(true);
     }
-  }, [userId]);
+  }, [userId, trialMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!isLogisticsMappingStorageHydrated) return;
+    // 체험판: guest 키에 매핑을 쓰지 않음 (잔재 유출·오염 방지, 세션에서만 사용)
+    if (trialMode) return;
     try {
       const mappingKey = getLogisticsScopedKey(LOGISTICS_MAPPING_STORAGE_KEY, userId);
       const mappingSelectedKey = getLogisticsScopedKey(LOGISTICS_MAPPING_SELECTED_KEY, userId);
@@ -890,7 +948,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     } catch (err) {
       // 저장 실패는 사용자가 이후 매핑을 다시 저장하면 되므로 “잔재 정리” 관점에서 조용히 무시
     }
-  }, [recentMappingFormats, tempSelectedMappingId, userId, isLogisticsMappingStorageHydrated]);
+  }, [recentMappingFormats, tempSelectedMappingId, userId, isLogisticsMappingStorageHydrated, trialMode]);
 
   /**
    * 상품코드 칸 기준: 매핑으로 코드 치환 ↔ 변환 직전 상품명 복원(토글)
@@ -1539,28 +1597,27 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }
   };
 
-  const handleTemplateFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      e.target.value = '';
-      return;
-    }
+  const applyTemplateFromFile = useCallback(
+    async (
+      file: File,
+      options?: {
+        /** 체험 기본 양식 자동 로드 등 토스트 생략 */
+        silent?: boolean;
+        formatDisplayName?: string;
+      },
+    ) => {
+      const newTemplateSessionId = crypto.randomUUID();
+      setTemplateFileSessionId(newTemplateSessionId);
 
-    const newTemplateSessionId = crypto.randomUUID();
-    setTemplateFileSessionId(newTemplateSessionId);
+      setCurrentFilePreviewData([]);
+      setOrderStandardFile(null);
+      setTemplateBridgeFile(null);
+      setUploadedFileMeta([]);
 
-    // 파일 선택 직후, Stage1 실행 전에 상태 초기화
-    setCurrentFilePreviewData([]);
-    setOrderStandardFile(null);
-    setTemplateBridgeFile(null);
-    setUploadedFileMeta([]);
-
-    try {
       const templateResult = await runTemplatePipeline(file, undefined, newTemplateSessionId);
       setOrderStandardFile(null);
       setTemplateBridgeFile(templateResult.bridgeFile);
 
-      // Stage1 성공 시 bridgeFile을 localStorage에 저장
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(
@@ -1572,15 +1629,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         }
       }
 
-      // templateResult.bridgeFile 기반으로 CourierUploadTemplate 생성
-      // bridgeFile.courierHeaders를 CourierUploadHeader[]로 변환
       const headers: CourierUploadHeader[] = templateResult.bridgeFile.courierHeaders.map((headerName, index) => ({
         name: headerName,
         index,
         isEmpty: !headerName || headerName.trim() === '',
       }));
 
-      // 보내는사람 컬럼이 있는지 확인하여 requiresSender 설정
       const hasSenderColumns = headers.some((header) => !header.isEmpty && isSenderColumn(header.name));
 
       const template: CourierUploadTemplate = {
@@ -1589,8 +1643,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         requiresSender: hasSenderColumns,
       };
 
-      // 파일 업로드 처리 후 바로 저장
-      const newFormatId = saveRecentExcelFormat(template, setRecentExcelFormats, templateResult.bridgeFile);
+      const newFormatId = saveRecentExcelFormat(
+        template,
+        setRecentExcelFormats,
+        templateResult.bridgeFile,
+        options?.formatDisplayName,
+      );
       setCourierUploadTemplate(template);
       saveCourierUploadTemplate(template);
 
@@ -1598,10 +1656,67 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         setTempSelectedFormatId(newFormatId);
       }
 
-      setRegistrationSuccessMessage('등록이 완료되었습니다');
-      setTimeout(() => {
-        setRegistrationSuccessMessage(null);
-      }, 3500);
+      if (!options?.silent) {
+        setRegistrationSuccessMessage('등록이 완료되었습니다');
+        setTimeout(() => {
+          setRegistrationSuccessMessage(null);
+        }, 3500);
+      }
+    },
+    [],
+  );
+
+  /** 체험판: 저장된 양식이 없을 때 public의 기본 xlsx로 자동 등록 (텍스트/주문 테스트만으로 미리보기 가능) */
+  useEffect(() => {
+    if (!trialMode) return;
+
+    const existing = loadCourierUploadTemplate();
+    if (isValidCourierTemplate(existing)) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(TRIAL_DEFAULT_TEMPLATE_PUBLIC_PATH);
+        if (!res.ok) {
+          console.error('[체험 기본 양식] 파일을 불러오지 못했습니다.', res.status);
+          return;
+        }
+        const blob = await res.blob();
+        const file = new File(
+          [blob],
+          '체험판업로드양식1.xlsx',
+          {
+            type:
+              blob.type ||
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          },
+        );
+        if (cancelled) return;
+        await applyTemplateFromFile(file, {
+          silent: true,
+          formatDisplayName: '체험 기본 양식 (예시)',
+        });
+      } catch (err) {
+        console.error('[체험 기본 양식] 자동 적용 실패:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trialMode, applyTemplateFromFile]);
+
+  const handleTemplateFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      await applyTemplateFromFile(file);
     } catch (error) {
       console.error('엑셀 파일 파싱 오류:', error);
       alert('엑셀 파일을 읽는 중 오류가 발생했습니다.');
@@ -2020,6 +2135,21 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   
   // 사용량 차감 헬퍼 함수
   const usePoints = async (amount: number, type: 'text' | 'download'): Promise<boolean> => {
+    if (trialMode) {
+      if (type === 'download') return false;
+      const current = readTrialPointsFromStorage();
+      if (current < amount) {
+        alert(
+          '체험용 사용량이 부족합니다.\n텍스트는 글자 수만큼 차감됩니다. 회원가입 후 정식 서비스를 이용해 주세요.',
+        );
+        return false;
+      }
+      const next = current - amount;
+      writeTrialPointsToStorage(next);
+      setTrialPoints(next);
+      return true;
+    }
+
     // 현재 사용자 정보 가져오기 (최신 상태)
     let currentUser = useUserStore.getState().user;
     
@@ -2106,15 +2236,25 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
     const textLength = trimmed.length;
 
-    if (!user) {
-      alert('로그인이 필요합니다.');
-      router.push('/auth/login');
-      return;
-    }
+    if (trialMode) {
+      const tp = trialPoints ?? readTrialPointsFromStorage();
+      if (tp < textLength) {
+        setErrorMessageTextImage(
+          '체험용 사용량이 부족합니다. (텍스트는 글자 수만큼 차감됩니다) 짧게 입력하거나 회원가입 후 이용해 주세요.',
+        );
+        return;
+      }
+    } else {
+      if (!user) {
+        alert('로그인이 필요합니다.');
+        router.push('/auth/login');
+        return;
+      }
 
-    if (user.points < textLength) {
-      setErrorMessageTextImage('사용량이 부족합니다');
-      return;
+      if (user.points < textLength) {
+        setErrorMessageTextImage('사용량이 부족합니다');
+        return;
+      }
     }
 
     textConvertInFlightRef.current = true;
@@ -2394,6 +2534,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   };
 
   const handleDownloadPreview = async () => {
+    // 체험판: 양식·데이터 여부와 관계없이 상세 안내 모달 (다른 검증 알림이 뜨지 않도록)
+    if (trialMode) {
+      setShowTrialDownloadModal(true);
+      return;
+    }
+
     if (!courierHeaders || courierHeaders.length === 0) {
       alert("물류센터 양식을 먼저 등록해주세요.");
       return;
@@ -2401,13 +2547,6 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
     if (!sortedRows || sortedRows.length === 0) {
       alert("다운로드할 주문 데이터가 없습니다.");
-      return;
-    }
-
-    if (trialMode) {
-      alert(
-        '체험판에서는 파일을 다운로드할 수 없습니다.\n회원가입 후 정식 서비스에서 다운로드할 수 있습니다.',
-      );
       return;
     }
 
@@ -2617,6 +2756,66 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         </div>
       )}
 
+      {/* 체험판: 다운로드 안내 (회원가입·요금제·미리보기와 동일 결과) */}
+      {showTrialDownloadModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowTrialDownloadModal(false)}
+          role="presentation"
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-lg w-full p-6 border border-zinc-200 dark:border-zinc-700"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="trial-download-modal-title"
+          >
+            <h2
+              id="trial-download-modal-title"
+              className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3"
+            >
+              다운로드 안내
+            </h2>
+            <div className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+              <p>
+                체험 모드에서는 <strong>엑셀 파일 다운로드</strong>를 제공하지 않습니다. 다운로드는{' '}
+                <strong>회원가입 후</strong> 정식 물류 주문 변환 화면에서 이용하실 수 있습니다.
+              </p>
+              <p>
+                가입하시면 <strong>무료·프로·연간</strong> 등 요금제 중에서 선택해 사용할 수 있습니다. 자세한
+                비교는 가격 페이지에서 확인하실 수 있습니다.
+              </p>
+              <p>
+                정식 서비스에서 내려받는 파일은 <strong>미리보기에 보이는 주문 데이터와 동일한 내용</strong>이
+                엑셀 형태로 저장됩니다. 충분히 테스트해 보신 뒤 가입하시는 것을 권장드립니다.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-col sm:flex-row gap-2 sm:justify-end">
+              <button
+                type="button"
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                onClick={() => setShowTrialDownloadModal(false)}
+              >
+                닫기
+              </button>
+              <Link
+                href="/pricing"
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-center text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                onClick={() => setShowTrialDownloadModal(false)}
+              >
+                요금제 보기
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white text-center font-medium hover:bg-emerald-700"
+                onClick={() => setShowTrialDownloadModal(false)}
+              >
+                회원가입
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="pt-3 pb-4 bg-zinc-50 dark:bg-black">
       <main className="max-w-[1200px] mx-auto px-8">
         {/* Hero 섹션 - 세로 흐름 구조 (물류 주문 변환 UI 껍데기) */}
@@ -2626,7 +2825,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               <div className="rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 dark:text-amber-100 dark:bg-amber-950/40 dark:border-amber-600">
                 <p className="font-semibold">체험판</p>
                 <p className="mt-1 text-amber-900/90 dark:text-amber-200/90">
-                  물류 주문 변환 화면과 동일하게 동작합니다. 엑셀 파일 다운로드는 회원가입 후 이용할 수 있습니다.
+                  비로그인으로{' '}
+                  <strong>{TRIAL_INITIAL_POINTS.toLocaleString()} 사용량</strong>이 제공됩니다. 텍스트 변환은
+                  입력 글자 수만큼 차감됩니다. 저장된 물류 양식이 없으면 예시 업로드 양식이 자동 적용됩니다. 직접
+                  양식을 올리면 그걸로 바뀝니다. 엑셀 다운로드는 회원가입 후 이용할 수 있습니다.
                 </p>
               </div>
             )}
@@ -2642,9 +2844,17 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
               {/* 사용량 표시는 레이아웃 영향 없이 오른쪽 절대 위치 */}
               {trialMode ? (
-                <div className="absolute right-0 bg-gradient-to-r from-amber-500 to-amber-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[120px]">
-                  <div className="flex items-center gap-2 justify-center">
-                    <span className="font-medium text-sm">체험 모드</span>
+                <div className="absolute right-0 bg-gradient-to-r from-amber-500 to-amber-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[140px]">
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="text-[11px] font-medium opacity-90">체험 잔여 사용량</span>
+                    <div className="flex items-center gap-1.5">
+                      <Coins className="w-4 h-4 shrink-0" />
+                      <span className="text-lg font-bold tabular-nums">
+                        {trialPoints === null
+                          ? '…'
+                          : `${trialPoints.toLocaleString()} / ${TRIAL_INITIAL_POINTS.toLocaleString()}`}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -3157,23 +3367,13 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <ArrowDown className="w-5 h-5 text-gray-500" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 text-center">
-                  {trialMode ? '다운로드 (체험판에서 이용 불가)' : '물류센터 업로드 파일 다운로드'}
+                  물류센터 업로드 파일 다운로드
                 </h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 text-center">
-                {trialMode ? (
-                  <>
-                    회원가입 후 정식 서비스에서
-                    <br />
-                    파일을 내려받을 수 있습니다.
-                  </>
-                ) : (
-                  <>
-                    변환이 완료된 주문 데이터를
-                    <br />
-                    물류센터 업로드용 파일로 내려받는 단계입니다.
-                  </>
-                )}
+                변환이 완료된 주문 데이터를
+                <br />
+                물류센터 업로드용 파일로 내려받는 단계입니다.
               </p>
             </button>
           </div>
