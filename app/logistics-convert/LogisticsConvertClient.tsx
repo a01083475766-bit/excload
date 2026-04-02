@@ -2334,7 +2334,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           setQualityNoticeModal('heuristic');
         }
       } else {
-        setErrorMessageTextImage('텍스트 물류 주문 변환에 실패했습니다. 다시 시도해주세요.');
+        setErrorMessageTextImage(
+          trialMode
+            ? '텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.'
+            : '텍스트 물류 주문 변환에 실패했습니다. 다시 시도해주세요.',
+        );
       }
     } catch (error) {
       console.error('[LogisticsConvertPage] 텍스트 물류 주문 변환 중 오류:', error);
@@ -2825,7 +2829,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <div className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
               <p>
                 체험 모드에서는 <strong>엑셀 파일 다운로드</strong>를 제공하지 않습니다. 다운로드는{' '}
-                <strong>회원가입 후</strong> 정식 물류 주문 변환 화면에서 이용하실 수 있습니다.
+                <strong>회원가입 후</strong> 정식 서비스의 주문 변환 화면에서 이용하실 수 있습니다.
               </p>
               <p>
                 가입하시면 <strong>무료·프로·연간</strong> 등 요금제 중에서 선택해 사용할 수 있습니다. 자세한
@@ -2865,7 +2869,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       <div className="pt-3 pb-4 bg-zinc-50 dark:bg-black">
       <main className="max-w-[1200px] mx-auto px-8">
-        {/* Hero 섹션 - 세로 흐름 구조 (물류 주문 변환 UI 껍데기) */}
+        {/* Hero 섹션 - 세로 흐름 구조 */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
             {trialMode && (
@@ -2874,7 +2878,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 <p className="mt-1 text-amber-900/90 dark:text-amber-200/90">
                   비로그인으로{' '}
                   <strong>{TRIAL_INITIAL_POINTS.toLocaleString()} 사용량</strong>이 제공됩니다. 텍스트 변환은
-                  입력 글자 수만큼 차감됩니다. 저장된 물류 양식이 없으면 예시 업로드 양식이 자동 적용됩니다. 직접
+                  입력 글자 수만큼 차감됩니다. 저장된 업로드 양식이 없으면 예시 엑셀 양식이 자동 적용됩니다. 직접
                   양식을 올리면 그걸로 바뀝니다. 엑셀 다운로드는 회원가입 후 이용할 수 있습니다.
                 </p>
               </div>
@@ -2884,7 +2888,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <div className="flex flex-col gap-2 text-center min-h-[32px]">
                 <p className="text-sm text-gray-500 leading-tight">
                   {trialMode
-                    ? '체험판 · 엑셀·텍스트·이미지 주문을 물류 업로드 형태로 미리 확인해 보세요.'
+                    ? '체험판 · 엑셀·텍스트·이미지로 넣은 주문을 업로드용 열 구성으로 미리 맞춰 볼 수 있습니다.'
                     : '엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.'}
                 </p>
               </div>
@@ -2989,7 +2993,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     className="w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
                     onClick={() => setShowScreenshotModal(true)}
                   >
-                    캡처화면 물류 주문 변환 (스크린샷 물류 주문 변환)
+                    {trialMode
+                      ? '캡처·스크린샷으로 주문 변환'
+                      : '캡처화면 물류 주문 변환 (스크린샷 물류 주문 변환)'}
                   </button>
                 </div>
 
@@ -2997,17 +3003,24 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 <div className="w-full lg:w-1/2 border-l-0 lg:border-l border-gray-200 pl-0 lg:pl-5 flex flex-col">
                   <h3 className="text-base font-semibold text-gray-900 mb-2.5">텍스트 주문입력</h3>
                   <p className="text-xs text-gray-600 mb-2.5 leading-relaxed">
-                    카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣으면 물류 주문 변환할 수 있습니다
+                    {trialMode
+                      ? '카카오톡·문자·주문페이지 등에서 받은 내용을 붙여넣으면 주문 형태로 변환할 수 있습니다'
+                      : '카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣으면 물류 주문 변환할 수 있습니다'}
                   </p>
                   <div className="space-y-2.5">
                     <textarea
                       ref={textInputRef}
                       className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                       placeholder={
-                        '예) 홍길동 010-1234-5766   무선마우스 2개  상품코드:A-2246\n' +
-                        '서울시 강남구 테헤란로 123  문앞에 놓아주세요\n' +
-                        '\n' +
-                        '※ 상품코드·출고요청일 등 물류 항목은 [ 항목명 : 값 ] 형태가  아닌경우에는 반영되지 않습니다. 좋은예) 상품코드:B-1234     나쁜예)   B-1234'
+                        trialMode
+                          ? '예) 홍길동 010-1234-5766   무선마우스 2개  상품코드:A-2246\n' +
+                            '서울시 강남구 테헤란로 123  문앞에 놓아주세요\n' +
+                            '\n' +
+                            '※ 상품코드·출고요청일 등 항목은 [ 항목명 : 값 ] 형태가 아닌 경우 반영되지 않습니다. 좋은예) 상품코드:B-1234     나쁜예)   B-1234'
+                          : '예) 홍길동 010-1234-5766   무선마우스 2개  상품코드:A-2246\n' +
+                            '서울시 강남구 테헤란로 123  문앞에 놓아주세요\n' +
+                            '\n' +
+                            '※ 상품코드·출고요청일 등 물류 항목은 [ 항목명 : 값 ] 형태가  아닌경우에는 반영되지 않습니다. 좋은예) 상품코드:B-1234     나쁜예)   B-1234'
                       }
                       value={textInput}
                       onChange={(e) => {
@@ -3043,6 +3056,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span>변환 중{textProcessingDots}</span>
                         </>
+                      ) : trialMode ? (
+                        '텍스트로 주문 변환'
                       ) : (
                         '텍스트 물류 주문 변환'
                       )}
@@ -3114,7 +3129,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     </p>
 
                     <p className="mb-2">
-                      업로드한 파일의 항목 이름이 일반적인 물류센터 양식과 달라 일부 데이터가 자동으로 분류되지 않았습니다.
+                      {trialMode
+                        ? '업로드한 파일의 항목 이름이 일반적인 주문 엑셀 양식과 달라 일부 데이터가 자동으로 분류되지 않았습니다.'
+                        : '업로드한 파일의 항목 이름이 일반적인 물류센터 양식과 달라 일부 데이터가 자동으로 분류되지 않았습니다.'}
                     </p>
 
                     <div className="mb-2 text-emerald-600 font-semibold text-base">
@@ -3152,7 +3169,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       ⚠ 상품코드 매핑: {productCodeMappingNotice.failCount}건이 매핑되지 않았습니다.
                     </p>
                     <p className="mb-2 leading-relaxed">
-                      「<strong>코드매핑 설정</strong>」 적용 후, 물류 템플릿의{' '}
+                      「<strong>코드매핑 설정</strong>」 적용 후,{' '}
+                      {trialMode ? '등록한 업로드 양식의' : '물류 템플릿의'}{' '}
                       <span className="font-semibold text-rose-800">
                         「{productCodeMappingNotice.targetHeader}」
                       </span>{' '}
@@ -3176,7 +3194,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 }`}>
                   <div className="px-3 py-2 border-b bg-gray-50 flex-shrink-0 flex items-center gap-2">
                     <p className="text-xs text-gray-600">
-                      헤더 체크박스를 선택하면 원하는 값을 설정할 수 있습니다. 미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.
+                      {trialMode
+                        ? '헤더 체크박스를 선택하면 원하는 값을 설정할 수 있습니다. 체험판에서는 미리보기로만 확인할 수 있습니다.'
+                        : '헤더 체크박스를 선택하면 원하는 값을 설정할 수 있습니다. 미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.'}
                     </p>
                   </div>
                   <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar preview-scrollbar-emerald`}>
@@ -3356,7 +3376,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         {/* 기능 설명 섹션 레이아웃 */}
         <section className="relative pt-4 pb-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
-            {/* 카드 1: 물류센터 업로드 양식 */}
+            {/* 카드 1: 업로드 엑셀 양식 */}
             <button
               type="button"
               onClick={handleOpenCourierTemplateModal}
@@ -3367,13 +3387,23 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <Truck className="w-5 h-5 text-gray-500" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 text-center">
-                  물류센터 업로드 양식 등록
+                  {trialMode ? '업로드 엑셀 양식 등록' : '물류센터 업로드 양식 등록'}
                 </h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 text-center">
-                실제 물류센터 업로드에 사용하는 엑셀 양식을 등록해주세요.
-                <br />
-                등록하신 양식 그대로 자동 설정됩니다.
+                {trialMode ? (
+                  <>
+                    실제 사용 중인 주문 업로드 엑셀 양식이 있으면 등록해 주세요.
+                    <br />
+                    등록하신 열 구성 그대로 맞춰 집니다.
+                  </>
+                ) : (
+                  <>
+                    실제 물류센터 업로드에 사용하는 엑셀 양식을 등록해주세요.
+                    <br />
+                    등록하신 양식 그대로 자동 설정됩니다.
+                  </>
+                )}
               </p>
             </button>
 
@@ -3398,29 +3428,35 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               </p>
             </button>
 
-            {/* 카드 3: 파일 다운로드 */}
+            {/* 카드 3: 파일 다운로드 (체험판도 카드 1·2와 동일 톤 — 강조색으로 ‘만 사용 가능’ 오해 방지) */}
             <button
               type="button"
               onClick={handleDownloadPreview}
               disabled={downloadStatus === "processing"}
-              className={`h-[120px] border rounded-xl p-5 flex flex-col justify-center transition-colors ${
-                trialMode
-                  ? 'bg-amber-50/80 border-amber-300 hover:bg-amber-100/90'
-                  : 'bg-gray-200 border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
-              }`}
+              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
                   <ArrowDown className="w-5 h-5 text-gray-500" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 text-center">
-                  물류센터 업로드 파일 다운로드
+                  {trialMode ? '엑셀 파일 다운로드' : '물류센터 업로드 파일 다운로드'}
                 </h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 text-center">
-                변환이 완료된 주문 데이터를
-                <br />
-                물류센터 업로드용 파일로 내려받는 단계입니다.
+                {trialMode ? (
+                  <>
+                    변환된 주문 데이터를 엑셀로 받는 단계입니다.
+                    <br />
+                    체험판에서는 클릭 시 안내만 표시됩니다.
+                  </>
+                ) : (
+                  <>
+                    변환이 완료된 주문 데이터를
+                    <br />
+                    물류센터 업로드용 파일로 내려받는 단계입니다.
+                  </>
+                )}
               </p>
             </button>
           </div>
@@ -3896,14 +3932,28 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <div className="space-y-2 mb-6 overflow-y-auto flex-1 min-h-0">
               <div className="w-full px-4 py-4 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800">
                 <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-2">
-                  이미 사용 중인 물류센터 업로드 파일이 있으신가요?
+                  {trialMode
+                    ? '이미 쓰고 계신 주문 업로드 엑셀이 있으신가요?'
+                    : '이미 사용 중인 물류센터 업로드 파일이 있으신가요?'}
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-                  지금 물류센터에 올리고 있는
-                  <br />
-                  업로드 엑셀을 한 번만 등록하면,
-                  <br />
-                  그 양식 그대로 자동 설정됩니다.
+                  {trialMode ? (
+                    <>
+                      실제 업로드에 쓰는
+                      <br />
+                      엑셀을 한 번만 등록하면,
+                      <br />
+                      그 열 구성 그대로 맞춰 집니다.
+                    </>
+                  ) : (
+                    <>
+                      지금 물류센터에 올리고 있는
+                      <br />
+                      업로드 엑셀을 한 번만 등록하면,
+                      <br />
+                      그 양식 그대로 자동 설정됩니다.
+                    </>
+                  )}
                 </p>
                 <input
                   ref={courierFileInputRef}
@@ -4152,7 +4202,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   꼭 입력이 필요한곳은 위치 확인이 가능하도록 표시된 상태로 저장한 뒤 다시 업로드해 주세요.
                   <br />
                   <br />
-                  💡 최근에 실제 주문이 들어온 물류센터 업로드 엑셀 파일이 있다면 그 파일을 그대로 올려주셔도 됩니다. 양식 등록 용도이며 고객 정보는 저장·사용되지 않습니다
+                  {trialMode
+                    ? '💡 최근에 쓰시던 주문 업로드 엑셀이 있으면 그대로 올려 주셔도 됩니다. 양식 등록 용도이며 고객 정보는 저장·사용되지 않습니다'
+                    : '💡 최근에 실제 주문이 들어온 물류센터 업로드 엑셀 파일이 있다면 그 파일을 그대로 올려주셔도 됩니다. 양식 등록 용도이며 고객 정보는 저장·사용되지 않습니다'}
                 </p>
               </div>
 
@@ -4186,7 +4238,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         </div>
       )}
 
-      {/* 물류센터 업로드 양식 없음 안내 모달 */}
+      {/* 업로드 양식 없음 안내 모달 */}
       {isNoTemplateModalOpen && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -4199,7 +4251,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             {/* 모달 헤더 */}
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                물류센터 업로드 양식 등록 필요
+                {trialMode ? '업로드 엑셀 양식 등록 필요' : '물류센터 업로드 양식 등록 필요'}
               </h2>
               <button
                 onClick={handleCloseNoTemplateModal}
@@ -4212,9 +4264,13 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             {/* 모달 내용 */}
             <div className="flex-1 overflow-y-auto mb-6">
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed mb-4">
-                {noTemplateModalType === 'fixed-input' 
-                  ? '물류센터 업로드 양식을 먼저 등록해야 고정 입력 설정이 가능합니다.'
-                  : '물류센터 업로드 양식을 먼저 등록해야 물류 주문 변환이 가능합니다.'}
+                {noTemplateModalType === 'fixed-input'
+                  ? trialMode
+                    ? '업로드 엑셀 양식을 먼저 등록해야 고정 입력 설정이 가능합니다.'
+                    : '물류센터 업로드 양식을 먼저 등록해야 고정 입력 설정이 가능합니다.'
+                  : trialMode
+                    ? '업로드 엑셀 양식을 먼저 등록해야 주문 변환이 가능합니다.'
+                    : '물류센터 업로드 양식을 먼저 등록해야 물류 주문 변환이 가능합니다.'}
               </p>
             </div>
 
@@ -4230,7 +4286,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 onClick={handleOpenCourierTemplateFromNoTemplateModal}
                 className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-sm text-white font-medium"
               >
-                물류센터 업로드 양식 등록하기
+                {trialMode ? '업로드 엑셀 양식 등록하기' : '물류센터 업로드 양식 등록하기'}
               </button>
             </div>
           </div>
@@ -4535,7 +4591,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">스크린샷 물류 주문 변환</h3>
+              <h3 className="text-xl font-semibold text-gray-900">
+                {trialMode ? '스크린샷으로 주문 변환' : '스크린샷 물류 주문 변환'}
+              </h3>
               <button
                 onClick={handleScreenshotModalClose}
                 className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
@@ -4615,7 +4673,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         주문정보를 처리하기 위해 텍스트로 변환하고 있습니다
                       </p>
                       <p className="text-xs text-gray-600">
-                        텍스트 완성이 되면 오른쪽 <span className="font-semibold text-emerald-600">텍스트 물류 주문 변환</span> 버튼을 눌러주세요
+                        텍스트 완성이 되면 오른쪽{' '}
+                        <span className="font-semibold text-emerald-600">
+                          {trialMode ? '텍스트로 주문 변환' : '텍스트 물류 주문 변환'}
+                        </span>{' '}
+                        버튼을 눌러주세요
                       </p>
                     </div>
                   ) : null}
