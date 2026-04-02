@@ -83,6 +83,17 @@ interface RecentExcelFormat {
   columnOrder: string[];
   displayName?: string;
   bridgeFile?: TemplateBridgeFile;
+  /** 체험판 기본 제공 양식 등 삭제 불가 */
+  protectedFromDeletion?: boolean;
+}
+
+/** 서비스가 넣은 체험 기본 양식(삭제·이름 변경 시 식별용) */
+const TRIAL_DEFAULT_FORMAT_DISPLAY_NAME = '체험 기본 양식 (예시)';
+
+function isTrialDefaultProtectedFormat(f: RecentExcelFormat | undefined): boolean {
+  if (!f) return false;
+  if (f.protectedFromDeletion) return true;
+  return f.displayName === TRIAL_DEFAULT_FORMAT_DISPLAY_NAME;
 }
 
 /** 물류 상품코드 매핑 파일(3PL과 동일 구조) */
@@ -482,6 +493,7 @@ const saveRecentExcelFormat = (
   setRecentExcelFormats: (formats: RecentExcelFormat[]) => void,
   bridgeFile?: TemplateBridgeFile,
   displayName?: string,
+  protectedFromDeletion?: boolean,
 ) => {
   try {
     const formats = loadRecentExcelFormats();
@@ -493,6 +505,7 @@ const saveRecentExcelFormat = (
       columnOrder,
       bridgeFile,
       ...(displayName?.trim() ? { displayName: displayName.trim() } : {}),
+      ...(protectedFromDeletion ? { protectedFromDeletion: true } : {}),
     };
 
     const updatedFormats = [newFormat, ...formats];
@@ -1604,6 +1617,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         /** 체험 기본 양식 자동 로드 등 토스트 생략 */
         silent?: boolean;
         formatDisplayName?: string;
+        /** 체험 기본 양식 등 — 목록에서 삭제 불가 */
+        protectedFromDeletion?: boolean;
       },
     ) => {
       const newTemplateSessionId = crypto.randomUUID();
@@ -1648,6 +1663,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         setRecentExcelFormats,
         templateResult.bridgeFile,
         options?.formatDisplayName,
+        options?.protectedFromDeletion,
       );
       setCourierUploadTemplate(template);
       saveCourierUploadTemplate(template);
@@ -1696,7 +1712,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         if (cancelled) return;
         await applyTemplateFromFile(file, {
           silent: true,
-          formatDisplayName: '체험 기본 양식 (예시)',
+          formatDisplayName: TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
+          protectedFromDeletion: true,
         });
       } catch (err) {
         console.error('[체험 기본 양식] 자동 적용 실패:', err);
@@ -1807,10 +1824,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   };
 
   const handleDeleteFormat = (formatId: string) => {
+    const formats = loadRecentExcelFormats();
+    const formatToDelete = formats.find((format) => format.id === formatId);
+    if (isTrialDefaultProtectedFormat(formatToDelete)) {
+      alert('체험용으로 제공된 기본 양식은 삭제할 수 없습니다.');
+      return;
+    }
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
-      const formats = loadRecentExcelFormats();
-      const formatToDelete = formats.find((format) => format.id === formatId);
       
       // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
       if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
@@ -3974,19 +3995,38 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                           e.stopPropagation();
                                           handleStartEditName(format);
                                         }}
-                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        disabled={isTrialDefaultProtectedFormat(format)}
+                                        title={
+                                          isTrialDefaultProtectedFormat(format)
+                                            ? '체험 기본 양식 이름은 변경할 수 없습니다'
+                                            : undefined
+                                        }
+                                        className={`px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
+                                          isTrialDefaultProtectedFormat(format)
+                                            ? 'text-zinc-400 cursor-not-allowed opacity-60'
+                                            : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                                        }`}
                                       >
                                         이름 변경하기
                                       </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteFormat(format.id);
-                                        }}
-                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                                      >
-                                        삭제
-                                      </button>
+                                      {isTrialDefaultProtectedFormat(format) ? (
+                                        <span
+                                          className="px-2 py-1 text-xs text-zinc-400 cursor-default"
+                                          title="체험 기본 양식은 삭제할 수 없습니다"
+                                        >
+                                          삭제 불가
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteFormat(format.id);
+                                          }}
+                                          className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        >
+                                          삭제
+                                        </button>
+                                      )}
                                     </>
                                   )}
                                   <span className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</span>

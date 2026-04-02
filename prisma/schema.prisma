@@ -162,3 +162,12 @@ model PopupCampaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+/// 체험판(/trial) IP별 접속 횟수 (해시만 저장)
+model TrialIpAccess {
+  id        String   @id @default(cuid())
+  ipHash    String   @unique
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
