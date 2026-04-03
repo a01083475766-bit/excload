@@ -40,8 +40,9 @@ export default function HomePage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col items-center text-center gap-2.5 sm:gap-3">
               <h1
-                className="mx-auto w-full max-w-[min(100%,72rem)] px-2 text-center font-bold leading-snug tracking-tight text-zinc-950 dark:text-zinc-100 break-keep [word-break:keep-all] text-balance
-                text-[clamp(0.8125rem,0.5rem+1.35vw,1.125rem)] sm:text-[clamp(0.875rem,0.45rem+1.5vw,1.1875rem)] md:whitespace-nowrap md:text-[clamp(0.9rem,0.35rem+1.1vw,1.1875rem)] lg:text-[clamp(0.95rem,0.3rem+0.95vw,1.25rem)]"
+                className="mx-auto w-full max-w-[min(100%,90rem)] px-2 text-center font-bold leading-tight text-zinc-950 dark:text-zinc-100
+                text-[clamp(1.5rem,5vw,2.25rem)] tracking-tighter
+                lg:whitespace-nowrap [word-break:keep-all]"
               >
                 반복적인 주문정리 엑셀정리 힘드셨죠? 이제 복사해서 붙이면 준비 끝
               </h1>
