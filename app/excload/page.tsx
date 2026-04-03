@@ -37,7 +37,7 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-6">
         {/* Hero 섹션 */}
         <section className="pt-4 pb-8 lg:pt-6 lg:pb-12">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-0">
             <div className="flex flex-col items-center text-center gap-2.5 sm:gap-3">
               <h1
                 className="mx-auto w-full max-w-[min(100%,90rem)] px-2 text-center font-bold leading-tight text-zinc-950 dark:text-zinc-100
@@ -62,7 +62,8 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="w-full">
+            {/* 데모: 히어로·가격 문구와의 상하 여백 2배 (기존 gap-4 대비 ≈2rem) */}
+            <div className="w-full py-8 lg:py-12">
               <DemoAnimation />
             </div>
 
@@ -74,8 +75,8 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* 체험: 가로형 통합 박스 (파란 테두리 · /trial 이동) */}
-            <div className="w-full max-w-4xl mx-auto px-2">
+            {/* 체험: 가로형 통합 박스 (파란 테두리 · /trial 이동) — 데모와 간격 */}
+            <div className="w-full max-w-4xl mx-auto px-2 mt-4">
               <Link
                 href="/trial"
                 className="group flex flex-col gap-4 rounded-2xl border-2 border-blue-500 bg-white p-4 shadow-sm transition-all hover:border-blue-600 hover:shadow-md dark:border-blue-500 dark:bg-zinc-900/90 dark:hover:border-blue-400 md:flex-row md:items-stretch md:gap-0 md:p-0 md:overflow-hidden"
@@ -102,14 +103,14 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 설명 텍스트 섹션 — 콜론(:) 세로 정렬 (Grid 3열) */}
-        <section className="py-12 lg:py-16">
-          <div className="max-w-4xl mx-auto px-3 space-y-6">
+        {/* 설명 텍스트 섹션 — 콜론(:) 세로 정렬 (Grid 3열), 여백·줄간격 타이트 */}
+        <section className="py-6 lg:py-8">
+          <div className="max-w-4xl mx-auto px-3 space-y-3">
             <h2 className="text-center text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
               엑클로드만의 편리성, 중요기능
             </h2>
             <div className="flex justify-center overflow-x-auto">
-              <div className="grid w-max max-w-full min-w-0 grid-cols-[max-content_auto_minmax(8rem,1fr)] gap-x-2 gap-y-4 text-left text-sm sm:gap-x-3 sm:text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
+              <div className="grid w-max max-w-full min-w-0 grid-cols-[max-content_auto_minmax(8rem,1fr)] gap-x-2 gap-y-2 text-left text-sm sm:gap-x-3 sm:text-base leading-snug text-zinc-600 dark:text-zinc-400">
                 <div className="text-right font-semibold text-zinc-800 dark:text-zinc-200 [word-break:keep-all]">
                   어떤 방식의 주문도 OK
                 </div>
