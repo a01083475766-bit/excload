@@ -85,9 +85,13 @@ export default function HomePage() {
                 >
                   지금 바로 체험 테스트해보기
                 </span>
-                <p className="flex flex-1 items-center text-center text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 md:px-6 md:py-5 md:text-left md:text-base">
-                  정리가 잘 되는지 테스트해보고 나에게 필요한 기능인지 확인해보세요. 회원가입 없이 바로
-                  확인해보세요.
+                <p className="flex flex-1 flex-col items-center justify-center gap-0 text-center text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 md:items-start md:px-6 md:py-5 md:text-left md:text-base">
+                  <span>
+                    정리가 잘 되는지 테스트해보고 나에게 필요한 기능인지 확인해주세요.
+                  </span>
+                  <span className="mt-1 block">
+                    회원가입 없이 바로 확인해보세요.
+                  </span>
                 </p>
               </Link>
               <p className="mt-2 text-center text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-500 leading-snug">
@@ -99,23 +103,25 @@ export default function HomePage() {
 
         {/* 설명 텍스트 섹션 */}
         <section className="py-12 lg:py-16">
-          <div className="max-w-3xl mx-auto text-center space-y-4">
-            <h2 className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-              송장·발송 전, 표부터 덜어내고 싶다면
+          <div className="max-w-3xl mx-auto text-center space-y-6">
+            <h2 className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
+              엑클로드만의 편리성, 중요기능(서브메인)
             </h2>
-            <div className="space-y-3 text-base sm:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
+            <div className="space-y-5 text-base sm:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
               <p>
-                한 건 한 건 옮기고 열 이름 맞추다 보면 하루가 금방 갑니다. 들어오는 채널이 늘수록 부담도 커지죠.
+                <strong className="font-semibold text-zinc-800 dark:text-zinc-200">어떤 방식의 주문도 OK</strong>
+                {' : '}
+                카톡 주문, 엑셀 주문, 스크린샷 주문도 모두 OK
               </p>
               <p>
-                엑클로드는 여러 형식의 주문을 같은 파이프라인으로 넘겨,{' '}
-                <strong className="font-medium text-zinc-800 dark:text-zinc-200">
-                  업로드용 열 구조에 맞는 표
-                </strong>
-                로 정리하는 데 초점을 둡니다.
+                <strong className="font-semibold text-zinc-800 dark:text-zinc-200">나만의 양식으로 전환</strong>
+                {' : '}
+                복잡한 양식 필요 없이 쓰고 있는 양식 그대로 OK
               </p>
-              <p className="text-zinc-700 dark:text-zinc-300 text-base">
-                복잡한 대시보드 대신, 입력·미리보기 중심으로 빠르게 손에 익히실 수 있게 만들었습니다.
+              <p>
+                <strong className="font-semibold text-zinc-800 dark:text-zinc-200">배울 필요 없는 시스템</strong>
+                {' : '}
+                ctrl + c, ctrl + v로 끝나는 주문정리 OK
               </p>
             </div>
           </div>
