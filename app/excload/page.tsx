@@ -66,20 +66,14 @@ export default function HomePage() {
               <DemoAnimation />
             </div>
 
-            {/* ③ 확신(가격·속도) — 과장 표현 완화 */}
-            <div className="flex flex-col items-center text-center gap-2 max-w-xl mx-auto px-2 pt-1">
-              <p className="text-base sm:text-lg font-medium text-zinc-800 dark:text-zinc-200 leading-snug">
-                필요한 변환 기능은 그대로, 부담은 줄였습니다 — 가격은{' '}
-                <span className="font-bold text-emerald-700 dark:text-emerald-400">커피 한 잔</span> 부담 수준의{' '}
-                <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span>부터 이용해
-                보세요.
+            {/* 데모 하단 · CTA 상단: 가격 메시지 (2줄) */}
+            <div className="flex flex-col items-center text-center gap-1.5 max-w-2xl mx-auto px-3 pt-0.5">
+              <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
+                비싼 프로그램은 부담되고 주문정리가 힘들 때, 정답은{' '}
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span> 엑클로드!
               </p>
               <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                프로 플랜(
-                <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span>)이면 변환·미리보기
-                파이프라인을 여유 있게 쓰실 수 있습니다. 붙이거나 파일만 올려도{' '}
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">곧바로 표로 정리</span>되어 반복
-                입력을 줄여 드립니다. (건수·네트워크에 따라 체감 속도는 달라질 수 있어요.)
+                커피 한 잔 값으로 대형 쇼핑몰 부럽지 않은 주문 관리 시스템을 완성하세요.
               </p>
             </div>
 
