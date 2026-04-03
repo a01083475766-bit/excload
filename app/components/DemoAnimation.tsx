@@ -309,7 +309,7 @@ export default function DemoAnimation() {
   }, [currentStep]);
 
   return (
-    <div className="w-full max-w-5xl mx-auto min-h-[380px] h-[min(460px,72vh)] max-h-[480px] rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 shadow-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-800 overflow-hidden relative">
+    <div className="w-full max-w-5xl mx-auto min-h-[400px] h-[min(500px,78vh)] max-h-[560px] rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 shadow-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-800 overflow-hidden relative">
       {/* 배경 그리드 패턴 */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
@@ -338,7 +338,7 @@ export default function DemoAnimation() {
         <ChevronRight className="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
       </button>
 
-      <div className="relative z-10 h-full flex items-center justify-center px-4 pt-4 pb-9 sm:px-6 sm:pt-5 sm:pb-10">
+      <div className="relative z-10 h-full flex items-center justify-center px-4 pt-4 pb-14 sm:px-6 sm:pt-5 sm:pb-[3.75rem]">
         {/* 한 화면에서 부드럽게 변환되는 통합 화면 */}
         {(['kakao-source', 'copy-action', 'paste-action', 'text-pasted', 'preview', 'excel-source', 'excel-upload', 'excel-preview', 'image-source', 'image-upload', 'image-preview', 'excel-complete'].includes(currentStep)) && (
           <motion.div
@@ -346,7 +346,7 @@ export default function DemoAnimation() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className="w-full max-w-4xl"
+            className="w-full max-w-5xl"
           >
             {/* 제목 - 단계에 따라 변경 */}
             <motion.h3 
@@ -372,13 +372,13 @@ export default function DemoAnimation() {
             </motion.h3>
             
             {/* 콘텐츠 영역 - 고정 높이로 통일 */}
-            <div className={`flex flex-col md:flex-row md:justify-center gap-3 min-h-0 h-[min(300px,42vh)] sm:h-[308px] md:h-[320px] ${currentStep === 'excel-complete' ? 'md:flex-row md:justify-center' : ''}`}>
+            <div className="flex flex-col md:flex-row md:items-stretch gap-2 md:gap-3 min-h-0 w-full h-[min(340px,46vh)] sm:h-[360px] md:h-[392px]">
               {/* 왼쪽: 카톡 메시지 영역 - 항상 표시 (1-3단계) */}
               {!['preview', 'excel-source', 'excel-upload', 'excel-preview', 'image-source', 'image-upload', 'image-preview', 'excel-complete'].includes(currentStep) && (
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="md:w-1/3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border-2 border-yellow-300 dark:border-yellow-700 p-5 relative h-full flex flex-col"
+                  className="w-full md:w-[40%] md:shrink-0 md:max-w-none bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border-2 border-yellow-300 dark:border-yellow-700 p-4 md:p-5 relative h-full min-h-0 flex flex-col"
                 >
                   {/* 우클릭 컨텍스트 메뉴 - 1-2단계에서 표시 */}
                   {(['kakao-source', 'copy-action'].includes(currentStep) && showContextMenu) && (
@@ -462,7 +462,7 @@ export default function DemoAnimation() {
                   <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
                     카카오톡 주문
                   </p>
-                  <div className="space-y-2 flex-1 flex flex-col justify-center">
+                  <div className="space-y-1.5 flex-1 flex flex-col justify-center min-h-0 overflow-y-auto">
                     {kakaoText.split('\n').map((line, index) => {
                       const matchLine = [2, 3, 4, 5, 6].includes(index);
                       return (
@@ -471,10 +471,10 @@ export default function DemoAnimation() {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: index * 0.05 }}
-                          className="text-sm text-zinc-900 dark:text-zinc-100"
+                          className="text-sm leading-snug text-zinc-900 dark:text-zinc-100"
                         >
                           {matchLine ? (
-                            <span className={DEMO_MATCH_HIGHLIGHT}>{line}</span>
+                            <span className={`${DEMO_MATCH_HIGHLIGHT} inline`}>{line}</span>
                           ) : (
                             line
                           )}
@@ -488,7 +488,7 @@ export default function DemoAnimation() {
               {/* 입력 → 변환 흐름 화살표 (카톡 데모 구간만) */}
               {['kakao-source', 'copy-action', 'paste-action', 'text-pasted'].includes(currentStep) && (
                 <>
-                  <div className="hidden md:flex flex-col items-center justify-center shrink-0 w-10 self-stretch text-emerald-600 dark:text-emerald-400">
+                  <div className="hidden md:flex flex-col items-center justify-center shrink-0 w-11 self-stretch text-emerald-600 dark:text-emerald-400">
                     <motion.div
                       animate={{ x: [0, 5, 0] }}
                       transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
@@ -511,8 +511,8 @@ export default function DemoAnimation() {
                 </>
               )}
 
-              {/* 오른쪽: 단계에 따라 변화하는 영역 */}
-              <div className="flex-1 min-h-0 min-w-0 md:flex-[2] flex flex-col">
+              {/* 오른쪽: 단계에 따라 변화 (엑셀/이미지는 이 안에서 좌우 2열) */}
+              <div className="flex-1 min-h-0 min-w-0 flex flex-col md:flex-row md:items-stretch gap-2 md:gap-3 w-full">
               <AnimatePresence mode="wait">
                 {/* 1단계: 주문 상세 페이지 */}
                 {currentStep === 'kakao-source' && (
@@ -522,7 +522,7 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.3 }}
-                    className="w-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 p-0 overflow-hidden h-full flex flex-col"
+                    className="w-full min-h-0 flex-1 bg-white dark:bg-zinc-800 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 p-0 overflow-hidden h-full flex flex-col"
                   >
                   {/* 브라우저 상단 바 */}
                   <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
@@ -627,7 +627,7 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.3 }}
-                    className="md:w-2/3 bg-white dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 p-6 flex items-center justify-center h-full"
+                    className="w-full min-h-0 flex-1 bg-white dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 p-5 md:p-6 flex items-center justify-center h-full"
                   >
                   </motion.div>
                 )}
@@ -640,7 +640,7 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.3 }}
-                    className="md:w-2/3 bg-white dark:bg-zinc-800 rounded-xl border-2 border-zinc-300 dark:border-zinc-700 p-6 relative h-full flex flex-col"
+                    className="w-full min-h-0 flex-1 bg-white dark:bg-zinc-800 rounded-xl border-2 border-zinc-300 dark:border-zinc-700 p-4 md:p-5 relative h-full flex flex-col"
                   >
                     {showContextMenu && (
                       <motion.div
@@ -730,7 +730,7 @@ export default function DemoAnimation() {
                         opacity: { duration: 0.3, delay: pastedText ? 0.1 : 0 },
                         scale: { duration: 0.2, delay: pastedText ? 0.1 : 0 }
                       }}
-                      className="w-full flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-sm text-zinc-900 dark:text-zinc-100 font-mono resize-none"
+                      className="w-full flex-1 min-h-[11rem] md:min-h-0 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 md:p-4 text-sm text-zinc-900 dark:text-zinc-100 font-mono resize-none"
                       placeholder="주문 내용을 붙여넣으세요..."
                     />
                   </motion.div>
@@ -744,7 +744,7 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.3 }}
-                    className="md:w-2/3 bg-white dark:bg-zinc-800 rounded-xl border-2 border-emerald-500 shadow-lg p-6 h-full flex flex-col"
+                    className="w-full min-h-0 flex-1 bg-white dark:bg-zinc-800 rounded-xl border-2 border-emerald-500 shadow-lg p-4 md:p-5 h-full flex flex-col"
                   >
                     <div className="flex items-center mb-4">
                       <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-2" />
@@ -755,7 +755,7 @@ export default function DemoAnimation() {
                     <textarea
                       readOnly
                       value={pastedText}
-                      className="w-full flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-sm text-zinc-900 dark:text-zinc-100 font-mono resize-none"
+                      className="w-full flex-1 min-h-[11rem] md:min-h-0 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 md:p-4 text-sm text-zinc-900 dark:text-zinc-100 font-mono resize-none"
                     />
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
@@ -827,18 +827,18 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3 }}
-                    className="w-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-emerald-500 shadow-lg p-6 h-full flex flex-col"
+                    className="w-full min-h-0 flex-1 bg-white dark:bg-zinc-800 rounded-xl border-2 border-emerald-500 shadow-lg p-4 md:p-5 h-full flex flex-col"
                   >
-                    <div className="flex items-center mb-4">
+                    <div className="flex items-center mb-3 shrink-0">
                       <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-2" />
                       <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
                         변환 완료
                       </h4>
                     </div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3 shrink-0">
                       미리보기에서 변환된 데이터를 확인하세요
                     </p>
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden flex-1 overflow-y-auto">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden flex-1 min-h-0 overflow-y-auto">
                       <div className="grid grid-cols-4 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
                         <div>받는사람</div>
                         <div>전화번호</div>
@@ -883,18 +883,18 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3 }}
-                    className="w-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-emerald-500 shadow-lg p-6 h-full flex flex-col"
+                    className="w-full min-h-0 flex-1 bg-white dark:bg-zinc-800 rounded-xl border-2 border-emerald-500 shadow-lg p-4 md:p-5 h-full flex flex-col"
                   >
-                    <div className="flex items-center mb-4">
+                    <div className="flex items-center mb-3 shrink-0">
                       <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-2" />
                       <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
                         변환 완료
                       </h4>
                     </div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3 shrink-0">
                       미리보기에서 변환된 데이터를 확인하세요
                     </p>
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden flex-1 overflow-y-auto">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden flex-1 min-h-0 overflow-y-auto">
                       <div className="grid grid-cols-4 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
                         <div>받는사람</div>
                         <div>전화번호</div>
@@ -927,11 +927,11 @@ export default function DemoAnimation() {
                 {/* 1단계: 이미지 파일 소스 - 왼쪽에 이미지 파일, 오른쪽에 드롭 영역 */}
                 {currentStep === 'image-source' && (
                   <>
-                    {/* 왼쪽: 이미지 파일 영역 - 약 30% */}
+                    {/* 왼쪽: 이미지 파일 영역 */}
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="md:w-1/3 bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-300 dark:border-purple-700 p-5 h-full flex flex-col"
+                      className="w-full md:w-[40%] md:shrink-0 min-h-0 h-full bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-300 dark:border-purple-700 p-4 md:p-5 flex flex-col"
                     >
                       <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
                         이미지 파일 (주문 이미지)
@@ -978,11 +978,11 @@ export default function DemoAnimation() {
                       </div>
                     </motion.div>
 
-                    {/* 오른쪽: 드롭 영역 - 약 70% */}
+                    {/* 오른쪽: 드롭 영역 */}
                     <motion.div
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="md:w-2/3 bg-white dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 p-6 flex items-center justify-center h-full"
+                      className="w-full md:flex-1 md:min-w-0 min-h-0 h-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 p-5 md:p-6 flex items-center justify-center"
                     >
                       <p className="text-zinc-400 dark:text-zinc-500 text-sm text-center">
                         이미지 파일을 드래그하여 여기로 이동하세요
@@ -994,12 +994,12 @@ export default function DemoAnimation() {
                 {/* 2단계: 이미지 파일 드래그 앤 드롭 */}
                 {currentStep === 'image-upload' && (
                   <>
-                    {/* 왼쪽: 이미지 파일 영역 - 약 30% (유지) */}
+                    {/* 왼쪽: 이미지 파일 영역 */}
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="md:w-1/3 bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-300 dark:border-purple-700 p-5 h-full flex flex-col"
+                      className="w-full md:w-[40%] md:shrink-0 min-h-0 h-full bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-300 dark:border-purple-700 p-4 md:p-5 flex flex-col"
                     >
                       <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
                         이미지 파일 (주문 이미지)
@@ -1046,33 +1046,34 @@ export default function DemoAnimation() {
                       </div>
                     </motion.div>
 
-                    {/* 오른쪽: 드롭 영역 - 약 70% (파일이 이동하는 애니메이션) */}
+                    {/* 오른쪽: 업로드 영역 */}
                     <motion.div
                       initial={{ opacity: 0, x: 20, scale: 0.95 }}
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       transition={{ duration: 0.5, ease: "easeOut" }}
-                      className="w-full md:w-2/3 bg-white dark:bg-zinc-800 rounded-xl border-2 border-purple-500 shadow-lg p-6 relative overflow-hidden h-full flex flex-col"
+                      className="w-full md:flex-1 md:min-w-0 min-h-0 h-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-purple-500 shadow-lg p-4 md:p-5 flex flex-col gap-3"
                     >
-                      {/* 파일이 이동하는 애니메이션 */}
                       <motion.div
-                        initial={{ x: -200, y: 0, opacity: 0 }}
-                        animate={{ x: 0, y: 0, opacity: 1 }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="absolute inset-0 flex items-center justify-center"
+                        initial={{ x: -24, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        className="shrink-0 flex justify-center"
                       >
                         <motion.div
                           animate={{
-                            scale: [1, 1.1, 1],
-                            rotate: [0, 5, -5, 0],
+                            scale: [1, 1.06, 1],
+                            rotate: [0, 4, -4, 0],
                           }}
                           transition={{
-                            duration: 0.6,
-                            ease: "easeInOut"
+                            duration: 0.7,
+                            ease: "easeInOut",
+                            repeat: Infinity,
+                            repeatDelay: 0.4,
                           }}
-                          className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border-2 border-purple-300 dark:border-purple-700"
+                          className="bg-purple-50 dark:bg-purple-900/20 rounded-lg px-4 py-3 border-2 border-purple-300 dark:border-purple-700"
                         >
                           <div className="flex items-center gap-3">
-                            <ImageIcon className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                            <ImageIcon className="w-7 h-7 text-purple-600 dark:text-purple-400 shrink-0" />
                             <div>
                               <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                 주문 이미지.jpg
@@ -1084,23 +1085,22 @@ export default function DemoAnimation() {
                           </div>
                         </motion.div>
                       </motion.div>
-                      <div className="flex items-center justify-center flex-1">
+                      <div className="flex-1 min-h-[9rem] flex flex-col">
                         <motion.div
                           animate={{
                             borderColor: ['rgb(168, 85, 247)', 'rgb(147, 51, 234)', 'rgb(168, 85, 247)'],
-                            scale: [1, 1.04, 1],
                           }}
                           transition={{
                             duration: 1.2,
                             repeat: Infinity,
                             ease: "easeInOut"
                           }}
-                          className="w-full h-full rounded-lg border-2 border-dashed border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 flex items-center justify-center"
+                          className="flex-1 min-h-[9rem] rounded-lg border-2 border-dashed border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 flex flex-col items-center justify-center py-8 px-4"
                         >
-                          <div className="text-center">
-                            <Upload className="w-8 h-8 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
-                            <p className="text-sm text-zinc-600 dark:text-zinc-400">파일 업로드 중...</p>
-                          </div>
+                          <Upload className="w-9 h-9 mb-2 text-purple-600 dark:text-purple-400" />
+                          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                            파일 업로드 중...
+                          </p>
                         </motion.div>
                       </div>
                     </motion.div>
@@ -1115,18 +1115,18 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3 }}
-                    className="w-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-emerald-500 shadow-lg p-6 h-full flex flex-col"
+                    className="w-full min-h-0 flex-1 bg-white dark:bg-zinc-800 rounded-xl border-2 border-emerald-500 shadow-lg p-4 md:p-5 h-full flex flex-col"
                   >
-                    <div className="flex items-center mb-4">
+                    <div className="flex items-center mb-3 shrink-0">
                       <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mr-2" />
                       <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
                         변환 완료
                       </h4>
                     </div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3 shrink-0">
                       미리보기에서 변환된 데이터를 확인하세요
                     </p>
-                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden flex-1 overflow-y-auto">
+                    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden flex-1 min-h-0 overflow-y-auto">
                       <div className="grid grid-cols-4 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
                         <div>받는사람</div>
                         <div>전화번호</div>
@@ -1163,7 +1163,7 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3 }}
-                    className="w-full md:w-full max-w-3xl mx-auto bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-xl border-2 border-emerald-500 shadow-lg p-8 h-full flex flex-col items-center justify-center"
+                    className="w-full min-h-0 flex-1 max-w-3xl mx-auto bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-xl border-2 border-emerald-500 shadow-lg p-6 md:p-8 h-full flex flex-col items-center justify-center overflow-y-auto"
                   >
                     <motion.div
                       initial={{ scale: 0 }}
@@ -1227,11 +1227,11 @@ export default function DemoAnimation() {
                 {/* 1단계: 엑셀 파일 소스 - 왼쪽에 엑셀 파일, 오른쪽에 드롭 영역 */}
                 {currentStep === 'excel-source' && (
                   <>
-                    {/* 왼쪽: 엑셀 파일 영역 - 약 30% (다양한 헤더 형식 표시) */}
+                    {/* 왼쪽: 엑셀 파일 영역 */}
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="md:w-1/3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-300 dark:border-blue-700 p-5 h-full flex flex-col"
+                      className="w-full md:w-[40%] md:shrink-0 min-h-0 h-full bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-300 dark:border-blue-700 p-4 md:p-5 flex flex-col"
                     >
                       <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
                         엑셀 파일 (다양한 헤더 형식)
@@ -1307,11 +1307,11 @@ export default function DemoAnimation() {
                       </div>
                     </motion.div>
 
-                    {/* 오른쪽: 드롭 영역 - 약 70% */}
+                    {/* 오른쪽: 드롭 영역 */}
                     <motion.div
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="md:w-2/3 bg-white dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 p-6 flex items-center justify-center h-full"
+                      className="w-full md:flex-1 md:min-w-0 min-h-0 h-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 p-5 md:p-6 flex items-center justify-center"
                     >
                       <p className="text-zinc-400 dark:text-zinc-500 text-sm text-center">
                         엑셀 파일을 드래그하여 여기로 이동하세요
@@ -1323,12 +1323,12 @@ export default function DemoAnimation() {
                 {/* 2단계: 엑셀 파일 드래그 앤 드롭 */}
                 {currentStep === 'excel-upload' && (
                   <>
-                    {/* 왼쪽: 엑셀 파일 영역 - 약 30% (유지) */}
+                    {/* 왼쪽: 엑셀 파일 영역 */}
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="md:w-1/3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-300 dark:border-blue-700 p-5 h-full flex flex-col"
+                      className="w-full md:w-[40%] md:shrink-0 min-h-0 h-full bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-300 dark:border-blue-700 p-4 md:p-5 flex flex-col"
                     >
                       <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
                         엑셀 파일 (다양한 헤더 형식)
@@ -1404,33 +1404,34 @@ export default function DemoAnimation() {
                       </div>
                     </motion.div>
 
-                    {/* 오른쪽: 드롭 영역 - 약 70% (파일이 이동하는 애니메이션) */}
+                    {/* 오른쪽: 업로드 영역 (절대 위치 오버레이 제거 → 높이 붕괴 방지) */}
                     <motion.div
                       initial={{ opacity: 0, x: 20, scale: 0.95 }}
                       animate={{ opacity: 1, x: 0, scale: 1 }}
                       transition={{ duration: 0.5, ease: "easeOut" }}
-                      className="w-full md:w-2/3 bg-white dark:bg-zinc-800 rounded-xl border-2 border-blue-500 shadow-lg p-6 relative overflow-hidden h-full flex flex-col"
+                      className="w-full md:flex-1 md:min-w-0 min-h-0 h-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-blue-500 shadow-lg p-4 md:p-5 flex flex-col gap-3"
                     >
-                      {/* 파일이 이동하는 애니메이션 */}
                       <motion.div
-                        initial={{ x: -200, y: 0, opacity: 0 }}
-                        animate={{ x: 0, y: 0, opacity: 1 }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="absolute inset-0 flex items-center justify-center"
+                        initial={{ x: -24, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        className="shrink-0 flex justify-center"
                       >
                         <motion.div
                           animate={{
-                            scale: [1, 1.1, 1],
-                            rotate: [0, 5, -5, 0],
+                            scale: [1, 1.06, 1],
+                            rotate: [0, 4, -4, 0],
                           }}
                           transition={{
-                            duration: 0.6,
-                            ease: "easeInOut"
+                            duration: 0.7,
+                            ease: "easeInOut",
+                            repeat: Infinity,
+                            repeatDelay: 0.4,
                           }}
-                          className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border-2 border-blue-300 dark:border-blue-700"
+                          className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-4 py-3 border-2 border-blue-300 dark:border-blue-700"
                         >
                           <div className="flex items-center gap-3">
-                            <FileSpreadsheet className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                            <FileSpreadsheet className="w-7 h-7 text-blue-600 dark:text-blue-400 shrink-0" />
                             <div>
                               <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                 주문 파일.xlsx
@@ -1442,23 +1443,22 @@ export default function DemoAnimation() {
                           </div>
                         </motion.div>
                       </motion.div>
-                      <div className="flex items-center justify-center flex-1">
+                      <div className="flex-1 min-h-[9rem] flex flex-col">
                         <motion.div
                           animate={{
                             borderColor: ['rgb(59, 130, 246)', 'rgb(37, 99, 235)', 'rgb(59, 130, 246)'],
-                            scale: [1, 1.04, 1],
                           }}
                           transition={{
                             duration: 1.2,
                             repeat: Infinity,
                             ease: "easeInOut"
                           }}
-                          className="w-full h-full rounded-lg border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 flex items-center justify-center"
+                          className="flex-1 min-h-[9rem] rounded-lg border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 flex flex-col items-center justify-center py-8 px-4"
                         >
-                          <div className="text-center">
-                            <Upload className="w-8 h-8 mx-auto mb-2 text-blue-600 dark:text-blue-400" />
-                            <p className="text-sm text-zinc-600 dark:text-zinc-400">파일 업로드 중...</p>
-                          </div>
+                          <Upload className="w-9 h-9 mb-2 text-blue-600 dark:text-blue-400" />
+                          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                            파일 업로드 중...
+                          </p>
                         </motion.div>
                       </div>
                     </motion.div>
@@ -1693,15 +1693,15 @@ export default function DemoAnimation() {
 
       </div>
 
-      {/* 진행 표시기: 단계 라벨 + 점을 카드에 가깝게 */}
-      <div className="absolute bottom-1.5 sm:bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 max-w-[min(100%,24rem)] px-2">
+      {/* 진행 표시기: 라벨과 점 사이 여백으로 겹침 방지 */}
+      <div className="absolute bottom-2 sm:bottom-2.5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5 w-full max-w-[min(100%,28rem)] px-3 pointer-events-none">
         <p
           key={currentStep}
-          className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 text-center leading-tight line-clamp-2"
+          className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 text-center leading-snug line-clamp-2 w-full"
         >
           {unifiedStepCaption(currentStep)}
         </p>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center justify-center flex-wrap pointer-events-auto">
           {(() => {
             const stepsToShow: DemoStep[] = unifiedFlow;
 
