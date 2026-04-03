@@ -85,11 +85,8 @@ export default function HomePage() {
               >
                 지금 내 주문으로 무료 체험하기
               </Link>
-              <p className="text-xs text-zinc-500 dark:text-zinc-500 leading-snug">
-                로그인 없이 시작 · 미리보기까지 이용 (엑셀 저장·다운로드는 가입 후 정식 서비스)
-              </p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed mt-1">
-                체험에는 사용량이 제공되며, 횟수·네트워크별 제한이 있을 수 있습니다.
+              <p className="max-w-4xl mx-auto text-center text-xs sm:text-sm text-zinc-500 dark:text-zinc-500 leading-snug">
+                로그인 없이 시작 · 미리보기까지 이용 체험에는 사용량이 제공되며, 횟수·네트워크별 제한이 있을 수 있습니다.
               </p>
             </div>
           </div>
