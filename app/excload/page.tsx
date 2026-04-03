@@ -38,35 +38,29 @@ export default function HomePage() {
         {/* Hero 섹션 */}
         <section className="pt-4 pb-8 lg:pt-6 lg:pb-12">
           <div className="flex flex-col gap-4">
-            {/* ① 불편(노동) → ② 해결(쉬움) */}
-            <div className="flex flex-col items-center text-center gap-3 sm:gap-3.5">
+            <div className="flex flex-col items-center text-center gap-2.5 sm:gap-3">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-950 dark:text-zinc-100 leading-tight max-w-4xl">
-                반복되는 주문 정리,{' '}
-                <span className="text-emerald-700 dark:text-emerald-400">엑셀 노가다</span> 힘드셨죠? 이제{' '}
-                <strong className="font-bold text-zinc-900 dark:text-zinc-50">복사해서 붙이면</strong> 준비 끝!
+                반복적인 주문정리 엑셀정리 힘드셨죠? 이제 복사해서 붙이면 준비 끝
               </h1>
-              <div className="max-w-2xl space-y-2.5 text-left sm:text-center text-base sm:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                <p>
-                  <span className="font-bold text-emerald-700 dark:text-emerald-400">엑셀 노가다</span> 탈출! — 엑셀
-                  파일, 카톡 주문,{' '}
-                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">붙여넣기만 하면</strong> 정리
-                  끝.
-                </p>
-                <p>
-                  오입력 걱정 줄이기 — 규칙에 맞춰 필드를 맞춰 주니, 손으로 칠 때보다{' '}
-                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">실수를 덜 하기 쉽습니다</strong>
-                  . (최종 확인은 항상 해 주세요.)
-                </p>
-              </div>
+              <p className="max-w-4xl text-sm sm:text-base md:text-lg text-zinc-700 dark:text-zinc-300 leading-snug">
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">&quot;엑셀 노가다 탈출&quot;</span>
+                <span className="text-zinc-400 dark:text-zinc-500 mx-1 sm:mx-2">·</span>
+                <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                  &quot;엑셀파일, 카톡 주문, 붙여넣기 하면 정리끝&quot;
+                </span>
+                <span className="text-zinc-400 dark:text-zinc-500 mx-1 sm:mx-2">·</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">&quot;오입력 걱정 끝&quot;</span>
+              </p>
+              <p className="max-w-3xl text-sm sm:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                복잡한 기능을 빼고{' '}
+                <strong className="font-bold text-zinc-900 dark:text-zinc-100">&quot;빠른주문정리&quot;</strong>에만
+                집중해 사용법이 어렵지 않습니다
+              </p>
             </div>
 
             <div className="w-full">
               <DemoAnimation />
             </div>
-
-            <p className="text-center text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-snug px-1">
-              오직 빠른 주문 정리에만 집중 — 엑클로드는 불필요한 기능을 빼고 실속만 채웠습니다.
-            </p>
 
             {/* ③ 확신(가격·속도) — 과장 표현 완화 */}
             <div className="flex flex-col items-center text-center gap-2 max-w-xl mx-auto px-2 pt-1">
