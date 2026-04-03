@@ -81,7 +81,7 @@ export default function HomePage() {
                 className="group flex flex-col gap-4 rounded-2xl border-2 border-blue-500 bg-white p-4 shadow-sm transition-all hover:border-blue-600 hover:shadow-md dark:border-blue-500 dark:bg-zinc-900/90 dark:hover:border-blue-400 md:flex-row md:items-stretch md:gap-0 md:p-0 md:overflow-hidden"
               >
                 <span
-                  className="inline-flex shrink-0 items-center justify-center rounded-xl border-2 border-emerald-600 bg-zinc-50 px-5 py-4 text-center text-sm font-semibold text-emerald-800 transition-colors group-hover:bg-emerald-50 dark:border-emerald-500 dark:bg-zinc-900 dark:text-emerald-300 dark:group-hover:bg-emerald-950/40 md:rounded-none md:border-0 md:border-r md:border-emerald-600/40 dark:md:border-emerald-500/40 md:px-8 md:py-6 md:w-[min(100%,280px)]"
+                  className="inline-flex w-full max-w-full shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-[#00bcd4] bg-white px-[25px] py-[10px] text-center text-base font-semibold text-[#00bcd4] shadow-none transition-all duration-300 ease-in-out [font-family:'Courier_New',Courier,monospace] group-hover:bg-[#00bcd4] group-hover:text-white group-hover:shadow-[0_4px_6px_rgba(0,0,0,0.1)] dark:border-cyan-400 dark:bg-zinc-900 dark:text-cyan-300 dark:group-hover:bg-[#00bcd4] dark:group-hover:text-white md:mx-4 md:my-4 md:w-[min(100%,280px)] md:max-w-[280px] md:self-center"
                 >
                   지금 바로 체험 테스트해보기
                 </span>
