@@ -66,27 +66,32 @@ export default function HomePage() {
               <DemoAnimation />
             </div>
 
-            {/* 데모 하단 · CTA 상단: 가격 메시지 (2줄) */}
-            <div className="flex flex-col items-center text-center gap-1.5 max-w-2xl mx-auto px-3 pt-0.5">
+            {/* 데모 하단: 가격 강조 (한 줄) */}
+            <div className="flex flex-col items-center text-center max-w-3xl mx-auto px-3 pt-0.5">
               <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                 비싼 프로그램은 부담되고 주문정리가 힘들 때, 정답은{' '}
                 <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span> 엑클로드!
               </p>
-              <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                커피 한 잔 값으로 대형 쇼핑몰 부럽지 않은 주문 관리 시스템을 완성하세요.
-              </p>
             </div>
 
-            {/* 체험 CTA */}
-            <div className="flex flex-col items-center text-center gap-2 max-w-lg mx-auto px-2">
+            {/* 체험: 가로형 통합 박스 (파란 테두리 · /trial 이동) */}
+            <div className="w-full max-w-4xl mx-auto px-2">
               <Link
                 href="/trial"
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-6 py-3.5 text-sm sm:text-base font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-colors w-full sm:w-auto min-w-[min(100%,280px)]"
+                className="group flex flex-col gap-4 rounded-2xl border-2 border-blue-500 bg-white p-4 shadow-sm transition-all hover:border-blue-600 hover:shadow-md dark:border-blue-500 dark:bg-zinc-900/90 dark:hover:border-blue-400 md:flex-row md:items-stretch md:gap-0 md:p-0 md:overflow-hidden"
               >
-                지금 내 주문으로 무료 체험하기
+                <span
+                  className="inline-flex shrink-0 items-center justify-center rounded-xl border-2 border-emerald-600 bg-zinc-50 px-5 py-4 text-center text-sm font-semibold text-emerald-800 transition-colors group-hover:bg-emerald-50 dark:border-emerald-500 dark:bg-zinc-900 dark:text-emerald-300 dark:group-hover:bg-emerald-950/40 md:rounded-none md:border-0 md:border-r md:border-emerald-600/40 dark:md:border-emerald-500/40 md:px-8 md:py-6 md:w-[min(100%,280px)]"
+                >
+                  지금 바로 체험 테스트해보기
+                </span>
+                <p className="flex flex-1 items-center text-center text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 md:px-6 md:py-5 md:text-left md:text-base">
+                  정리가 잘 되는지 테스트해보고 나에게 필요한 기능인지 확인해보세요. 회원가입 없이 바로
+                  확인해보세요.
+                </p>
               </Link>
-              <p className="max-w-4xl mx-auto text-center text-xs sm:text-sm text-zinc-500 dark:text-zinc-500 leading-snug">
-                로그인 없이 시작 · 미리보기까지 이용 체험에는 사용량이 제공되며, 횟수·네트워크별 제한이 있을 수 있습니다.
+              <p className="mt-2 text-center text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-500 leading-snug">
+                체험에는 사용량이 제공되며, 횟수·네트워크별 제한이 있을 수 있습니다.
               </p>
             </div>
           </div>

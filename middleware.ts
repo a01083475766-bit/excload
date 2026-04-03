@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // /excload 경로는 허용
+  // 랜딩 UI는 app/excload/page.tsx 단일 소스. 루트 `/`는 파일 하단에서 /excload로 리다이렉트.
   if (pathname.startsWith('/excload')) {
     return NextResponse.next();
   }
