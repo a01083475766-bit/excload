@@ -82,10 +82,10 @@ export default function HomePage() {
                 className="group flex flex-col gap-4 rounded-2xl border-2 border-blue-500 bg-white p-4 shadow-sm transition-all hover:border-blue-600 hover:shadow-md dark:border-blue-500 dark:bg-zinc-900/90 dark:hover:border-blue-400 md:flex-row md:items-stretch md:gap-0 md:p-0 md:overflow-hidden"
               >
                 <span
-                  className="inline-flex w-full max-w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border-2 border-[#00bcd4] bg-white px-[25px] py-[10px] text-center text-base font-semibold leading-tight text-[#00bcd4] shadow-none transition-all duration-300 ease-in-out [font-family:'Courier_New',Courier,monospace] group-hover:bg-[#00bcd4] group-hover:text-white group-hover:shadow-[0_4px_6px_rgba(0,0,0,0.1)] dark:border-cyan-400 dark:bg-zinc-900 dark:text-cyan-300 dark:group-hover:bg-[#00bcd4] dark:group-hover:text-white md:mx-4 md:my-4 md:w-[min(100%,280px)] md:max-w-[280px] md:self-center"
+                  className="trial-button inline-flex w-full max-w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border-2 border-[#00bcd4] bg-white px-[25px] py-[10px] text-center text-base font-semibold leading-tight text-[#00bcd4] shadow-none [font-family:'Courier_New',Courier,monospace] dark:border-cyan-400 dark:bg-zinc-900 dark:text-cyan-300 md:mx-4 md:my-4 md:w-[min(100%,280px)] md:max-w-[280px] md:self-center"
                 >
-                  <span>지금 바로 체험</span>
-                  <span>테스트 해보기</span>
+                  <span className="text-current">지금 바로 체험</span>
+                  <span className="text-current">테스트 해보기</span>
                 </span>
                 <p className="flex flex-1 flex-col items-center justify-center gap-0 text-center text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 md:items-start md:px-6 md:py-5 md:text-left md:text-base">
                   <span>

@@ -31,6 +31,21 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* 랜딩 체험 버튼: hover 시 배경·글자 반전 (Tailwind와 동일 포인트 컬러 #00bcd4) */
+.trial-button {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.group:hover .trial-button,
+.trial-button:hover {
+  background-color: #00bcd4 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
 @keyframes card-shake {
   0%, 100% {
     transform: translate(0, 0);
