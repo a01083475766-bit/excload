@@ -81,9 +81,10 @@ export default function HomePage() {
                 className="group flex flex-col gap-4 rounded-2xl border-2 border-blue-500 bg-white p-4 shadow-sm transition-all hover:border-blue-600 hover:shadow-md dark:border-blue-500 dark:bg-zinc-900/90 dark:hover:border-blue-400 md:flex-row md:items-stretch md:gap-0 md:p-0 md:overflow-hidden"
               >
                 <span
-                  className="inline-flex w-full max-w-full shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-[#00bcd4] bg-white px-[25px] py-[10px] text-center text-base font-semibold text-[#00bcd4] shadow-none transition-all duration-300 ease-in-out [font-family:'Courier_New',Courier,monospace] group-hover:bg-[#00bcd4] group-hover:text-white group-hover:shadow-[0_4px_6px_rgba(0,0,0,0.1)] dark:border-cyan-400 dark:bg-zinc-900 dark:text-cyan-300 dark:group-hover:bg-[#00bcd4] dark:group-hover:text-white md:mx-4 md:my-4 md:w-[min(100%,280px)] md:max-w-[280px] md:self-center"
+                  className="inline-flex w-full max-w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border-2 border-[#00bcd4] bg-white px-[25px] py-[10px] text-center text-base font-semibold leading-tight text-[#00bcd4] shadow-none transition-all duration-300 ease-in-out [font-family:'Courier_New',Courier,monospace] group-hover:bg-[#00bcd4] group-hover:text-white group-hover:shadow-[0_4px_6px_rgba(0,0,0,0.1)] dark:border-cyan-400 dark:bg-zinc-900 dark:text-cyan-300 dark:group-hover:bg-[#00bcd4] dark:group-hover:text-white md:mx-4 md:my-4 md:w-[min(100%,280px)] md:max-w-[280px] md:self-center"
                 >
-                  지금 바로 체험 테스트해보기
+                  <span>지금 바로 체험</span>
+                  <span>테스트 해보기</span>
                 </span>
                 <p className="flex flex-1 flex-col items-center justify-center gap-0 text-center text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 md:items-start md:px-6 md:py-5 md:text-left md:text-base">
                   <span>
@@ -101,28 +102,44 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 설명 텍스트 섹션 */}
+        {/* 설명 텍스트 섹션 — 콜론(:) 세로 정렬 (Grid 3열) */}
         <section className="py-12 lg:py-16">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <h2 className="text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
-              엑클로드만의 편리성, 중요기능(서브메인)
+          <div className="max-w-4xl mx-auto px-3 space-y-6">
+            <h2 className="text-center text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
+              엑클로드만의 편리성, 중요기능
             </h2>
-            <div className="space-y-5 text-base sm:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              <p>
-                <strong className="font-semibold text-zinc-800 dark:text-zinc-200">어떤 방식의 주문도 OK</strong>
-                {' : '}
-                카톡 주문, 엑셀 주문, 스크린샷 주문도 모두 OK
-              </p>
-              <p>
-                <strong className="font-semibold text-zinc-800 dark:text-zinc-200">나만의 양식으로 전환</strong>
-                {' : '}
-                복잡한 양식 필요 없이 쓰고 있는 양식 그대로 OK
-              </p>
-              <p>
-                <strong className="font-semibold text-zinc-800 dark:text-zinc-200">배울 필요 없는 시스템</strong>
-                {' : '}
-                ctrl + c, ctrl + v로 끝나는 주문정리 OK
-              </p>
+            <div className="flex justify-center overflow-x-auto">
+              <div className="grid w-max max-w-full min-w-0 grid-cols-[max-content_auto_minmax(8rem,1fr)] gap-x-2 gap-y-4 text-left text-sm sm:gap-x-3 sm:text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
+                <div className="text-right font-semibold text-zinc-800 dark:text-zinc-200 [word-break:keep-all]">
+                  어떤 방식의 주문도 OK
+                </div>
+                <div className="shrink-0 px-0.5 text-center font-semibold text-zinc-800 dark:text-zinc-200">
+                  :
+                </div>
+                <div className="min-w-0 text-left [word-break:keep-all]">
+                  카톡 주문, 엑셀 주문, 스크린샷 주문도 모두 OK
+                </div>
+
+                <div className="text-right font-semibold text-zinc-800 dark:text-zinc-200 [word-break:keep-all]">
+                  나만의 양식으로 전환
+                </div>
+                <div className="shrink-0 px-0.5 text-center font-semibold text-zinc-800 dark:text-zinc-200">
+                  :
+                </div>
+                <div className="min-w-0 text-left [word-break:keep-all]">
+                  복잡한 양식 필요 없이 쓰고 있는 양식 그대로 OK
+                </div>
+
+                <div className="text-right font-semibold text-zinc-800 dark:text-zinc-200 [word-break:keep-all]">
+                  배울 필요 없는 시스템
+                </div>
+                <div className="shrink-0 px-0.5 text-center font-semibold text-zinc-800 dark:text-zinc-200">
+                  :
+                </div>
+                <div className="min-w-0 text-left [word-break:keep-all]">
+                  ctrl + c , ctrl + v 로 끝나는 주문정리 OK
+                </div>
+              </div>
             </div>
           </div>
         </section>
