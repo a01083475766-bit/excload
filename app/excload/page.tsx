@@ -87,7 +87,7 @@ export default function HomePage() {
                   <span className="text-current">지금 바로 체험</span>
                   <span className="text-current">테스트 해보기</span>
                 </span>
-                <p className="flex flex-1 flex-col items-center justify-center gap-0 text-center text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 md:items-start md:px-6 md:py-5 md:text-left md:text-base">
+                <p className="flex flex-1 flex-col items-center justify-center gap-0 text-center text-sm font-medium leading-relaxed text-[#00838f] dark:text-cyan-300 md:items-start md:px-6 md:py-5 md:text-left md:text-base">
                   <span>
                     정리가 잘 되는지 테스트해보고 나에게 필요한 기능인지 확인해주세요.
                   </span>
