@@ -37,7 +37,7 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-6">
         {/* Hero 섹션 */}
         <section className="pt-4 pb-8 lg:pt-6 lg:pb-12">
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
             <div className="flex flex-col items-center text-center gap-4">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-950 dark:text-zinc-100 leading-tight max-w-4xl">
                 기획·채팅·포장까지 혼자라면, 주문 표 정리는 짧게 끝내세요.
