@@ -10,6 +10,33 @@ type DemoStep =
   | 'image-source' | 'image-upload' | 'image-preview'
   | 'text-input' | 'upload' | 'processing';
 
+/** 데모: 왼쪽 입력 ↔ 오른쪽 필드 매칭을 보여 주는 공통 하이라이트 */
+const DEMO_MATCH_HIGHLIGHT =
+  'rounded px-0.5 bg-emerald-50 dark:bg-emerald-900/40 ring-1 ring-emerald-300/70 dark:ring-emerald-700/50';
+
+function unifiedStepCaption(step: DemoStep): string {
+  const labels: Record<string, string> = {
+    'kakao-source': '① 카카오톡·상세 주문을 나란히 확인',
+    'copy-action': '② 주문 내용 복사',
+    'paste-action': '③ 엑클로드에 붙여넣기',
+    'text-pasted': '④ 변환하기 실행',
+    'text-processing': '처리 중…',
+    preview: '⑤ 자동 변환 결과 미리보기',
+    'excel-source': '엑셀에서 주문 불러오기',
+    'excel-upload': '엑셀 파일 업로드',
+    'excel-preview': '엑셀 변환 결과',
+    'excel-processing': '엑셀 처리 중…',
+    'excel-complete': '업로드 양식으로 정리 완료',
+    'image-source': '이미지 주문 불러오기',
+    'image-upload': '이미지 업로드',
+    'image-preview': '이미지 변환 결과',
+    'text-input': '텍스트 입력',
+    upload: '업로드',
+    processing: '처리 중',
+  };
+  return labels[step] ?? '데모 진행';
+}
+
 export default function DemoAnimation() {
   const [currentStep, setCurrentStep] = useState<DemoStep>('kakao-source');
   const [isAnimating, setIsAnimating] = useState(false);
@@ -32,7 +59,7 @@ export default function DemoAnimation() {
 빠른배송해주세요`;
 
   const sampleText = `받는 사람: 홍길동
-전화번호: 010-1234-5678
+전화번호: 010-1234-5766
 주소: 서울시 강남구 테헤란로 123
 상품명: 무선 블랙 마우스 / 수량: 2개
 요청사항: 부재 시 문 앞에 놓아주세요`;
@@ -436,22 +463,56 @@ export default function DemoAnimation() {
                     카카오톡 주문
                   </p>
                   <div className="space-y-2 flex-1 flex flex-col justify-center">
-                    {kakaoText.split('\n').map((line, index) => (
-                      <motion.p
-                        key={index}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="text-sm text-zinc-900 dark:text-zinc-100"
-                      >
-                        {line}
-                      </motion.p>
-                    ))}
+                    {kakaoText.split('\n').map((line, index) => {
+                      const matchLine = [2, 3, 4, 5, 6].includes(index);
+                      return (
+                        <motion.p
+                          key={index}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="text-sm text-zinc-900 dark:text-zinc-100"
+                        >
+                          {matchLine ? (
+                            <span className={DEMO_MATCH_HIGHLIGHT}>{line}</span>
+                          ) : (
+                            line
+                          )}
+                        </motion.p>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
 
+              {/* 입력 → 변환 흐름 화살표 (카톡 데모 구간만) */}
+              {['kakao-source', 'copy-action', 'paste-action', 'text-pasted'].includes(currentStep) && (
+                <>
+                  <div className="hidden md:flex flex-col items-center justify-center shrink-0 w-10 self-stretch text-emerald-600 dark:text-emerald-400">
+                    <motion.div
+                      animate={{ x: [0, 5, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
+                      aria-hidden
+                    >
+                      <ArrowRight className="w-7 h-7" strokeWidth={2.25} />
+                    </motion.div>
+                    <span className="text-[9px] font-semibold text-zinc-500 dark:text-zinc-400 mt-1 text-center leading-tight">
+                      변환
+                    </span>
+                  </div>
+                  <div className="flex md:hidden justify-center py-0.5 text-emerald-600 dark:text-emerald-400" aria-hidden>
+                    <motion.div
+                      animate={{ y: [0, 4, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
+                    >
+                      <ArrowRight className="w-6 h-6 rotate-90" strokeWidth={2.25} />
+                    </motion.div>
+                  </div>
+                </>
+              )}
+
               {/* 오른쪽: 단계에 따라 변화하는 영역 */}
+              <div className="flex-1 min-h-0 min-w-0 md:flex-[2] flex flex-col">
               <AnimatePresence mode="wait">
                 {/* 1단계: 주문 상세 페이지 */}
                 {currentStep === 'kakao-source' && (
@@ -461,7 +522,7 @@ export default function DemoAnimation() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.3 }}
-                    className="md:w-2/3 bg-white dark:bg-zinc-800 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 p-0 overflow-hidden h-full flex flex-col"
+                    className="w-full bg-white dark:bg-zinc-800 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 p-0 overflow-hidden h-full flex flex-col"
                   >
                   {/* 브라우저 상단 바 */}
                   <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
@@ -502,10 +563,12 @@ export default function DemoAnimation() {
                           주문 정보
                         </p>
                         <p className="text-zinc-600 dark:text-zinc-300">
-                          주문자: 홍길동
+                          주문자:{' '}
+                          <span className={DEMO_MATCH_HIGHLIGHT}>홍길동</span>
                         </p>
                         <p className="text-zinc-600 dark:text-zinc-300">
-                          연락처: 010-1234-5678
+                          연락처:{' '}
+                          <span className={DEMO_MATCH_HIGHLIGHT}>010-1234-5766</span>
                         </p>
                       </div>
                       <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 space-y-1">
@@ -513,10 +576,12 @@ export default function DemoAnimation() {
                           배송지 정보
                         </p>
                         <p className="text-zinc-600 dark:text-zinc-300">
-                          받는사람: 홍길동
+                          받는사람:{' '}
+                          <span className={DEMO_MATCH_HIGHLIGHT}>홍길동</span>
                         </p>
                         <p className="text-zinc-600 dark:text-zinc-300">
-                          주소: 서울 강남구 테헤란로 123
+                          주소:{' '}
+                          <span className={DEMO_MATCH_HIGHLIGHT}>서울 강남구 테헤란로 123</span>
                         </p>
                       </div>
                     </div>
@@ -530,9 +595,13 @@ export default function DemoAnimation() {
                         <div className="text-right">금액</div>
                       </div>
                       <div className="grid grid-cols-4 px-3 py-2 text-[11px] text-zinc-700 dark:text-zinc-200 border-t border-zinc-200 dark:border-zinc-700">
-                        <div>키보드</div>
+                        <div>
+                          <span className={DEMO_MATCH_HIGHLIGHT}>키보드</span>
+                        </div>
                         <div>블랙</div>
-                        <div className="text-right">10개</div>
+                        <div className="text-right">
+                          <span className={DEMO_MATCH_HIGHLIGHT}>10개</span>
+                        </div>
                         <div className="text-right">150,000원</div>
                       </div>
                     </div>
@@ -543,7 +612,7 @@ export default function DemoAnimation() {
                         배송 요청사항
                       </p>
                       <p className="text-xs text-zinc-600 dark:text-zinc-300">
-                        빠른배송해주세요
+                        <span className={DEMO_MATCH_HIGHLIGHT}>빠른배송해주세요</span>
                       </p>
                     </div>
                   </div>
@@ -777,10 +846,18 @@ export default function DemoAnimation() {
                         <div>상품명</div>
                       </div>
                       <div className="grid grid-cols-4 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-200 border-t border-zinc-200 dark:border-zinc-700">
-                        <div>홍길동</div>
-                        <div>010-1234-5678</div>
-                        <div>서울시 강남구...</div>
-                        <div>마우스</div>
+                        <div>
+                          <span className={DEMO_MATCH_HIGHLIGHT}>홍길동</span>
+                        </div>
+                        <div>
+                          <span className={DEMO_MATCH_HIGHLIGHT}>010-1234-5766</span>
+                        </div>
+                        <div>
+                          <span className={DEMO_MATCH_HIGHLIGHT}>서울 강남구 테헤란로 123</span>
+                        </div>
+                        <div>
+                          <span className={DEMO_MATCH_HIGHLIGHT}>키보드 10개</span>
+                        </div>
                       </div>
                       <div className="grid grid-cols-4 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-200 border-t border-zinc-200 dark:border-zinc-700">
                         <div>김철수</div>
@@ -1389,6 +1466,7 @@ export default function DemoAnimation() {
                 )}
 
               </AnimatePresence>
+              </div>
             </div>
           </motion.div>
         )}
@@ -1615,27 +1693,34 @@ export default function DemoAnimation() {
 
       </div>
 
-      {/* 진행 표시기 */}
-      <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-        {(() => {
-          // 통합 흐름 사용
-          const stepsToShow: DemoStep[] = unifiedFlow;
-          
-          return stepsToShow.map((step) => (
-            <motion.div
-              key={step}
-              className={`h-2 rounded-full ${
-                currentStep === step
-                  ? 'bg-blue-600 w-8'
-                  : 'bg-zinc-300 dark:bg-zinc-700 w-2'
-              }`}
-              animate={{
-                width: currentStep === step ? 32 : 8,
-              }}
-              transition={{ duration: 0.3 }}
-            />
-          ));
-        })()}
+      {/* 진행 표시기: 단계 라벨 + 점을 카드에 가깝게 */}
+      <div className="absolute bottom-1.5 sm:bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 max-w-[min(100%,24rem)] px-2">
+        <p
+          key={currentStep}
+          className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 text-center leading-tight line-clamp-2"
+        >
+          {unifiedStepCaption(currentStep)}
+        </p>
+        <div className="flex gap-2 items-center">
+          {(() => {
+            const stepsToShow: DemoStep[] = unifiedFlow;
+
+            return stepsToShow.map((step) => (
+              <motion.div
+                key={step}
+                className={`h-2.5 rounded-full ${
+                  currentStep === step
+                    ? 'bg-emerald-600 dark:bg-emerald-500 w-9'
+                    : 'bg-zinc-300 dark:bg-zinc-600 w-2.5'
+                }`}
+                animate={{
+                  width: currentStep === step ? 36 : 10,
+                }}
+                transition={{ duration: 0.3 }}
+              />
+            ));
+          })()}
+        </div>
       </div>
     </div>
   );
