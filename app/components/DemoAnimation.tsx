@@ -282,7 +282,7 @@ export default function DemoAnimation() {
   }, [currentStep]);
 
   return (
-    <div className="w-full max-w-5xl mx-auto h-[520px] rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 shadow-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-800 overflow-hidden relative">
+    <div className="w-full max-w-5xl mx-auto min-h-[380px] h-[min(460px,72vh)] max-h-[480px] rounded-2xl border-2 border-zinc-200 dark:border-zinc-800 shadow-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-800 overflow-hidden relative">
       {/* 배경 그리드 패턴 */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
@@ -311,7 +311,7 @@ export default function DemoAnimation() {
         <ChevronRight className="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
       </button>
 
-      <div className="relative z-10 h-full flex items-center justify-center p-8">
+      <div className="relative z-10 h-full flex items-center justify-center px-4 pt-4 pb-9 sm:px-6 sm:pt-5 sm:pb-10">
         {/* 한 화면에서 부드럽게 변환되는 통합 화면 */}
         {(['kakao-source', 'copy-action', 'paste-action', 'text-pasted', 'preview', 'excel-source', 'excel-upload', 'excel-preview', 'image-source', 'image-upload', 'image-preview', 'excel-complete'].includes(currentStep)) && (
           <motion.div
@@ -328,7 +328,7 @@ export default function DemoAnimation() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.3 }}
-              className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 text-center"
+              className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 sm:mb-3 text-center"
             >
               {currentStep === 'kakao-source' && '카카오톡 주문과 주문 상세 페이지'}
               {currentStep === 'copy-action' && '복사하기'}
@@ -345,7 +345,7 @@ export default function DemoAnimation() {
             </motion.h3>
             
             {/* 콘텐츠 영역 - 고정 높이로 통일 */}
-            <div className={`flex flex-col md:flex-row md:justify-center gap-4 h-[360px] ${currentStep === 'excel-complete' ? 'md:flex-row md:justify-center' : ''}`}>
+            <div className={`flex flex-col md:flex-row md:justify-center gap-3 min-h-0 h-[min(300px,42vh)] sm:h-[308px] md:h-[320px] ${currentStep === 'excel-complete' ? 'md:flex-row md:justify-center' : ''}`}>
               {/* 왼쪽: 카톡 메시지 영역 - 항상 표시 (1-3단계) */}
               {!['preview', 'excel-source', 'excel-upload', 'excel-preview', 'image-source', 'image-upload', 'image-preview', 'excel-complete'].includes(currentStep) && (
                 <motion.div
@@ -1616,7 +1616,7 @@ export default function DemoAnimation() {
       </div>
 
       {/* 진행 표시기 */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
         {(() => {
           // 통합 흐름 사용
           const stepsToShow: DemoStep[] = unifiedFlow;
