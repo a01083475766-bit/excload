@@ -338,7 +338,7 @@ export default function DemoAnimation() {
         <ChevronRight className="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
       </button>
 
-      <div className="relative z-10 h-full flex items-center justify-center px-3 pt-2 pb-10 sm:px-5 sm:pt-3 sm:pb-11">
+      <div className="relative z-10 h-full flex items-center justify-center px-3 pt-1.5 pb-10 sm:px-5 sm:pt-2 sm:pb-11">
         {/* 한 화면에서 부드럽게 변환되는 통합 화면 */}
         {(['kakao-source', 'copy-action', 'paste-action', 'text-pasted', 'preview', 'excel-source', 'excel-upload', 'excel-preview', 'image-source', 'image-upload', 'image-preview', 'excel-complete'].includes(currentStep)) && (
           <motion.div
@@ -355,7 +355,7 @@ export default function DemoAnimation() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.3 }}
-              className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1 sm:mb-1.5 text-center leading-snug"
+              className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-0.5 sm:mb-1 text-center leading-snug"
             >
               {currentStep === 'kakao-source' && '카카오톡 주문과 주문 상세 페이지'}
               {currentStep === 'copy-action' && '복사하기'}

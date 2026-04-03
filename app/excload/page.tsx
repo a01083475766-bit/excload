@@ -38,23 +38,54 @@ export default function HomePage() {
         {/* Hero 섹션 */}
         <section className="pt-4 pb-8 lg:pt-6 lg:pb-12">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col items-center text-center gap-4">
+            {/* ① 불편(노동) → ② 해결(쉬움) */}
+            <div className="flex flex-col items-center text-center gap-3 sm:gap-3.5">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-950 dark:text-zinc-100 leading-tight max-w-4xl">
-                기획·채팅·포장까지 혼자라면, 주문 표 정리는 짧게 끝내세요.
+                반복되는 주문 정리,{' '}
+                <span className="text-emerald-700 dark:text-emerald-400">엑셀 노가다</span> 힘드셨죠? 이제{' '}
+                <strong className="font-bold text-zinc-900 dark:text-zinc-50">복사해서 붙이면</strong> 준비 끝!
               </h1>
-              <p className="text-base sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
-                카톡으로 온 문자, 메모에 적어 둔 주소, 형식이 제각각인 엑셀까지.{' '}
-                <strong className="font-semibold text-zinc-800 dark:text-zinc-200">
-                  복사해 붙이거나 파일만 올리면
-                </strong>{' '}
-                택배·물류 업로드에 맞는 열 구조로 맞춰 드립니다.
+              <div className="max-w-2xl space-y-2.5 text-left sm:text-center text-base sm:text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                <p>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">엑셀 노가다</span> 탈출! — 엑셀
+                  파일, 카톡 주문,{' '}
+                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">붙여넣기만 하면</strong> 정리
+                  끝.
+                </p>
+                <p>
+                  오입력 걱정 줄이기 — 규칙에 맞춰 필드를 맞춰 주니, 손으로 칠 때보다{' '}
+                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">실수를 덜 하기 쉽습니다</strong>
+                  . (최종 확인은 항상 해 주세요.)
+                </p>
+              </div>
+            </div>
+
+            <div className="w-full">
+              <DemoAnimation />
+            </div>
+
+            <p className="text-center text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-snug px-1">
+              오직 빠른 주문 정리에만 집중 — 엑클로드는 불필요한 기능을 빼고 실속만 채웠습니다.
+            </p>
+
+            {/* ③ 확신(가격·속도) — 과장 표현 완화 */}
+            <div className="flex flex-col items-center text-center gap-2 max-w-xl mx-auto px-2 pt-1">
+              <p className="text-base sm:text-lg font-medium text-zinc-800 dark:text-zinc-200 leading-snug">
+                필요한 변환 기능은 그대로, 부담은 줄였습니다 — 가격은{' '}
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">커피 한 잔</span> 부담 수준의{' '}
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span>부터 이용해
+                보세요.
               </p>
-              <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-500 max-w-2xl leading-relaxed">
-                행 옮기기·셀 맞추기에 쓰던 시간을 줄이고, 포장과 발송 준비에 더 쓰실 수 있게요.
+              <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                프로 플랜(
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span>)이면 변환·미리보기
+                파이프라인을 여유 있게 쓰실 수 있습니다. 붙이거나 파일만 올려도{' '}
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200">곧바로 표로 정리</span>되어 반복
+                입력을 줄여 드립니다. (건수·네트워크에 따라 체감 속도는 달라질 수 있어요.)
               </p>
             </div>
 
-            {/* 체험 CTA: 로그인 없이 미리보기 (다운로드는 정식 서비스) */}
+            {/* 체험 CTA */}
             <div className="flex flex-col items-center text-center gap-2 max-w-lg mx-auto px-2">
               <Link
                 href="/trial"
@@ -68,10 +99,6 @@ export default function HomePage() {
               <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed mt-1">
                 체험에는 사용량이 제공되며, 횟수·네트워크별 제한이 있을 수 있습니다.
               </p>
-            </div>
-
-            <div className="w-full">
-              <DemoAnimation />
             </div>
           </div>
         </section>
