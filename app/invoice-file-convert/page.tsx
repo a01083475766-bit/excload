@@ -1,6 +1,7 @@
 /**
  * ⚠️ EXCLOAD CONSTITUTION v4.0 적용 파일
  * 송장파일변환 (/invoice-file-convert) — order-convert/page.tsx 복제 기반
+ * 입력: 주문 엑셀(기존 파이프라인) + 택배 송장 엑셀(상태 보관, 병합 로직 예정), 텍스트·스크린샷 없음
  * localStorage 키는 주문변환과 분리(invoiceFileConvert_*)
  * 모든 수정 전 CONSTITUTION.md 필독
  * 3단계 분리 파이프라인 유지 필수
@@ -11,7 +12,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2 } from 'lucide-react';
+import { Truck, Search, ArrowDown, X, Check, Upload } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { ExcelPreprocessPipeline } from '@/app/pipeline/preprocess/excel-preprocess-pipeline';
@@ -25,20 +26,11 @@ import {
   filterNonEmptyRows,
   readFirstSheetMatrixFromArrayBuffer,
 } from '@/app/lib/excel/sheet-header';
-import type { UnifiedInputPipelineResult } from '@/app/unified-input/adapters/runUnifiedInputOrderPipelines';
-import { extractTextFromImage } from '@/app/unified-input/adapters/ImageToTextAdapter';
-import { runTextToCleanInputAdapter } from '@/app/unified-input/adapters/TextToCleanInputAdapter';
-import { runUnifiedInputOrderPipelines } from '@/app/unified-input/adapters/runUnifiedInputOrderPipelines';
 import { formatPhoneDisplay } from '@/app/utils/format-phone';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
 import { Coins } from 'lucide-react';
-import {
-  NormalizeQualityNoticeModal,
-  isLikelyClientNetworkError,
-} from '@/app/components/NormalizeQualityNoticeModal';
-
 type PreviewRowWithId = {
   rowId: string;
   data: PreviewRow;
@@ -288,50 +280,27 @@ export default function InvoiceFileConvertPage() {
     header: string;
   } | null>(null);
   const [newRows, setNewRows] = useState<Set<string>>(new Set());
-  const [isDragging, setIsDragging] = useState(false);
-  
-  // 텍스트 주문 변환용 상태
-  const [textInput, setTextInput] = useState('');
-  const [isProcessingTextImage, setIsProcessingTextImage] = useState(false);
-  const [errorMessageTextImage, setErrorMessageTextImage] = useState<string | null>(null);
-  const [qualityNoticeModal, setQualityNoticeModal] = useState<
-    'hidden' | 'heuristic' | 'network'
-  >('hidden');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [showTextConvertModal, setShowTextConvertModal] = useState(false);
-  const [dontShowToday, setDontShowToday] = useState(false);
-  const [showScreenshotModal, setShowScreenshotModal] = useState(false);
-  const [screenshotStage, setScreenshotStage] = useState<
-    'idle' | 'processing' | 'completed'
-  >('idle');
-
-  // 사용자 정보 가져오기 (컴포넌트 마운트 시)
-  useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
-  const [screenshotImagePreview, setScreenshotImagePreview] = useState<string | null>(null);
-  const [showTextProcessingModal, setShowTextProcessingModal] = useState(false);
-  const [textProcessingSource, setTextProcessingSource] = useState<'screenshot' | 'imageFile'>('screenshot');
+  const [isDraggingOrder, setIsDraggingOrder] = useState(false);
+  const [isDraggingCourier, setIsDraggingCourier] = useState(false);
+  /** 택배사에서 받은 송장번호 엑셀 (후속 병합 단계에서 사용) */
+  const [courierInvoiceFile, setCourierInvoiceFile] = useState<File | null>(null);
   const [downloadModalFileName, setDownloadModalFileName] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "processing" | "done">("idle");
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [processingDots, setProcessingDots] = useState("");
-  const [textProcessingDots, setTextProcessingDots] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  // 입력 방식 추적: 사용자가 어떤 방식으로 입력했는지 기록
-  const [inputSourceType, setInputSourceType] = useState<'excel' | 'image' | 'text' | null>(null);
+  const [inputSourceType, setInputSourceType] = useState<'excel' | null>(null);
 
   const courierFileInputRef = useRef<HTMLInputElement | null>(null);
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
-  const textInputRef = useRef<HTMLTextAreaElement | null>(null);
-  /** 텍스트 변환 중복 클릭·사용량 차감 이중 호출 방지 (await 전에 state가 안 올라가는 레이스 대비) */
-  const textConvertInFlightRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
-  const isCancelledRef = useRef<boolean>(false);
+  const courierInvoiceFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
 
   // 고정 헤더 순서 배열 (courierUploadTemplate.headers 기준)
   const FIXED_HEADER_ORDER = useMemo(() => {
@@ -414,20 +383,6 @@ export default function InvoiceFileConvertPage() {
 
     return () => clearInterval(interval);
   }, [fileProcessingStatus]);
-
-  // 점 애니메이션 처리 (텍스트 변환용)
-  useEffect(() => {
-    if (!isProcessingTextImage) {
-      setTextProcessingDots("");
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setTextProcessingDots(prev => (prev.length >= 3 ? "" : prev + "."));
-    }, 400);
-
-    return () => clearInterval(interval);
-  }, [isProcessingTextImage]);
 
   const handleOpenCourierTemplateModal = () => {
     const formats = loadRecentExcelFormats();
@@ -697,258 +652,42 @@ export default function InvoiceFileConvertPage() {
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      files.forEach(file => {
+      files.forEach((file) => {
         const extension = file.name.split('.').pop()?.toLowerCase();
-        const fileType = file.type;
-        
-      // 엑셀 파일 처리
-      if (extension === 'xlsx' || extension === 'xls') {
-        // 택배 업로드 양식이 없는 경우 안내 모달 표시
-        if (!isValidCourierTemplate(courierUploadTemplate)) {
-          setNoTemplateModalType('convert');
-          setIsNoTemplateModalOpen(true);
-          return;
+
+        if (extension === 'xlsx' || extension === 'xls') {
+          if (!isValidCourierTemplate(courierUploadTemplate)) {
+            setNoTemplateModalType('convert');
+            setIsNoTemplateModalOpen(true);
+            return;
+          }
+          if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
+            setUploadedExcelFile(file);
+            parseExcelFile(file);
+          }
+        } else {
+          alert('주문 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
         }
-        if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
-          setUploadedExcelFile(file);
-          parseExcelFile(file);
-        }
-      }
-      // 이미지 파일 처리 (이미지 변환)
-      else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || 
-               fileType.startsWith('image/')) {
-        handleImageFileSelect(file);
-      }
       });
     }
-    // input 초기화하여 같은 파일을 다시 선택할 수 있도록 함
     if (e.target) {
       e.target.value = '';
     }
   };
 
-  // 이미지 파일 선택 및 OCR 자동 실행 (이미지 변환)
-  const handleImageFileSelect = async (file: File) => {
-    setSelectedImage(file);
-    setInputSourceType('image'); // 이미지 업로드로 입력 방식 기록
-    setErrorMessageTextImage(null);
-
-    // 텍스트 정리 중 모달 열기 (이미지 파일로 표시)
-    setTextProcessingSource('imageFile');
-    setShowTextProcessingModal(true);
-    setScreenshotStage('processing');
-
-    try {
-      setIsProcessingTextImage(true);
-
-      const ocrText = await extractTextFromImage(file);
-
-      // 기존 텍스트 입력 state 이름에 맞게 수정
-      setTextInput(ocrText);
-
-      // 처리 완료 상태로 변경
-      setScreenshotStage('completed');
-
-    } catch (error) {
-      setErrorMessageTextImage(
-        error instanceof Error ? error.message : 'OCR 처리 중 오류가 발생했습니다.'
-      );
-      setScreenshotStage('idle');
-      setShowTextProcessingModal(false);
-    } finally {
-      setIsProcessingTextImage(false);
+  const handleCourierInvoiceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension !== 'xlsx' && extension !== 'xls') {
+      alert('송장 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
+      e.target.value = '';
+      return;
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setCourierInvoiceFile(file);
+    if (e.target) e.target.value = '';
   };
 
-  // 스크린샷 주문변환 모달 닫기
-  const handleScreenshotModalClose = () => {
-    // 처리 중단 플래그 설정
-    if (screenshotStage === 'processing') {
-      isCancelledRef.current = true;
-    }
-    
-    setShowScreenshotModal(false);
-    setScreenshotImagePreview(null);
-    setScreenshotStage('idle');
-    setErrorMessageTextImage(null);
-    isCancelledRef.current = false;
-  };
-
-  // 클립보드 붙여넣기 처리
-  const handlePaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    
-    const items = e.clipboardData.items;
-    let imageFound = false;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      
-      // 이미지 타입 확인
-      if (item.type.indexOf('image') !== -1) {
-        imageFound = true;
-        const blob = item.getAsFile();
-        if (blob) {
-          // 스크린샷 모달 닫기
-          setShowScreenshotModal(false);
-          
-          // 텍스트 정리 중 모달 열기
-          setShowTextProcessingModal(true);
-          
-          // 이미지 처리 시작
-          await handleScreenshotImageProcess(blob);
-        }
-        break;
-      }
-    }
-
-    // 이미지가 없으면 contentEditable 내용 제거
-    if (!imageFound && screenshotPasteAreaRef.current) {
-      setTimeout(() => {
-        if (screenshotPasteAreaRef.current) {
-          screenshotPasteAreaRef.current.textContent = '';
-          screenshotPasteAreaRef.current.innerHTML = '';
-        }
-      }, 0);
-    }
-  };
-
-  // contentEditable에서 텍스트 입력 방지 (이미지 미리보기는 유지)
-  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-    // contentEditable의 텍스트만 제거 (이미지 미리보기는 state로 관리되므로 유지됨)
-    // 이미지 미리보기가 있을 때는 contentEditable 내용을 제거하지 않음
-    // (이미지 미리보기가 state로 표시되므로 contentEditable 내용은 무시)
-    if (screenshotPasteAreaRef.current && screenshotStage === 'idle') {
-      // idle에서만 contentEditable 텍스트 제거
-      screenshotPasteAreaRef.current.textContent = '';
-      screenshotPasteAreaRef.current.innerHTML = '';
-    }
-  };
-
-  // 스크린샷 이미지 처리 및 텍스트 추출
-  const handleScreenshotImageProcess = async (blob: Blob) => {
-    // 취소 플래그 초기화
-    isCancelledRef.current = false;
-    
-    // 텍스트 정리 중 모달 열기 (스크린샷으로 표시)
-    setTextProcessingSource('screenshot');
-    setShowTextProcessingModal(true);
-    setScreenshotStage('processing');
-    setInputSourceType('image'); // 스크린샷 주문변환으로 입력 방식 기록
-    setErrorMessageTextImage(null);
-
-    try {
-      // Blob을 File로 변환
-      const file = new File([blob], 'screenshot.png', { type: 'image/png' });
-
-      // 기존 OCR 로직 사용 (extractTextFromImage)
-      const extractedText = await extractTextFromImage(file);
-
-      // 취소 여부 확인
-      if (isCancelledRef.current) {
-        setScreenshotStage('idle');
-        setShowTextProcessingModal(false);
-        return;
-      }
-
-      if (extractedText && extractedText.trim()) {
-        // 취소 여부 재확인
-        if (isCancelledRef.current) {
-          setScreenshotStage('idle');
-          setShowTextProcessingModal(false);
-          return;
-        }
-
-        // 텍스트 주문입력 textarea에 결과 입력
-        setTextInput(extractedText);
-        
-        // 처리 완료 상태로 변경
-        setScreenshotStage('completed');
-        // 모달은 완료 상태로 유지 (사용자가 확인 버튼을 눌러야 닫힘)
-      } else {
-        if (!isCancelledRef.current) {
-          setErrorMessageTextImage('이미지에서 텍스트를 추출할 수 없습니다.');
-          setScreenshotStage('idle');
-          setShowTextProcessingModal(false);
-        }
-      }
-    } catch (error) {
-      if (!isCancelledRef.current) {
-        console.error('[InvoiceFileConvertPage] 스크린샷 이미지 처리 중 오류:', error);
-        setErrorMessageTextImage(
-          error instanceof Error ? error.message : '이미지 처리 중 오류가 발생했습니다.'
-        );
-        setScreenshotStage('idle');
-        setShowTextProcessingModal(false);
-      }
-    }
-  };
-
-  // 모달 열릴 때 취소 플래그 초기화 및 붙여넣기 이벤트 리스너 등록
-  useEffect(() => {
-    if (showScreenshotModal) {
-      // 모달이 열릴 때 취소 플래그 및 상태 초기화
-      isCancelledRef.current = false;
-      setScreenshotStage('idle');
-      setErrorMessageTextImage(null);
-    }
-
-    if (showScreenshotModal && screenshotPasteAreaRef.current) {
-      const pasteArea = screenshotPasteAreaRef.current;
-      
-      const handlePasteEvent = async (e: ClipboardEvent) => {
-        e.preventDefault();
-        const items = e.clipboardData?.items;
-        let imageFound = false;
-
-        if (items) {
-          for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            
-            if (item.type.indexOf('image') !== -1) {
-              imageFound = true;
-              const blob = item.getAsFile();
-              if (blob) {
-                // 스크린샷 모달 닫기
-                setShowScreenshotModal(false);
-                
-                // 텍스트 정리 중 모달 열기
-                setShowTextProcessingModal(true);
-                
-                // 이미지 처리 시작
-                await handleScreenshotImageProcess(blob);
-              }
-              break;
-            }
-          }
-        }
-
-        // 이미지가 없으면 contentEditable 내용 제거
-        if (!imageFound && screenshotPasteAreaRef.current) {
-          setTimeout(() => {
-            if (screenshotPasteAreaRef.current) {
-              screenshotPasteAreaRef.current.textContent = '';
-              screenshotPasteAreaRef.current.innerHTML = '';
-            }
-          }, 0);
-        }
-      };
-
-      pasteArea.addEventListener('paste', handlePasteEvent);
-      pasteArea.focus();
-
-      return () => {
-        pasteArea.removeEventListener('paste', handlePasteEvent);
-      };
-    }
-  }, [showScreenshotModal]);
-  
   // 사용량 차감 헬퍼 함수
   const usePoints = async (amount: number, type: 'text' | 'download'): Promise<boolean> => {
     // 현재 사용자 정보 가져오기 (최신 상태)
@@ -1016,147 +755,71 @@ export default function InvoiceFileConvertPage() {
     }
   };
 
-  // 텍스트 주문 변환 처리 (실제 변환 로직)
-  const handleTextConvert = async () => {
-    if (textConvertInFlightRef.current || isProcessingTextImage) {
-      return;
-    }
-    setErrorMessageTextImage(null);
-
-    // 택배 업로드 양식이 없는 경우 안내 모달 표시
-    if (!isValidCourierTemplate(courierUploadTemplate)) {
-      setNoTemplateModalType('convert');
-      setIsNoTemplateModalOpen(true);
-      return;
-    }
-
-    const trimmed = textInput.trim();
-    if (!trimmed) {
-      setErrorMessageTextImage('변환할 텍스트를 입력해 주세요.');
-      return;
-    }
-
-    const textLength = trimmed.length;
-
-    if (!user) {
-      alert('로그인이 필요합니다.');
-      router.push('/auth/login');
-      return;
-    }
-
-    if (user.points < textLength) {
-      setErrorMessageTextImage('사용량이 부족합니다');
-      return;
-    }
-
-    textConvertInFlightRef.current = true;
-    setIsProcessingTextImage(true);
-    try {
-      const pointsDeducted = await usePoints(textLength, 'text');
-      if (!pointsDeducted) {
-        return;
-      }
-
-      if (!selectedImage) {
-        setInputSourceType('text');
-      }
-
-      const adapterResult = await runTextToCleanInputAdapter(trimmed);
-      const { normalizeMeta, ...cleanInputFile } = adapterResult;
-      if (cleanInputFile) {
-        const fileSessionId = crypto.randomUUID();
-        const pipelineResult = await runUnifiedInputOrderPipelines({
-          cleanInputFile,
-          templateBridgeFile,
-          fixedHeaderValues,
-          fileSessionId,
-        });
-
-        handleUnifiedPipelinesCompleted(pipelineResult);
-
-        setTextInput('');
-        if (normalizeMeta.usedFallback) {
-          setQualityNoticeModal('heuristic');
-        }
-      } else {
-        setErrorMessageTextImage('텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.');
-      }
-    } catch (error) {
-      console.error('[InvoiceFileConvertPage] 텍스트 주문 변환 중 오류:', error);
-      if (isLikelyClientNetworkError(error)) {
-        setQualityNoticeModal('network');
-      }
-      setErrorMessageTextImage(
-        error instanceof Error ? error.message : '텍스트를 변환하는 중 알 수 없는 오류가 발생했습니다.'
-      );
-    } finally {
-      setIsProcessingTextImage(false);
-      textConvertInFlightRef.current = false;
-    }
-  };
-
-  // 텍스트 주문 변환 실행 (모달 확인 후 호출)
-  const executeTextConvert = async () => {
-    // 오늘은 보지 않기 체크 시 localStorage에 저장
-    if (dontShowToday) {
-      const today = new Date().toDateString();
-      localStorage.setItem("invoiceFileConvert_hideTextConvertModal", today);
-    }
-    setShowTextConvertModal(false);
-    setDontShowToday(false); // 체크박스 초기화
-    await handleTextConvert();
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOverOrder = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    setIsDraggingOrder(true);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeaveOrder = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    setIsDraggingOrder(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDropOrder = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    setIsDraggingOrder(false);
 
     const files = Array.from(e.dataTransfer.files);
-    
-    if (files.length === 0) {
-      return;
-    }
+    if (files.length === 0) return;
 
-    // 파일 타입별로 분류 처리
-    files.forEach(file => {
+    files.forEach((file) => {
       const extension = file.name.split('.').pop()?.toLowerCase();
-      const fileType = file.type;
-      
-      // 엑셀 파일 처리
       if (extension === 'xlsx' || extension === 'xls') {
-        // 택배 업로드 양식이 없는 경우 안내 모달 표시
         if (!isValidCourierTemplate(courierUploadTemplate)) {
           setNoTemplateModalType('convert');
           setIsNoTemplateModalOpen(true);
           return;
         }
-        if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
+        if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
           setUploadedExcelFile(file);
           parseExcelFile(file);
         }
-      }
-      // 이미지 파일 처리 (이미지 변환)
-      else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || 
-               fileType.startsWith('image/')) {
-        handleImageFileSelect(file);
-      }
-      else {
-        alert(`지원하지 않는 파일 형식입니다: ${extension || fileType}`);
+      } else {
+        alert('주문 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
       }
     });
+  };
+
+  const handleDragOverCourier = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingCourier(true);
+  };
+
+  const handleDragLeaveCourier = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingCourier(false);
+  };
+
+  const handleDropCourier = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingCourier(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    const file = files[0];
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension !== 'xlsx' && extension !== 'xls') {
+      alert('송장 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
+      return;
+    }
+    setCourierInvoiceFile(file);
   };
 
   const parseExcelFile = async (file: File) => {
@@ -1269,49 +932,6 @@ export default function InvoiceFileConvertPage() {
       (window as any).__lastOrderFile = file.name;
     }
   };
-  
-  const handleUnifiedPipelinesCompleted = (result: UnifiedInputPipelineResult) => {
-    if (!result.mergeResult) {
-      return;
-    }
-
-    // unknownHeaders 처리
-    if (result.orderStandardFile?.unknownHeaders?.length > 0) {
-      setUnknownHeadersWarning(result.orderStandardFile.unknownHeaders);
-    } else {
-      setUnknownHeadersWarning([]);
-    }
-
-    const { courierHeaders: mergedCourierHeaders, previewRows: mergedPreviewRows } = result.mergeResult;
-
-    // Stage3 결과를 현재 미리보기 상단에 추가
-    const newRowIds = mergedPreviewRows.map(() => crypto.randomUUID());
-    setPreviewRows(prev => [
-      ...mergedPreviewRows.map((row, index) => ({
-        rowId: newRowIds[index],
-        data: row,
-      })),
-      ...prev,
-    ]);
-    
-    // 새로 생성된 행을 newRows에 추가
-    setNewRows(prev => {
-      const updated = new Set(prev);
-      newRowIds.forEach(id => updated.add(id));
-      return updated;
-    });
-    
-    // 3초 후 자동 제거
-    setTimeout(() => {
-      setNewRows(prev => {
-        const updated = new Set(prev);
-        newRowIds.forEach(id => updated.delete(id));
-        return updated;
-      });
-    }, 3000);
-
-    setCourierHeaders(mergedCourierHeaders);
-  };
 
   const handleDownloadPreview = async () => {
     if (!courierHeaders || courierHeaders.length === 0) {
@@ -1386,35 +1006,25 @@ export default function InvoiceFileConvertPage() {
         try {
           const { addSession } = useHistoryStore.getState();
           
-          // sourceType 결정: 사용자 입력 방식 기준
-          const sourceType: SourceType =
-            inputSourceType === 'excel'
-              ? 'excel'
-              : inputSourceType === 'image'
-              ? 'image'
-              : 'kakao'; // 'text' 또는 null인 경우 'kakao' (텍스트 입력)
-          
-          // files: 입력 방식에 따라 파일 메타데이터 생성
-          let files: FileMetadata[] = [];
-          if (inputSourceType === 'excel') {
-            // 엑셀 업로드: uploadedFileMeta 사용
-            files = uploadedFileMeta.map(meta => ({
-              name: meta.name,
-              size: meta.size,
-              lastModified: Date.now(), // 현재 시간으로 설정 (원본 파일 정보가 없으므로)
-              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' // 엑셀 파일 타입
-            }));
-          } else if (inputSourceType === 'image' && selectedImage) {
-            // 이미지 업로드: selectedImage 사용
-            files = [{
-              name: selectedImage.name,
-              size: selectedImage.size,
-              lastModified: selectedImage.lastModified,
-              type: selectedImage.type
-            }];
-          } else {
-            // 텍스트 입력: 빈 배열
-            files = [];
+          const sourceType: SourceType = inputSourceType === 'excel' ? 'excel' : 'kakao';
+
+          const excelType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          let files: FileMetadata[] = uploadedFileMeta.map((meta) => ({
+            name: meta.name,
+            size: meta.size,
+            lastModified: Date.now(),
+            type: excelType,
+          }));
+          if (courierInvoiceFile) {
+            files = [
+              ...files,
+              {
+                name: courierInvoiceFile.name,
+                size: courierInvoiceFile.size,
+                lastModified: courierInvoiceFile.lastModified,
+                type: excelType,
+              },
+            ];
           }
           
           // courier: courierUploadTemplate의 courierType
@@ -1471,13 +1081,16 @@ export default function InvoiceFileConvertPage() {
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
           }
+          if (courierInvoiceFileInputRef.current) {
+            courierInvoiceFileInputRef.current.value = "";
+          }
 
           // ✅ 다운로드 완료 후 업로드 파일 상태 초기화
           setSelectedFiles([]);
           setUploadedExcelFile(null);
           setUploadedFileMeta([]);
-          setInputSourceType(null); // 입력 방식 초기화
-          setSelectedImage(null); // 이미지 초기화
+          setInputSourceType(null);
+          setCourierInvoiceFile(null);
         }, 3000);
 
       } catch (error) {
@@ -1536,7 +1149,7 @@ export default function InvoiceFileConvertPage() {
               {/* 주문변환 안내 컨테이너 (항상 중앙) */}
               <div className="flex flex-col gap-2 text-center min-h-[32px]">
                 <p className="text-sm text-gray-500 leading-tight">
-                  송장파일변환 — 주문·택배 송장 파일을 쇼핑몰 송장 업로드 양식에 맞게 변환합니다. (현재 동작은 택배주문변환과 동일, 2파일 병합·전용 로직은 순차 적용 예정)
+                  송장파일변환 — 주문 엑셀과 택배사 송장 엑셀을 등록한 뒤, 쇼핑몰 송장 업로드 양식에 맞게 변환합니다. (주문 파일은 지금과 같이 변환되며, 송장 파일 병합은 순차 적용 예정입니다.)
                 </p>
               </div>
               
@@ -1552,57 +1165,44 @@ export default function InvoiceFileConvertPage() {
               )}
             </div>
 
-            {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
+            {/* 이중 파일 업로드: 주문 엑셀 + 택배사 송장 엑셀 */}
             <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">
               <div className="flex flex-col lg:flex-row gap-5">
-                {/* 왼쪽: 파일선택 영역 (엑셀 + 이미지 드래그존) */}
-                <div 
+                <div
                   className="w-full lg:w-1/2 flex flex-col"
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
+                  onDragOver={handleDragOverOrder}
+                  onDragLeave={handleDragLeaveOrder}
+                  onDrop={handleDropOrder}
                 >
-                  <h3 className="text-base font-semibold text-gray-900 mb-2.5">파일선택</h3>
+                  <h3 className="text-base font-semibold text-gray-900 mb-2.5">① 주문 파일</h3>
                   <label
-                    htmlFor="unified-file-input"
+                    htmlFor="invoice-order-file-input"
                     style={{ cursor: 'pointer' }}
                     className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
-                      isDragging 
-                        ? 'border-blue-500 bg-blue-50' 
+                      isDraggingOrder
+                        ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-300 hover:border-blue-400'
                     }`}
                   >
                     <div className="flex-1 flex flex-col items-center justify-center gap-2.5 text-center">
                       <Upload className="w-8 h-8 text-gray-400" />
                       <div className="space-y-0.5">
-                        <p className="text-sm font-medium text-gray-700">
-                          엑셀파일 · 이미지파일
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          클릭하거나 드래그하여 업로드하세요
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1.5">
-                          (xlsx, xls, jpg, png, gif)
-                        </p>
+                        <p className="text-sm font-medium text-gray-700">엑셀 파일</p>
+                        <p className="text-xs text-gray-500">클릭하거나 드래그하여 업로드하세요</p>
+                        <p className="text-xs text-gray-400 mt-1.5">(xlsx, xls)</p>
                       </div>
                       {uploadedExcelFile && (
                         <div className="flex items-center justify-center gap-3 mt-2 text-sm text-gray-600">
                           <span>
-                            📄 선택된 파일: {uploadedExcelFile.name}
+                            📄 선택됨: {uploadedExcelFile.name}
                             {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
                           </span>
-
                           <span className="w-[110px] text-right inline-block">
-                            {fileProcessingStatus === "processing" && (
-                              <span className="text-blue-600 font-medium">
-                                ⏳ 처리중{processingDots}
-                              </span>
+                            {fileProcessingStatus === 'processing' && (
+                              <span className="text-blue-600 font-medium">⏳ 처리중{processingDots}</span>
                             )}
-
-                            {fileProcessingStatus === "done" && (
-                              <span className="text-green-600 font-medium">
-                                ✔ 완료
-                              </span>
+                            {fileProcessingStatus === 'done' && (
+                              <span className="text-green-600 font-medium">✔ 완료</span>
                             )}
                           </span>
                         </div>
@@ -1611,79 +1211,59 @@ export default function InvoiceFileConvertPage() {
                   </label>
                   <input
                     ref={fileInputRef}
-                    id="unified-file-input"
+                    id="invoice-order-file-input"
                     type="file"
-                    accept=".xlsx,.xls,.png,.jpg,.jpeg,.gif"
+                    accept=".xlsx,.xls"
                     onChange={handleExcelFileChange}
                     style={{ display: 'none' }}
                   />
-                  <button
-                    type="button"
-                    className="w-full mt-2.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-                    onClick={() => setShowScreenshotModal(true)}
-                  >
-                    캡처화면 주문변환 (스크린샷 주문 변환)
-                  </button>
+                  <p className="text-xs text-gray-600 mt-2.5 leading-relaxed text-center">
+                    주문번호가 포함된 <span className="font-medium text-gray-800">원본 주문 엑셀</span>을 올려주세요.
+                  </p>
                 </div>
 
-                {/* 오른쪽: 텍스트 주문입력 영역 */}
-                <div className="w-full lg:w-1/2 border-l-0 lg:border-l border-gray-200 pl-0 lg:pl-5 flex flex-col">
-                  <h3 className="text-base font-semibold text-gray-900 mb-2.5">텍스트 주문입력</h3>
-                  <p className="text-xs text-gray-600 mb-2.5 leading-relaxed">
-                    카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣으면 주문변환할 수 있습니다
-                  </p>
-                  <div className="space-y-2.5">
-                    <textarea
-                      ref={textInputRef}
-                      className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                      placeholder={
-                        '예) 홍길동 010-1234-5766   무선마우스 2개\n' +
-                        '서울시 강남구 테헤란로 123  문앞에 놓아주세요'
-                      }
-                      value={textInput}
-                      onChange={(e) => {
-                        const newValue = e.target.value;
-                        // 무료 회원 텍스트 입력 제한 (10000자)
-                        if (user?.plan === 'FREE' && newValue.length > 10000) {
-                          alert('무료 회원은 최대 10,000자까지 입력할 수 있습니다.');
-                          return;
-                        }
-                        setTextInput(newValue);
-                      }}
-                      disabled={isProcessingTextImage}
-                    />
-                    <button
-                      type="button"
-                      className="w-full px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const today = new Date().toDateString();
-                        const saved = localStorage.getItem("invoiceFileConvert_hideTextConvertModal");
-
-                        if (saved === today) {
-                          handleTextConvert(); // 바로 실행
-                        } else {
-                          setShowTextConvertModal(true);
-                        }
-                      }}
-                      disabled={isProcessingTextImage || !textInput.trim()}
-                    >
-                      {isProcessingTextImage ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>변환 중{textProcessingDots}</span>
-                        </>
-                      ) : (
-                        '텍스트 주문 변환'
+                <div
+                  className="w-full lg:w-1/2 flex flex-col lg:border-l lg:border-gray-200 lg:pl-5"
+                  onDragOver={handleDragOverCourier}
+                  onDragLeave={handleDragLeaveCourier}
+                  onDrop={handleDropCourier}
+                >
+                  <h3 className="text-base font-semibold text-gray-900 mb-2.5">② 송장 파일</h3>
+                  <label
+                    htmlFor="invoice-courier-file-input"
+                    style={{ cursor: 'pointer' }}
+                    className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
+                      isDraggingCourier
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-300 hover:border-blue-400'
+                    }`}
+                  >
+                    <div className="flex-1 flex flex-col items-center justify-center gap-2.5 text-center">
+                      <Upload className="w-8 h-8 text-gray-400" />
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium text-gray-700">엑셀 파일</p>
+                        <p className="text-xs text-gray-500">클릭하거나 드래그하여 업로드하세요</p>
+                        <p className="text-xs text-gray-400 mt-1.5">(xlsx, xls)</p>
+                      </div>
+                      {courierInvoiceFile && (
+                        <p className="mt-2 text-sm text-gray-600">
+                          📄 선택됨: {courierInvoiceFile.name}
+                        </p>
                       )}
-                    </button>
-                    {errorMessageTextImage && (
-                      <p className="text-xs text-red-600">
-                        {errorMessageTextImage}
-                      </p>
-                    )}
-                  </div>
+                    </div>
+                  </label>
+                  <input
+                    ref={courierInvoiceFileInputRef}
+                    id="invoice-courier-file-input"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleCourierInvoiceFileChange}
+                    style={{ display: 'none' }}
+                  />
+                  <p className="text-xs text-gray-600 mt-2.5 leading-relaxed text-center">
+                    택배사에서 내려받은 <span className="font-medium text-gray-800">송장번호가 들어 있는 엑셀</span>을
+                    등록하세요. (병합 로직 적용 전까지는 미리보기에 반영되지 않을 수 있습니다.)
+                  </p>
                 </div>
               </div>
             </div>
@@ -2600,234 +2180,6 @@ export default function InvoiceFileConvertPage() {
               >
                 확인
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 텍스트 주문 변환 안내 모달 */}
-      {showTextConvertModal && (
-        <div 
-          className="fixed inset-0 bg-black/35 flex items-center justify-center z-[9999] p-4 transition-opacity duration-300 ease-out"
-          onClick={() => setShowTextConvertModal(false)}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-lg w-full max-w-[468px] p-6 transition-all duration-300 ease-out"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-xl font-semibold mb-6 text-gray-900">자동 변환 안내</h3>
-            <div className="space-y-4 mb-8">
-              <p className="text-base font-medium text-gray-900 leading-relaxed">
-                주문정보로 변환하여 주문목록에 추가하겠습니다.
-              </p>
-              <div className="space-y-3 pl-1">
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  변환 완료 후 내용을 한 번 더 확인해주세요 ·
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  주문목록에서 수정 가능합니다 ·
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <label className="inline-flex items-center px-4 py-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={dontShowToday}
-                  onChange={(e) => setDontShowToday(e.target.checked)}
-                  className="mr-2 w-4 h-4"
-                />
-                오늘은 보지 않기
-              </label>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowTextConvertModal(false);
-                    setDontShowToday(false); // 모달 닫을 때 체크박스 초기화
-                  }}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={executeTextConvert}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                >
-                  주문목록으로 추가
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <NormalizeQualityNoticeModal
-        isOpen={qualityNoticeModal !== 'hidden'}
-        variant={qualityNoticeModal === 'network' ? 'network' : 'heuristic'}
-        onClose={() => setQualityNoticeModal('hidden')}
-      />
-
-      {/* 스크린샷 주문변환 모달 */}
-      {showScreenshotModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
-          onClick={handleScreenshotModalClose}
-        >
-          <div 
-            className="bg-white rounded-lg shadow-lg w-full max-w-[600px] p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">스크린샷 주문변환</h3>
-              <button
-                onClick={handleScreenshotModalClose}
-                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-
-            {/* 안내 문구 */}
-            <div className="mb-6">
-              <p className="text-sm text-gray-700 leading-relaxed mb-2">
-                주문 화면을 먼저 캡처하세요.
-              </p>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                PrintScreen 또는 캡처 도구를 사용한 뒤
-              </p>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                Ctrl + V 또는 마우스 우클릭 → 붙여넣기 하세요.
-              </p>
-            </div>
-
-            {/* 붙여넣기 영역 */}
-            <div
-              ref={screenshotPasteAreaRef}
-              tabIndex={0}
-              contentEditable={screenshotStage === 'idle' ? "true" : "false"}
-              suppressContentEditableWarning={true}
-              onPaste={handlePaste}
-              onInput={handleInput}
-              onKeyDown={(e) => {
-                // idle이 아니면 모든 키 입력 방지
-                if (screenshotStage !== 'idle') {
-                  e.preventDefault();
-                  return;
-                }
-                // 텍스트 입력 방지 (이미지만 허용)
-                if (e.key !== 'v' || !e.ctrlKey) {
-                  e.preventDefault();
-                }
-              }}
-              className={`w-full min-h-[300px] border-2 border-dashed rounded-lg p-6 mb-4 transition-colors ${
-                screenshotStage === 'processing'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 bg-gray-50 hover:border-blue-400 cursor-pointer'
-              }`}
-              style={{ outline: 'none', userSelect: 'none' }}
-            >
-              {screenshotStage === 'idle' ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <Upload className="w-12 h-12 text-gray-400 mb-4" />
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    이미지를 붙여넣으세요
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Ctrl + V 또는 우클릭 → 붙여넣기
-                  </p>
-                </div>
-              ) : screenshotImagePreview ? (
-                <div className="flex flex-col items-center justify-center h-full relative">
-                  <img
-                    src={screenshotImagePreview}
-                    alt="붙여넣은 이미지"
-                    className="max-w-full max-h-[400px] rounded-lg shadow-md mb-4"
-                  />
-                  {screenshotStage === 'processing' ? (
-                    <div className="flex items-center gap-2 text-blue-600">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-sm font-medium">주문 데이터를 정리중입니다...</span>
-                    </div>
-                  ) : screenshotStage === 'completed' ? (
-                    <div className="flex flex-col items-center gap-2 mt-2">
-                      <div className="flex items-center gap-2 text-green-600">
-                        <Check className="w-5 h-5" />
-                        <span className="text-sm font-medium">스크린샷을 확인하였습니다</span>
-                      </div>
-                      <p className="text-xs text-gray-600">
-                        주문정보를 처리하기 위해 텍스트로 변환하고 있습니다
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        텍스트 완성이 되면 오른쪽 <span className="font-semibold text-blue-600">텍스트 주문 변환</span> 버튼을 눌러주세요
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-
-            {/* 에러 메시지 */}
-            {errorMessageTextImage && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{errorMessageTextImage}</p>
-              </div>
-            )}
-
-            {/* 하단 버튼 */}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={handleScreenshotModalClose}
-                className={`px-4 py-2 text-sm border border-gray-300 rounded transition-colors ${
-                  screenshotStage === 'processing'
-                    ? 'hover:bg-red-50 border-red-300 text-red-600'
-                    : 'hover:bg-gray-100'
-                }`}
-              >
-                {screenshotStage === 'processing' ? '처리 중단' : '취소'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 텍스트 정리 중 모달 */}
-      {showTextProcessingModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
-        >
-          <div 
-            className="bg-white rounded-lg shadow-lg w-full max-w-[500px] p-6"
-          >
-            <div className="flex flex-col items-center justify-center text-center">
-              {screenshotStage === 'processing' ? (
-                <>
-                  <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-                  <p className="text-lg font-semibold text-gray-900 mb-2">
-                    {textProcessingSource === 'screenshot' 
-                      ? '스크린샷에서 텍스트를 정리중입니다'
-                      : '이미지 파일에서 텍스트를 정리중입니다'}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    텍스트정리가 완료되면 텍스트변환버튼을 눌러 주문목록으로 추가하세요
-                  </p>
-                </>
-              ) : screenshotStage === 'completed' ? (
-                <>
-                  <Check className="w-12 h-12 text-green-500 mb-4" />
-                  <p className="text-lg font-semibold text-gray-900 mb-2">
-                    텍스트로 변환이 완료되었습니다
-                  </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    텍스트 변환하기 버튼을 눌러주세요
-                  </p>
-                  <button
-                    onClick={() => setShowTextProcessingModal(false)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    확인
-                  </button>
-                </>
-              ) : null}
             </div>
           </div>
         </div>
