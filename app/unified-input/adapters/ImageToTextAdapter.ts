@@ -116,8 +116,9 @@ async function runOcr(
 ): Promise<string> {
   const Tesseract = (await import('tesseract.js')).default;
   const result = await Tesseract.recognize(source, 'kor+eng', {
+    // tesseract.js WorkerOptions에 없는 OCR 옵션 (런타임에서만 사용)
     tessedit_pageseg_mode: 6,
-  });
+  } as Parameters<typeof Tesseract.recognize>[2]);
   return result.data.text ?? '';
 }
 

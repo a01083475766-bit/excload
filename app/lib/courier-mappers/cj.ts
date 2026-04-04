@@ -3,13 +3,13 @@
  * Maps NormalizedBatch to CJ upload format (CJRow[])
  */
 
-import type { NormalizationResult } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
+import type { EnglishNormalizationRow } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
 
 /**
  * NormalizedBatch type
  * Array of normalized results
  */
-export type NormalizedBatch = NormalizationResult[];
+export type NormalizedBatch = EnglishNormalizationRow[];
 
 /**
  * CJRow type

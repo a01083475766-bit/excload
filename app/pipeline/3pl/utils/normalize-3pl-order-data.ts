@@ -40,6 +40,20 @@ function resolveBaseHeader(key: string): string {
   return ALIAS_DICTIONARY[key] ?? key;
 }
 
+/** 기준헤더에 해당하는 칸이 비어 있을 때만 값을 채움 (별칭 키 우선) */
+function setEmptyByBaseHeader(
+  row: Record<string, unknown>,
+  baseHeader: string,
+  value: string | undefined
+): void {
+  if (value == null || String(value).trim() === "") return;
+  const keys = Object.keys(row).filter((k) => resolveBaseHeader(k) === baseHeader);
+  const targetKey = keys[0] ?? baseHeader;
+  if (isEmptyString(row[targetKey])) {
+    row[targetKey] = value;
+  }
+}
+
 /**
  * 휴대폰(010/011/016/017/018/019) 11자리만 하이픈 포맷. 지역번호·일반번호 등은 원문 유지.
  */

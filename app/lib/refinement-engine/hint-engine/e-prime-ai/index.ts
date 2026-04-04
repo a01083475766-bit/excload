@@ -253,6 +253,18 @@ async function callAIForExtraction(
 /** normalize-29 / 내부 정규화 결과 — BASE_HEADERS와 동일 키 집합 */
 export type NormalizationResult = BaseHeaderRow;
 
+/** 레거시 정규화 행(영문 필드) — basicNormalize, 카카오·CJ 매퍼 등 */
+export type EnglishNormalizationRow = {
+  status?: 'OK' | 'ERROR';
+  name?: string;
+  phone?: string;
+  address?: string;
+  product?: string;
+  quantity?: number | null;
+  request?: string;
+  products?: unknown[];
+};
+
 /**
  * Validate AI normalization response structure
  */

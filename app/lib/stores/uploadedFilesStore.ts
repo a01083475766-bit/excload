@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { NormalizationResult } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
+import type { EnglishNormalizationRow } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
 
 export type UploadedFile = File;
 
@@ -11,7 +11,7 @@ interface FileMetadata {
 }
 
 // 확장된 NormalizationResult 타입 (파일명, 원본 행번호, 원본 행 데이터 포함)
-export interface ExtendedNormalizationResult extends NormalizationResult {
+export interface ExtendedNormalizationResult extends EnglishNormalizationRow {
   fileName?: string;
   originalRowIndex?: number;
   originalRowData?: Record<string, any>;

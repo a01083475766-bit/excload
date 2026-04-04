@@ -324,8 +324,8 @@ F. 물류 보조 필드 (상품코드, 옵션코드, 센터코드, 박스수량,
     orders = orders
       .filter((order: any) => order && typeof order === 'object' && !Array.isArray(order))
       .map((order: Record<string, any>) => normalizeOrderObject(order))
-      .map((order) => collapseDuplicateFullLineDump(order, text))
-      .map((order) => enrichNormalizedOrderWithHeuristicLine(order, text));
+      .map((order: Record<string, string>) => collapseDuplicateFullLineDump(order, text))
+      .map((order: Record<string, string>) => enrichNormalizedOrderWithHeuristicLine(order, text));
 
     if (!Array.isArray(orders) || orders.length === 0) {
       console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 휴리스틱 fallback 행 생성');

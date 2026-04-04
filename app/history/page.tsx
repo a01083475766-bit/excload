@@ -484,7 +484,7 @@ export default function HistoryPage() {
                                       key={row.rowId || rowIndex}
                                       className={rowClassName}
                                     >
-                                      {Object.keys(session.resultRows[0]?.data || {}).map((header) => {
+                                      {Object.keys(session.resultRows?.[0]?.data || {}).map((header) => {
                                         const cellValue = row.data?.[header] ?? '';
                                         const cellText = String(cellValue);
                                         const highlightedText = searchQuery.trim() 

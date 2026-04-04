@@ -54,9 +54,15 @@ export async function POST(request: NextRequest) {
     }
 
     const cancelAtPeriodEnd = action === 'cancel';
-    const updated = await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+    const updatedRaw = await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
       cancel_at_period_end: cancelAtPeriodEnd,
     });
+    type SubWithPeriods = {
+      status: Stripe.Subscription['status'];
+      current_period_start?: number | null;
+      current_period_end?: number | null;
+    };
+    const updated = updatedRaw as unknown as SubWithPeriods;
 
     await prisma.$transaction([
       prisma.user.update({

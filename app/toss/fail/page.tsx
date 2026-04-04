@@ -6,9 +6,10 @@ import { Suspense } from 'react';
 
 function TossFailInner() {
   const searchParams = useSearchParams();
-  const code = searchParams.get('code') || '';
-  const msg = searchParams.get('message') || '';
-  const plan = searchParams.get('plan') === 'yearly' ? 'yearly' : 'monthly';
+  const code = searchParams?.get('code') || '';
+  const msg = searchParams?.get('message') || '';
+  const plan =
+    searchParams?.get('plan') === 'yearly' ? 'yearly' : 'monthly';
 
   return (
     <div className="max-w-[560px] mx-auto py-16 px-6 text-center">

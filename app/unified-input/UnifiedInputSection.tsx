@@ -18,7 +18,9 @@
 
 import { useState, useRef } from 'react';
 import { Search, Image as ImageIcon, Upload } from 'lucide-react';
-import { convertTextToInternalOrder } from './adapters/TextToCleanInputAdapter';
+import {
+  convertTextToInternalOrder,
+} from './adapters/TextToCleanInputAdapter';
 import { extractTextFromImage } from './adapters/ImageToTextAdapter';
 import type { InternalOrderFormat } from './adapters/types';
 import { OrderConfirmModal } from './components/OrderConfirmModal';
@@ -65,12 +67,7 @@ export function UnifiedInputSection({
 
     setIsProcessing(true);
     try {
-      const fileSessionId =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : undefined;
-      
-      const result = await convertTextToInternalOrder(trimmed, fileSessionId);
+      const result = await convertTextToInternalOrder(trimmed);
       if (result.internalOrder) {
         setInternalOrder(result.internalOrder);
         setModalSourceType('text');
@@ -120,14 +117,13 @@ export function UnifiedInputSection({
     setErrorMessage(null);
 
     try {
-      const fileSessionId =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : undefined;
-
-      // 이미지 OCR + 텍스트 정제
-      const result = await extractTextFromImage(selectedImage, fileSessionId);
-      
+      const ocrText = await extractTextFromImage(selectedImage);
+      const trimmedOcr = ocrText.trim();
+      if (!trimmedOcr) {
+        setErrorMessage('이미지에서 텍스트를 읽지 못했습니다. 다른 이미지로 시도해 주세요.');
+        return;
+      }
+      const result = await convertTextToInternalOrder(trimmedOcr);
       if (result.internalOrder) {
         setInternalOrder(result.internalOrder);
         setModalSourceType('image');

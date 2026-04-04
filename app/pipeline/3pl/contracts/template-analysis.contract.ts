@@ -19,7 +19,8 @@ export type RequiredReason =
   | "address"
   | "contact"
   | "quantity"
-  | "explicit";
+  | "explicit"
+  | "AMBIGUOUS_MATCH";
 
 export interface RequiredFieldSpec {
   key: string;

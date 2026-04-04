@@ -1,6 +1,7 @@
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 import { enrichOrdersWithHeuristicLine } from '@/app/lib/heuristic-korean-order-line';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
+import type { InternalOrderFormat } from '@/app/lib/export/internalOrderFormat';
 
 export type TextNormalizeMeta = {
   usedFallback: boolean;
@@ -103,4 +104,20 @@ export async function runTextToCleanInputAdapter(text: string): Promise<TextToCl
     sourceType: 'text' as const,
     normalizeMeta,
   };
+}
+
+/** 확인 모달용: normalize-29 첫 행 → InternalOrderFormat */
+export async function convertTextToInternalOrder(
+  text: string
+): Promise<{ internalOrder: InternalOrderFormat }> {
+  const { rows } = await runTextToCleanInputAdapter(text);
+  const row = rows[0];
+  if (!row) {
+    throw new Error('변환된 주문 행이 없습니다.');
+  }
+  const internalOrder = {} as InternalOrderFormat;
+  BASE_HEADERS.forEach((h, i) => {
+    internalOrder[h] = row[i] ?? '';
+  });
+  return { internalOrder };
 }

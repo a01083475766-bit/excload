@@ -1,4 +1,4 @@
-import type { NormalizationResult } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
+import type { EnglishNormalizationRow } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
 
 /**
  * rows를 순회하여 name, phone, address, product, quantity, request 필드를 채운 NormalizationResult[] 반환
@@ -6,9 +6,9 @@ import type { NormalizationResult } from '@/app/lib/refinement-engine/hint-engin
  * @param rows - 정규화할 데이터 행 배열
  * @returns NormalizationResult 배열
  */
-export function basicNormalize(rows: Record<string, any>[]): NormalizationResult[] {
+export function basicNormalize(rows: Record<string, any>[]): EnglishNormalizationRow[] {
   return rows.map((row) => {
-    const result: NormalizationResult = {
+    const result: EnglishNormalizationRow = {
       status: 'OK',
     };
 

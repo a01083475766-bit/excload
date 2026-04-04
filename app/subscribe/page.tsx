@@ -94,7 +94,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
 
       setTossLoading(true);
       await loadTossPaymentsScript();
-      const w = window as Window & {
+      type TossWindow = Window & {
         TossPayments: (key: string) => {
           requestBillingAuth: (
             method: string,
@@ -102,6 +102,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
           ) => Promise<void>;
         };
       };
+      const w = window as unknown as TossWindow;
       const tossPayments = w.TossPayments(clientKey);
       const origin = window.location.origin;
       await tossPayments.requestBillingAuth('카드', {
@@ -216,7 +217,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
 
 function SubscribeInner() {
   const searchParams = useSearchParams();
-  const plan = searchParams.get('plan');
+  const plan = searchParams?.get('plan') ?? null;
 
   const planKey = useMemo(() => (isPlanKey(plan) ? plan : null), [plan]);
 

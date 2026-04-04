@@ -1064,7 +1064,11 @@ export default function OrderConvertPage() {
       if (cleanInputFile) {
         const fileSessionId = crypto.randomUUID();
         const pipelineResult = await runUnifiedInputOrderPipelines({
-          cleanInputFile,
+          cleanInputFile: {
+            ...cleanInputFile,
+            headers: [...cleanInputFile.headers],
+            rows: cleanInputFile.rows.map((r) => [...r]),
+          },
           templateBridgeFile,
           fixedHeaderValues,
           fileSessionId,
@@ -2009,7 +2013,7 @@ export default function OrderConvertPage() {
           </div>
 
           {/* 사용중 양식 표시 */}
-          {isValidCourierTemplate(courierUploadTemplate) && (
+          {isValidCourierTemplate(courierUploadTemplate) && courierUploadTemplate && (
             <div className="w-full mt-4">
               <p className="text-xs text-blue-600 w-full whitespace-nowrap overflow-hidden text-ellipsis">
                 <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-blue-50 text-blue-600">사용 중인 양식 :</span>{' '}

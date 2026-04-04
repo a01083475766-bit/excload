@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 import { useUploadedFilesStore } from '@/app/lib/stores/uploadedFilesStore';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { getCourierMapper } from '@/app/lib/courier-mappers';
-import type { NormalizationResult } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
+import type { EnglishNormalizationRow } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
 import type { CJRow } from '@/app/lib/courier-mappers';
 
 interface SenderInfo {
@@ -214,7 +214,7 @@ export default function ExcelPage() {
   /**
    * excelData (string[][])를 NormalizationResult[]로 변환하는 함수
    */
-  const convertExcelDataToNormalizedBatch = (data: string[][]): NormalizationResult[] => {
+  const convertExcelDataToNormalizedBatch = (data: string[][]): EnglishNormalizationRow[] => {
     if (data.length < 2) return []; // 헤더와 최소 1개 행 필요
 
     const headerRow = data[0];
@@ -230,7 +230,7 @@ export default function ExcelPage() {
 
     // 데이터 행을 NormalizationResult로 변환
     return dataRows.map((row) => {
-      const result: NormalizationResult = {
+      const result: EnglishNormalizationRow = {
         status: 'OK',
       };
 

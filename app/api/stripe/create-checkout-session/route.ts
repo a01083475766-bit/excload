@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const updatedSubscription = await stripe.subscriptions.update(subscription.id, {
+      const updatedSubscriptionRaw = await stripe.subscriptions.update(subscription.id, {
         items: [
           {
             id: item.id,
@@ -187,6 +187,14 @@ export async function POST(request: NextRequest) {
         ],
         proration_behavior: 'create_prorations',
       });
+      type SubWithPeriods = {
+        id: string;
+        status: Stripe.Subscription['status'];
+        cancel_at_period_end?: boolean | null;
+        current_period_start?: number | null;
+        current_period_end?: number | null;
+      };
+      const updatedSubscription = updatedSubscriptionRaw as unknown as SubWithPeriods;
 
       const nextPlan = planType === 'monthly' ? 'PRO' : 'YEARLY';
       await prisma.$transaction([

@@ -60,8 +60,11 @@ function firstPriceIdFromSubscription(sub: Stripe.Subscription): string | null {
 
 function firstPriceIdFromInvoice(inv: Stripe.Invoice): string | null {
   const line = inv.lines?.data?.[0];
-  if (!line?.price) return null;
-  return priceIdFromStripePrice(line.price as Stripe.Price);
+  if (!line) return null;
+  const priceField = (line as Stripe.InvoiceLineItem & { price?: Stripe.Price | string | null })
+    .price;
+  if (!priceField) return null;
+  return priceIdFromStripePrice(priceField as Stripe.Price | string);
 }
 
 /**
@@ -1112,8 +1115,15 @@ export async function POST(request: NextRequest) {
         let subscriptionId: string | null = null;
         if (charge.invoice) {
           try {
-            const invoice = await stripe.invoices.retrieve(charge.invoice as string);
-            subscriptionId = invoice.subscription as string | null;
+            const invoiceRaw = await stripe.invoices.retrieve(charge.invoice as string);
+            const invoice = invoiceRaw as unknown as Stripe.Invoice & {
+              subscription?: string | Stripe.Subscription | null;
+            };
+            const sub = invoice.subscription;
+            subscriptionId =
+              typeof sub === 'string' ? sub : sub && typeof sub === 'object' && 'id' in sub
+                ? String((sub as { id: string }).id)
+                : null;
           } catch (invoiceError) {
             console.error('[Stripe Webhook] Invoice 조회 실패:', invoiceError);
           }

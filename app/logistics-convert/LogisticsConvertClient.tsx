@@ -726,7 +726,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     displayKey: string; // UI 표시: name / option
     value: string; // 변환값(상품코드)
     /** true: +행 추가로 만든 행만 원본값 입력 가능 (기본 10칸·미리보기 유도 행은 읽기 전용) */
-    manualRow?: boolean;
+    manualRow: boolean;
   };
 
   const makeColumnCodeMappingEditorRowId = () =>
@@ -2374,7 +2374,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       if (cleanInputFile) {
         const fileSessionId = crypto.randomUUID();
         const pipelineResult = await runUnifiedInputOrderPipelines({
-          cleanInputFile,
+          cleanInputFile: {
+            ...cleanInputFile,
+            headers: [...cleanInputFile.headers],
+            rows: cleanInputFile.rows.map((r) => [...r]),
+          },
           templateBridgeFile,
           fixedHeaderValues,
           fileSessionId,
@@ -3557,7 +3561,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           </div>
 
           {/* 사용중 양식 표시 */}
-          {isValidCourierTemplate(courierUploadTemplate) && (
+          {isValidCourierTemplate(courierUploadTemplate) && courierUploadTemplate && (
             <div className="w-full mt-4">
               <p className="text-xs text-emerald-600 w-full whitespace-nowrap overflow-hidden text-ellipsis">
                 <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600">사용 중인 양식 :</span>{' '}

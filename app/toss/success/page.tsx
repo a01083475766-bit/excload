@@ -9,11 +9,12 @@ function TossSuccessInner() {
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const [cardSummary, setCardSummary] = useState('');
-  const plan = searchParams.get('plan') === 'yearly' ? 'yearly' : 'monthly';
+  const plan =
+    searchParams?.get('plan') === 'yearly' ? 'yearly' : 'monthly';
 
   useEffect(() => {
-    const customerKey = searchParams.get('customerKey') || '';
-    const authKey = searchParams.get('authKey') || '';
+    const customerKey = searchParams?.get('customerKey') || '';
+    const authKey = searchParams?.get('authKey') || '';
 
     if (!customerKey || !authKey) {
       setStatus('error');
