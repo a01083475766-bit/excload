@@ -3130,18 +3130,18 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         <section className="relative py-3">
           <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
             <div className="px-6 pt-6 pb-4">
-              {/* 미리보기 제목 + 버튼 + 안내 (체험판: 체크박스 안내만 아래 줄) */}
+              {/* 미리보기 제목 + 버튼 + 안내 (체험판: 안내는 오른쪽 세로 스택 — 체크박스 문구가 셀 안내 바로 아래) */}
               <div
                 className={
                   trialMode
-                    ? 'mb-2 flex flex-col gap-1.5'
+                    ? 'mb-2 flex flex-wrap items-start gap-x-3 gap-y-2'
                     : 'mb-2 flex flex-wrap items-center gap-3'
                 }
               >
                 <div
                   className={
                     trialMode
-                      ? 'flex w-full flex-wrap items-center gap-3'
+                      ? 'flex flex-wrap items-center gap-3'
                       : 'contents'
                   }
                 >
@@ -3180,26 +3180,29 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     )}
                   </div>
 
-                  {previewRows.length > 0 && courierHeaders.length > 0 && (
-                    <p className="min-w-0 flex-1 text-sm text-gray-500">
-                      ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
-                      ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.
-                      {!trialMode && (
-                        <>
-                          {' '}
-                          ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                        </>
-                      )}
-                    </p>
-                  )}
+                  {!trialMode &&
+                    previewRows.length > 0 &&
+                    courierHeaders.length > 0 && (
+                      <p className="min-w-0 flex-1 text-sm text-gray-500">
+                        ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
+                        ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
+                        ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+                      </p>
+                    )}
                 </div>
 
                 {trialMode &&
                   previewRows.length > 0 &&
                   courierHeaders.length > 0 && (
-                    <p className="text-sm text-gray-500">
-                      ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                    </p>
+                    <div className="min-w-0 flex-1 basis-full text-sm leading-snug text-gray-500 sm:basis-[min(100%,24rem)] md:max-w-xl">
+                      <span className="block">✔ 셀을 클릭하면 수정할 수 있습니다.</span>
+                      <span className="mt-0.5 block">
+                        ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+                      </span>
+                      <span className="mt-0.5 block">
+                        ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.
+                      </span>
+                    </div>
                   )}
               </div>
             </div>
