@@ -238,7 +238,6 @@ export default function InvoiceFileConvertPage() {
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
-  const [noTemplateModalType, setNoTemplateModalType] = useState<'fixed-input' | 'convert'>('fixed-input');
   const [uploadedExcelFile, setUploadedExcelFile] = useState<File | null>(null);
   // 고정 입력 정보 설정 모달: 입력 모드 상태 (버튼 인덱스)
   const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(null);
@@ -653,7 +652,6 @@ export default function InvoiceFileConvertPage() {
   const handleOpenSenderModal = () => {
     // 택배 업로드 양식이 없는 경우 안내 모달 표시
     if (!isValidCourierTemplate(courierUploadTemplate)) {
-      setNoTemplateModalType('fixed-input');
       setIsNoTemplateModalOpen(true);
       return;
     }
@@ -682,18 +680,12 @@ export default function InvoiceFileConvertPage() {
         const extension = file.name.split('.').pop()?.toLowerCase();
 
         if (extension === 'xlsx' || extension === 'xls') {
-          if (!isValidCourierTemplate(courierUploadTemplate)) {
-            setNoTemplateModalType('convert');
-            setIsNoTemplateModalOpen(true);
-            return;
-          }
-          if (!templateBridgeFile) {
-            alert('쇼핑몰 송장 업로드 양식을 등록해 주세요.');
-            return;
-          }
           setUploadedExcelFile(file);
-          if (!courierInvoiceFile) {
-            alert('미리보기를 보려면 택배사 송장 엑셀 파일을 먼저 등록해 주세요.');
+          if (
+            !isValidCourierTemplate(courierUploadTemplate) ||
+            !templateBridgeFile ||
+            !courierInvoiceFile
+          ) {
             return;
           }
           if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
@@ -814,18 +806,12 @@ export default function InvoiceFileConvertPage() {
     files.forEach((file) => {
       const extension = file.name.split('.').pop()?.toLowerCase();
       if (extension === 'xlsx' || extension === 'xls') {
-        if (!isValidCourierTemplate(courierUploadTemplate)) {
-          setNoTemplateModalType('convert');
-          setIsNoTemplateModalOpen(true);
-          return;
-        }
-        if (!templateBridgeFile) {
-          alert('쇼핑몰 송장 업로드 양식을 등록해 주세요.');
-          return;
-        }
         setUploadedExcelFile(file);
-        if (!courierInvoiceFile) {
-          alert('미리보기를 보려면 택배사 송장 엑셀 파일을 먼저 등록해 주세요.');
+        if (
+          !isValidCourierTemplate(courierUploadTemplate) ||
+          !templateBridgeFile ||
+          !courierInvoiceFile
+        ) {
           return;
         }
         if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
@@ -2040,9 +2026,7 @@ export default function InvoiceFileConvertPage() {
             {/* 모달 내용 */}
             <div className="flex-1 overflow-y-auto mb-6">
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed mb-4">
-                {noTemplateModalType === 'fixed-input' 
-                  ? '택배 업로드 양식을 먼저 등록해야 고정 입력 설정이 가능합니다.'
-                  : '택배 업로드 양식을 먼저 등록해야 주문 변환이 가능합니다.'}
+                택배 업로드 양식을 먼저 등록해야 고정 입력 설정이 가능합니다.
               </p>
             </div>
 
