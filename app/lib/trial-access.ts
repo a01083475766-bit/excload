@@ -3,6 +3,11 @@
 export const TRIAL_ACCESS_MAX_PER_BROWSER = 5;
 export const TRIAL_ACCESS_MAX_PER_IP = 5;
 
+/** 개발·로컬에서만: 이 호스트면 브라우저 localStorage 카운트를 적용하지 않음 */
+export function isTrialLocalhostHostname(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+}
+
 export const TRIAL_LS_BROWSER_COUNT = 'excload_trial_browser_sessions_v1';
 /** 같은 탭에서 새로고침 시 API·카운트 중복 방지 */
 export const TRIAL_SS_SESSION_PASSED = 'excload_trial_gate_passed_v1';

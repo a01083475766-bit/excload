@@ -18,6 +18,21 @@ function hashIp(ip: string): string {
   return createHash('sha256').update(`${salt}:${ip}`).digest('hex');
 }
 
+/** TRIAL_BYPASS_IPS=공인IP1,공인IP2 — 카운트·차단 없음. 로컬 루프백은 항상 제외 */
+function isTrialIpBypassed(ip: string): boolean {
+  const trimmed = ip.trim();
+  if (
+    trimmed === '127.0.0.1' ||
+    trimmed === '::1' ||
+    trimmed.startsWith('::ffff:127.0.0.1')
+  ) {
+    return true;
+  }
+  const list =
+    process.env.TRIAL_BYPASS_IPS?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
+  return list.length > 0 && list.includes(trimmed);
+}
+
 /**
  * POST /api/trial/allow
  * 체험 페이지 진입 1회당 IP 카운트 1 증가. 상한 초과 시 403.
@@ -25,6 +40,15 @@ function hashIp(ip: string): string {
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
+
+    if (isTrialIpBypassed(ip)) {
+      return NextResponse.json({
+        ok: true,
+        remaining: null,
+        bypassed: true,
+      });
+    }
+
     const ipHash = hashIp(ip);
 
     const { prisma } = await import('@/app/lib/prisma');

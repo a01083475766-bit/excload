@@ -7,6 +7,7 @@ import {
   TRIAL_ACCESS_MAX_PER_IP,
   TRIAL_LS_BROWSER_COUNT,
   TRIAL_SS_SESSION_PASSED,
+  isTrialLocalhostHostname,
 } from '@/app/lib/trial-access';
 
 type GateState = 'loading' | 'ok' | 'blocked_browser' | 'blocked_ip';
@@ -18,16 +19,28 @@ function readBrowserCount(): number {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
-export default function TrialAccessGate({ children }: { children: React.ReactNode }) {
+export default function TrialAccessGate({
+  children,
+  bypassBrowserLimit = false,
+}: {
+  children: React.ReactNode;
+  /** 서버 env TRIAL_BYPASS_BROWSER_LIMIT=1 로 주입. 배포 환경에 켜면 전체 방문자에게 적용되므로 임시·로컬용 */
+  bypassBrowserLimit?: boolean;
+}) {
   const [state, setState] = useState<GateState>('loading');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const browserCount = readBrowserCount();
-    if (browserCount >= TRIAL_ACCESS_MAX_PER_BROWSER) {
-      setState('blocked_browser');
-      return;
+    const skipBrowserLimit =
+      bypassBrowserLimit || isTrialLocalhostHostname(window.location.hostname);
+
+    if (!skipBrowserLimit) {
+      const browserCount = readBrowserCount();
+      if (browserCount >= TRIAL_ACCESS_MAX_PER_BROWSER) {
+        setState('blocked_browser');
+        return;
+      }
     }
 
     if (sessionStorage.getItem(TRIAL_SS_SESSION_PASSED) === '1') {
@@ -58,7 +71,14 @@ export default function TrialAccessGate({ children }: { children: React.ReactNod
 
         sessionStorage.setItem(TRIAL_SS_SESSION_PASSED, '1');
 
-        if (!data.degraded && res.ok && data.ok !== false) {
+        const skipBrowserLimit =
+          bypassBrowserLimit || isTrialLocalhostHostname(window.location.hostname);
+        if (
+          !skipBrowserLimit &&
+          !data.degraded &&
+          res.ok &&
+          data.ok !== false
+        ) {
           const next = readBrowserCount() + 1;
           localStorage.setItem(TRIAL_LS_BROWSER_COUNT, String(next));
         }
@@ -75,7 +95,7 @@ export default function TrialAccessGate({ children }: { children: React.ReactNod
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bypassBrowserLimit]);
 
   if (state === 'loading') {
     return (
@@ -108,7 +128,7 @@ export default function TrialAccessGate({ children }: { children: React.ReactNod
           </Link>
         </div>
         <Link href="/excload" className="text-sm text-blue-600 hover:underline mt-2">
-          랜딩으로 돌아가기
+          홈으로 이동
         </Link>
       </div>
     );
@@ -137,7 +157,7 @@ export default function TrialAccessGate({ children }: { children: React.ReactNod
           </Link>
         </div>
         <Link href="/excload" className="text-sm text-blue-600 hover:underline mt-2">
-          랜딩으로 돌아가기
+          홈으로 이동
         </Link>
       </div>
     );
