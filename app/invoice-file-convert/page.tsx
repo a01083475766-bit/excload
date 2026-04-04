@@ -1149,7 +1149,7 @@ export default function InvoiceFileConvertPage() {
               {/* 주문변환 안내 컨테이너 (항상 중앙) */}
               <div className="flex flex-col gap-2 text-center min-h-[32px]">
                 <p className="text-sm text-gray-500 leading-tight">
-                  송장파일변환 — 주문 엑셀과 택배사 송장 엑셀을 등록한 뒤, 쇼핑몰 송장 업로드 양식에 맞게 변환합니다. (주문 파일은 지금과 같이 변환되며, 송장 파일 병합은 순차 적용 예정입니다.)
+                  송장파일변환 — 주문 엑셀 파일과 송장 엑셀 파일을 등록하여 쇼핑몰 송장 업로드 양식에 맞게 변환합니다.
                 </p>
               </div>
               
@@ -1262,7 +1262,7 @@ export default function InvoiceFileConvertPage() {
                   />
                   <p className="text-xs text-gray-600 mt-2.5 leading-relaxed text-center">
                     택배사에서 내려받은 <span className="font-medium text-gray-800">송장번호가 들어 있는 엑셀</span>을
-                    등록하세요. (병합 로직 적용 전까지는 미리보기에 반영되지 않을 수 있습니다.)
+                    등록하세요.
                   </p>
                 </div>
               </div>
@@ -1520,7 +1520,7 @@ export default function InvoiceFileConvertPage() {
         {/* 기능 설명 섹션 레이아웃 */}
         <section className="relative pt-4 pb-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
-            {/* 카드 1: 택배 업로드 양식 */}
+            {/* 카드 1: 쇼핑몰 송장 업로드 양식 */}
             <button
               type="button"
               onClick={handleOpenCourierTemplateModal}
@@ -1531,13 +1531,13 @@ export default function InvoiceFileConvertPage() {
                   <Truck className="w-5 h-5 text-gray-500" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 text-center">
-                  택배 업로드 양식 등록
+                  쇼핑몰 송장 업로드 양식 등록
                 </h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 text-center">
-                실제 택배사 업로드에 사용하는 엑셀 양식을 등록해주세요.
+                쇼핑몰에 송장을 넣을 때 쓰는 엑셀 양식을 등록합니다.
                 <br />
-                등록하신 양식 그대로 자동 설정됩니다.
+                등록한 양식 열 구성에 맞춰 미리보기·다운로드가 만들어집니다.
               </p>
               {courierUploadTemplate && (
                 <p className="mt-2 text-[11px] text-green-700 text-center line-clamp-1">
@@ -1561,13 +1561,13 @@ export default function InvoiceFileConvertPage() {
                 </h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 text-center">
-                보내는 사람 정보 등 모든 주문에 공통으로 적용되는 값을
+                송장 업로드 파일의 모든 행에 동일하게 넣을 값(보내는 사람 등)을
                 <br />
-                미리 등록하여 매번 입력하는 번거로움을 줄일 수 있습니다.
+                미리 지정해 두면 매번 채우는 수고를 줄일 수 있습니다.
               </p>
             </button>
 
-            {/* 카드 3: 파일 다운로드 */}
+            {/* 카드 3: 송장 업로드 파일 다운로드 */}
             <button
               type="button"
               onClick={handleDownloadPreview}
@@ -1579,13 +1579,13 @@ export default function InvoiceFileConvertPage() {
                   <ArrowDown className="w-5 h-5 text-gray-500" />
                 </div>
                 <h3 className="text-sm font-semibold text-gray-900 text-center">
-                  택배 업로드 파일 다운로드
+                  송장 업로드 파일 다운로드
                 </h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 text-center">
-                변환이 완료된 주문 데이터를
+                변환·매핑이 끝난 데이터를
                 <br />
-                택배사 업로드용 파일로 내려받는 단계입니다.
+                쇼핑몰 송장 일괄 등록용 엑셀로 내려받습니다.
               </p>
             </button>
           </div>
