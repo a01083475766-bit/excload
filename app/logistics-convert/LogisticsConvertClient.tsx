@@ -3130,51 +3130,77 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         <section className="relative py-3">
           <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
             <div className="px-6 pt-6 pb-4">
-              {/* 1줄: 미리보기 제목 + 펼치기 버튼 + 선택 삭제 버튼 + 기능 안내 문구 */}
-              <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <h3 className="text-lg font-semibold">미리보기</h3>
+              {/* 미리보기 제목 + 버튼 + 안내 (체험판: 체크박스 안내만 아래 줄) */}
+              <div
+                className={
+                  trialMode
+                    ? 'mb-2 flex flex-col gap-1.5'
+                    : 'mb-2 flex flex-wrap items-center gap-3'
+                }
+              >
+                <div
+                  className={
+                    trialMode
+                      ? 'flex w-full flex-wrap items-center gap-3'
+                      : 'contents'
+                  }
+                >
+                  <h3 className="text-lg font-semibold">미리보기</h3>
 
-                {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <button
-                    className="w-20 h-9 inline-flex items-center justify-center text-sm border rounded transition"
-                    onClick={() => setIsPreviewExpanded(prev => !prev)}
-                  >
-                    {isPreviewExpanded ? '닫기' : '펼치기'}
-                  </button>
-                )}
-
-                {trialMode && previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <button
-                    type="button"
-                    className="h-9 px-3 inline-flex items-center justify-center text-sm font-medium rounded border border-amber-500/80 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70 transition"
-                    onClick={handleTrialPreviewReset}
-                  >
-                    미리보기 초기화
-                  </button>
-                )}
-
-                {/* 삭제 버튼 영역 - 고정 너비로 텍스트 위치 고정 */}
-                <div className="w-20 flex-shrink-0">
-                  {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
+                  {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
-                      className="w-20 h-9 inline-flex items-center justify-center text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700"
-                      onClick={() => {
-                        setIsDeleteModalOpen(true);
-                      }}
+                      className="inline-flex h-9 w-20 items-center justify-center rounded border text-sm transition"
+                      onClick={() => setIsPreviewExpanded(prev => !prev)}
                     >
-                      선택 삭제
+                      {isPreviewExpanded ? '닫기' : '펼치기'}
                     </button>
+                  )}
+
+                  {trialMode && previewRows.length > 0 && courierHeaders.length > 0 && (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
+                      onClick={handleTrialPreviewReset}
+                    >
+                      미리보기 초기화
+                    </button>
+                  )}
+
+                  {/* 삭제 버튼 영역 - 고정 너비로 텍스트 위치 고정 */}
+                  <div className="w-20 flex-shrink-0">
+                    {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
+                      <button
+                        className="inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700"
+                        onClick={() => {
+                          setIsDeleteModalOpen(true);
+                        }}
+                      >
+                        선택 삭제
+                      </button>
+                    )}
+                  </div>
+
+                  {previewRows.length > 0 && courierHeaders.length > 0 && (
+                    <p className="min-w-0 flex-1 text-sm text-gray-500">
+                      ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
+                      ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.
+                      {!trialMode && (
+                        <>
+                          {' '}
+                          ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+                        </>
+                      )}
+                    </p>
                   )}
                 </div>
 
-                {/* 기능 안내 문구 - 고정 위치 */}
-                {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <p className="text-sm text-gray-500 flex-1">
-                    ✔ 셀을 클릭하면 수정할 수 있습니다.  
-                    ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.  
-                    ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                  </p>
-                )}
+                {trialMode &&
+                  previewRows.length > 0 &&
+                  courierHeaders.length > 0 && (
+                    <p className="text-sm text-gray-500">
+                      ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+                    </p>
+                  )}
               </div>
             </div>
             {previewRows.length === 0 || courierHeaders.length === 0 ? (
