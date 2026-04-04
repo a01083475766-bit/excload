@@ -1,7 +1,7 @@
 /**
  * ⚠️ EXCLOAD CONSTITUTION v4.0 적용 파일
  * 송장파일변환 (/invoice-file-convert) — order-convert/page.tsx 복제 기반
- * 입력: 주문 엑셀(기존 파이프라인) + 택배 송장 엑셀(상태 보관, 병합 로직 예정), 텍스트·스크린샷 없음
+ * 입력: 주문 엑셀 + 택배 송장 엑셀 → 기준헤더 조인 후 쇼핑몰 송장 양식으로 Stage3
  * localStorage 키는 주문변환과 분리(invoiceFileConvert_*)
  * 모든 수정 전 CONSTITUTION.md 필독
  * 3단계 분리 파이프라인 유지 필수
@@ -19,6 +19,8 @@ import { ExcelPreprocessPipeline } from '@/app/pipeline/preprocess/excel-preproc
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 import { runMergePipeline } from '@/app/pipeline/merge/merge-pipeline';
 import type { PreviewRow } from '@/app/pipeline/merge/types';
+import type { OrderStandardFile } from '@/app/pipeline/order/order-pipeline';
+import { mergeOrderAndInvoiceStandardFiles } from '@/app/pipeline/invoice/merge-order-invoice-standard';
 import * as XLSX from 'xlsx';
 import {
   alignRowsFromHeader,
@@ -298,6 +300,16 @@ export default function InvoiceFileConvertPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const courierInvoiceFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  /** parseExcelFile·useEffect에서 최신 파일/양식 참조 (비동기 시점 클로저 오류 방지) */
+  const uploadedExcelFileRef = useRef<File | null>(null);
+  const courierInvoiceFileRef = useRef<File | null>(null);
+  const templateBridgeFileRef = useRef<TemplateBridgeFile | null>(null);
+  const courierUploadTemplateRef = useRef<CourierUploadTemplate | null>(null);
+  uploadedExcelFileRef.current = uploadedExcelFile;
+  courierInvoiceFileRef.current = courierInvoiceFile;
+  templateBridgeFileRef.current = templateBridgeFile;
+  courierUploadTemplateRef.current = courierUploadTemplate;
+
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
@@ -332,6 +344,20 @@ export default function InvoiceFileConvertPage() {
       return 0;
     });
   }, [previewRows, sortConfig, userOverrides]);
+
+  /** 세 가지가 모두 있어야 미리보기 표시 (없을 때 안내 문구) */
+  const invoicePreviewGateMessage = useMemo(() => {
+    if (!isValidCourierTemplate(courierUploadTemplate) || !templateBridgeFile) {
+      return '쇼핑몰 송장 업로드 양식을 등록해 주세요.';
+    }
+    if (!courierInvoiceFile) {
+      return '택배사 송장 엑셀 파일을 등록해 주세요.';
+    }
+    if (!uploadedExcelFile) {
+      return '주문 엑셀 파일을 등록해 주세요.';
+    }
+    return null;
+  }, [courierUploadTemplate, templateBridgeFile, courierInvoiceFile, uploadedExcelFile]);
 
   // fixedHeaderValues를 localStorage에 저장
   useEffect(() => {
@@ -661,9 +687,19 @@ export default function InvoiceFileConvertPage() {
             setIsNoTemplateModalOpen(true);
             return;
           }
+          if (!templateBridgeFile) {
+            alert('쇼핑몰 송장 업로드 양식을 등록해 주세요.');
+            return;
+          }
+          setUploadedExcelFile(file);
+          if (!courierInvoiceFile) {
+            alert('미리보기를 보려면 택배사 송장 엑셀 파일을 먼저 등록해 주세요.');
+            return;
+          }
           if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
-            setUploadedExcelFile(file);
             parseExcelFile(file);
+          } else {
+            alert('이미 업로드된 파일입니다.');
           }
         } else {
           alert('주문 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
@@ -783,9 +819,19 @@ export default function InvoiceFileConvertPage() {
           setIsNoTemplateModalOpen(true);
           return;
         }
+        if (!templateBridgeFile) {
+          alert('쇼핑몰 송장 업로드 양식을 등록해 주세요.');
+          return;
+        }
+        setUploadedExcelFile(file);
+        if (!courierInvoiceFile) {
+          alert('미리보기를 보려면 택배사 송장 엑셀 파일을 먼저 등록해 주세요.');
+          return;
+        }
         if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
-          setUploadedExcelFile(file);
           parseExcelFile(file);
+        } else {
+          alert('이미 업로드된 파일입니다.');
         }
       } else {
         alert('주문 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
@@ -823,124 +869,178 @@ export default function InvoiceFileConvertPage() {
   };
 
   const parseExcelFile = async (file: File) => {
-    setFileProcessingStatus("processing");
-    setInputSourceType('excel'); // 엑셀 업로드로 입력 방식 기록
-    
-    const newOrderSessionId = crypto.randomUUID();
-    setOrderFileSessionId(newOrderSessionId);
+    const bridge = templateBridgeFileRef.current;
+    const inv = courierInvoiceFileRef.current;
+    const tpl = courierUploadTemplateRef.current;
 
-    // 중복 검사 로직
-    if (uploadedFileMeta.some(
-      f => f.name === file.name && f.size === file.size
-    )) {
+    if (!inv || !bridge || !isValidCourierTemplate(tpl)) {
+      return;
+    }
+
+    if (uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
       alert('이미 업로드된 파일입니다.');
       return;
     }
 
-    const buffer = await file.arrayBuffer();
-    const rawData = readFirstSheetMatrixFromArrayBuffer(buffer);
+    setFileProcessingStatus('processing');
+    setInputSourceType('excel');
 
-    const filteredRows = filterNonEmptyRows(rawData);
-    const headerIndex = detectHeaderRowIndex(filteredRows);
-    const alignedRawData = alignRowsFromHeader(filteredRows, headerIndex);
+    const newOrderSessionId = crypto.randomUUID();
+    setOrderFileSessionId(newOrderSessionId);
 
-    // ExcelPreprocessPipeline(Stage0)을 통과하여 CleanInputFile 생성
-    const preprocessPipeline = new ExcelPreprocessPipeline();
-    const cleanInputFile = preprocessPipeline.run(alignedRawData);
+    try {
+      const invoiceFileForMerge = courierInvoiceFileRef.current;
+      if (!invoiceFileForMerge) {
+        throw new Error('송장 엑셀 파일이 없습니다.');
+      }
 
-    // Stage2 실행 (서버 API 호출)
-    const response = await fetch('/api/order-pipeline', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...cleanInputFile,
-        fileSessionId: newOrderSessionId,
-      }),
-    });
+      const buffer = await file.arrayBuffer();
+      const rawData = readFirstSheetMatrixFromArrayBuffer(buffer);
 
-    if (!response.ok) {
-      throw new Error(`Stage2 실행 실패: ${response.statusText}`);
-    }
+      const filteredRows = filterNonEmptyRows(rawData);
+      const headerIndex = detectHeaderRowIndex(filteredRows);
+      const alignedRawData = alignRowsFromHeader(filteredRows, headerIndex);
 
-    const stage2Result = await response.json();
+      const preprocessOrder = new ExcelPreprocessPipeline();
+      const orderCleanInput = preprocessOrder.run(alignedRawData);
 
-    // Stage2 완료 직후 상태 설정
-    setFileProcessingStatus("done");
-    setTimeout(() => {
-      setFileProcessingStatus("idle");
-    }, 1500);
-    
-    // unknownHeaders 처리
-    if (stage2Result.unknownHeaders?.length > 0) {
-      setUnknownHeadersWarning(stage2Result.unknownHeaders);
-    } else {
-      setUnknownHeadersWarning([]);
-    }
-    
-    // orderStandardFile 상태는 유지하되, 누적하지 않음 (파일 단위 처리)
-    setOrderStandardFile(stage2Result);
-    
-    // Stage3 실행 (handleExcelUpload 내부에서만 실행)
-    if (templateBridgeFile) {
-      const stage3Result = await runMergePipeline(
-        templateBridgeFile,
-        stage2Result,     // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
-        fixedHeaderValues
-      );
-      
-      // previewRows 상단 prepend 구조 적용
-      const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
-      setPreviewRows(prev => [
-        ...stage3Result.previewRows.map((row, index) => ({
-          rowId: newRowIds[index],
-          data: row
-        })),
-        ...prev
+      const invBuffer = await invoiceFileForMerge.arrayBuffer();
+      const invRaw = readFirstSheetMatrixFromArrayBuffer(invBuffer);
+      const invFiltered = filterNonEmptyRows(invRaw);
+      const invHeaderIndex = detectHeaderRowIndex(invFiltered);
+      const invAligned = alignRowsFromHeader(invFiltered, invHeaderIndex);
+      const preprocessInvoice = new ExcelPreprocessPipeline();
+      const invoiceCleanInput = preprocessInvoice.run(invAligned);
+
+      const invoiceSessionId = crypto.randomUUID();
+
+      const [orderResponse, invoiceResponse] = await Promise.all([
+        fetch('/api/order-pipeline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...orderCleanInput,
+            fileSessionId: newOrderSessionId,
+          }),
+        }),
+        fetch('/api/order-pipeline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...invoiceCleanInput,
+            fileSessionId: invoiceSessionId,
+          }),
+        }),
       ]);
-      
-      // 새로 생성된 행을 newRows에 추가
-      setNewRows(prev => {
-        const updated = new Set(prev);
-        newRowIds.forEach(id => updated.add(id));
-        return updated;
-      });
-      
-      // 3초 후 자동 제거
+
+      if (!orderResponse.ok) {
+        throw new Error(`주문 파일 Stage2 실패: ${orderResponse.statusText}`);
+      }
+      if (!invoiceResponse.ok) {
+        throw new Error(`송장 파일 Stage2 실패: ${invoiceResponse.statusText}`);
+      }
+
+      const orderStage2 = (await orderResponse.json()) as OrderStandardFile;
+      const invoiceStage2 = (await invoiceResponse.json()) as OrderStandardFile;
+
+      const stage2Merged = mergeOrderAndInvoiceStandardFiles(orderStage2, invoiceStage2);
+
+      setFileProcessingStatus('done');
       setTimeout(() => {
-        setNewRows(prev => {
+        setFileProcessingStatus('idle');
+      }, 1500);
+
+      if (stage2Merged.unknownHeaders?.length > 0) {
+        setUnknownHeadersWarning(stage2Merged.unknownHeaders);
+      } else {
+        setUnknownHeadersWarning([]);
+      }
+
+      setOrderStandardFile(stage2Merged);
+
+      const bridgeNow = templateBridgeFileRef.current;
+      if (bridgeNow) {
+        const stage3Result = await runMergePipeline(bridgeNow, stage2Merged, fixedHeaderValues);
+
+        const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
+        setPreviewRows((prev) => [
+          ...stage3Result.previewRows.map((row, index) => ({
+            rowId: newRowIds[index],
+            data: row,
+          })),
+          ...prev,
+        ]);
+
+        setNewRows((prev) => {
           const updated = new Set(prev);
-          newRowIds.forEach(id => updated.delete(id));
+          newRowIds.forEach((id) => updated.add(id));
           return updated;
         });
-      }, 3000);
-      
-      setCourierHeaders(stage3Result.courierHeaders);
 
-      // Stage3 성공 후 메타데이터 저장
-      setUploadedFileMeta(prev => [
-        { name: file.name, size: file.size },
-        ...prev
-      ]);
-    } else {
-      console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
-    }
-    
-    if (typeof window !== 'undefined') {
-      (window as any).__lastOrderResult = stage2Result;
-      (window as any).__lastOrderFile = file.name;
+        setTimeout(() => {
+          setNewRows((prev) => {
+            const updated = new Set(prev);
+            newRowIds.forEach((id) => updated.delete(id));
+            return updated;
+          });
+        }, 3000);
+
+        setCourierHeaders(stage3Result.courierHeaders);
+
+        setUploadedFileMeta((prev) => [{ name: file.name, size: file.size }, ...prev]);
+      } else {
+        console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
+      }
+
+      if (typeof window !== 'undefined') {
+        (window as any).__lastOrderResult = stage2Merged;
+        (window as any).__lastOrderFile = file.name;
+        (window as any).__lastInvoiceMerge = {
+          orderFile: file.name,
+          invoiceFile: invoiceFileForMerge.name,
+        };
+      }
+    } catch (err) {
+      console.error('[InvoiceFileConvertPage] 주문 엑셀 처리 오류:', err);
+      alert(err instanceof Error ? err.message : '주문 파일 처리 중 오류가 발생했습니다.');
+      setFileProcessingStatus('idle');
     }
   };
 
+  // 송장 엑셀 또는 쇼핑몰 양식(bridge) 변경 시, 이미 선택된 주문 엑셀로 미리보기 재실행
+  useEffect(() => {
+    if (!templateBridgeFile || !courierInvoiceFile) return;
+    const orderFile = uploadedExcelFileRef.current;
+    if (!orderFile) return;
+    if (!isValidCourierTemplate(courierUploadTemplateRef.current)) return;
+
+    setUploadedFileMeta((prev) =>
+      prev.filter((m) => !(m.name === orderFile.name && m.size === orderFile.size)),
+    );
+    void parseExcelFile(orderFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- parseExcelFile은 의도적으로 최신 ref만 사용
+  }, [courierInvoiceFile, templateBridgeFile]);
+
   const handleDownloadPreview = async () => {
+    if (!isValidCourierTemplate(courierUploadTemplate) || !templateBridgeFile) {
+      alert('쇼핑몰 송장 업로드 양식을 먼저 등록해 주세요.');
+      return;
+    }
+    if (!courierInvoiceFile) {
+      alert('택배사 송장 엑셀 파일을 등록해 주세요.');
+      return;
+    }
+    if (!uploadedExcelFile) {
+      alert('주문 엑셀 파일을 등록해 주세요.');
+      return;
+    }
     if (!courierHeaders || courierHeaders.length === 0) {
-      alert("택배사 양식을 먼저 등록해주세요.");
+      alert('미리보기에 표시할 데이터가 없습니다. 주문·송장·양식을 모두 등록했는지 확인해 주세요.');
       return;
     }
 
     if (!sortedRows || sortedRows.length === 0) {
-      alert("다운로드할 주문 데이터가 없습니다.");
+      alert('다운로드할 주문 데이터가 없습니다.');
       return;
     }
 
@@ -1312,8 +1412,11 @@ export default function InvoiceFileConvertPage() {
               </div>
             </div>
             {previewRows.length === 0 || courierHeaders.length === 0 ? (
-              <div className="min-h-[192px] flex items-center justify-center text-gray-400">
-                변환된 주문 데이터가 여기에 표시됩니다.
+              <div className="min-h-[192px] flex items-center justify-center text-gray-400 px-4 text-center text-sm leading-relaxed">
+                {invoicePreviewGateMessage ??
+                  (fileProcessingStatus === 'processing'
+                    ? '주문 데이터를 불러오는 중입니다…'
+                    : '변환된 데이터가 여기에 표시됩니다.')}
               </div>
             ) : (
               <>
