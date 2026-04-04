@@ -848,6 +848,59 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
   const isCancelledRef = useRef<boolean>(false);
 
+  /** 다운로드 완료 후와 동일 — 미리보기·입력 소스·파일 선택 상태만 정리 (양식/브릿지는 유지) */
+  const applyPreviewWorkspaceReset = useCallback(() => {
+    setPreviewRows([]);
+    resetProductCodeColumnToggle();
+    setUserOverrides({});
+    setSortConfig(null);
+    setUnknownHeadersWarning([]);
+    setSelectedFileName(null);
+    setColumnCodeMappingSnapshots({});
+    setColumnMappingStaging({});
+    setShowColumnCodeMappingModal(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    if (excelFileInputRef.current) {
+      excelFileInputRef.current.value = '';
+    }
+    if (courierFileInputRef.current) {
+      courierFileInputRef.current.value = '';
+    }
+    setSelectedFiles([]);
+    setUploadedExcelFile(null);
+    setUploadedFileMeta([]);
+    setInputSourceType(null);
+    setSelectedImage(null);
+  }, [resetProductCodeColumnToggle]);
+
+  /** 체험판: 다운로드 없이 미리보기·변환 결과만 비우기 (새로고침 없이 재테스트) */
+  const handleTrialPreviewReset = useCallback(() => {
+    if (!trialMode) return;
+    if (
+      !window.confirm(
+        '미리보기와 이번에 선택한 파일·이미지·텍스트 입력을 초기화합니다. 계속할까요?',
+      )
+    ) {
+      return;
+    }
+    applyPreviewWorkspaceReset();
+    setCourierHeaders([]);
+    setSelectedRows([]);
+    setProductCodeMappingNotice(null);
+    setNewRows(new Set());
+    setEditingCell(null);
+    setActiveCell(null);
+    setImagePreview(null);
+    setScreenshotImagePreview(null);
+    setTextInput('');
+    setScreenshotStage('idle');
+    setErrorMessageTextImage(null);
+    setCurrentFilePreviewData([]);
+    setOrderStandardFile(null);
+  }, [trialMode, applyPreviewWorkspaceReset]);
+
   // 고정 헤더 순서 배열 (courierUploadTemplate.headers 기준)
   const FIXED_HEADER_ORDER = useMemo(() => {
     if (courierUploadTemplate && Array.isArray(courierUploadTemplate.headers) && courierUploadTemplate.headers.length > 0) {
@@ -2737,28 +2790,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         setTimeout(() => {
           setDownloadStatus("idle");
           setDownloadModalFileName(null);
-
-          // 🔥 기존 초기화 유지
-          setPreviewRows([]);
-          resetProductCodeColumnToggle();
-          setUserOverrides({});
-          setSortConfig(null);
-          setUnknownHeadersWarning([]);
-          setSelectedFileName(null);
-          setColumnCodeMappingSnapshots({});
-          setColumnMappingStaging({});
-          setShowColumnCodeMappingModal(false);
-
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
-
-          // ✅ 다운로드 완료 후 업로드 파일 상태 초기화
-          setSelectedFiles([]);
-          setUploadedExcelFile(null);
-          setUploadedFileMeta([]);
-          setInputSourceType(null); // 입력 방식 초기화
-          setSelectedImage(null); // 이미지 초기화
+          applyPreviewWorkspaceReset();
         }, 3000);
 
       } catch (error) {
@@ -3108,6 +3140,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     onClick={() => setIsPreviewExpanded(prev => !prev)}
                   >
                     {isPreviewExpanded ? '닫기' : '펼치기'}
+                  </button>
+                )}
+
+                {trialMode && previewRows.length > 0 && courierHeaders.length > 0 && (
+                  <button
+                    type="button"
+                    className="h-9 px-3 inline-flex items-center justify-center text-sm font-medium rounded border border-amber-500/80 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70 transition"
+                    onClick={handleTrialPreviewReset}
+                  >
+                    미리보기 초기화
                   </button>
                 )}
 
