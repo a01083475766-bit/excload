@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-import { TRIAL_ACCESS_MAX_PER_IP } from '@/app/lib/trial-access';
+import {
+  TRIAL_ACCESS_LIMITS_ENABLED,
+  TRIAL_ACCESS_MAX_PER_IP,
+} from '@/app/lib/trial-access';
 
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -39,6 +42,10 @@ function isTrialIpBypassed(ip: string): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!TRIAL_ACCESS_LIMITS_ENABLED) {
+      return NextResponse.json({ ok: true, limitsDisabled: true });
+    }
+
     const ip = getClientIp(request);
 
     if (isTrialIpBypassed(ip)) {

@@ -1,5 +1,8 @@
 /** 체험판 남용 완화 — 브라우저·IP 각각 상한 (우회 가능, 부담만 증가) */
 
+/** `false`면 브라우저·IP 한도·카운트 없음. 다시 켤 때 `true`로 변경. */
+export const TRIAL_ACCESS_LIMITS_ENABLED = false;
+
 export const TRIAL_ACCESS_MAX_PER_BROWSER = 5;
 export const TRIAL_ACCESS_MAX_PER_IP = 5;
 

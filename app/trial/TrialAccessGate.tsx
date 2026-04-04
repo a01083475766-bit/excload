@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
+  TRIAL_ACCESS_LIMITS_ENABLED,
   TRIAL_ACCESS_MAX_PER_BROWSER,
   TRIAL_ACCESS_MAX_PER_IP,
   TRIAL_LS_BROWSER_COUNT,
@@ -19,21 +20,13 @@ function readBrowserCount(): number {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
-export default function TrialAccessGate({
-  children,
-  bypassBrowserLimit = false,
-}: {
-  children: React.ReactNode;
-  /** 서버 env TRIAL_BYPASS_BROWSER_LIMIT=1 로 주입. 배포 환경에 켜면 전체 방문자에게 적용되므로 임시·로컬용 */
-  bypassBrowserLimit?: boolean;
-}) {
+function TrialAccessGateLimited({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<GateState>('loading');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const skipBrowserLimit =
-      bypassBrowserLimit || isTrialLocalhostHostname(window.location.hostname);
+    const skipBrowserLimit = isTrialLocalhostHostname(window.location.hostname);
 
     if (!skipBrowserLimit) {
       const browserCount = readBrowserCount();
@@ -71,14 +64,8 @@ export default function TrialAccessGate({
 
         sessionStorage.setItem(TRIAL_SS_SESSION_PASSED, '1');
 
-        const skipBrowserLimit =
-          bypassBrowserLimit || isTrialLocalhostHostname(window.location.hostname);
-        if (
-          !skipBrowserLimit &&
-          !data.degraded &&
-          res.ok &&
-          data.ok !== false
-        ) {
+        const skipCount = isTrialLocalhostHostname(window.location.hostname);
+        if (!skipCount && !data.degraded && res.ok && data.ok !== false) {
           const next = readBrowserCount() + 1;
           localStorage.setItem(TRIAL_LS_BROWSER_COUNT, String(next));
         }
@@ -95,7 +82,7 @@ export default function TrialAccessGate({
     return () => {
       cancelled = true;
     };
-  }, [bypassBrowserLimit]);
+  }, []);
 
   if (state === 'loading') {
     return (
@@ -164,4 +151,12 @@ export default function TrialAccessGate({
   }
 
   return <>{children}</>;
+}
+
+/** 한도 비활성화 시 자식만 렌더. 활성화 시 `TrialAccessGateLimited` */
+export default function TrialAccessGate({ children }: { children: React.ReactNode }) {
+  if (!TRIAL_ACCESS_LIMITS_ENABLED) {
+    return <>{children}</>;
+  }
+  return <TrialAccessGateLimited>{children}</TrialAccessGateLimited>;
 }
