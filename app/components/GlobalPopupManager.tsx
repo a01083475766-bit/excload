@@ -79,7 +79,7 @@ export default function GlobalPopupManager() {
 
         // 현재 페이지에 해당하는 타겟 키 계산
         const currentKey =
-          pathname.startsWith('/order-convert')
+          pathname.startsWith('/order-convert') || pathname.startsWith('/invoice-file-convert')
             ? 'ORDER_CONVERT'
             : pathname.startsWith('/history')
             ? 'HISTORY'
@@ -121,7 +121,7 @@ export default function GlobalPopupManager() {
     // 한 번만 보이도록 설정된 팝업이면, 현재 페이지 키 기준으로 세션에 기록
     if (!current.showEveryVisit && typeof window !== 'undefined') {
       const currentKey =
-        pathname.startsWith('/order-convert')
+        pathname.startsWith('/order-convert') || pathname.startsWith('/invoice-file-convert')
           ? 'ORDER_CONVERT'
           : pathname.startsWith('/history')
           ? 'HISTORY'

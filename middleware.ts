@@ -24,6 +24,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /invoice-file-convert 송장파일변환 (order-convert 복제 페이지)
+  if (pathname.startsWith('/invoice-file-convert')) {
+    return NextResponse.next();
+  }
+
   // /history 경로는 허용
   if (pathname.startsWith('/history')) {
     return NextResponse.next();
