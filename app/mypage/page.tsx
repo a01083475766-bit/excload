@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { User, Calendar, CreditCard, Settings, Bell, Shield, LogOut } from 'lucide-react';
@@ -343,6 +344,13 @@ export default function MyPage() {
                   );
                 })}
               </nav>
+
+              <Link
+                href="/setting/mall"
+                className="block w-full mt-4 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition text-center"
+              >
+                내 주문 연동하기
+              </Link>
 
               <button 
                 onClick={handleLogout}
