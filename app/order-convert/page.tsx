@@ -224,6 +224,7 @@ const saveRecentExcelFormat = (
 
 export default function OrderConvertPage() {
   const router = useRouter();
+  const connectedMalls = ['coupang']; // 테스트용
   const user = useUserStore((state) => state.user);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
@@ -1553,6 +1554,18 @@ export default function OrderConvertPage() {
                 </div>
               )}
             </div>
+
+            {connectedMalls.length > 0 && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => router.push('/order/fetch')}
+                  className="w-full py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition"
+                >
+                  주문 가져오기
+                </button>
+              </div>
+            )}
 
             {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
             <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">
