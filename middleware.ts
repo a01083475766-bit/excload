@@ -44,6 +44,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /setting — 쇼핑몰 연동 등 설정 (예: /setting/mall)
+  if (pathname.startsWith('/setting')) {
+    return NextResponse.next();
+  }
+
+  // /order — API 주문 수집 UI 등 (예: /order/fetch)
+  if (pathname.startsWith('/order')) {
+    return NextResponse.next();
+  }
+
   // /pricing 경로는 허용
   if (pathname.startsWith('/pricing')) {
     return NextResponse.next();
