@@ -32,6 +32,13 @@ function inferBaseFromCourierLabel(
   const looksAddr = /주소|배송지|수령지|도로명|지번/.test(ch);
   const looksAddrDetail = /상세주소/.test(flat);
   const looksProduct = /상품명|품목|상품상세|옵션/.test(ch) || /^상품/.test(flat);
+  const looksPersonalCustoms = /개인통관번호|통관고유부호|PCCC/i.test(ch);
+
+  // 개인통관번호 계열은 항상 개인통관번호 기준헤더를 유지한다.
+  // (중복 보정/휴리스틱 보정 과정에서 null 처리되는 것을 방지)
+  if (looksPersonalCustoms) {
+    return '개인통관번호';
+  }
 
   // (지정) 열인데 수취인 전화/주소 기준헤더로 잘못 붙은 경우 → 보내는사람 쪽으로 교정
   if (hasJijeong && looksPhone) {
@@ -157,14 +164,23 @@ export function refineMappedBaseHeadersCouriers(
   for (let i = 0; i < out.length; i++) {
     const b = out[i];
     if (!isValidBase(b)) continue;
+    const courierHeader = courierHeaders[i] || '';
+    const isPersonalCustomsHeader = /개인통관번호|통관고유부호|PCCC/i.test(courierHeader);
 
     const usedBefore = new Set<string>();
     for (let j = 0; j < i; j++) {
       if (isValidBase(out[j])) usedBefore.add(out[j]!);
     }
 
+    // 개인통관번호 컬럼은 중복 보정에서 null 처리하지 않는다.
+    // 동일 의미 컬럼이 복수로 들어와도 값 누락보다 중복 표시가 안전하다.
+    if (isPersonalCustomsHeader) {
+      out[i] = '개인통관번호';
+      continue;
+    }
+
     if (usedBefore.has(b)) {
-      const alt = suggestAlternativeForDuplicate(courierHeaders[i] || '', b, usedBefore);
+      const alt = suggestAlternativeForDuplicate(courierHeader, b, usedBefore);
       if (alt && !usedBefore.has(alt)) {
         out[i] = alt;
       } else {
