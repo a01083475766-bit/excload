@@ -1236,6 +1236,14 @@ export default function OrderConvertPage() {
       console.log(
         `[EXCLOAD][DEBUG][PCCC] Stage2 baseHeadersHas=${includes} row0=${row0}`
       );
+
+      if (typeof window !== 'undefined') {
+        (window as any).__EXCLOUD_PCCC_STAGE2 = {
+          baseHeadersHas: includes,
+          row0,
+          rowsCount: stage2Result?.rows?.length ?? 0,
+        };
+      }
     } catch {
       // 로그 실패는 무시
     }
@@ -1285,6 +1293,15 @@ export default function OrderConvertPage() {
         console.log(
           `[EXCLOAD][DEBUG][PCCC] Stage3 courierHeader=${pcccCourierHeader} mappedBase=${mappedBaseHeader} previewRow0=${previewRow0}`
         );
+
+        if (typeof window !== 'undefined') {
+          (window as any).__EXCLOUD_PCCC_STAGE3 = {
+            courierHeader: pcccCourierHeader,
+            mappedBase: mappedBaseHeader,
+            previewRow0,
+            previewRowsCount: stage3Result?.previewRows?.length ?? 0,
+          };
+        }
       } catch {
         // 로그 실패는 무시
       }
