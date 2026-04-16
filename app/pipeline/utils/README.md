@@ -69,6 +69,7 @@ try {
 - ✅ CleanInputFile 입력 검증
 - ✅ OrderStandardFile 출력 검증
 - ✅ rows의 각 행이 baseHeaders를 포함하는지 검증
+- ✅ `개인통관번호` 값 형식 검증 (`P + 숫자 12자리`, 빈 값 허용)
 
 ### Stage3 (Merge Pipeline)
 - ✅ 입력 통합 검증 (bridgeFile + orderFile + fixedInput)

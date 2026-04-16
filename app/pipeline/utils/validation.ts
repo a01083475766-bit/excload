@@ -54,6 +54,20 @@ export class ValidationError extends Error {
 }
 
 /**
+ * 개인통관고유부호 형식 검증
+ *
+ * 규칙:
+ * - 빈 값은 허용 (선택 입력)
+ * - 값이 있으면 "P + 숫자 12자리" 형식만 허용 (총 13자리)
+ * - 하이픈/공백은 자동 제거 후 검증
+ */
+export function isValidPersonalCustomsCode(value: string): boolean {
+  const normalized = value.replace(/[\s-]/g, '').toUpperCase();
+  if (!normalized) return true;
+  return /^P\d{12}$/.test(normalized);
+}
+
+/**
  * CleanInputFile 검증
  */
 export function validateCleanInputFile(input: unknown): ValidationResult {
@@ -251,6 +265,29 @@ export function validateOrderStandardFile(input: unknown): ValidationResult {
           }
         }
       });
+    }
+  }
+
+  // 개인통관번호 형식 검증 (선택 입력: 값이 있는 경우만 형식 검사)
+  if (Array.isArray(orderFile.baseHeaders) && Array.isArray(orderFile.rows)) {
+    const hasPersonalCustomsHeader = orderFile.baseHeaders.includes('개인통관번호');
+    if (hasPersonalCustomsHeader) {
+      const invalidRows: number[] = [];
+      orderFile.rows.forEach((row, index) => {
+        const rawValue = typeof row?.['개인통관번호'] === 'string' ? row['개인통관번호'] : '';
+        const value = rawValue.trim();
+        if (value && !isValidPersonalCustomsCode(value)) {
+          invalidRows.push(index + 1); // 사용자 표시용 1-based row number
+        }
+      });
+
+      if (invalidRows.length > 0) {
+        const previewRows = invalidRows.slice(0, 10).join(', ');
+        const omitted = invalidRows.length > 10 ? ` 외 ${invalidRows.length - 10}건` : '';
+        warnings.push(
+          `개인통관번호 형식이 올바르지 않은 행이 ${invalidRows.length}개 있습니다. (행: ${previewRows}${omitted}, 형식: P + 숫자 12자리)`
+        );
+      }
     }
   }
 
