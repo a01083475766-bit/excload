@@ -386,7 +386,24 @@ export default function OrderConvertPage() {
         const saved = localStorage.getItem('activeCourierBridgeFile');
         if (saved) {
           const parsed = JSON.parse(saved) as TemplateBridgeFile;
-          setTemplateBridgeFile(parsed);
+          // 개인통관번호 기준헤더 추가로 인해, 과거(구버전) 템플릿 캐시의
+          // mappedBaseHeaders가 null/누락 상태일 수 있습니다.
+          // 이 경우 템플릿을 강제로 재생성하도록 캐시 무효화합니다.
+          const pcccIndex = parsed?.courierHeaders?.findIndex((h) =>
+            /개인통관번호|PCCC/i.test(String(h ?? ''))
+          ) ?? -1;
+          const pcccMapped =
+            pcccIndex >= 0 ? parsed?.mappedBaseHeaders?.[pcccIndex] : null;
+
+          const hasPersonalCustomsMapping =
+            pcccIndex >= 0 && pcccMapped === '개인통관번호';
+
+          if (!hasPersonalCustomsMapping) {
+            localStorage.removeItem('activeCourierBridgeFile');
+            setTemplateBridgeFile(null);
+          } else {
+            setTemplateBridgeFile(parsed);
+          }
         }
       } catch (error) {
         console.error('localStorage에서 bridgeFile을 불러오는 중 오류 발생:', error);
