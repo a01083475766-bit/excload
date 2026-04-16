@@ -1206,6 +1206,23 @@ export default function OrderConvertPage() {
 
     const stage2Result = await response.json();
 
+    // 디버그: 개인통관번호(PCCC) 값이 Stage2(OrderStandardFile)에 실제로 들어가는지 확인
+    // (콘솔에서 Stage2 값/Stage3 미리보기 값을 바로 대조할 수 있게 PCCC만 최소 로그)
+    try {
+      const pcccBaseHeader = '개인통관번호';
+      const includes =
+        Array.isArray(stage2Result?.baseHeaders) &&
+        stage2Result.baseHeaders.includes(pcccBaseHeader);
+      const row0 = String(stage2Result?.rows?.[0]?.[pcccBaseHeader] ?? '');
+
+      // eslint-disable-next-line no-console
+      console.log(
+        `[EXCLOAD][DEBUG][PCCC] Stage2 baseHeadersHas=${includes} row0=${row0}`
+      );
+    } catch {
+      // 로그 실패는 무시
+    }
+
     // Stage2 완료 직후 상태 설정
     setFileProcessingStatus("done");
     setTimeout(() => {
@@ -1229,6 +1246,31 @@ export default function OrderConvertPage() {
         stage2Result,     // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
         fixedHeaderValues
       );
+
+      // 디버그: 개인통관번호(PCCC) 값이 Stage3 미리보기(=previewRows)로도 넘어오는지 확인
+      try {
+        const pcccCourierHeader =
+          stage3Result?.courierHeaders?.find((h) =>
+            /개인통관번호|PCCC/i.test(String(h))
+          ) ?? null;
+        const previewRow0 =
+          pcccCourierHeader
+            ? String(stage3Result?.previewRows?.[0]?.[pcccCourierHeader] ?? '')
+            : '';
+
+        const idx = pcccCourierHeader
+          ? templateBridgeFile.courierHeaders.indexOf(pcccCourierHeader)
+          : -1;
+        const mappedBaseHeader =
+          idx >= 0 ? templateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
+
+        // eslint-disable-next-line no-console
+        console.log(
+          `[EXCLOAD][DEBUG][PCCC] Stage3 courierHeader=${pcccCourierHeader} mappedBase=${mappedBaseHeader} previewRow0=${previewRow0}`
+        );
+      } catch {
+        // 로그 실패는 무시
+      }
       
       // previewRows 상단 prepend 구조 적용
       const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
