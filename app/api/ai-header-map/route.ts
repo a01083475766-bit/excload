@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     // BaseHeaderKey 목록을 system prompt에 포함
     const baseHeaderList = BASE_HEADERS.join(', ');
     
-    const prompt = `다음 택배사 헤더들을 한글 기준헤더로 매핑하세요.
+    const prompt = `다음 원본 헤더들을 시스템 기준헤더로 매핑하세요.
 
 **기준헤더 목록 (${BASE_HEADER_COUNT}개):**
 ${baseHeaderList}
@@ -48,10 +48,14 @@ ${unknownHeaders.join(', ')}
 }
 
 **규칙:**
-1. 각 헤더를 가장 적합한 한글 기준헤더로 매핑하세요.
-2. 매핑이 불가능한 헤더는 제외하세요.
-3. JSON 형식으로만 응답하세요.
-4. 기준헤더는 정확히 일치해야 합니다.`;
+1. 각 헤더를 의미 기준으로 가장 적합한 한글 기준헤더로 매핑하세요.
+2. 매핑이 불가능하거나 의미가 불명확한 헤더는 제외하세요.
+3. BASE_HEADERS 목록에 없는 값은 절대 반환하지 마세요.
+4. JSON 형식으로만 응답하세요.
+5. 아래 의미를 혼동하지 마세요:
+   - 결제구분(결제수단) vs 운임구분(선불/착불)
+   - 주문배송비(주문서 배송비) vs 운임(실제 계약 운임)
+   - 주문번호 vs 주문ID vs 상품주문번호`;
 
     const aiResponse = await callOpenAI(prompt);
     
