@@ -964,10 +964,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           ) ?? -1;
           const pcccMapped =
             pcccIndex >= 0 ? parsed?.mappedBaseHeaders?.[pcccIndex] : null;
-          const hasPersonalCustomsMapping =
-            pcccIndex >= 0 && pcccMapped === '개인통관번호';
+          // PCCC 열이 템플릿에 없으면 그대로 복원. 있을 때만 구버전 매핑이면 무효화.
+          const needsPcccMigration =
+            pcccIndex >= 0 && pcccMapped !== '개인통관번호';
 
-          if (!hasPersonalCustomsMapping) {
+          if (needsPcccMigration) {
             localStorage.removeItem(logisticsActiveBridgeFileKey(trialMode));
             setTemplateBridgeFile(null);
           } else {
