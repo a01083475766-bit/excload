@@ -18,6 +18,7 @@ import type { TemplateBridgeFile } from '../template/types';
 import type { OrderStandardFile } from '../order/order-pipeline';
 import type { FixedInput, PreviewRow, MergePipelineResult } from './types';
 import { applyFillOnly } from './apply-fill-only';
+import { sanitizeDeliveryMessage } from './sanitize-delivery-message';
 import { validateMergeInputs, validatePreviewRow, logValidationResult, throwIfInvalid } from '../utils/validation';
 
 /**
@@ -80,7 +81,12 @@ export async function runMergePipeline(
       const fixedValue = String(fixedInput[courierHeader] || '').trim();
       
       // Fill Only 원칙 적용
-      const finalValue = applyFillOnly(orderValue, fixedValue);
+      let finalValue = applyFillOnly(orderValue, fixedValue);
+
+      // 원본(Stage2)은 보존하고, 택배 업로드용 Stage3 배송메시지만 보수 정제(v1) 적용
+      if (baseHeader === '배송메시지' && finalValue) {
+        finalValue = sanitizeDeliveryMessage(finalValue);
+      }
       
       // PreviewRow에 추가 (courierHeader 기준)
       previewRow[courierHeader] = finalValue;
