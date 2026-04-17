@@ -33,11 +33,28 @@ function inferBaseFromCourierLabel(
   const looksAddrDetail = /상세주소/.test(flat);
   const looksProduct = /상품명|품목|상품상세|옵션/.test(ch) || /^상품/.test(flat);
   const looksPersonalCustoms = /개인통관번호|통관고유부호|PCCC/i.test(ch);
+  const flatMsg = ch.replace(/\s/g, '');
+  const looksProductExtraMsg =
+    /상품별추가메시지|상품별추가메세지/i.test(flatMsg);
+  const looksOrdererExtraMsg =
+    /주문자추가메시지|주문자추가메세지/i.test(flatMsg);
 
   // 개인통관번호 계열은 항상 개인통관번호 기준헤더를 유지한다.
   // (중복 보정/휴리스틱 보정 과정에서 null 처리되는 것을 방지)
   if (looksPersonalCustoms) {
     return '개인통관번호';
+  }
+  if (looksProductExtraMsg) {
+    return '상품별추가메시지';
+  }
+  if (looksOrdererExtraMsg) {
+    return '주문자추가메시지';
+  }
+  if (flatMsg === '배송비구분' || flatMsg === '주문배송비구분') {
+    return '주문배송비구분';
+  }
+  if (flatMsg === '배송비' || flatMsg === '주문배송비') {
+    return '주문배송비';
   }
 
   // (지정) 열인데 수취인 전화/주소 기준헤더로 잘못 붙은 경우 → 보내는사람 쪽으로 교정
@@ -165,7 +182,16 @@ export function refineMappedBaseHeadersCouriers(
     const b = out[i];
     if (!isValidBase(b)) continue;
     const courierHeader = courierHeaders[i] || '';
+    const flatCh = courierHeader.replace(/\s/g, '');
     const isPersonalCustomsHeader = /개인통관번호|통관고유부호|PCCC/i.test(courierHeader);
+    const isProductExtraMsgHeader =
+      /상품별추가메시지|상품별추가메세지/i.test(flatCh);
+    const isOrdererExtraMsgHeader =
+      /주문자추가메시지|주문자추가메세지/i.test(flatCh);
+    const isOrderShippingFeeHeader =
+      flatCh === '배송비' || flatCh === '주문배송비';
+    const isOrderShippingTypeHeader =
+      flatCh === '배송비구분' || flatCh === '주문배송비구분';
 
     const usedBefore = new Set<string>();
     for (let j = 0; j < i; j++) {
@@ -176,6 +202,22 @@ export function refineMappedBaseHeadersCouriers(
     // 동일 의미 컬럼이 복수로 들어와도 값 누락보다 중복 표시가 안전하다.
     if (isPersonalCustomsHeader) {
       out[i] = '개인통관번호';
+      continue;
+    }
+    if (isProductExtraMsgHeader) {
+      out[i] = '상품별추가메시지';
+      continue;
+    }
+    if (isOrdererExtraMsgHeader) {
+      out[i] = '주문자추가메시지';
+      continue;
+    }
+    if (isOrderShippingFeeHeader) {
+      out[i] = '주문배송비';
+      continue;
+    }
+    if (isOrderShippingTypeHeader) {
+      out[i] = '주문배송비구분';
       continue;
     }
 
