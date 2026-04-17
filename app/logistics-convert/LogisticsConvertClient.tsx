@@ -958,7 +958,21 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         const saved = localStorage.getItem(logisticsActiveBridgeFileKey(trialMode));
         if (saved) {
           const parsed = JSON.parse(saved) as TemplateBridgeFile;
-          setTemplateBridgeFile(parsed);
+          // 개인통관번호 기준헤더 추가 이후 구버전 캐시는 mappedBaseHeaders가 null/누락일 수 있음 → 무효화
+          const pcccIndex = parsed?.courierHeaders?.findIndex((h) =>
+            /개인통관번호|PCCC/i.test(String(h ?? '')),
+          ) ?? -1;
+          const pcccMapped =
+            pcccIndex >= 0 ? parsed?.mappedBaseHeaders?.[pcccIndex] : null;
+          const hasPersonalCustomsMapping =
+            pcccIndex >= 0 && pcccMapped === '개인통관번호';
+
+          if (!hasPersonalCustomsMapping) {
+            localStorage.removeItem(logisticsActiveBridgeFileKey(trialMode));
+            setTemplateBridgeFile(null);
+          } else {
+            setTemplateBridgeFile(parsed);
+          }
         }
       } catch (error) {
         console.error('localStorage에서 bridgeFile을 불러오는 중 오류 발생:', error);
@@ -2519,6 +2533,28 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
     const stage2Result = await response.json();
 
+    try {
+      const pcccBaseHeader = '개인통관번호';
+      const includes =
+        Array.isArray(stage2Result?.baseHeaders) &&
+        stage2Result.baseHeaders.includes(pcccBaseHeader);
+      const row0 = String(stage2Result?.rows?.[0]?.[pcccBaseHeader] ?? '');
+      // eslint-disable-next-line no-console
+      console.log(
+        `[EXCLOAD][DEBUG][PCCC] Stage2 baseHeadersHas=${includes} row0=${row0}`,
+      );
+      if (typeof window !== 'undefined') {
+        (window as unknown as { __EXCLOUD_PCCC_STAGE2?: unknown }).__EXCLOUD_PCCC_STAGE2 =
+          {
+            baseHeadersHas: includes,
+            row0,
+            rowsCount: stage2Result?.rows?.length ?? 0,
+          };
+      }
+    } catch {
+      // ignore
+    }
+
     // Stage2 완료 직후 상태 설정
     setFileProcessingStatus("done");
     setTimeout(() => {
@@ -2542,6 +2578,37 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         stage2Result,     // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
         fixedHeaderValues
       );
+
+      try {
+        const pcccCourierHeader =
+          stage3Result?.courierHeaders?.find((h) =>
+            /개인통관번호|PCCC/i.test(String(h)),
+          ) ?? null;
+        const previewRow0 =
+          pcccCourierHeader
+            ? String(stage3Result?.previewRows?.[0]?.[pcccCourierHeader] ?? '')
+            : '';
+        const idx = pcccCourierHeader
+          ? templateBridgeFile.courierHeaders.indexOf(pcccCourierHeader)
+          : -1;
+        const mappedBaseHeader =
+          idx >= 0 ? templateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[EXCLOAD][DEBUG][PCCC] Stage3 courierHeader=${pcccCourierHeader} mappedBase=${mappedBaseHeader} previewRow0=${previewRow0}`,
+        );
+        if (typeof window !== 'undefined') {
+          (window as unknown as { __EXCLOUD_PCCC_STAGE3?: unknown }).__EXCLOUD_PCCC_STAGE3 =
+            {
+              courierHeader: pcccCourierHeader,
+              mappedBase: mappedBaseHeader,
+              previewRow0,
+              previewRowsCount: stage3Result?.previewRows?.length ?? 0,
+            };
+        }
+      } catch {
+        // ignore
+      }
 
       // Stage3 직후: 자동 상품코드 투영 없음 — 미리보기에는 상품명 등 원문만 두고, 코드는 사용자가 버튼으로 적용
       setProductCodeMappingNotice(null);
