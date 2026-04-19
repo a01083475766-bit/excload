@@ -10,13 +10,15 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { PrismaClient } from '@prisma/client';
 
-const STRIPE_POINT_GRANT_REASONS = [
-  'STRIPE_PAYMENT_RESET',
-  'STRIPE_CHECKOUT_COMPLETED',
-] as const;
+function isPrismaUniqueViolation(e: unknown): boolean {
+  return (e as { code?: string })?.code === 'P2002';
+}
 
-/** 동일 Checkout/Invoice 결제에 대한 포인트 중복 지급 방지 (sessionId 우선, invoiceId 보조) */
-async function findExistingStripePointGrant(
+/**
+ * 동일 Stripe session / invoice 로 PointHistory 가 이미 있으면 중복 지급 방지.
+ * DB partial unique 와 동일하게 reason 은 보지 않음.
+ */
+async function findPointHistoryByStripeKeys(
   prisma: PrismaClient,
   userId: string,
   opts: { stripeSessionId?: string | null; stripeInvoiceId?: string | null }
@@ -29,7 +31,6 @@ async function findExistingStripePointGrant(
   return prisma.pointHistory.findFirst({
     where: {
       userId,
-      reason: { in: [...STRIPE_POINT_GRANT_REASONS] },
       OR: or,
     },
   });
@@ -210,7 +211,7 @@ export async function POST(request: NextRequest) {
               ? (invRef as Stripe.Invoice).id
               : null;
 
-        const skipPointsDuplicate = !!(await findExistingStripePointGrant(prisma, user.id, {
+        const skipPointsDuplicate = !!(await findPointHistoryByStripeKeys(prisma, user.id, {
           stripeSessionId: session.id,
           stripeInvoiceId: stripeInvoiceIdForDedupe,
         }));
@@ -286,24 +287,43 @@ export async function POST(request: NextRequest) {
         });
 
         if (!skipPointsDuplicate) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              plan,
-              stripeCustomerId: session.customer as string | null,
-              points: 400000,
-            },
-          });
-
-          await prisma.pointHistory.create({
-            data: {
-              userId: user.id,
-              change: 400000 - pointsBefore,
-              reason: 'STRIPE_CHECKOUT_COMPLETED',
-              stripeSessionId: session.id,
-              stripeInvoiceId: stripeInvoiceIdForDedupe,
-            },
-          });
+          try {
+            // 이력 먼저 쓰고 사용자 갱신 — DB partial unique 충돌 시 사용자 포인트가 이중 반영되지 않음
+            await prisma.$transaction([
+              prisma.pointHistory.create({
+                data: {
+                  userId: user.id,
+                  change: 400000 - pointsBefore,
+                  reason: 'STRIPE_CHECKOUT_COMPLETED',
+                  stripeSessionId: session.id,
+                  stripeInvoiceId: stripeInvoiceIdForDedupe,
+                },
+              }),
+              prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  plan,
+                  stripeCustomerId: session.customer as string | null,
+                  points: 400000,
+                },
+              }),
+            ]);
+          } catch (e) {
+            if (isPrismaUniqueViolation(e)) {
+              console.log(
+                '[Stripe Webhook] checkout: PointHistory 유니크 충돌(동시 처리) → 포인트 스킵, 플랜·고객만 동기화'
+              );
+              await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  plan,
+                  stripeCustomerId: session.customer as string | null,
+                },
+              });
+            } else {
+              throw e;
+            }
+          }
         } else {
           await prisma.user.update({
             where: { id: user.id },
@@ -580,6 +600,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // checkout.session.completed 직후 생성된 결제 행을 우선 매칭 (과거 구독 결제 행과 혼동 방지)
         const recentCheckoutPayment =
           invoice?.billing_reason === 'subscription_create'
             ? await prisma.payment.findFirst({
@@ -587,6 +608,7 @@ export async function POST(request: NextRequest) {
                   userId: user.id,
                   stripeSessionId: { not: null },
                 },
+                orderBy: { createdAt: 'desc' },
               })
             : null;
 
@@ -629,7 +651,7 @@ export async function POST(request: NextRequest) {
                 )?.stripeSessionId ?? null
               : null;
 
-            const existingInvoiceGrant = await findExistingStripePointGrant(prisma, user.id, {
+            const existingInvoiceGrant = await findPointHistoryByStripeKeys(prisma, user.id, {
               stripeSessionId: linkedSessionId,
               stripeInvoiceId: invoiceId,
             });
@@ -651,29 +673,59 @@ export async function POST(request: NextRequest) {
                 pointsToSet: 400000,
               });
 
-              updatedUser = await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                  plan,
-                  points: 400000,
-                },
-                select: {
-                  id: true,
-                  points: true,
-                  plan: true,
-                },
-              });
+              const pointsBeforeInvoice = user.points;
+              const pointsChange = 400000 - pointsBeforeInvoice;
 
-              const pointsChange = 400000 - user.points;
-              await prisma.pointHistory.create({
-                data: {
-                  userId: user.id,
-                  change: pointsChange,
-                  reason: 'STRIPE_PAYMENT_RESET',
-                  stripeSessionId: linkedSessionId,
-                  stripeInvoiceId: invoiceId,
-                },
-              });
+              try {
+                const [, u] = await prisma.$transaction([
+                  prisma.pointHistory.create({
+                    data: {
+                      userId: user.id,
+                      change: pointsChange,
+                      reason: 'STRIPE_PAYMENT_RESET',
+                      stripeSessionId: linkedSessionId,
+                      stripeInvoiceId: invoiceId,
+                    },
+                  }),
+                  prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                      plan,
+                      points: 400000,
+                    },
+                    select: {
+                      id: true,
+                      points: true,
+                      plan: true,
+                    },
+                  }),
+                ]);
+                updatedUser = u;
+              } catch (e) {
+                if (isPrismaUniqueViolation(e)) {
+                  console.log(
+                    '[Stripe Webhook] invoice: PointHistory 유니크 충돌(동시 처리) → 포인트 스킵, 플랜만 동기화 시도'
+                  );
+                  const fresh = await prisma.user.findUnique({
+                    where: { id: user.id },
+                    select: { id: true, points: true, plan: true },
+                  });
+                  updatedUser = {
+                    id: user.id,
+                    points: fresh?.points ?? user.points,
+                    plan: fresh?.plan ?? user.plan,
+                  };
+                  if (updatedUser.plan !== plan) {
+                    await prisma.user.update({
+                      where: { id: user.id },
+                      data: { plan },
+                    });
+                    updatedUser.plan = plan;
+                  }
+                } else {
+                  throw e;
+                }
+              }
             }
           }
 
@@ -1093,6 +1145,7 @@ export async function POST(request: NextRequest) {
             id: true,
             email: true,
             plan: true,
+            points: true,
           },
         });
 
@@ -1103,13 +1156,50 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        // 사용자 플랜 FREE 전환
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            plan: 'FREE',
-          },
-        });
+        const FREE_POINTS_AFTER_REFUND = 5000;
+        const stripeInvoiceIdForRefund =
+          typeof charge.invoice === 'string'
+            ? charge.invoice
+            : charge.invoice && typeof charge.invoice === 'object' && 'id' in charge.invoice
+              ? (charge.invoice as { id: string }).id
+              : null;
+        const pointsDeltaRefund = FREE_POINTS_AFTER_REFUND - user.points;
+
+        try {
+          await prisma.$transaction([
+            prisma.user.update({
+              where: { id: user.id },
+              data: {
+                plan: 'FREE',
+                points: FREE_POINTS_AFTER_REFUND,
+              },
+            }),
+            prisma.pointHistory.create({
+              data: {
+                userId: user.id,
+                change: pointsDeltaRefund,
+                reason: 'STRIPE_REFUND_ADJUST',
+                stripeSessionId: null,
+                stripeInvoiceId: stripeInvoiceIdForRefund,
+              },
+            }),
+          ]);
+        } catch (e) {
+          if (isPrismaUniqueViolation(e)) {
+            console.log(
+              '[Stripe Webhook] charge.refunded: PointHistory 유니크 충돌 → 플랜·포인트만 FREE/5000 동기화'
+            );
+            await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                plan: 'FREE',
+                points: FREE_POINTS_AFTER_REFUND,
+              },
+            });
+          } else {
+            throw e;
+          }
+        }
 
         // Invoice에서 Subscription 찾기
         let subscriptionId: string | null = null;

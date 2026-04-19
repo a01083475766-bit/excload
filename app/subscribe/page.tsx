@@ -74,6 +74,8 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   }, []);
 
   const handleTossBillingAuth = useCallback(async () => {
+    if (tossLoading || tossChargeLoading) return;
+
     const clientKey =
       process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY?.trim() ||
       process.env.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY?.trim();
@@ -119,9 +121,11 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
     } finally {
       setTossLoading(false);
     }
-  }, []);
+  }, [tossLoading, tossChargeLoading]);
 
   const handleTossCharge = useCallback(async () => {
+    if (tossChargeLoading || tossLoading) return;
+
     try {
       setTossChargeLoading(true);
       const res = await fetch('/api/toss/charge', {
@@ -155,7 +159,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
     } finally {
       setTossChargeLoading(false);
     }
-  }, [planKey, tossAmount, tossOrderName]);
+  }, [planKey, tossAmount, tossOrderName, tossChargeLoading, tossLoading]);
 
   return (
     <div className="max-w-[600px] mx-auto py-20 px-6 text-center">
@@ -186,7 +190,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
             <button
               type="button"
               onClick={handleTossBillingAuth}
-              disabled={tossLoading}
+              disabled={tossLoading || tossChargeLoading}
               className="w-full bg-[#0064FF] text-white py-3 rounded-lg hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed text-[15px] font-medium"
             >
               {tossLoading

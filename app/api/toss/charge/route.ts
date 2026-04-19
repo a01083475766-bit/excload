@@ -16,7 +16,33 @@ function basicAuthHeader(secretKey: string) {
 const DEFAULT_AMOUNT = 4000;
 const DEFAULT_ORDER_NAME = 'EXCLOAD PRO 구독';
 
+/** 동시 탭·재전송 시 한 요청만 토스 API까지 가도록 DB 락(만료 시 자동 해제) */
+const TOSS_CHARGE_LOCK_MS = 60_000;
+/** 직전 성공 결제(행 생성) 직후 연속 승인 차단 */
+const TOSS_CHARGE_DEBOUNCE_MS = 5_000;
+
 export async function POST(request: NextRequest) {
+  let lockUserId: string | null = null;
+  const { prisma } = await import('@/app/lib/prisma');
+
+  const releaseTossChargeLock = async () => {
+    if (!lockUserId) return;
+    const releasedUserId = lockUserId;
+    console.info('TOSS LOCK RELEASED', releasedUserId);
+    try {
+      await prisma.user.update({
+        where: { id: lockUserId },
+        data: { tossChargeCooldownUntil: null },
+      });
+    } catch {
+      /* ignore */
+    }
+    lockUserId = null;
+  };
+
+  // try/finally: return·throw·await 거절 모두에서 finally가 먼저 실행됨(ECMA-262).
+  // 예외: SIGKILL·전원 차단·일부 서버리스 하드 타임아웃으로 isolate가 즉시 종료되면 finally 미실행 가능.
+  // 그 경우에도 tossChargeCooldownUntil 은 최대 TOSS_CHARGE_LOCK_MS 후 만료되어 다음 요청이 락을 다시 잡을 수 있음.
   try {
     const secretKey = process.env.TOSS_SECRET_KEY?.trim();
     if (!secretKey) {
@@ -42,7 +68,6 @@ export async function POST(request: NextRequest) {
           ? 'EXCLOAD YEARLY 구독'
           : DEFAULT_ORDER_NAME;
 
-    const { prisma } = await import('@/app/lib/prisma');
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -50,6 +75,7 @@ export async function POST(request: NextRequest) {
         email: true,
         name: true,
         plan: true,
+        points: true,
         tossBillingKey: true,
       },
     });
@@ -69,8 +95,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'billingKey 없음' }, { status: 400 });
     }
 
-    // orderId: userId + UUID로 유일성 보장 (토스 orderId 중복 방지)
-    const orderId = `toss_${user.id}_${randomUUID()}`;
+    const lockUntil = new Date(Date.now() + TOSS_CHARGE_LOCK_MS);
+    const gotLock = await prisma.user.updateMany({
+      where: {
+        id: user.id,
+        OR: [
+          { tossChargeCooldownUntil: null },
+          { tossChargeCooldownUntil: { lt: new Date() } },
+        ],
+      },
+      data: { tossChargeCooldownUntil: lockUntil },
+    });
+
+    if (gotLock.count === 0) {
+      console.warn('TOSS LOCK SKIPPED (IN_FLIGHT)', user.id);
+      return NextResponse.json(
+        {
+          error: '이미 처리 중인 결제 요청이 있습니다. 잠시 후 다시 시도해 주세요.',
+          code: 'TOSS_CHARGE_IN_FLIGHT',
+        },
+        { status: 429 }
+      );
+    }
+    lockUserId = user.id;
+    console.info('TOSS LOCK ACQUIRED', user.id);
+
+    const recentPayment = await prisma.payment.count({
+      where: {
+        userId: user.id,
+        paymentProvider: 'TOSS',
+        amount: { gt: 0 },
+        createdAt: { gte: new Date(Date.now() - TOSS_CHARGE_DEBOUNCE_MS) },
+      },
+    });
+
+    if (recentPayment > 0) {
+      console.warn('TOSS LOCK SKIPPED (COOLDOWN)', user.id);
+      return NextResponse.json(
+        {
+          error: '같은 방식의 결제가 방금 완료되었습니다. 잠시 후 다시 확인해 주세요.',
+          code: 'TOSS_CHARGE_DEBOUNCE',
+        },
+        { status: 429 }
+      );
+    }
 
     const userBeforeCharge = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -82,6 +150,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const orderId = `toss_${user.id}_${randomUUID()}`;
 
     const res = await fetch(
       `https://api.tosspayments.com/v1/billing/${encodeURIComponent(user.tossBillingKey)}`,
@@ -150,6 +220,10 @@ export async function POST(request: NextRequest) {
     const nextPointDate = new Date();
     nextPointDate.setMonth(nextPointDate.getMonth() + 1);
 
+    const pointsBefore = user.points;
+    const pointsTarget = 400000;
+    const pointsDelta = pointsTarget - pointsBefore;
+
     await prisma.$transaction([
       prisma.payment.create({
         data: {
@@ -167,14 +241,15 @@ export async function POST(request: NextRequest) {
         where: { id: user.id },
         data: {
           plan: planType,
-          points: 400000,
+          points: pointsTarget,
           nextPointDate,
+          tossChargeCooldownUntil: null,
         },
       }),
       prisma.pointHistory.create({
         data: {
           userId: user.id,
-          change: 400000,
+          change: pointsDelta,
           reason: 'TOSS_PAYMENT_RESET',
         },
       }),
@@ -196,5 +271,7 @@ export async function POST(request: NextRequest) {
       { error: e instanceof Error ? e.message : '서버 오류' },
       { status: 500 }
     );
+  } finally {
+    await releaseTossChargeLock();
   }
 }

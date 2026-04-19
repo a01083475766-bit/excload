@@ -11,6 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import { run as runOrderPipeline } from '@/app/pipeline/order/order-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
@@ -20,6 +22,11 @@ import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
  */
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const prompt = (body as { prompt?: string | null })?.prompt;
     const { fileSessionId, ...cleanInputFile } = body;

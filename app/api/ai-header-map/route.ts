@@ -11,6 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import { callOpenAI } from '@/app/lib/ai/openai-client';
 import { BASE_HEADERS, BASE_HEADER_COUNT } from '@/app/pipeline/base/base-headers';
 
@@ -19,6 +21,11 @@ import { BASE_HEADERS, BASE_HEADER_COUNT } from '@/app/pipeline/base/base-header
  */
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { unknownHeaders } = body;
     

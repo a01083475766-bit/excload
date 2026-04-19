@@ -76,13 +76,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const updatedUser = await prisma.user.update({
-        where: { email: userEmail },
-        data: {
-          points: {
-            decrement: amount,
-          },
-        },
+      // 동시 요청 시 잔액보다 많이 빠지지 않도록 한 번에 조건+차감 (TOCTOU 방지)
+      const deducted = await prisma.user.updateMany({
+        where: { id: user.id, points: { gte: amount } },
+        data: { points: { decrement: amount } },
+      });
+
+      if (deducted.count === 0) {
+        return NextResponse.json(
+          { error: '사용량이 부족합니다.' },
+          { status: 400 }
+        );
+      }
+
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: user.id },
         select: {
           id: true,
           email: true,
@@ -90,6 +98,13 @@ export async function POST(request: NextRequest) {
           points: true,
         },
       });
+
+      if (!updatedUser) {
+        return NextResponse.json(
+          { error: '사용자를 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
 
       return NextResponse.json({
         success: true,

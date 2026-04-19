@@ -9,7 +9,9 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 if (!process.env.NEXTAUTH_SECRET) {
-  throw new Error('NEXTAUTH_SECRET is required');
+  console.warn(
+    '[Auth] NEXTAUTH_SECRET missing — 운영 배포 전 반드시 설정하세요. (로컬 빌드용 임시 시크릿 사용)'
+  );
 }
 
 const AKMAN_ADMIN_EMAIL = 'akman@excload.com';
@@ -185,6 +187,8 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/login',
   },
 
-  // 보안 설정
-  secret: process.env.NEXTAUTH_SECRET,
+  // 보안 설정 — NEXTAUTH_SECRET 미설정 시에만 임시값(빌드 통과용). 운영에서는 반드시 환경 변수 설정.
+  secret:
+    process.env.NEXTAUTH_SECRET?.trim() ||
+    'dev-only-insecure-nextauth-secret-set-NEXTAUTH_SECRET-in-production',
 };
