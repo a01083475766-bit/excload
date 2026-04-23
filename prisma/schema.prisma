@@ -58,6 +58,44 @@ model EmailVerificationToken {
   expiresAt DateTime
 }
 
+model PasswordResetCode {
+  id           String    @id @default(cuid())
+  email        String
+  codeHash     String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  attemptCount Int       @default(0)
+  purpose      String
+  createdAt    DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model PasswordResetRequestLog {
+  id        String   @id @default(cuid())
+  ip        String
+  email     String?
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+  @@index([createdAt])
+}
+
+model PasswordResetAuditLog {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String?
+  action    String
+  status    String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+  @@index([createdAt])
+}
+
 model PointHistory {
   id        String   @id @default(cuid())
   userId    String

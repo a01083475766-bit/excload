@@ -12,6 +12,7 @@
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Mail, Lock, LogIn, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
@@ -300,6 +301,14 @@ export default function AuthPage() {
                   </>
                 )}
               </button>
+              <div className="text-right">
+                <Link
+                  href="/auth/reset-password"
+                  className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  비밀번호를 잊으셨나요?
+                </Link>
+              </div>
             </form>
           )}
 
