@@ -15,7 +15,7 @@ if (!process.env.NEXTAUTH_SECRET) {
 }
 
 const AKMAN_ADMIN_EMAIL = 'akman@excload.com';
-const AKMAN_ADMIN_BCRYPT_HASH = '$2b$10$D/vXwv29tMyLzUTvKmLfDOTr9AR79NdPlJEqzQ13pNd4T8kM5kyim';
+const AKMAN_ADMIN_BCRYPT_HASH = '$2b$10$WP8wPfSr5v/HHQlo0pf9I.piql9e9PLm/NJZ2trg4o2Q8GJgHUvtm';
 
 /**
  * NextAuth 옵션 설정
@@ -50,6 +50,7 @@ export const authOptions: NextAuthOptions = {
               where: { email: AKMAN_ADMIN_EMAIL },
               update: {
                 plan: 'PRO',
+                passwordHash: AKMAN_ADMIN_BCRYPT_HASH,
               },
               create: {
                 email: AKMAN_ADMIN_EMAIL,
