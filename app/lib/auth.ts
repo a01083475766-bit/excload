@@ -42,25 +42,54 @@ export const authOptions: NextAuthOptions = {
           const inputId = credentials.email.trim().toLowerCase();
           const normalizedEmail = inputId === 'akman' ? AKMAN_ADMIN_EMAIL : inputId;
 
-          // Prisma를 사용하여 DB에서 사용자 조회
-          const { prisma } = await import('@/app/lib/prisma');
           if (normalizedEmail === AKMAN_ADMIN_EMAIL) {
-            // 관리자 계정 보정: 배포 DB가 비어 있어도 로그인 가능하도록 관리자 계정을 보장.
-            await prisma.user.upsert({
-              where: { email: AKMAN_ADMIN_EMAIL },
-              update: {
-                plan: 'PRO',
-                passwordHash: AKMAN_ADMIN_BCRYPT_HASH,
-              },
-              create: {
-                email: AKMAN_ADMIN_EMAIL,
-                passwordHash: AKMAN_ADMIN_BCRYPT_HASH,
-                plan: 'PRO',
-                points: 999999999,
-                emailVerified: new Date(),
-              },
-            });
+            // 관리자 계정은 DB 상태와 무관하게 로그인 가능하도록 우선 비밀번호를 직접 검증한다.
+            const { compare } = await import('bcryptjs');
+            const adminPasswordMatch = await compare(credentials.password, AKMAN_ADMIN_BCRYPT_HASH);
+
+            if (!adminPasswordMatch) {
+              console.log('[Auth] AKMAN PASSWORD MISMATCH');
+              return null;
+            }
+
+            let adminId = 'akman-admin';
+            try {
+              // 관리자 계정 보정: 배포 DB가 비어 있어도 관리자 계정을 보장.
+              const { prisma } = await import('@/app/lib/prisma');
+              const adminUser = await prisma.user.upsert({
+                where: { email: AKMAN_ADMIN_EMAIL },
+                update: {
+                  plan: 'PRO',
+                  passwordHash: AKMAN_ADMIN_BCRYPT_HASH,
+                  emailVerified: new Date(),
+                },
+                create: {
+                  email: AKMAN_ADMIN_EMAIL,
+                  passwordHash: AKMAN_ADMIN_BCRYPT_HASH,
+                  plan: 'PRO',
+                  points: 999999999,
+                  emailVerified: new Date(),
+                },
+                select: {
+                  id: true,
+                },
+              });
+              adminId = adminUser.id;
+            } catch (dbError) {
+              // DB 연결 실패 시에도 관리자 긴급 로그인은 허용한다.
+              console.error('[Auth] AKMAN UPSERT FAILED (login allowed):', dbError);
+            }
+
+            console.log('[Auth] AKMAN LOGIN SUCCESS');
+            return {
+              id: adminId,
+              email: AKMAN_ADMIN_EMAIL,
+              name: 'AKMAN',
+            };
           }
+
+          // Prisma를 사용하여 DB에서 일반 사용자 조회
+          const { prisma } = await import('@/app/lib/prisma');
 
           const user = await prisma.user.findUnique({
             where: { email: normalizedEmail },
