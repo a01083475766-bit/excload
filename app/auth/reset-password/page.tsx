@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
 
 export default function ResetPasswordPage() {
@@ -125,6 +126,14 @@ export default function ResetPasswordPage() {
               {infoMessage}
             </div>
           )}
+
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+            가입 이메일이 기억나지 않으시면{' '}
+            <Link href="/auth/find-email" className="font-semibold underline">
+              이메일 찾기
+            </Link>
+            를 먼저 이용해 주세요.
+          </div>
 
           {successMessage && (
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
@@ -269,6 +278,11 @@ export default function ResetPasswordPage() {
           >
             로그인 화면으로 돌아가기
           </button>
+          <div className="mt-2 text-center">
+            <Link href="/auth/find-email" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline">
+              이메일 찾기
+            </Link>
+          </div>
         </div>
       </div>
     </div>

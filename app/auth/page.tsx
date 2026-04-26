@@ -528,19 +528,6 @@ export default function AuthPage() {
             </form>
           )}
 
-          {/* 심사·체험 안내 (로그인·회원가입 공통) */}
-          {(mode === 'login' || mode === 'signup') && (
-            <div className="mt-6 space-y-2 rounded-lg bg-gray-50 p-4">
-              <p className="text-xs font-medium text-gray-600">심사·체험 안내</p>
-              <p className="text-xs leading-relaxed text-gray-500">
-                별도로 정해 드리는 테스트 계정은 없습니다. 이메일 형식만 올바르면 원하시는 임의의
-                주소로 회원가입하시면 되며, 이메일 인증 절차는 없습니다.
-              </p>
-              <p className="text-xs leading-relaxed text-gray-500">
-                가입 시 입력하신 이메일과 비밀번호로 바로 로그인하여 이용해 주세요.
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>
