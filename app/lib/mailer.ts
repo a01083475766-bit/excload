@@ -8,6 +8,8 @@ export interface PasswordResetMailPayload {
 
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY;
+  // 운영 비밀키 원문 노출 방지를 위해 값 자체 대신 설정 여부만 로그로 남긴다.
+  console.log('RESEND_API_KEY:', apiKey ? '[SET]' : undefined);
   if (!apiKey) {
     return null;
   }
@@ -27,6 +29,10 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
   }
 
   try {
+    console.log('[Password Reset Mail] send() called:', {
+      to: payload.email,
+      from,
+    });
     await resend.emails.send({
       from,
       to: payload.email,
