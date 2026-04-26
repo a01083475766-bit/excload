@@ -40,7 +40,7 @@ async function waitForMinimumResponse(startMs: number) {
 export async function POST(request: NextRequest) {
   const startMs = Date.now();
   try {
-    console.log('API HIT');
+    console.log('STEP 1: API HIT');
     const body = (await request.json()) as PasswordResetRequestBody;
     const email = (body.email || '').trim().toLowerCase();
     console.log('EMAIL RECEIVED:', email);
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (recentCount >= RATE_LIMIT_MAX_PER_IP) {
+      console.log('BLOCKED: RATE LIMIT');
       await prisma.passwordResetAuditLog.create({
         data: {
           email: email || 'unknown',
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!email || !email.includes('@')) {
+      console.log('BLOCKED: INVALID EMAIL');
       await prisma.passwordResetAuditLog.create({
         data: {
           email: email || 'unknown',
@@ -99,6 +101,7 @@ export async function POST(request: NextRequest) {
     console.log('USER FOUND:', user);
 
     if (!user) {
+      console.log('BLOCKED: USER NOT FOUND');
       await prisma.passwordResetAuditLog.create({
         data: {
           email,
@@ -129,6 +132,7 @@ export async function POST(request: NextRequest) {
     if (latestCode) {
       const diffMs = now.getTime() - latestCode.createdAt.getTime();
       if (diffMs < PASSWORD_RESET_COOLDOWN_SECONDS * 1000) {
+        console.log('BLOCKED: COOLDOWN');
         await prisma.passwordResetAuditLog.create({
           data: {
             email,
