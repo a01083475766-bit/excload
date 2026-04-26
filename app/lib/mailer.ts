@@ -21,6 +21,9 @@ function getEmailFromAddress() {
 }
 
 export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPayload) {
+  console.log('MAILER FUNCTION START');
+  console.log('RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'SET' : 'UNDEFINED');
+  console.log('EMAIL_FROM:', process.env.EMAIL_FROM);
   const resend = getResendClient();
   const from = getEmailFromAddress();
   if (!resend || !from) {
@@ -29,6 +32,7 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
   }
 
   try {
+    console.log('SENDING EMAIL NOW');
     console.log('[Password Reset Mail] send() called:', {
       to: payload.email,
       from,

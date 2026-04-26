@@ -40,8 +40,10 @@ async function waitForMinimumResponse(startMs: number) {
 export async function POST(request: NextRequest) {
   const startMs = Date.now();
   try {
+    console.log('API HIT');
     const body = (await request.json()) as PasswordResetRequestBody;
     const email = (body.email || '').trim().toLowerCase();
+    console.log('EMAIL RECEIVED:', email);
     const ip = getClientIp(request);
     const now = new Date();
     const windowStart = new Date(now.getTime() - RATE_LIMIT_WINDOW_MS);
@@ -165,11 +167,13 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
+    console.log('BEFORE SEND MAIL');
     const mailResult = await sendPasswordResetCodeEmail({
       email,
       code,
       expireMinutes: PASSWORD_RESET_EXPIRE_MINUTES,
     });
+    console.log('[Password Reset Request] mail result:', mailResult);
 
     await prisma.passwordResetAuditLog.create({
       data: {
