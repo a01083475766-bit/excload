@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
       where: { email },
       select: { id: true },
     });
+    console.log('USER FOUND:', user);
 
     if (!user) {
       await prisma.passwordResetAuditLog.create({
