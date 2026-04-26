@@ -13,8 +13,9 @@ import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, LogIn, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, Loader2, Eye, EyeOff, Smartphone, X, Search } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
+import { formatPhoneForInput } from '@/app/utils/format-phone';
 
 type AuthMode = 'login' | 'signup';
 
@@ -24,6 +25,7 @@ export default function AuthPage() {
   
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -33,6 +35,12 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  const [findEmailOpen, setFindEmailOpen] = useState(false);
+  const [findEmailPhone, setFindEmailPhone] = useState('');
+  const [findEmailLoading, setFindEmailLoading] = useState(false);
+  const [findEmailError, setFindEmailError] = useState('');
+  const [findEmailResult, setFindEmailResult] = useState<string | null>(null);
+
   // URL 쿼리 파라미터 변경 시 모드 업데이트
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -41,6 +49,67 @@ export default function AuthPage() {
       setMode(urlMode);
     }
   }, []);
+
+  useEffect(() => {
+    if (!findEmailOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFindEmailOpen(false);
+        setFindEmailLoading(false);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [findEmailOpen]);
+
+  const openFindEmailModal = () => {
+    setFindEmailOpen(true);
+    setFindEmailPhone('');
+    setFindEmailError('');
+    setFindEmailResult(null);
+  };
+
+  const closeFindEmailModal = () => {
+    setFindEmailOpen(false);
+    setFindEmailLoading(false);
+  };
+
+  const handleFindEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFindEmailError('');
+    setFindEmailResult(null);
+
+    const phoneDigits = findEmailPhone.replace(/[^0-9]/g, '');
+    const phoneOk =
+      /^\d{10}$/.test(phoneDigits) || /^01[016789]\d{8}$/.test(phoneDigits);
+    if (!phoneDigits || !phoneOk) {
+      setFindEmailError('휴대폰 번호 10~11자리(010, 011 등)를 올바르게 입력해주세요.');
+      return;
+    }
+
+    setFindEmailLoading(true);
+    try {
+      const res = await fetch('/api/auth/find-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneDigits }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFindEmailError(data.error || '조회에 실패했습니다.');
+        return;
+      }
+      if (data.success && data.maskedEmail) {
+        setFindEmailResult(data.maskedEmail);
+      } else {
+        setFindEmailError('결과를 불러올 수 없습니다.');
+      }
+    } catch {
+      setFindEmailError('네트워크 오류가 발생했습니다.');
+    } finally {
+      setFindEmailLoading(false);
+    }
+  };
 
   const getDeviceId = () => {
     if (typeof window === 'undefined') return undefined;
@@ -105,6 +174,15 @@ export default function AuthPage() {
       return;
     }
 
+    const phoneDigits = phone.replace(/[^0-9]/g, '');
+    const phoneOk =
+      /^\d{10}$/.test(phoneDigits) || /^01[016789]\d{8}$/.test(phoneDigits);
+    if (!phoneDigits || !phoneOk) {
+      setError('휴대폰 번호 10~11자리(010, 011 등)를 올바르게 입력해주세요.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // 비밀번호 해시화 (실제로는 서버에서 처리하는 것이 좋지만, 임시로 클라이언트에서 처리)
       // ⚠️ 실제 구현 시에는 서버에서 bcrypt 등을 사용하여 해시화
@@ -120,6 +198,7 @@ export default function AuthPage() {
         },
         body: JSON.stringify({
           email,
+          phone: phoneDigits,
           passwordHash,
           plan: 'FREE', // 기본값: 무료 회원
           deviceId,
@@ -138,6 +217,7 @@ export default function AuthPage() {
       // 회원가입 성공 후 자동으로 로그인 모드로 전환하고 로그인 시도
       setTimeout(async () => {
         setMode('login');
+        setPhone('');
         setConfirmPassword('');
         setSuccess(false);
         // 자동 로그인 시도
@@ -166,6 +246,7 @@ export default function AuthPage() {
     setMode(newMode);
     setError('');
     setSuccess(false);
+    setPhone('');
     setPassword('');
     setConfirmPassword('');
     setShowLoginPassword(false);
@@ -176,6 +257,7 @@ export default function AuthPage() {
   };
 
   return (
+    <>
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -301,10 +383,18 @@ export default function AuthPage() {
                   </>
                 )}
               </button>
-              <div className="text-right">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={openFindEmailModal}
+                  disabled={isLoading}
+                  className="text-left text-sm text-indigo-600 hover:text-indigo-700 hover:underline disabled:opacity-50"
+                >
+                  이메일 찾기
+                </button>
                 <Link
                   href="/auth/reset-password"
-                  className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+                  className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline sm:text-right"
                 >
                   비밀번호를 잊으셨나요?
                 </Link>
@@ -332,6 +422,32 @@ export default function AuthPage() {
                     disabled={isLoading || success}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="signup-phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  휴대폰 번호
+                </label>
+                <div className="relative">
+                  <Smartphone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    id="signup-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    name="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhoneForInput(e.target.value))}
+                    maxLength={13}
+                    required
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                    placeholder="010-1234-5678"
+                    disabled={isLoading || success}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  이메일 찾기·계정 보호에 사용됩니다. 하이픈은 입력 시 자동으로 맞춰집니다.
+                </p>
               </div>
 
               <div>
@@ -428,5 +544,102 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+
+    {findEmailOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="find-email-title"
+        onClick={closeFindEmailModal}
+      >
+        <div
+          className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h2 id="find-email-title" className="text-lg font-semibold text-gray-900">
+                이메일 찾기
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                가입 시 등록하신 휴대폰 번호로 이메일 힌트를 확인할 수 있습니다.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeFindEmailModal}
+              className="shrink-0 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              aria-label="닫기"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleFindEmailSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="find-email-phone" className="mb-2 block text-sm font-medium text-gray-700">
+                휴대폰 번호
+              </label>
+              <div className="relative">
+                <Smartphone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
+                <input
+                  id="find-email-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  value={findEmailPhone}
+                  onChange={(e) => setFindEmailPhone(formatPhoneForInput(e.target.value))}
+                  maxLength={13}
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 outline-none focus:border-transparent focus:ring-2 focus:ring-indigo-500"
+                  placeholder="010-1234-5678"
+                  disabled={findEmailLoading}
+                />
+              </div>
+            </div>
+
+            {findEmailError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {findEmailError}
+              </div>
+            )}
+
+            {findEmailResult && (
+              <div className="space-y-2 rounded-lg border border-indigo-100 bg-indigo-50/60 p-4">
+                <p className="text-sm font-medium text-indigo-900">
+                  입력하신 번호로 가입된 이메일 힌트입니다
+                </p>
+                <p className="font-mono text-base font-semibold break-all text-gray-900">
+                  {findEmailResult}
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={closeFindEmailModal}
+                className="flex-1 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                닫기
+              </button>
+              <button
+                type="submit"
+                disabled={findEmailLoading}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {findEmailLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                조회
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

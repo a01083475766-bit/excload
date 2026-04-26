@@ -6,8 +6,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
+import {
+  isValidKoreanPhoneDigits,
+  normalizeKoreanPhoneDigits,
+} from '@/app/lib/phone-kr';
 
 // ⚠️ 임시: Supabase 클라이언트가 없으므로 로컬 스토리지 방식으로 구현
 // 실제 구현 시에는 Supabase 클라이언트를 사용하여 DB에 저장
@@ -15,6 +17,7 @@ import { authOptions } from '@/app/lib/auth';
 interface CreateUserRequest {
   email: string;
   passwordHash: string;
+  phone: string;
   plan?: 'FREE' | 'PRO' | 'YEARLY';
   deviceId?: string;
 }
@@ -26,7 +29,7 @@ interface CreateUserRequest {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateUserRequest = await request.json();
-    const { email, passwordHash, plan = 'FREE', deviceId } = body;
+    const { email, passwordHash, phone, plan = 'FREE', deviceId } = body;
 
     const ip =
       request.headers.get('x-forwarded-for') ??
@@ -37,6 +40,21 @@ export async function POST(request: NextRequest) {
     if (!email || !passwordHash) {
       return NextResponse.json(
         { error: '이메일과 비밀번호 해시가 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (phone === undefined || phone === null || String(phone).trim() === '') {
+      return NextResponse.json(
+        { error: '휴대폰 번호를 입력해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    const phoneDigits = normalizeKoreanPhoneDigits(String(phone));
+    if (!isValidKoreanPhoneDigits(phoneDigits)) {
+      return NextResponse.json(
+        { error: '휴대폰 번호는 10~11자리 숫자(010, 011 등) 형식으로 입력해주세요.' },
         { status: 400 }
       );
     }
@@ -72,6 +90,7 @@ export async function POST(request: NextRequest) {
       const newUser = await prisma.user.create({
         data: {
           email,
+          phone: phoneDigits,
           passwordHash, // 비밀번호 해시 저장
           plan,
           points: initialPoints,
@@ -125,6 +144,14 @@ export async function POST(request: NextRequest) {
       
       // 중복 이메일 오류 처리
       if (dbError.code === 'P2002') {
+        const target = dbError?.meta?.target;
+        const fields = Array.isArray(target) ? target : target ? [target] : [];
+        if (fields.includes('phone')) {
+          return NextResponse.json(
+            { error: '이미 가입에 사용된 휴대폰 번호입니다.' },
+            { status: 400 }
+          );
+        }
         return NextResponse.json(
           { error: '이미 존재하는 이메일입니다.' },
           { status: 400 }
