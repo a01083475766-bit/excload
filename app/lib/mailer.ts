@@ -33,6 +33,57 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
 
   try {
     console.log('SENDING EMAIL NOW');
+    const subject = '[엑클로드] 비밀번호 재설정 인증코드 안내';
+    const html = `
+<div style="font-family: Arial, sans-serif; line-height:1.6; color:#333;">
+  <h2 style="margin-bottom:10px;">🔐 비밀번호 재설정 안내</h2>
+  <p>안녕하세요, <strong>엑클로드(EXCLOAD)</strong> 입니다.</p>
+  <p>비밀번호 재설정을 위한 인증코드를 안내드립니다.</p>
+
+  <div style="margin:20px 0; padding:20px; text-align:center; background:#f5f7ff; border-radius:10px; border:1px solid #dfe3ff;">
+    <div style="font-size:14px; color:#666;">인증코드</div>
+    <div style="font-size:32px; font-weight:bold; letter-spacing:5px; margin:10px 0; color:#3b5cff;">
+      ${payload.code}
+    </div>
+    <div style="display:inline-block; margin-top:10px; padding:8px 14px; border:none; background:#3b5cff; color:#fff; border-radius:6px;">
+      코드 복사하기
+    </div>
+    <div style="margin-top:8px; font-size:12px; color:#666;">메일 환경에 따라 버튼 복사가 제한될 수 있습니다. 코드를 직접 선택해 복사해주세요.</div>
+  </div>
+
+  <p>⏳ <strong>${payload.expireMinutes}분 이내</strong>에 입력해주세요.</p>
+  <hr style="margin:25px 0;" />
+  <p style="font-size:14px; color:#555;">
+    📦 엑클로드는 주문 데이터를 자동으로 변환하여<br />
+    택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
+  </p>
+  <p style="font-size:14px; color:#555;">
+    사용 중 불편한 점이나 문의사항이 있으시면 언제든지 연락해주세요.
+  </p>
+  <p style="font-size:14px;">
+    👉 <a href="https://www.excload.com" target="_blank" rel="noopener noreferrer">엑클로드 바로가기</a>
+  </p>
+  <hr style="margin:25px 0;" />
+  <p style="font-size:12px; color:#888;">
+    ⚠️ 본 요청을 하지 않으셨다면 이 메일을 무시하셔도 됩니다.<br />
+    해당 코드는 타인과 공유하지 마세요.
+  </p>
+</div>
+`.trim();
+    const text = [
+      '[엑클로드] 비밀번호 재설정 인증코드 안내',
+      '',
+      '안녕하세요, 엑클로드(EXCLOAD) 입니다.',
+      '비밀번호 재설정을 위한 인증코드를 안내드립니다.',
+      '',
+      `인증코드: ${payload.code}`,
+      `${payload.expireMinutes}분 내에 입력해주세요.`,
+      '',
+      '엑클로드 바로가기: https://www.excload.com',
+      '',
+      '본 요청을 하지 않으셨다면 이 메일을 무시하셔도 됩니다.',
+    ].join('\n');
+
     console.log('[Password Reset Mail] send() called:', {
       to: payload.email,
       from,
@@ -40,8 +91,9 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
     await resend.emails.send({
       from,
       to: payload.email,
-      subject: '[엑클로드] 비밀번호 재설정 코드',
-      text: `비밀번호 재설정 인증코드: ${payload.code}\n\n${payload.expireMinutes}분 내에 입력해주세요.\n요청하지 않았다면 이 메일을 무시하세요.`,
+      subject,
+      text,
+      html,
     });
     return { sent: true as const };
   } catch (error) {
