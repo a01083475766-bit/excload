@@ -17,6 +17,7 @@ interface AkmanStats {
 interface AdminUserRow {
   id: string;
   email: string;
+  phone?: string | null;
   plan: 'FREE' | 'PRO' | 'YEARLY' | string;
   points: number;
   createdAt: string;
@@ -72,6 +73,7 @@ export default function AkmanClient() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userPlanFilter, setUserPlanFilter] = useState<'ALL' | 'FREE' | 'PRO' | 'YEARLY'>('ALL');
   const [userDateFilter, setUserDateFilter] = useState<'ALL' | 'today' | 'thisMonth'>('ALL');
+  const [userSearchTerm, setUserSearchTerm] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +117,8 @@ export default function AkmanClient() {
 
   const loadUsers = async (
     plan: 'ALL' | 'FREE' | 'PRO' | 'YEARLY' = userPlanFilter,
-    date: 'ALL' | 'today' | 'thisMonth' = userDateFilter
+    date: 'ALL' | 'today' | 'thisMonth' = userDateFilter,
+    search: string = userSearchTerm
   ) => {
     setUsersLoading(true);
     setUsersError(null);
@@ -123,6 +126,8 @@ export default function AkmanClient() {
       const params = new URLSearchParams({ page: '1', pageSize: '20' });
       if (plan !== 'ALL') params.set('plan', plan);
       if (date !== 'ALL') params.set('date', date);
+      const trimmed = search.trim();
+      if (trimmed) params.set('search', trimmed);
       const res = await fetch(`/api/akman/users?${params.toString()}`);
       const data = await res.json();
       if (!res.ok || !data?.success) {
@@ -139,12 +144,38 @@ export default function AkmanClient() {
 
   const openUsers = async (
     plan: 'ALL' | 'FREE' | 'PRO' | 'YEARLY' = 'ALL',
-    date: 'ALL' | 'today' | 'thisMonth' = 'ALL'
+    date: 'ALL' | 'today' | 'thisMonth' = 'ALL',
+    search: string = userSearchTerm
   ) => {
     setUsersOpen(true);
     setUserPlanFilter(plan);
     setUserDateFilter(date);
-    await loadUsers(plan, date);
+    await loadUsers(plan, date, search);
+  };
+
+  const downloadUsersExcel = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (userPlanFilter !== 'ALL') params.set('plan', userPlanFilter);
+      if (userDateFilter !== 'ALL') params.set('date', userDateFilter);
+      if (userSearchTerm.trim()) params.set('search', userSearchTerm.trim());
+      const res = await fetch(`/api/akman/users/export?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || '엑셀 다운로드에 실패했습니다.');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `excload-users-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '엑셀 다운로드에 실패했습니다.');
+    }
   };
 
   const deleteUserFromList = async (user: AdminUserRow) => {
@@ -285,9 +316,45 @@ export default function AkmanClient() {
               <button type="button" onClick={() => void openUsers('FREE', 'ALL')} style={{ padding: '8px 12px', border: '1px solid #ccc', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}>FREE</button>
               <button type="button" onClick={() => void openUsers('PRO', 'ALL')} style={{ padding: '8px 12px', border: '1px solid #ccc', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}>PRO</button>
               <button type="button" onClick={() => void openUsers('YEARLY', 'ALL')} style={{ padding: '8px 12px', border: '1px solid #ccc', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}>YEARLY</button>
+              <button
+                type="button"
+                onClick={downloadUsersExcel}
+                style={{ padding: '8px 12px', border: '1px solid #0a7', background: '#e8fff8', color: '#065f46', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                회원 엑셀 다운로드
+              </button>
             </>
           )}
         </div>
+        {usersOpen && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              value={userSearchTerm}
+              onChange={(e) => setUserSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  void openUsers(userPlanFilter, userDateFilter, userSearchTerm);
+                }
+              }}
+              placeholder="이메일 또는 전화번호 검색"
+              style={{
+                flex: '1 1 240px',
+                padding: '8px 10px',
+                border: '1px solid #ccc',
+                borderRadius: '6px',
+                fontSize: '13px',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => void openUsers(userPlanFilter, userDateFilter, userSearchTerm)}
+              style={{ padding: '8px 12px', border: '1px solid #ccc', background: '#fff', borderRadius: '6px', cursor: 'pointer' }}
+            >
+              검색
+            </button>
+          </div>
+        )}
         {usersOpen && (
           <div style={{ marginBottom: '16px', border: '1px solid #eee', borderRadius: '8px', overflow: 'hidden' }}>
             {usersLoading && <div style={{ padding: '12px', color: '#666' }}>회원 목록 불러오는 중...</div>}
@@ -301,7 +368,7 @@ export default function AkmanClient() {
                     onClick={() => router.push(`/akman/users/${encodeURIComponent(u.id)}`)}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '2fr 90px 110px 110px 90px',
+                      gridTemplateColumns: '2fr 1.2fr 90px 110px 110px 90px',
                       gap: '8px',
                       alignItems: 'center',
                       padding: '10px 12px',
@@ -311,6 +378,7 @@ export default function AkmanClient() {
                     }}
                   >
                     <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</div>
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.phone || '-'}</div>
                     <div>{u.plan}</div>
                     <div>{fmt(u.points)}</div>
                     <div>{new Date(u.createdAt).toLocaleDateString('ko-KR')}</div>

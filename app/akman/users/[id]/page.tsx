@@ -34,6 +34,7 @@ interface Payment {
 interface UserDetail {
   id: string;
   email: string;
+  phone?: string | null;
   plan: string;
   points: number;
   emailVerified: boolean | null;
@@ -226,6 +227,10 @@ export default function UserDetailPage() {
           <div>
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Email</div>
             <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{user.email}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Phone</div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{user.phone || '-'}</div>
           </div>
           <div>
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Plan</div>

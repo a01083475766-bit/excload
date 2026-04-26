@@ -73,11 +73,21 @@ export async function GET(request: NextRequest) {
     // 검색 조건 구성
     const whereCondition: any = {};
     
-    // 이메일 검색 조건
+    // 이메일/전화번호 검색 조건
     if (trimmedSearchTerm) {
-      whereCondition.email = {
-        contains: trimmedSearchTerm,
-      };
+      const normalizedSearchPhone = trimmedSearchTerm.replace(/[^0-9]/g, '');
+      whereCondition.OR = [
+        {
+          email: {
+            contains: trimmedSearchTerm,
+          },
+        },
+        {
+          phone: {
+            contains: normalizedSearchPhone || trimmedSearchTerm,
+          },
+        },
+      ];
     }
     
     // 플랜 필터 조건
@@ -125,6 +135,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         email: true,
+        phone: true,
         plan: true,
         points: true,
         createdAt: true,
