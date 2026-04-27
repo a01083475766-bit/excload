@@ -127,7 +127,7 @@ export default function ResetPasswordPage() {
             </div>
           )}
 
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+          <div className="mb-4 rounded-lg border border-indigo-200 bg-white px-3.5 py-2.5 text-xs leading-relaxed text-indigo-700">
             가입 이메일이 기억나지 않으시면{' '}
             <Link href="/auth/find-email" className="font-semibold underline">
               이메일 찾기
