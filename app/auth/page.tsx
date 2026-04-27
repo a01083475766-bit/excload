@@ -34,6 +34,9 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [signupStep, setSignupStep] = useState<'input' | 'verify'>('input');
+  const [signupCode, setSignupCode] = useState('');
+  const [signupVerifyMessage, setSignupVerifyMessage] = useState('');
 
   const [findEmailOpen, setFindEmailOpen] = useState(false);
   const [findEmailPhone, setFindEmailPhone] = useState('');
@@ -184,14 +187,9 @@ export default function AuthPage() {
     }
 
     try {
-      // 비밀번호 해시화 (실제로는 서버에서 처리하는 것이 좋지만, 임시로 클라이언트에서 처리)
-      // ⚠️ 실제 구현 시에는 서버에서 bcrypt 등을 사용하여 해시화
-      const passwordHash = btoa(password); // 임시 인코딩 (실제로는 해시 필요)
-
       const deviceId = getDeviceId();
 
-      // /api/user/create 호출
-      const response = await fetch('/api/user/create', {
+      const response = await fetch('/api/auth/signup/request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +197,7 @@ export default function AuthPage() {
         body: JSON.stringify({
           email,
           phone: phoneDigits,
-          passwordHash,
+          password,
           plan: 'FREE', // 기본값: 무료 회원
           deviceId,
         }),
@@ -213,14 +211,47 @@ export default function AuthPage() {
         return;
       }
 
+      setSignupStep('verify');
+      setSignupVerifyMessage(data.message || '가입한 이메일로 코드를 보냈습니다. 코드를 입력해주세요.');
+    } catch (err) {
+      setError('회원가입 중 오류가 발생했습니다.');
+      setIsLoading(false);
+    }
+    setIsLoading(false);
+  };
+
+  const handleSignupVerify = async () => {
+    setError('');
+    setSuccess(false);
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/signup/confirm', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          code: signupCode,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        setError(data.error || '인증코드 확인 중 오류가 발생했습니다.');
+        setIsLoading(false);
+        return;
+      }
+
       setSuccess(true);
-      // 회원가입 성공 후 자동으로 로그인 모드로 전환하고 로그인 시도
+      setIsLoading(false);
+      setSignupStep('input');
+      setSignupCode('');
+      setSignupVerifyMessage('');
       setTimeout(async () => {
         setMode('login');
         setPhone('');
         setConfirmPassword('');
         setSuccess(false);
-        // 자동 로그인 시도
         const result = await signIn('credentials', {
           email,
           password,
@@ -234,9 +265,9 @@ export default function AuthPage() {
           router.push('/');
           router.refresh();
         }
-      }, 1500);
-    } catch (err) {
-      setError('회원가입 중 오류가 발생했습니다.');
+      }, 800);
+    } catch {
+      setError('인증코드 확인 중 오류가 발생했습니다.');
       setIsLoading(false);
     }
   };
@@ -246,6 +277,9 @@ export default function AuthPage() {
     setMode(newMode);
     setError('');
     setSuccess(false);
+    setSignupStep('input');
+    setSignupCode('');
+    setSignupVerifyMessage('');
     setPhone('');
     setPassword('');
     setConfirmPassword('');
@@ -419,7 +453,7 @@ export default function AuthPage() {
                     required
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                     placeholder="email@example.com"
-                    disabled={isLoading || success}
+                    disabled={isLoading || success || signupStep === 'verify'}
                   />
                 </div>
               </div>
@@ -442,7 +476,7 @@ export default function AuthPage() {
                     required
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                     placeholder="010-1234-5678"
-                    disabled={isLoading || success}
+                    disabled={isLoading || success || signupStep === 'verify'}
                   />
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
@@ -472,7 +506,7 @@ export default function AuthPage() {
                     onClick={() => setShowSignupPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     aria-label={showSignupPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
-                    disabled={isLoading || success}
+                    disabled={isLoading || success || signupStep === 'verify'}
                   >
                     {showSignupPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -494,14 +528,14 @@ export default function AuthPage() {
                     minLength={6}
                     className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                     placeholder="비밀번호를 다시 입력하세요"
-                    disabled={isLoading || success}
+                    disabled={isLoading || success || signupStep === 'verify'}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     aria-label={showConfirmPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
-                    disabled={isLoading || success}
+                    disabled={isLoading || success || signupStep === 'verify'}
                   >
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -510,7 +544,7 @@ export default function AuthPage() {
 
               <button
                 type="submit"
-                disabled={isLoading || success}
+                disabled={isLoading || success || signupStep === 'verify'}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 {isLoading ? (
@@ -525,6 +559,50 @@ export default function AuthPage() {
                   </>
                 )}
               </button>
+
+              {signupStep === 'verify' && (
+                <div className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+                  <p className="text-sm text-indigo-700">
+                    {signupVerifyMessage || '가입한 이메일로 코드를 보냈습니다. 코드를 입력해주세요.'}
+                  </p>
+                  <div>
+                    <label htmlFor="signup-code" className="block text-sm font-medium text-gray-700 mb-2">
+                      회원가입 인증코드
+                    </label>
+                    <input
+                      id="signup-code"
+                      type="text"
+                      value={signupCode}
+                      onChange={(e) => setSignupCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                      placeholder="6자리 숫자"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSignupStep('input');
+                        setSignupCode('');
+                        setSignupVerifyMessage('');
+                      }}
+                      className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      수정
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSignupVerify}
+                      disabled={isLoading || signupCode.length !== 6}
+                      className="flex-1 px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? '확인 중...' : '확인'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
           )}
 

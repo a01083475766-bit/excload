@@ -6,6 +6,12 @@ export interface PasswordResetMailPayload {
   expireMinutes: number;
 }
 
+export interface SignupVerificationMailPayload {
+  email: string;
+  code: string;
+  expireMinutes: number;
+}
+
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY;
   // 운영 비밀키 원문 노출 방지를 위해 값 자체 대신 설정 여부만 로그로 남긴다.
@@ -98,6 +104,50 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
     return { sent: true as const };
   } catch (error) {
     console.error('[Password Reset Mail] send failed:', error);
+    return { sent: false, reason: 'MAIL_SEND_FAILED' as const };
+  }
+}
+
+export async function sendSignupVerificationCodeEmail(payload: SignupVerificationMailPayload) {
+  const resend = getResendClient();
+  const from = getEmailFromAddress();
+  if (!resend || !from) {
+    console.warn('[Signup Mail] skipped: missing RESEND_API_KEY or EMAIL_FROM');
+    return { sent: false, reason: 'MAIL_CONFIG_MISSING' as const };
+  }
+
+  try {
+    await resend.emails.send({
+      from,
+      to: payload.email,
+      subject: '[엑클로드] 회원가입 인증코드 안내',
+      text: [
+        '[엑클로드] 회원가입 인증코드 안내',
+        '',
+        `인증코드: ${payload.code}`,
+        `${payload.expireMinutes}분 내에 회원가입 화면에 입력해주세요.`,
+        '',
+        '본 메일은 발신전용으로 회신이 불가합니다.',
+      ].join('\n'),
+      html: `
+<div style="font-family: Arial, sans-serif; line-height:1.6; color:#333;">
+  <h2 style="margin-bottom:10px;">✅ 회원가입 인증 안내</h2>
+  <p>안녕하세요, <strong>엑클로드(EXCLOAD)</strong> 입니다.</p>
+  <p>회원가입 인증코드를 안내드립니다.</p>
+  <div style="margin:20px 0; padding:20px; text-align:center; background:#f5f7ff; border-radius:10px; border:1px solid #dfe3ff;">
+    <div style="font-size:14px; color:#666;">인증코드</div>
+    <div style="font-size:32px; font-weight:bold; letter-spacing:5px; margin:10px 0; color:#3b5cff;">
+      ${payload.code}
+    </div>
+  </div>
+  <p>⏳ <strong>${payload.expireMinutes}분 이내</strong>에 회원가입 화면에 인증코드를 입력해주세요.</p>
+  <p style="font-size:12px; color:#888; margin-top:14px;">본 메일은 발신전용으로 회신이 불가합니다.</p>
+</div>
+`.trim(),
+    });
+    return { sent: true as const };
+  } catch (error) {
+    console.error('[Signup Mail] send failed:', error);
     return { sent: false, reason: 'MAIL_SEND_FAILED' as const };
   }
 }
