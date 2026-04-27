@@ -3780,7 +3780,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           {isValidCourierTemplate(courierUploadTemplate) && courierUploadTemplate && (
             <div className="w-full mt-4">
               <p className="text-xs text-emerald-600 w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600">사용 중인 양식 :</span>{' '}
+                <span className="trial-soft-chip inline-block py-0.5 px-2 rounded-md text-xs font-medium">사용 중인 양식 :</span>{' '}
                 {courierUploadTemplate.headers
                   .filter((header) => !header.isEmpty && header.name.trim() !== '')
                   .map((header) => header.name)
@@ -3789,7 +3789,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               {/* 고정 입력 정보 표시 */}
               {FIXED_HEADER_ORDER.some(headerName => fixedHeaderValues[headerName] && fixedHeaderValues[headerName].trim() !== '') && (
                 <p className="text-xs text-emerald-500 w-full whitespace-nowrap overflow-hidden text-ellipsis mt-1">
-                  <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600">고정 입력 정보 :</span>{' '}
+                  <span className="trial-soft-chip inline-block py-0.5 px-2 rounded-md text-xs font-medium">고정 입력 정보 :</span>{' '}
                   {FIXED_HEADER_ORDER
                     .filter(headerName => fixedHeaderValues[headerName] && fixedHeaderValues[headerName].trim() !== '')
                     .map(headerName => `${headerName} ${fixedHeaderValues[headerName]}`)
@@ -3801,7 +3801,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           {selectedMappingSummary && (
             <div className="w-full mt-4">
               <p className="text-xs text-emerald-500 w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600">
+                <span className="trial-soft-chip inline-block py-0.5 px-2 rounded-md text-xs font-medium">
                   상품코드 매핑 :
                 </span>{' '}
                 {selectedMappingSummary}

@@ -404,3 +404,10 @@ body {
 .blue-unified-theme .trial-usage-badge * {
   color: #ffffff !important;
 }
+
+/* 홈 임베드 무료체험: 상태 라벨 칩은 진한색 대신 연한 파랑으로 가독성 유지 */
+.blue-unified-theme .trial-soft-chip {
+  background-color: #dbeafe !important; /* blue-100 */
+  color: #1d4ed8 !important; /* blue-700 */
+  border: 1px solid #bfdbfe !important; /* blue-200 */
+}
