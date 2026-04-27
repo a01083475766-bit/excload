@@ -3070,6 +3070,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         className={`${trialMode && isDesktopHoverDevice ? 'ex-tooltip-follow-mode' : ''} pt-3 pb-4 bg-zinc-50 dark:bg-black`}
       >
       <main className="max-w-[1200px] mx-auto px-8">
+        <div className={trialMode ? 'trial-focus-outline' : ''}>
         {/* Hero 섹션 - 세로 흐름 구조 */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
@@ -3809,6 +3810,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             </div>
           )}
         </section>
+        </div>
 
       </main>
 

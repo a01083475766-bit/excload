@@ -411,3 +411,11 @@ body {
   color: #1d4ed8 !important; /* blue-700 */
   border: 1px solid #bfdbfe !important; /* blue-200 */
 }
+
+/* 홈 임베드 무료체험 영역 경계 표시 */
+.trial-focus-outline {
+  border: 2px dashed #60a5fa; /* blue-400 */
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(239, 246, 255, 0.32); /* blue-50 */
+}
