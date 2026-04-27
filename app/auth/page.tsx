@@ -38,6 +38,7 @@ export default function AuthPage() {
   const [signupCode, setSignupCode] = useState('');
   const [signupVerifyMessage, setSignupVerifyMessage] = useState('');
   const [isAutoLoggingInAfterSignup, setIsAutoLoggingInAfterSignup] = useState(false);
+  const [signupLockedPassword, setSignupLockedPassword] = useState('');
 
   const [findEmailOpen, setFindEmailOpen] = useState(false);
   const [findEmailPhone, setFindEmailPhone] = useState('');
@@ -213,6 +214,7 @@ export default function AuthPage() {
       }
 
       setSignupStep('verify');
+      setSignupLockedPassword(password);
       setSignupVerifyMessage(data.message || '가입한 이메일로 코드를 보냈습니다. 코드를 입력해주세요.');
     } catch (err) {
       setError('회원가입 중 오류가 발생했습니다.');
@@ -251,7 +253,7 @@ export default function AuthPage() {
       setSignupVerifyMessage('');
       const result = await signIn('credentials', {
         email,
-        password,
+        password: signupLockedPassword || password,
         redirect: false,
       });
 
@@ -279,6 +281,7 @@ export default function AuthPage() {
     setSignupCode('');
     setSignupVerifyMessage('');
     setIsAutoLoggingInAfterSignup(false);
+    setSignupLockedPassword('');
     setPhone('');
     setPassword('');
     setConfirmPassword('');
@@ -586,6 +589,7 @@ export default function AuthPage() {
                         setSignupStep('input');
                         setSignupCode('');
                         setSignupVerifyMessage('');
+                        setSignupLockedPassword('');
                       }}
                       className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
