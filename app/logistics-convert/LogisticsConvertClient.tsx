@@ -3106,7 +3106,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       ? '텍스트 변환은 입력 글자 수만큼 사용량이 차감됩니다.'
                       : undefined
                   }
-                  className={`${trialMode ? 'ex-tooltip-target' : ''} absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md shadow-emerald-600/30 min-w-[140px]`}
+                  className={`${trialMode ? 'ex-tooltip-target' : ''} trial-usage-badge absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md shadow-emerald-600/30 min-w-[140px]`}
                 >
                   <div className="flex flex-col items-end gap-0.5">
                     <span className="text-[11px] font-medium opacity-90">체험 잔여 사용량</span>

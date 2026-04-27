@@ -12,7 +12,7 @@ type DemoStep =
 
 /** 데모: 왼쪽 입력 ↔ 오른쪽 필드 매칭을 보여 주는 공통 하이라이트 */
 const DEMO_MATCH_HIGHLIGHT =
-  'rounded px-0.5 bg-emerald-50 dark:bg-emerald-900/40 ring-1 ring-emerald-300/70 dark:ring-emerald-700/50';
+  'rounded px-0.5 bg-blue-50/70 dark:bg-blue-900/20 ring-1 ring-blue-200/60 dark:ring-blue-700/30';
 
 function unifiedStepCaption(step: DemoStep): string {
   const labels: Record<string, string> = {
@@ -378,7 +378,7 @@ export default function DemoAnimation() {
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="w-full md:w-[40%] md:shrink-0 md:max-w-none bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border-2 border-yellow-300 dark:border-yellow-700 p-3 md:p-4 relative h-full min-h-0 flex flex-col"
+                  className="w-full md:w-[40%] md:shrink-0 md:max-w-none bg-zinc-50 dark:bg-zinc-900/40 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 p-3 md:p-4 relative h-full min-h-0 flex flex-col"
                 >
                   {/* 우클릭 컨텍스트 메뉴 - 1-2단계에서 표시 */}
                   {(['kakao-source', 'copy-action'].includes(currentStep) && showContextMenu) && (
@@ -488,7 +488,7 @@ export default function DemoAnimation() {
               {/* 입력 → 변환 흐름 화살표 (카톡 데모 구간만) */}
               {['kakao-source', 'copy-action', 'paste-action', 'text-pasted'].includes(currentStep) && (
                 <>
-                  <div className="hidden md:flex flex-col items-center justify-center shrink-0 w-11 self-stretch text-emerald-600 dark:text-emerald-400">
+                  <div className="hidden md:flex flex-col items-center justify-center shrink-0 w-11 self-stretch text-blue-600 dark:text-blue-400">
                     <motion.div
                       animate={{ x: [0, 5, 0] }}
                       transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
@@ -500,7 +500,7 @@ export default function DemoAnimation() {
                       변환
                     </span>
                   </div>
-                  <div className="flex md:hidden justify-center py-0.5 text-emerald-600 dark:text-emerald-400" aria-hidden>
+                  <div className="flex md:hidden justify-center py-0.5 text-blue-600 dark:text-blue-400" aria-hidden>
                     <motion.div
                       animate={{ y: [0, 4, 0] }}
                       transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
@@ -528,8 +528,8 @@ export default function DemoAnimation() {
                   <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
                     <div className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-red-400" />
-                      <span className="w-2 h-2 rounded-full bg-amber-400" />
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="w-2 h-2 rounded-full bg-zinc-300 dark:bg-zinc-600" />
+                      <span className="w-2 h-2 rounded-full bg-blue-400" />
                     </div>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       쇼핑몰 · 기타 주문 상세 페이지
@@ -550,7 +550,7 @@ export default function DemoAnimation() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-medium">
+                        <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-medium">
                           결제완료
                         </span>
                       </div>

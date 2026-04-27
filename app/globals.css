@@ -393,3 +393,14 @@ body {
 .blue-unified-theme [class*="border-rose-"] {
   border-color: #93c5fd !important; /* blue-300 */
 }
+
+/* 홈 임베드 무료체험: 사용량 배지는 항상 진한 배경+흰색 텍스트 유지 */
+.blue-unified-theme .trial-usage-badge {
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.32) !important;
+}
+
+.blue-unified-theme .trial-usage-badge * {
+  color: #ffffff !important;
+}
