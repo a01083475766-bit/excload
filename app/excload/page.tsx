@@ -1,8 +1,24 @@
 'use client';
 
 import DemoAnimation from '@/app/components/DemoAnimation';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
+
+const TrialEmbed = dynamic(
+  () =>
+    import('@/app/logistics-convert/LogisticsConvertClient').then(
+      (mod) => mod.LogisticsConvertClient,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+        무료체험 화면을 불러오는 중입니다...
+      </div>
+    ),
+  },
+);
 
 export default function HomePage() {
   const plans = [
@@ -75,29 +91,15 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* 체험: 가로형 통합 박스 (파란 테두리 · /trial 이동) — 데모와 간격 */}
-            <div className="w-full max-w-4xl mx-auto px-2 mt-4">
-              <Link
-                href="/trial"
-                className="group flex flex-col gap-4 rounded-2xl border-2 border-blue-500 bg-white p-4 shadow-sm transition-all hover:border-blue-600 hover:shadow-md dark:border-blue-500 dark:bg-zinc-900/90 dark:hover:border-blue-400 md:flex-row md:items-stretch md:gap-0 md:p-0 md:overflow-hidden"
-              >
-                <span
-                  className="trial-button inline-flex w-full max-w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border-2 border-[#00bcd4] bg-white px-[25px] py-[10px] text-center text-base font-semibold leading-tight text-[#00bcd4] shadow-none [font-family:'Courier_New',Courier,monospace] dark:border-cyan-400 dark:bg-zinc-900 dark:text-cyan-300 md:mx-4 md:my-4 md:w-[min(100%,280px)] md:max-w-[280px] md:self-center"
-                >
-                  <span className="text-current">지금 바로 체험</span>
-                  <span className="text-current">테스트 해보기</span>
-                </span>
-                <p className="flex flex-1 flex-col items-center justify-center gap-0 rounded-xl bg-cyan-50 px-4 py-4 text-center text-sm font-medium leading-relaxed text-[#00838f] dark:bg-cyan-950/40 dark:text-cyan-300 md:items-start md:rounded-none md:px-6 md:py-5 md:text-left md:text-base">
-                  <span>
-                    정리가 잘 되는지 테스트해보고 나에게 필요한 기능인지 확인해주세요.
-                  </span>
-                  <span className="mt-1 block">
-                    회원가입 없이 바로 확인해보세요.
-                  </span>
-                </p>
-              </Link>
+            {/* 홈에서도 바로 체험 가능: 기존 /trial 페이지는 그대로 유지 */}
+            <div className="w-full mt-4">
+              <TrialEmbed trialMode />
               <p className="mt-2 text-center text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-500 leading-snug">
-                체험에는 사용량이 제공되며, 횟수·네트워크별 제한이 있을 수 있습니다.
+                전체 화면이 필요하면{' '}
+                <Link href="/trial" className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300">
+                  체험 전용 페이지
+                </Link>
+                로 이동할 수 있습니다.
               </p>
             </div>
           </div>
