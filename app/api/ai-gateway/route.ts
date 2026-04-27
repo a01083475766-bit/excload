@@ -83,13 +83,25 @@ type AIGatewayRequest =
  */
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+    const { type } = body;
     const session = await getServerSession(authOptions);
-    if (!session) {
+    const referer = request.headers.get('referer') || '';
+    const trialHeader = request.headers.get('x-excload-trial');
+    const isTrialRequest = trialHeader === '1' || referer.includes('/trial');
+    const allowAnonymousTrial =
+      isTrialRequest && (type === 'normalize-29' || type === 'header-map');
+
+    if (!session && !allowAnonymousTrial) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { type } = body;
+    if (!session && allowAnonymousTrial) {
+      console.log('[AI Gateway] trial anonymous request allowed:', {
+        type,
+        referer,
+      });
+    }
 
     // AI 활성화 여부 확인
     if (process.env.NEXT_PUBLIC_AI_ENABLED !== 'true') {
