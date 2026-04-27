@@ -244,3 +244,64 @@ body {
     background: #10b981; /* emerald-500 */
   }
 }
+
+/* 무료체험 커스텀 툴팁 (브라우저 기본 title 대체) */
+.ex-tooltip-target {
+  position: relative;
+}
+
+.ex-tooltip-target::after {
+  content: attr(data-ex-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(4px);
+  max-width: min(320px, 70vw);
+  width: max-content;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(17, 24, 39, 0.95);
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  z-index: 70;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0s linear 0.16s;
+}
+
+.ex-tooltip-target::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%) translateY(4px);
+  border-width: 6px;
+  border-style: solid;
+  border-color: rgba(17, 24, 39, 0.95) transparent transparent transparent;
+  z-index: 69;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0s linear 0.16s;
+}
+
+.ex-tooltip-target:hover::after,
+.ex-tooltip-target:hover::before,
+.ex-tooltip-target:focus-visible::after,
+.ex-tooltip-target:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 0.15s;
+}

@@ -3061,7 +3061,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <label
                     htmlFor="unified-file-input"
                     style={{ cursor: 'pointer' }}
-                    title={
+                    data-ex-tooltip={
                       trialMode
                         ? '주문파일을 올리거나, 화면 캡처 이미지를 드래그해 올려 변환을 시작하세요.'
                         : undefined
@@ -3070,7 +3070,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       isDragging 
                         ? 'border-emerald-500 bg-emerald-50' 
                         : 'border-gray-300 hover:border-emerald-400'
-                    }`}
+                    } ${trialMode ? 'ex-tooltip-target' : ''}`}
                   >
                     <div className="flex-1 flex flex-col items-center justify-center gap-2.5 text-center">
                       <Upload className="w-8 h-8 text-gray-400" />
@@ -3119,12 +3119,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   />
                   <button
                     type="button"
-                    title={
+                    data-ex-tooltip={
                       trialMode
                         ? '카카오톡/문자 화면 캡처 이미지를 주문 데이터로 변환합니다.'
                         : undefined
                     }
-                    className="w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+                    className={`w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors ${
+                      trialMode ? 'ex-tooltip-target' : ''
+                    }`}
                     onClick={() => setShowScreenshotModal(true)}
                   >
                     {trialMode
@@ -3144,12 +3146,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <div className="space-y-2.5">
                     <textarea
                       ref={textInputRef}
-                      title={
+                      data-ex-tooltip={
                         trialMode
                           ? '카카오톡/문자 주문 텍스트를 붙여넣으면 미리보기 표로 변환할 수 있습니다.'
                           : undefined
                       }
-                      className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                      className={`w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white ${
+                        trialMode ? 'ex-tooltip-target' : ''
+                      }`}
                       placeholder={
                         trialMode
                           ? '예) 홍길동 010-1234-5766   무선마우스 2개  상품코드:A-2246\n' +
@@ -3175,12 +3179,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     />
                     <button
                       type="button"
-                      title={
+                      data-ex-tooltip={
                         trialMode
                           ? '입력한 텍스트를 주문 표 형태로 변환해 미리보기에 표시합니다.'
                           : undefined
                       }
-                      className="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className={`w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                        trialMode ? 'ex-tooltip-target' : ''
+                      }`}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -3241,8 +3247,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
-                      className="inline-flex h-9 w-20 items-center justify-center rounded border text-sm transition"
-                      title={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
+                      data-ex-tooltip={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
+                      className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 items-center justify-center rounded border text-sm transition`}
                       onClick={() => setIsPreviewExpanded(prev => !prev)}
                     >
                       {isPreviewExpanded ? '닫기' : '펼치기'}
@@ -3252,8 +3258,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   {trialMode && previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
                       type="button"
-                      title={trialMode ? '현재 미리보기/입력 데이터를 초기화하고 다시 테스트합니다.' : undefined}
-                      className="inline-flex h-9 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
+                      data-ex-tooltip={trialMode ? '현재 미리보기/입력 데이터를 초기화하고 다시 테스트합니다.' : undefined}
+                      className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
                       onClick={handleTrialPreviewReset}
                     >
                       미리보기 초기화
@@ -3264,8 +3270,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <div className="w-20 flex-shrink-0">
                     {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
                       <button
-                        className="inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700"
-                        title={trialMode ? '체크한 행을 미리보기에서 삭제합니다.' : undefined}
+                        className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700`}
+                        data-ex-tooltip={trialMode ? '체크한 행을 미리보기에서 삭제합니다.' : undefined}
                         onClick={() => {
                           setIsDeleteModalOpen(true);
                         }}
@@ -3578,8 +3584,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <button
               type="button"
               onClick={handleOpenCourierTemplateModal}
-              title={trialMode ? '실제 업로드 양식이 있으면 등록해 미리보기 헤더를 맞출 수 있습니다.' : undefined}
-              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
+              data-ex-tooltip={trialMode ? '실제 업로드 양식이 있으면 등록해 미리보기 헤더를 맞출 수 있습니다.' : undefined}
+              className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
@@ -3610,8 +3616,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <button
               type="button"
               onClick={handleOpenSenderModal}
-              title={trialMode ? '택배사/출고정보 등 반복 입력값을 미리 저장해 편하게 테스트합니다.' : undefined}
-              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
+              data-ex-tooltip={trialMode ? '택배사/출고정보 등 반복 입력값을 미리 저장해 편하게 테스트합니다.' : undefined}
+              className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
@@ -3633,12 +3639,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               type="button"
               onClick={handleDownloadPreview}
               disabled={downloadStatus === "processing"}
-              title={
+              data-ex-tooltip={
                 trialMode
                   ? '체험판에서는 다운로드 대신 안내가 표시됩니다. 정식 서비스에서 엑셀 다운로드가 가능합니다.'
                   : undefined
               }
-              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
