@@ -2996,7 +2996,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
             {trialMode && (
-              <div className="rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 dark:text-amber-100 dark:bg-amber-950/40 dark:border-amber-600">
+              <div
+                data-ex-tooltip={
+                  trialMode
+                    ? '체험판은 미리보기 중심으로 제공되며, 다운로드는 가입 후 이용할 수 있습니다.'
+                    : undefined
+                }
+                className={`${trialMode ? 'ex-tooltip-target' : ''} rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 dark:text-amber-100 dark:bg-amber-950/40 dark:border-amber-600`}
+              >
                 <p className="font-semibold">체험판</p>
                 <p className="mt-1 text-amber-900/90 dark:text-amber-200/90">
                   비로그인으로{' '}
@@ -3019,7 +3026,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
               {/* 사용량 표시는 레이아웃 영향 없이 오른쪽 절대 위치 */}
               {trialMode ? (
-                <div className="absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md shadow-emerald-600/30 min-w-[140px]">
+                <div
+                  data-ex-tooltip={
+                    trialMode
+                      ? '텍스트 변환은 입력 글자 수만큼 사용량이 차감됩니다.'
+                      : undefined
+                  }
+                  className={`${trialMode ? 'ex-tooltip-target' : ''} absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md shadow-emerald-600/30 min-w-[140px]`}
+                >
                   <div className="flex flex-col items-end gap-0.5">
                     <span className="text-[11px] font-medium opacity-90">체험 잔여 사용량</span>
                     <div className="flex items-center gap-1.5">
@@ -3063,7 +3077,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     style={{ cursor: 'pointer' }}
                     data-ex-tooltip={
                       trialMode
-                        ? '주문파일을 올리거나, 화면 캡처 이미지를 드래그해 올려 변환을 시작하세요.'
+                        ? 'xlsx, xls, jpg, png 업로드 가능'
                         : undefined
                     }
                     className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
@@ -3121,7 +3135,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     type="button"
                     data-ex-tooltip={
                       trialMode
-                        ? '카카오톡/문자 화면 캡처 이미지를 주문 데이터로 변환합니다.'
+                        ? '파일/텍스트/이미지를 즉시 변환합니다.'
                         : undefined
                     }
                     className={`w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors ${
@@ -3181,7 +3195,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       type="button"
                       data-ex-tooltip={
                         trialMode
-                          ? '입력한 텍스트를 주문 표 형태로 변환해 미리보기에 표시합니다.'
+                          ? '입력한 텍스트를 주문 표 형태로 변환합니다.'
                           : undefined
                       }
                       className={`w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
@@ -3271,7 +3285,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
                       <button
                         className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700`}
-                        data-ex-tooltip={trialMode ? '체크한 행을 미리보기에서 삭제합니다.' : undefined}
+                        data-ex-tooltip={trialMode ? '선택한 행은 삭제/일괄 작업 대상이 됩니다.' : undefined}
                         onClick={() => {
                           setIsDeleteModalOpen(true);
                         }}
@@ -3402,6 +3416,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           <th className="sticky left-0 z-30 border border-gray-300 bg-gray-50 px-2 py-1 text-left font-semibold border-b whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
                             <input
                               type="checkbox"
+                              data-ex-tooltip={
+                                trialMode
+                                  ? '선택한 행은 삭제/일괄 작업 대상이 됩니다.'
+                                  : undefined
+                              }
+                              className={trialMode ? 'ex-tooltip-target' : undefined}
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedRows(previewRows.map(row => row.rowId));
@@ -3414,7 +3434,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           {courierHeaders.map((header) => (
                             <th
                               key={header}
-                              className="border border-gray-300 px-2 py-1 text-left font-semibold border-b whitespace-nowrap cursor-pointer select-none"
+                              data-ex-tooltip={trialMode ? '클릭하면 오름차순/내림차순으로 정렬됩니다.' : undefined}
+                              className={`${trialMode ? 'ex-tooltip-target' : ''} border border-gray-300 px-2 py-1 text-left font-semibold border-b whitespace-nowrap cursor-pointer select-none`}
                               onClick={() => {
                                 setSortConfig(prev => {
                                   if (!prev || prev.header !== header) {
@@ -3431,7 +3452,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                 <div className="flex items-center gap-1">
                                   <input
                                     type="checkbox"
-                                    className="w-3 h-3"
+                                    data-ex-tooltip={
+                                      trialMode
+                                        ? '헤더 체크박스로 코드매핑 설정을 열 수 있습니다.'
+                                        : undefined
+                                    }
+                                    className={`${trialMode ? 'ex-tooltip-target' : ''} w-3 h-3`}
                                     checked={
                                       Boolean(columnCodeMappingSnapshots[header]) ||
                                       columnMappingActiveHeader === header
@@ -3501,6 +3527,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                             >
                               <input
                                 type="checkbox"
+                                data-ex-tooltip={
+                                  trialMode
+                                    ? '선택한 행은 삭제/일괄 작업 대상이 됩니다.'
+                                    : undefined
+                                }
+                                className={trialMode ? 'ex-tooltip-target' : undefined}
                                 checked={selectedRows.includes(row.rowId)}
                                 onChange={(e) => {
                                   if (e.target.checked) {
@@ -3616,7 +3648,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <button
               type="button"
               onClick={handleOpenSenderModal}
-              data-ex-tooltip={trialMode ? '택배사/출고정보 등 반복 입력값을 미리 저장해 편하게 테스트합니다.' : undefined}
+              data-ex-tooltip={trialMode ? '택배사/출고지 등 반복값을 미리 채울 수 있습니다.' : undefined}
               className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
@@ -3641,7 +3673,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               disabled={downloadStatus === "processing"}
               data-ex-tooltip={
                 trialMode
-                  ? '체험판에서는 다운로드 대신 안내가 표시됩니다. 정식 서비스에서 엑셀 다운로드가 가능합니다.'
+                  ? '미리보기 데이터를 업로드용 엑셀로 저장합니다.'
                   : undefined
               }
               className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -3959,12 +3991,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                               />
                             ) : (
                               <div
-                                className="min-h-[28px] px-2 py-1 rounded-md text-xs whitespace-normal break-words bg-zinc-50 dark:bg-zinc-800/60 text-zinc-800 dark:text-zinc-100"
-                                title={
-                                  displayTrimmed !== ''
-                                    ? r.displayKey
-                                    : '미리보기에서 가져온 값이 없습니다. 변환값만 입력하거나 +행 추가로 원본을 입력하세요.'
+                                data-ex-tooltip={
+                                  trialMode
+                                    ? displayTrimmed !== ''
+                                      ? '코드매핑 원본값입니다. 오른쪽에서 변환값을 지정하세요.'
+                                      : '미리보기에서 가져온 값이 없습니다. 변환값만 입력하거나 +행 추가로 원본을 입력하세요.'
+                                    : undefined
                                 }
+                                className={`${trialMode ? 'ex-tooltip-target' : ''} min-h-[28px] px-2 py-1 rounded-md text-xs whitespace-normal break-words bg-zinc-50 dark:bg-zinc-800/60 text-zinc-800 dark:text-zinc-100`}
                               >
                                 {displayTrimmed !== ''
                                   ? r.displayKey
@@ -4283,12 +4317,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                           handleStartEditName(format);
                                         }}
                                         disabled={isTrialDefaultProtectedFormat(format)}
-                                        title={
-                                          isTrialDefaultProtectedFormat(format)
-                                            ? '체험 기본 양식 이름은 변경할 수 없습니다'
+                                        data-ex-tooltip={
+                                          trialMode && isTrialDefaultProtectedFormat(format)
+                                            ? '체험 기본 양식 이름은 변경할 수 없습니다.'
                                             : undefined
                                         }
-                                        className={`px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
+                                        className={`${trialMode && isTrialDefaultProtectedFormat(format) ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
                                           isTrialDefaultProtectedFormat(format)
                                             ? 'text-zinc-400 cursor-not-allowed opacity-60'
                                             : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
@@ -4299,7 +4333,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                       {isTrialDefaultProtectedFormat(format) ? (
                                         <span
                                           className="px-2 py-1 text-xs text-zinc-400 cursor-default"
-                                          title="체험 기본 양식은 삭제할 수 없습니다"
+                                          data-ex-tooltip={trialMode ? '체험 기본 양식은 삭제할 수 없습니다.' : undefined}
+                                          className={`${trialMode ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs text-zinc-400 cursor-default`}
                                         >
                                           삭제 불가
                                         </span>
