@@ -37,6 +37,7 @@ export default function AuthPage() {
   const [signupStep, setSignupStep] = useState<'input' | 'verify'>('input');
   const [signupCode, setSignupCode] = useState('');
   const [signupVerifyMessage, setSignupVerifyMessage] = useState('');
+  const [isAutoLoggingInAfterSignup, setIsAutoLoggingInAfterSignup] = useState(false);
 
   const [findEmailOpen, setFindEmailOpen] = useState(false);
   const [findEmailPhone, setFindEmailPhone] = useState('');
@@ -244,31 +245,28 @@ export default function AuthPage() {
 
       setSuccess(true);
       setIsLoading(false);
+      setIsAutoLoggingInAfterSignup(true);
       setSignupStep('input');
       setSignupCode('');
       setSignupVerifyMessage('');
-      setTimeout(async () => {
-        setMode('login');
-        setPhone('');
-        setConfirmPassword('');
-        setSuccess(false);
-        const result = await signIn('credentials', {
-          email,
-          password,
-          redirect: false,
-        });
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
 
-        if (result?.error) {
-          setError('회원가입은 완료되었지만 자동 로그인에 실패했습니다. 로그인해주세요.');
-        } else {
-          await fetchUser();
-          router.push('/');
-          router.refresh();
-        }
-      }, 800);
+      if (result?.error) {
+        setIsAutoLoggingInAfterSignup(false);
+        setError('회원가입은 완료되었지만 자동 로그인에 실패했습니다. 로그인해주세요.');
+      } else {
+        await fetchUser();
+        router.push('/order-convert');
+        router.refresh();
+      }
     } catch {
       setError('인증코드 확인 중 오류가 발생했습니다.');
       setIsLoading(false);
+      setIsAutoLoggingInAfterSignup(false);
     }
   };
 
@@ -280,6 +278,7 @@ export default function AuthPage() {
     setSignupStep('input');
     setSignupCode('');
     setSignupVerifyMessage('');
+    setIsAutoLoggingInAfterSignup(false);
     setPhone('');
     setPassword('');
     setConfirmPassword('');
@@ -544,7 +543,7 @@ export default function AuthPage() {
 
               <button
                 type="submit"
-                disabled={isLoading || success || signupStep === 'verify'}
+                disabled={isLoading || success || signupStep === 'verify' || isAutoLoggingInAfterSignup}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 {isLoading ? (
@@ -601,6 +600,12 @@ export default function AuthPage() {
                       {isLoading ? '확인 중...' : '확인'}
                     </button>
                   </div>
+                </div>
+              )}
+
+              {isAutoLoggingInAfterSignup && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                  회원가입 및 인증이 완료되었습니다. 자동 로그인 진행 중입니다. 잠시만 기다려주세요.
                 </div>
               )}
             </form>
