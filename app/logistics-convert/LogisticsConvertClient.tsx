@@ -3086,13 +3086,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 }
                 className={`${trialMode ? 'ex-tooltip-target' : ''} rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 dark:text-amber-100 dark:bg-amber-950/40 dark:border-amber-600`}
               >
-                <p className="font-semibold">체험판</p>
+                <p className="font-semibold">무료체험</p>
                 <p className="mt-1 text-amber-900/90 dark:text-amber-200/90">
-                  비로그인으로{' '}
-                  <strong>{TRIAL_INITIAL_POINTS.toLocaleString()} 사용량</strong>이 제공됩니다. 텍스트 변환은
-                  입력 글자 수만큼 차감됩니다. 저장된 업로드 양식이 없으면 예시 엑셀 양식이 자동 적용됩니다. 직접
-                  양식을 올리면 그걸로 바뀝니다. 체험은 <strong>미리보기 확인</strong>까지이며, 엑셀 다운로드는
-                  가입 후 정식 서비스에서 이용할 수 있습니다.
+                  무료체험으로 기본 기능을 편하게 익혀보세요. 사용법이 어렵지 않습니다.
                 </p>
               </div>
             )}
