@@ -419,3 +419,28 @@ body {
   padding: 12px;
   background: rgba(239, 246, 255, 0.32); /* blue-50 */
 }
+
+/* 무료체험 고정입력 모달: 선택/확인 색상 톤 다운 */
+.blue-unified-theme .trial-sender-modal .trial-modal-soft-selected {
+  background-color: #eff6ff !important; /* blue-50 */
+  border-color: #bfdbfe !important; /* blue-200 */
+  color: #1f2937 !important;
+}
+
+.blue-unified-theme .trial-sender-modal .trial-modal-soft-selected:hover {
+  background-color: #dbeafe !important; /* blue-100 */
+}
+
+.blue-unified-theme .trial-sender-modal .trial-modal-check-dot {
+  background-color: #60a5fa !important; /* blue-400 */
+  border-color: #ffffff !important;
+}
+
+.blue-unified-theme .trial-sender-modal .trial-modal-primary {
+  background-color: #3b82f6 !important; /* blue-500 */
+  color: #ffffff !important;
+}
+
+.blue-unified-theme .trial-sender-modal .trial-modal-primary:hover {
+  background-color: #2563eb !important; /* blue-600 */
+}

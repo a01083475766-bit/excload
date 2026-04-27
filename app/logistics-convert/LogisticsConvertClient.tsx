@@ -4620,7 +4620,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           onClick={handleCloseSenderModal}
         >
           <div
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[84vh] flex flex-col p-6"
+            className={`${trialMode ? 'trial-sender-modal' : ''} bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[84vh] flex flex-col p-6`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 모달 헤더 */}
@@ -4715,7 +4715,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                               }));
                               setEditingHeaderIndex(null);
                             }}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium transition-colors"
+                            className={`${trialMode ? 'trial-modal-primary' : ''} px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium transition-colors`}
                           >
                             확인
                           </button>
@@ -4760,7 +4760,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         type="button"
                         className={`px-6 py-2 rounded-lg font-medium cursor-pointer flex flex-col items-center transition-colors relative ${
                           hasValue
-                            ? 'border border-zinc-300 dark:border-zinc-700 bg-emerald-50 dark:bg-emerald-950/30 text-zinc-900 dark:text-zinc-100 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'
+                            ? `${trialMode ? 'trial-modal-soft-selected' : 'bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50'} border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100`
                             : 'border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-700'
                         }`}
                         onClick={() => {
@@ -4777,7 +4777,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         }}
                       >
                         {hasValue && (
-                          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm">
+                          <div className={`${trialMode ? 'trial-modal-check-dot' : ''} absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 dark:bg-emerald-600 rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900 shadow-sm`}>
                             <Check className="w-3 h-3 text-white" />
                           </div>
                         )}
@@ -4829,7 +4829,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0">
               <button
                 onClick={handleCloseSenderModal}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 rounded-lg font-medium"
+                className={`${trialMode ? 'trial-modal-primary' : ''} w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 rounded-lg font-medium`}
               >
                 확인
               </button>
