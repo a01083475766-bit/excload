@@ -94,7 +94,7 @@ export default function HomePage() {
             {/* 홈에서도 바로 체험 가능: 기존 /trial 페이지는 그대로 유지 */}
             <div className="w-full mt-4">
               <TrialEmbed trialMode />
-              <p className="mt-2 text-center text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-500 leading-snug">
+              <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
                 전체 화면이 필요하면{' '}
                 <Link href="/trial" className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300">
                   체험 전용 페이지
