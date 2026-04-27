@@ -3091,11 +3091,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             {/* 주문 변환 안내 + 사용량 (order-convert와 동일 높이 유지) */}
             <div className="relative flex items-center justify-center">
             <div className="flex flex-col gap-2 text-center min-h-[32px]">
-                <p className="text-sm text-gray-500 leading-tight">
-                  {trialMode
-                    ? '체험판 · 카톡·메모·엑셀처럼 제각각인 입력도, 업로드용 표로 미리 맞춰 볼 수 있습니다.'
-                    : '엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.'}
-                </p>
+                {!trialMode && (
+                  <p className="text-sm text-gray-500 leading-tight">
+                    엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.
+                  </p>
+                )}
               </div>
 
               {/* 사용량 표시는 레이아웃 영향 없이 오른쪽 절대 위치 */}
@@ -3108,16 +3108,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   }
                   className={`${trialMode ? 'ex-tooltip-target' : ''} trial-usage-badge absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md shadow-emerald-600/30 min-w-[140px]`}
                 >
-                  <div className="flex flex-col items-end gap-0.5">
+                  <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                    <Coins className="w-4 h-4 shrink-0" />
                     <span className="text-[11px] font-medium opacity-90">체험 잔여 사용량</span>
-                    <div className="flex items-center gap-1.5">
-                      <Coins className="w-4 h-4 shrink-0" />
-                      <span className="text-lg font-bold tabular-nums">
-                        {trialPoints === null
-                          ? '…'
-                          : `${trialPoints.toLocaleString()} / ${TRIAL_INITIAL_POINTS.toLocaleString()}`}
-                      </span>
-                    </div>
+                    <span className="text-lg font-bold tabular-nums leading-none">
+                      {trialPoints === null
+                        ? '…'
+                        : `${trialPoints.toLocaleString()} / ${TRIAL_INITIAL_POINTS.toLocaleString()}`}
+                    </span>
                   </div>
                 </div>
               ) : (
