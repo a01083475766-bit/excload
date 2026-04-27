@@ -3213,7 +3213,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     type="button"
                     data-ex-tooltip={
                       trialMode
-                        ? '파일/텍스트/이미지를 즉시 변환합니다.'
+                        ? '주문정보가 있는 화면스크린샷 / 이미지파일을 첨부하거나 붙여넣으면 미리보기에 구분하여 주문정리를 할수있습니다.'
                         : undefined
                     }
                     className={`w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors ${
@@ -3240,7 +3240,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       ref={textInputRef}
                       data-ex-tooltip={
                         trialMode
-                          ? '카카오톡/문자 주문 텍스트를 붙여넣으면 미리보기 표로 변환할 수 있습니다.'
+                          ? '카카오톡/ 문자 / 텍스트 주문을 복사한후 붙여넣으면 미리보기에 구분하여 주문정리를 할수있습니다.'
                           : undefined
                       }
                       className={`w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white ${
@@ -3363,7 +3363,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
                       <button
                         className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700`}
-                        data-ex-tooltip={trialMode ? '선택한 행은 삭제/일괄 작업 대상이 됩니다.' : undefined}
+                        data-ex-tooltip={trialMode ? '삭제가 필요한경우 선택하여 삭제 할수 있습니다' : undefined}
                         onClick={() => {
                           setIsDeleteModalOpen(true);
                         }}
@@ -3496,7 +3496,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                               type="checkbox"
                               data-ex-tooltip={
                                 trialMode
-                                  ? '선택한 행은 삭제/일괄 작업 대상이 됩니다.'
+                                  ? '삭제가 필요한경우 선택하여 삭제 할수 있습니다'
                                   : undefined
                               }
                               className={trialMode ? 'ex-tooltip-target' : undefined}
@@ -3607,7 +3607,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                 type="checkbox"
                                 data-ex-tooltip={
                                   trialMode
-                                    ? '선택한 행은 삭제/일괄 작업 대상이 됩니다.'
+                                    ? '삭제가 필요한경우 선택하여 삭제 할수 있습니다'
                                     : undefined
                                 }
                                 className={trialMode ? 'ex-tooltip-target' : undefined}
@@ -3694,7 +3694,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <button
               type="button"
               onClick={handleOpenCourierTemplateModal}
-              data-ex-tooltip={trialMode ? '실제 업로드 양식이 있으면 등록해 미리보기 헤더를 맞출 수 있습니다.' : undefined}
+              data-ex-tooltip={trialMode ? '기존 택배사에 업로드하는 엑셀파일을 등록하세요. 그양식대로 주문정리가 됩니다' : undefined}
               className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
@@ -3726,7 +3726,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <button
               type="button"
               onClick={handleOpenSenderModal}
-              data-ex-tooltip={trialMode ? '택배사/출고지 등 반복값을 미리 채울 수 있습니다.' : undefined}
+              data-ex-tooltip={trialMode ? '보내는사람/기타정보 등 반복값을 미리 채울수 있습니다' : undefined}
               className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
@@ -3751,7 +3751,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               disabled={downloadStatus === "processing"}
               data-ex-tooltip={
                 trialMode
-                  ? '미리보기 데이터를 업로드용 엑셀로 저장합니다.'
+                  ? '미리보기에 보이는 그대로의 정보값으로 업로드용 엑셀파일로 저장됩니다'
                   : undefined
               }
               className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
