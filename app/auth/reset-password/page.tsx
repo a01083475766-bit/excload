@@ -1,9 +1,10 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import { formatPhoneForInput } from '@/app/utils/format-phone';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, Smartphone, X, Search } from 'lucide-react';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -22,6 +23,11 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [findEmailOpen, setFindEmailOpen] = useState(false);
+  const [findEmailPhone, setFindEmailPhone] = useState('');
+  const [findEmailLoading, setFindEmailLoading] = useState(false);
+  const [findEmailError, setFindEmailError] = useState('');
+  const [findEmailResult, setFindEmailResult] = useState<string | null>(null);
 
   const handleRequestCode = async (e: FormEvent) => {
     e.preventDefault();
@@ -106,7 +112,56 @@ export default function ResetPasswordPage() {
     }
   };
 
+  const openFindEmailModal = () => {
+    setFindEmailOpen(true);
+    setFindEmailPhone('');
+    setFindEmailError('');
+    setFindEmailResult(null);
+  };
+
+  const closeFindEmailModal = () => {
+    setFindEmailOpen(false);
+    setFindEmailLoading(false);
+  };
+
+  const handleFindEmailSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setFindEmailError('');
+    setFindEmailResult(null);
+
+    const phoneDigits = findEmailPhone.replace(/[^0-9]/g, '');
+    const phoneOk = /^\d{10}$/.test(phoneDigits) || /^01[016789]\d{8}$/.test(phoneDigits);
+    if (!phoneDigits || !phoneOk) {
+      setFindEmailError('휴대폰 번호 10~11자리(010, 011 등)를 올바르게 입력해주세요.');
+      return;
+    }
+
+    setFindEmailLoading(true);
+    try {
+      const res = await fetch('/api/auth/find-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneDigits }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFindEmailError(data.error || '조회에 실패했습니다.');
+        return;
+      }
+      if (data.success && data.maskedEmail) {
+        setFindEmailResult(data.maskedEmail);
+      } else {
+        setFindEmailError('결과를 불러올 수 없습니다.');
+      }
+    } catch {
+      setFindEmailError('네트워크 오류가 발생했습니다.');
+    } finally {
+      setFindEmailLoading(false);
+    }
+  };
+
   return (
+    <>
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
@@ -129,9 +184,9 @@ export default function ResetPasswordPage() {
 
           <div className="mb-4 rounded-lg border border-indigo-200 bg-white px-3.5 py-2.5 text-xs leading-relaxed text-indigo-700">
             가입 이메일이 기억나지 않으시면{' '}
-            <Link href="/auth/find-email" className="font-semibold underline">
+            <button type="button" onClick={openFindEmailModal} className="font-semibold underline">
               이메일 찾기
-            </Link>
+            </button>
             를 먼저 이용해 주세요.
           </div>
 
@@ -279,12 +334,112 @@ export default function ResetPasswordPage() {
             로그인 화면으로 돌아가기
           </button>
           <div className="mt-2 text-center">
-            <Link href="/auth/find-email" className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline">
+            <button
+              type="button"
+              onClick={openFindEmailModal}
+              className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+            >
               이메일 찾기
-            </Link>
+            </button>
           </div>
         </div>
       </div>
     </div>
+    {findEmailOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="find-email-title"
+        onClick={closeFindEmailModal}
+      >
+        <div
+          className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <h2 id="find-email-title" className="text-lg font-semibold text-gray-900">
+                이메일 찾기
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                가입 시 등록하신 휴대폰 번호로 이메일 힌트를 확인할 수 있습니다.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeFindEmailModal}
+              className="shrink-0 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              aria-label="닫기"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleFindEmailSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="find-email-phone" className="mb-2 block text-sm font-medium text-gray-700">
+                휴대폰 번호
+              </label>
+              <div className="relative">
+                <Smartphone className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
+                <input
+                  id="find-email-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  value={findEmailPhone}
+                  onChange={(e) => setFindEmailPhone(formatPhoneForInput(e.target.value))}
+                  maxLength={13}
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 outline-none focus:border-transparent focus:ring-2 focus:ring-indigo-500"
+                  placeholder="010-1234-5678"
+                  disabled={findEmailLoading}
+                />
+              </div>
+            </div>
+
+            {findEmailError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {findEmailError}
+              </div>
+            )}
+
+            {findEmailResult && (
+              <div className="space-y-2 rounded-lg border border-indigo-100 bg-indigo-50/60 p-4">
+                <p className="text-sm font-medium text-indigo-900">
+                  입력하신 번호로 가입된 이메일 힌트입니다
+                </p>
+                <p className="font-mono text-base font-semibold break-all text-gray-900">
+                  {findEmailResult}
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={closeFindEmailModal}
+                className="flex-1 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                닫기
+              </button>
+              <button
+                type="submit"
+                disabled={findEmailLoading}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {findEmailLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                조회
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
