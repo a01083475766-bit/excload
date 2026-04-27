@@ -96,7 +96,7 @@ export default function HomePage() {
               <TrialEmbed trialMode />
               <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
                 전체 화면이 필요하면{' '}
-                <Link href="/trial" className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300">
+                <Link href="/trial" className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300">
                   체험 전용 페이지
                 </Link>
                 로 이동할 수 있습니다.
