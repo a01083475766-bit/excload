@@ -198,9 +198,18 @@ export default function ResetPasswordPage() {
 
           <form onSubmit={handleRequestCode} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                가입 이메일
-              </label>
+              <div className="mb-2 flex items-center justify-between">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  가입 이메일
+                </label>
+                <button
+                  type="button"
+                  onClick={openFindEmailModal}
+                  className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  이메일 찾기
+                </button>
+              </div>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
@@ -333,15 +342,6 @@ export default function ResetPasswordPage() {
           >
             로그인 화면으로 돌아가기
           </button>
-          <div className="mt-2 text-center">
-            <button
-              type="button"
-              onClick={openFindEmailModal}
-              className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
-            >
-              이메일 찾기
-            </button>
-          </div>
         </div>
       </div>
     </div>
