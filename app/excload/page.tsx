@@ -52,7 +52,7 @@ export default function HomePage() {
     <div className="pt-6 bg-zinc-50 dark:bg-black min-h-screen">
       <main className="max-w-7xl mx-auto px-6">
         {/* Hero 섹션 */}
-        <section className="pt-4 pb-8 lg:pt-6 lg:pb-12">
+        <section className="blue-unified-theme pt-4 pb-8 lg:pt-6 lg:pb-12">
           <div className="flex flex-col gap-0">
             <div className="flex flex-col items-center text-center gap-2.5 sm:gap-3">
               <h1
