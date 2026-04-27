@@ -45,13 +45,9 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
     <div style="font-size:32px; font-weight:bold; letter-spacing:5px; margin:10px 0; color:#3b5cff;">
       ${payload.code}
     </div>
-    <div style="display:inline-block; margin-top:10px; padding:8px 14px; border:none; background:#3b5cff; color:#fff; border-radius:6px;">
-      코드 복사하기
-    </div>
-    <div style="margin-top:8px; font-size:12px; color:#666;">메일 환경에 따라 버튼 복사가 제한될 수 있습니다. 코드를 직접 선택해 복사해주세요.</div>
   </div>
 
-  <p>⏳ <strong>${payload.expireMinutes}분 이내</strong>에 입력해주세요.</p>
+  <p>⏳ <strong>${payload.expireMinutes}분 이내</strong>에 엑클로드 비밀번호 재설정 화면에 인증코드를 입력해주세요.</p>
   <hr style="margin:25px 0;" />
   <p style="font-size:14px; color:#555;">
     📦 엑클로드는 주문 데이터를 자동으로 변환하여<br />
@@ -68,6 +64,9 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
     ⚠️ 본 요청을 하지 않으셨다면 이 메일을 무시하셔도 됩니다.<br />
     해당 코드는 타인과 공유하지 마세요.
   </p>
+  <p style="font-size:12px; color:#888; margin-top:8px;">
+    본 메일은 발신전용으로 회신이 불가합니다.
+  </p>
 </div>
 `.trim();
     const text = [
@@ -77,11 +76,12 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
       '비밀번호 재설정을 위한 인증코드를 안내드립니다.',
       '',
       `인증코드: ${payload.code}`,
-      `${payload.expireMinutes}분 내에 입력해주세요.`,
+      `${payload.expireMinutes}분 내에 엑클로드 비밀번호 재설정 화면에 인증코드를 입력해주세요.`,
       '',
       '엑클로드 바로가기: https://www.excload.com',
       '',
       '본 요청을 하지 않으셨다면 이 메일을 무시하셔도 됩니다.',
+      '본 메일은 발신전용으로 회신이 불가합니다.',
     ].join('\n');
 
     console.log('[Password Reset Mail] send() called:', {
