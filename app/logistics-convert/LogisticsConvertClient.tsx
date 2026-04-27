@@ -3149,7 +3149,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     style={{ cursor: 'pointer' }}
                     data-ex-tooltip={
                       trialMode
-                        ? 'xlsx, xls, jpg, png 업로드 가능'
+                        ? '주문정보가 있는 엑셀파일 또는 기타 파일을 첨부하시면 테스트가능합니다 xlsx, xls,jpg,png 업로드가능'
                         : undefined
                     }
                     className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
