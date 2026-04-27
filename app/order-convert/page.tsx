@@ -1877,7 +1877,7 @@ export default function OrderConvertPage() {
                     <table className="min-w-max text-sm border border-gray-300 border-collapse">
                       <thead className="bg-gray-50 sticky top-0 z-20">
                         <tr>
-                          <th className="border border-gray-300 px-2 py-1 text-left font-semibold border-b whitespace-nowrap">
+                          <th className="sticky left-0 z-30 border border-gray-300 bg-gray-50 px-2 py-1 text-left font-semibold border-b whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
                             <input
                               type="checkbox"
                               onChange={(e) => {
@@ -1950,7 +1950,15 @@ export default function OrderConvertPage() {
                               }
                             `}
                           >
-                            <td className="border border-gray-300 px-2 py-1 border-b whitespace-nowrap">
+                            <td
+                              className={`sticky left-0 z-10 border border-gray-300 px-2 py-1 border-b whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)] ${
+                                selectedRows.includes(row.rowId)
+                                  ? 'bg-blue-100'
+                                  : isNewRow
+                                  ? 'bg-green-100'
+                                  : 'bg-white'
+                              }`}
+                            >
                               <input
                                 type="checkbox"
                                 checked={selectedRows.includes(row.rowId)}
