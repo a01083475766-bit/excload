@@ -3030,16 +3030,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed"
             >
               <p>
-                체험판에서는 <strong>변환 결과를 화면에서 확인</strong>하는 단계까지 제공합니다.{' '}
-                <strong>엑셀 파일로 저장·다운로드</strong>하는 기능은 체험 범위에 포함하지 않았습니다.
+                체험판은 <strong>미리보기 확인</strong>까지 제공됩니다.
+                <br />
+                <strong>엑셀 저장·다운로드는 회원가입 후</strong> 이용할 수 있습니다.
               </p>
               <p>
-                <strong>무료 회원가입 후</strong> 정식 주문 변환 화면으로 넘어가시면, 요금제에 맞게 엑셀
-                다운로드 등 전체 기능을 이어서 쓰실 수 있습니다. 방금 보신 것과 같은 흐름으로 작업을
-                이어가시면 됩니다.
-              </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                무료 플랜부터 시작할 수 있어요. 플랜별 조건은 요금제 페이지에서 확인해 주세요.
+                <strong>무료 회원가입 후</strong> 지금과 같은 흐름으로 계속 작업하실 수 있습니다.
               </p>
             </div>
 
