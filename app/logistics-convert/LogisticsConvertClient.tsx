@@ -573,6 +573,18 @@ const TRIAL_DEFAULT_TEMPLATE_PUBLIC_PATH = '/trial-default-upload-template.xlsx'
 
 export function LogisticsConvertClient({ trialMode = false }: { trialMode?: boolean }) {
   const router = useRouter();
+  const [isDesktopHoverDevice, setIsDesktopHoverDevice] = useState(false);
+  const [floatingTooltip, setFloatingTooltip] = useState<{
+    visible: boolean;
+    text: string;
+    x: number;
+    y: number;
+  }>({
+    visible: false,
+    text: '',
+    x: 0,
+    y: 0,
+  });
   const user = useUserStore((state) => state.user);
   const userId = user?.userId ?? null;
   const fetchUser = useUserStore((state) => state.fetchUser);
@@ -656,6 +668,74 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   /** 체험판 잔여 사용량 (클라이언트 마운트 후 sessionStorage와 동기화) */
   const [trialPoints, setTrialPoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const syncDeviceType = () => setIsDesktopHoverDevice(media.matches);
+    syncDeviceType();
+    media.addEventListener('change', syncDeviceType);
+    return () => {
+      media.removeEventListener('change', syncDeviceType);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!trialMode || !isDesktopHoverDevice) {
+      setFloatingTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      return;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const target = (event.target as HTMLElement | null)?.closest?.('[data-ex-tooltip]') as
+        | HTMLElement
+        | null;
+      const tooltipText = target?.getAttribute('data-ex-tooltip')?.trim() ?? '';
+
+      if (!tooltipText) {
+        setFloatingTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+        return;
+      }
+
+      const cursorGapX = 14;
+      const cursorGapY = 18;
+      const maxWidth = 320;
+      const viewportPadding = 12;
+      const estimatedHeight = 56;
+
+      const nextX = Math.min(
+        Math.max(viewportPadding, event.clientX + cursorGapX),
+        window.innerWidth - maxWidth - viewportPadding,
+      );
+      const nextY = Math.min(
+        Math.max(viewportPadding, event.clientY + cursorGapY),
+        window.innerHeight - estimatedHeight - viewportPadding,
+      );
+
+      setFloatingTooltip({
+        visible: true,
+        text: tooltipText,
+        x: nextX,
+        y: nextY,
+      });
+    };
+
+    const hideTooltip = () => {
+      setFloatingTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('scroll', hideTooltip, { passive: true });
+    window.addEventListener('blur', hideTooltip);
+    window.addEventListener('mouseleave', hideTooltip as EventListener);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('scroll', hideTooltip);
+      window.removeEventListener('blur', hideTooltip);
+      window.removeEventListener('mouseleave', hideTooltip as EventListener);
+    };
+  }, [trialMode, isDesktopHoverDevice]);
 
   useEffect(() => {
     if (!trialMode) return;
@@ -2990,7 +3070,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         </div>
       )}
 
-      <div className="pt-3 pb-4 bg-zinc-50 dark:bg-black">
+      <div
+        className={`${trialMode && isDesktopHoverDevice ? 'ex-tooltip-follow-mode' : ''} pt-3 pb-4 bg-zinc-50 dark:bg-black`}
+      >
       <main className="max-w-[1200px] mx-auto px-8">
         {/* Hero 섹션 - 세로 흐름 구조 */}
         <section className="relative pt-2 pb-3">
@@ -4995,6 +5077,19 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               ) : null}
             </div>
           </div>
+        </div>
+      )}
+
+      {trialMode && isDesktopHoverDevice && (
+        <div
+          className={`ex-floating-tooltip ${floatingTooltip.visible ? 'is-visible' : ''}`}
+          style={{
+            left: `${floatingTooltip.x}px`,
+            top: `${floatingTooltip.y}px`,
+          }}
+          aria-hidden="true"
+        >
+          {floatingTooltip.text}
         </div>
       )}
 

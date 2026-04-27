@@ -305,3 +305,36 @@ body {
   transform: translateX(-50%) translateY(0);
   transition-delay: 0.15s;
 }
+
+/* 커서 추적 툴팁 모드에서는 기존 pseudo tooltip 비활성화 */
+.ex-tooltip-follow-mode .ex-tooltip-target::before,
+.ex-tooltip-follow-mode .ex-tooltip-target::after {
+  display: none;
+}
+
+.ex-floating-tooltip {
+  position: fixed;
+  z-index: 90;
+  max-width: min(320px, 70vw);
+  width: max-content;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(17, 24, 39, 0.95);
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(0, 4px, 0);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.ex-floating-tooltip.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
