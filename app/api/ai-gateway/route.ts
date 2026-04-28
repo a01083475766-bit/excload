@@ -88,7 +88,11 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const referer = request.headers.get('referer') || '';
     const trialHeader = request.headers.get('x-excload-trial');
-    const isTrialRequest = trialHeader === '1' || referer.includes('/trial');
+    const isTrialReferer =
+      referer.includes('/trial') ||
+      referer.includes('/excload') ||
+      /https?:\/\/[^/]+\/?(?:\?|#|$)/.test(referer);
+    const isTrialRequest = trialHeader === '1' || isTrialReferer;
     const allowAnonymousTrial =
       isTrialRequest && (type === 'normalize-29' || type === 'header-map');
 
