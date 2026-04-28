@@ -60,7 +60,9 @@ export default function HomePage() {
                 text-[clamp(1.5rem,5vw,2.25rem)] tracking-tighter
                 lg:whitespace-nowrap [word-break:keep-all]"
               >
-                엑클로드는 주문 데이터를 자동으로 변환하여 택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
+                엑클로드는 주문 데이터를 자동으로 변환하여
+                <br />
+                택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
               </h1>
               <p className="max-w-3xl text-sm sm:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
                 복잡한 기능을 빼고{' '}
