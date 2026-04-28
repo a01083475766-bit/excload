@@ -18,9 +18,16 @@ const JOIN_HEADER = '주문번호';
 const OVERLAY_FROM_INVOICE_HEADERS = new Set<string>(['운송장번호']);
 
 export function normalizeJoinKey(value: string | undefined | null): string {
-  return String(value ?? '')
-    .trim()
-    .replace(/\s+/g, '');
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+
+  // 엑셀에서 숫자 주문번호가 12345.0 형태로 들어오는 경우 보정
+  const noDecimalTail = raw.replace(/^([0-9]+)\.0+$/, '$1');
+
+  // 비교 시 하이픈/언더스코어/슬래시/점/공백/쉼표는 무시
+  return noDecimalTail
+    .replace(/[\s\-_/.,:]/g, '')
+    .toUpperCase();
 }
 
 /**
