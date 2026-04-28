@@ -50,3 +50,22 @@ test('unknownHeaders 병합', () => {
   const m = mergeOrderAndInvoiceStandardFiles(order, inv);
   assert.deepEqual(m.unknownHeaders, ['a', 'b']);
 });
+
+test('주문번호가 비어 있어도 상품주문번호가 일치하면 송장번호를 병합', () => {
+  const order = ofile([
+    { 주문번호: '', 상품주문번호: '403481828', 받는사람: '김', 운송장번호: '' } as Record<
+      string,
+      string
+    >,
+  ]);
+  const inv = ofile([
+    { 주문번호: '', 상품주문번호: '403481828', 받는사람: '', 운송장번호: '9988776655' } as Record<
+      string,
+      string
+    >,
+  ]);
+
+  const m = mergeOrderAndInvoiceStandardFiles(order, inv);
+  assert.equal(m.rows.length, 1);
+  assert.equal(m.rows[0].운송장번호, '9988776655');
+});

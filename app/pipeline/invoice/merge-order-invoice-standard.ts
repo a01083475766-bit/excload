@@ -13,6 +13,7 @@
 import type { OrderStandardFile } from '@/app/pipeline/order/order-pipeline';
 
 const JOIN_HEADER = '주문번호';
+const FALLBACK_JOIN_HEADER = '상품주문번호';
 
 /** 송장 엑셀에서만 덮어쓸 기준헤더 (주문 원본 유지) */
 const OVERLAY_FROM_INVOICE_HEADERS = new Set<string>(['운송장번호']);
@@ -56,10 +57,11 @@ export function mergeStandardRowPair(
  */
 function buildInvoiceRowsByOrderKey(
   invoiceRows: Record<string, string>[],
+  joinHeader: string,
 ): Map<string, Record<string, string>[]> {
   const map = new Map<string, Record<string, string>[]>();
   for (const row of invoiceRows) {
-    const key = normalizeJoinKey(row[JOIN_HEADER]);
+    const key = normalizeJoinKey(row[joinHeader]);
     if (!key) continue;
     const list = map.get(key) ?? [];
     list.push(row);
@@ -68,17 +70,58 @@ function buildInvoiceRowsByOrderKey(
   return map;
 }
 
+function countIntersectKeys(
+  orderRows: Record<string, string>[],
+  invoiceRows: Record<string, string>[],
+  joinHeader: string,
+): number {
+  const orderSet = new Set(
+    orderRows.map((r) => normalizeJoinKey(r[joinHeader])).filter(Boolean),
+  );
+  if (orderSet.size === 0) return 0;
+
+  let intersect = 0;
+  const seen = new Set<string>();
+  for (const row of invoiceRows) {
+    const key = normalizeJoinKey(row[joinHeader]);
+    if (!key || seen.has(key)) continue;
+    if (orderSet.has(key)) {
+      intersect += 1;
+    }
+    seen.add(key);
+  }
+  return intersect;
+}
+
+function selectJoinHeader(
+  orderRows: Record<string, string>[],
+  invoiceRows: Record<string, string>[],
+): string {
+  const primaryScore = countIntersectKeys(orderRows, invoiceRows, JOIN_HEADER);
+  if (primaryScore > 0) return JOIN_HEADER;
+
+  const fallbackScore = countIntersectKeys(
+    orderRows,
+    invoiceRows,
+    FALLBACK_JOIN_HEADER,
+  );
+  if (fallbackScore > 0) return FALLBACK_JOIN_HEADER;
+
+  return JOIN_HEADER;
+}
+
 export function mergeOrderAndInvoiceStandardFiles(
   orderFile: OrderStandardFile,
   invoiceFile: OrderStandardFile,
 ): OrderStandardFile {
   const baseHeaders = orderFile.baseHeaders;
-  const invoiceByKey = buildInvoiceRowsByOrderKey(invoiceFile.rows);
+  const joinHeader = selectJoinHeader(orderFile.rows, invoiceFile.rows);
+  const invoiceByKey = buildInvoiceRowsByOrderKey(invoiceFile.rows, joinHeader);
 
   const mergedRows: Record<string, string>[] = [];
 
   for (const orderRow of orderFile.rows) {
-    const key = normalizeJoinKey(orderRow[JOIN_HEADER]);
+    const key = normalizeJoinKey(orderRow[joinHeader]);
     const matches = key ? invoiceByKey.get(key) : undefined;
 
     if (!matches || matches.length === 0) {
