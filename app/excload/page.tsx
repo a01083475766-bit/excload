@@ -60,21 +60,14 @@ export default function HomePage() {
                 text-[clamp(1.5rem,5vw,2.25rem)] tracking-tighter
                 lg:whitespace-nowrap [word-break:keep-all]"
               >
-                반복적인 주문정리 엑셀정리 힘드셨죠? 이제 복사해서 붙이면 준비 끝
+                엑클로드는 주문 데이터를 자동으로 변환하여 택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
               </h1>
-              <p className="max-w-4xl text-sm sm:text-base md:text-lg text-zinc-700 dark:text-zinc-300 leading-snug">
-                <span className="font-semibold text-emerald-700 dark:text-emerald-400">&quot;엑셀 노가다 탈출&quot;</span>
-                <span className="text-zinc-400 dark:text-zinc-500 mx-1 sm:mx-2">·</span>
-                <span className="font-medium text-zinc-800 dark:text-zinc-200">
-                  &quot;엑셀파일, 카톡 주문, 붙여넣기 하면 정리끝&quot;
-                </span>
-                <span className="text-zinc-400 dark:text-zinc-500 mx-1 sm:mx-2">·</span>
-                <span className="font-semibold text-emerald-700 dark:text-emerald-400">&quot;오입력 걱정 끝&quot;</span>
-              </p>
               <p className="max-w-3xl text-sm sm:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
                 복잡한 기능을 빼고{' '}
                 <strong className="font-bold text-zinc-900 dark:text-zinc-100">&quot;빠른주문정리&quot;</strong>에만
                 집중해 사용법이 어렵지 않습니다
+                <br />
+                이제 복사해서 붙이면 준비 끝
               </p>
             </div>
 
