@@ -5,6 +5,7 @@ import MainNav from "./components/MainNav";
 import StoreInitializer from "./components/StoreInitializer";
 import GlobalDragDropBlocker from "./components/GlobalDragDropBlocker";
 import GlobalPopupManager from "./components/GlobalPopupManager";
+import ClientConsoleSilencer from "./components/ClientConsoleSilencer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <ClientConsoleSilencer />
         <StoreInitializer />
         <GlobalDragDropBlocker />
         <MainNav />
