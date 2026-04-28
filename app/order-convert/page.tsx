@@ -1827,7 +1827,9 @@ export default function OrderConvertPage() {
             </div>
             {previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center text-gray-400">
-                변환된 주문 데이터가 여기에 표시됩니다.
+                {fileProcessingStatus === 'processing'
+                  ? `파일 정보가 많아 정리 중입니다${processingDots} 잠시만 기다려주세요.`
+                  : '변환된 주문 데이터가 여기에 표시됩니다.'}
               </div>
             ) : (
               <>
