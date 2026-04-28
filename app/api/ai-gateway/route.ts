@@ -93,8 +93,16 @@ export async function POST(request: NextRequest) {
       referer.includes('/excload') ||
       /https?:\/\/[^/]+\/?(?:\?|#|$)/.test(referer);
     const isTrialRequest = trialHeader === '1' || isTrialReferer;
+    const allowAnonymousTrialTypes = new Set([
+      'normalize-29',
+      'header-map',
+      'extract',
+      'normalize',
+    ]);
     const allowAnonymousTrial =
-      isTrialRequest && (type === 'normalize-29' || type === 'header-map');
+      isTrialRequest &&
+      typeof type === 'string' &&
+      allowAnonymousTrialTypes.has(type);
 
     if (!session && !allowAnonymousTrial) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
