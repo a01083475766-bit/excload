@@ -50,12 +50,15 @@ export async function runUnifiedInputOrderPipelines(
   params: UnifiedInputPipelineParams
 ): Promise<UnifiedInputPipelineResult> {
   const { cleanInputFile, templateBridgeFile, fixedHeaderValues, fileSessionId } = params;
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isTrialContext = pathname === '/' || pathname.startsWith('/excload') || pathname.startsWith('/trial');
 
   // Stage2: Order Pipeline 실행 (기존 API 재사용)
   const response = await fetch('/api/order-pipeline', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(isTrialContext ? { 'x-excload-trial': '1' } : {}),
     },
     body: JSON.stringify({
       ...cleanInputFile,

@@ -23,7 +23,15 @@ import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    const referer = request.headers.get('referer') || '';
+    const trialHeader = request.headers.get('x-excload-trial');
+    const isTrialReferer =
+      referer.includes('/trial') ||
+      referer.includes('/excload') ||
+      /https?:\/\/[^/]+\/?(?:\?|#|$)/.test(referer);
+    const allowAnonymousTrial = trialHeader === '1' || isTrialReferer;
+
+    if (!session && !allowAnonymousTrial) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
