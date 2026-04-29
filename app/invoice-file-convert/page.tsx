@@ -359,6 +359,16 @@ export default function InvoiceFileConvertPage() {
     [sortedRows, renderedRowCount],
   );
 
+  // "펼치기"를 누르면 사용자 기대대로 전체를 즉시 렌더합니다.
+  // (청크 렌더링 중이더라도 스크롤바/마우스 이벤트로 인해 완전 로딩이 지연될 수 있으므로 강제 보정)
+  useEffect(() => {
+    if (!previewReady) return;
+    if (!isPreviewExpanded) return;
+
+    previewHoverPausedRef.current = false;
+    setRenderedRowCount(sortedRows.length);
+  }, [isPreviewExpanded, previewReady, sortedRows.length]);
+
   useEffect(() => {
     if (!previewReady || !sortedRows || sortedRows.length === 0 || courierHeaders.length === 0) {
       setRenderedRowCount(0);

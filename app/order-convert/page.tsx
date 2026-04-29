@@ -379,6 +379,11 @@ export default function OrderConvertPage() {
       return;
     }
 
+    if (isPreviewExpanded) {
+      setRenderedRowCount(sortedRows.length);
+      return;
+    }
+
     const baseChunk = sortedRows.length >= 800 ? 40 : 60;
     const initial = Math.min(baseChunk, sortedRows.length);
     setRenderedRowCount(initial);
