@@ -301,6 +301,11 @@ export default function InvoiceFileConvertPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const courierInvoiceFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const previewRevealTimeoutRef = useRef<number | null>(null);
+  // 미리보기 테이블 위로 마우스가 올라가면(스크롤 시도 포함)
+  // 청크 렌더링으로 인한 추가 리렌더가 발생해 버벅임/깜빡임이 생길 수 있어 일시 정지합니다.
+  const previewHoverPausedRef = useRef(false);
+
   /** parseExcelFile·useEffect에서 최신 파일/양식 참조 (비동기 시점 클로저 오류 방지) */
   const uploadedExcelFileRef = useRef<File | null>(null);
   const courierInvoiceFileRef = useRef<File | null>(null);
@@ -371,6 +376,10 @@ export default function InvoiceFileConvertPage() {
 
     const tick = () => {
       if (cancelled) return;
+      if (previewHoverPausedRef.current) {
+        setTimeout(tick, 100);
+        return;
+      }
       i = Math.min(i + baseChunk, sortedRows.length);
       setRenderedRowCount(i);
       if (i < sortedRows.length) {
@@ -440,6 +449,10 @@ export default function InvoiceFileConvertPage() {
     setCourierHeaders([]);
     setPreviewReady(false);
     setConversionProgress(0);
+    if (previewRevealTimeoutRef.current) {
+      window.clearTimeout(previewRevealTimeoutRef.current);
+      previewRevealTimeoutRef.current = null;
+    }
   }, [templateBridgeFile]);
 
   // 점 애니메이션 처리 (파일 처리용)
@@ -921,6 +934,10 @@ export default function InvoiceFileConvertPage() {
     setNewRows(new Set());
     setUserOverrides({});
     setUnknownHeadersWarning([]);
+    if (previewRevealTimeoutRef.current) {
+      window.clearTimeout(previewRevealTimeoutRef.current);
+      previewRevealTimeoutRef.current = null;
+    }
     setInputSourceType('excel');
 
     const newOrderSessionId = crypto.randomUUID();
@@ -1025,14 +1042,24 @@ export default function InvoiceFileConvertPage() {
 
         setUploadedFileMeta((prev) => [{ name: file.name, size: file.size }, ...prev]);
         setConversionProgress(100);
-        // previewReady=true가 되는 순간 테이블이 0행부터 보이지 않게
-        // 초기 렌더 카운트를 먼저 잡아둡니다.
+        // 테스트용: 미리보기를 10초 후에 한 번에 열어서
+        // "미리보기 진입 시점"의 버벅임/깜빡임 원인을 분리합니다.
         const baseChunk = stage3Result.previewRows.length >= 800 ? 40 : 60;
         setRenderedRowCount(Math.min(baseChunk, stage3Result.previewRows.length));
-        setPreviewReady(true);
-        setFileProcessingStatus('idle');
+        setPreviewReady(false);
+        if (previewRevealTimeoutRef.current) {
+          window.clearTimeout(previewRevealTimeoutRef.current);
+        }
+        previewRevealTimeoutRef.current = window.setTimeout(() => {
+          setPreviewReady(true);
+          setFileProcessingStatus('idle');
+        }, 10000);
       } else {
         console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
+        if (previewRevealTimeoutRef.current) {
+          window.clearTimeout(previewRevealTimeoutRef.current);
+          previewRevealTimeoutRef.current = null;
+        }
         setPreviewReady(false);
         setConversionProgress(0);
         setFileProcessingStatus('idle');
@@ -1049,6 +1076,10 @@ export default function InvoiceFileConvertPage() {
     } catch (err) {
       console.error('[InvoiceFileConvertPage] 주문 엑셀 처리 오류:', err);
       alert(err instanceof Error ? err.message : '주문 파일 처리 중 오류가 발생했습니다.');
+      if (previewRevealTimeoutRef.current) {
+        window.clearTimeout(previewRevealTimeoutRef.current);
+        previewRevealTimeoutRef.current = null;
+      }
       setPreviewReady(false);
       setConversionProgress(0);
       setFileProcessingStatus('idle');
@@ -1522,6 +1553,14 @@ export default function InvoiceFileConvertPage() {
                 <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
                   isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
                 }`}>
+                  <div
+                    onMouseEnter={() => {
+                      previewHoverPausedRef.current = true;
+                    }}
+                    onMouseLeave={() => {
+                      previewHoverPausedRef.current = false;
+                    }}
+                  >
                   <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
                   </div>
                   <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}>
@@ -1673,6 +1712,7 @@ export default function InvoiceFileConvertPage() {
                         })}
                       </tbody>
                     </table>
+                  </div>
                   </div>
                 </div>
               </>

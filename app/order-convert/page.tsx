@@ -371,6 +371,8 @@ export default function OrderConvertPage() {
     [sortedRows, renderedRowCount],
   );
 
+  const previewHoverPausedRef = useRef(false);
+
   useEffect(() => {
     if (!previewRows || previewRows.length === 0 || courierHeaders.length === 0) {
       setRenderedRowCount(0);
@@ -388,6 +390,10 @@ export default function OrderConvertPage() {
 
     const tick = () => {
       if (cancelled) return;
+    if (previewHoverPausedRef.current) {
+      setTimeout(tick, 100);
+      return;
+    }
       i = Math.min(i + baseChunk, sortedRows.length);
       setRenderedRowCount(i);
       if (i < sortedRows.length) {
@@ -1916,6 +1922,14 @@ export default function OrderConvertPage() {
                 <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
                   isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
                 }`}>
+                  <div
+                    onMouseEnter={() => {
+                      previewHoverPausedRef.current = true;
+                    }}
+                    onMouseLeave={() => {
+                      previewHoverPausedRef.current = false;
+                    }}
+                  >
                   <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
                   </div>
                   <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}>
@@ -2075,6 +2089,7 @@ export default function OrderConvertPage() {
                         })}
                       </tbody>
                     </table>
+                  </div>
                   </div>
                 </div>
               </>
