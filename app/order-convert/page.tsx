@@ -28,6 +28,7 @@ import { extractTextFromImage } from '@/app/unified-input/adapters/ImageToTextAd
 import { runTextToCleanInputAdapter } from '@/app/unified-input/adapters/TextToCleanInputAdapter';
 import { runUnifiedInputOrderPipelines } from '@/app/unified-input/adapters/runUnifiedInputOrderPipelines';
 import { formatPhoneDisplay } from '@/app/utils/format-phone';
+import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
@@ -340,28 +341,8 @@ export default function OrderConvertPage() {
     return [];
   }, [courierUploadTemplate]);
 
-  // 정렬된 배열 계산
-  const sortedRows = useMemo(() => {
-    if (!sortConfig) return previewRows;
-
-    const { header, direction } = sortConfig;
-
-    return [...previewRows].sort((a, b) => {
-      const aValue =
-        userOverrides[a.rowId]?.[header] ??
-        a.data[header] ??
-        '';
-
-      const bValue =
-        userOverrides[b.rowId]?.[header] ??
-        b.data[header] ??
-        '';
-
-      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [previewRows, sortConfig, userOverrides]);
+  // 정렬은 대용량일 때 Worker로 오프로드
+  const sortedRows = useWorkerSortedRows(previewRows, sortConfig, userOverrides);
 
   // 대용량 미리보기에서 DOM 생성/스타일 계산 비용을 줄이기 위해
   // 처음엔 일부 행만 렌더하고, 이후 천천히 추가 렌더합니다.
@@ -374,21 +355,22 @@ export default function OrderConvertPage() {
   const previewHoverPausedRef = useRef(false);
 
   useEffect(() => {
-    if (!previewRows || previewRows.length === 0 || courierHeaders.length === 0) {
+    const totalRows = previewRows.length;
+    if (totalRows === 0 || courierHeaders.length === 0) {
       setRenderedRowCount(0);
       return;
     }
 
     if (isPreviewExpanded) {
-      setRenderedRowCount(sortedRows.length);
+      setRenderedRowCount(totalRows);
       return;
     }
 
-    const baseChunk = sortedRows.length >= 800 ? 40 : 60;
-    const initial = Math.min(baseChunk, sortedRows.length);
+    const baseChunk = totalRows >= 800 ? 40 : 60;
+    const initial = Math.min(baseChunk, totalRows);
     setRenderedRowCount(initial);
 
-    if (sortedRows.length <= initial) return;
+    if (totalRows <= initial) return;
 
     let cancelled = false;
     let i = initial;
@@ -399,9 +381,9 @@ export default function OrderConvertPage() {
       setTimeout(tick, 100);
       return;
     }
-      i = Math.min(i + baseChunk, sortedRows.length);
+      i = Math.min(i + baseChunk, totalRows);
       setRenderedRowCount(i);
-      if (i < sortedRows.length) {
+      if (i < totalRows) {
         setTimeout(tick, 30);
       }
     };
@@ -411,7 +393,7 @@ export default function OrderConvertPage() {
     return () => {
       cancelled = true;
     };
-  }, [sortedRows, previewRows, courierHeaders.length]);
+  }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
 
   // fixedHeaderValues를 localStorage에 저장
   useEffect(() => {

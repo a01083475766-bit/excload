@@ -29,6 +29,7 @@ import {
   readFirstSheetMatrixFromArrayBuffer,
 } from '@/app/lib/excel/sheet-header';
 import { formatPhoneDisplay } from '@/app/utils/format-phone';
+import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
@@ -328,28 +329,8 @@ export default function InvoiceFileConvertPage() {
     return [];
   }, [courierUploadTemplate]);
 
-  // 정렬된 배열 계산
-  const sortedRows = useMemo(() => {
-    if (!sortConfig) return previewRows;
-
-    const { header, direction } = sortConfig;
-
-    return [...previewRows].sort((a, b) => {
-      const aValue =
-        userOverrides[a.rowId]?.[header] ??
-        a.data[header] ??
-        '';
-
-      const bValue =
-        userOverrides[b.rowId]?.[header] ??
-        b.data[header] ??
-        '';
-
-      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [previewRows, sortConfig, userOverrides]);
+  // 정렬은 대용량일 때 Worker로 오프로드
+  const sortedRows = useWorkerSortedRows(previewRows, sortConfig, userOverrides);
 
   // 대용량 미리보기에서 DOM 생성/스타일 계산 비용을 줄이기 위해
   // 처음엔 일부 행부터 보여주고, 이후 천천히 추가 렌더합니다.
@@ -366,20 +347,25 @@ export default function InvoiceFileConvertPage() {
     if (!isPreviewExpanded) return;
 
     previewHoverPausedRef.current = false;
-    setRenderedRowCount(sortedRows.length);
-  }, [isPreviewExpanded, previewReady, sortedRows.length]);
+    setRenderedRowCount(previewRows.length);
+  }, [isPreviewExpanded, previewReady, previewRows.length]);
 
   useEffect(() => {
-    if (!previewReady || !sortedRows || sortedRows.length === 0 || courierHeaders.length === 0) {
+    const totalRows = previewRows.length;
+    if (!previewReady || totalRows === 0 || courierHeaders.length === 0) {
       setRenderedRowCount(0);
       return;
     }
+    if (isPreviewExpanded) {
+      setRenderedRowCount(totalRows);
+      return;
+    }
 
-    const baseChunk = sortedRows.length >= 800 ? 40 : 60;
-    const initial = Math.min(baseChunk, sortedRows.length);
+    const baseChunk = totalRows >= 800 ? 40 : 60;
+    const initial = Math.min(baseChunk, totalRows);
     setRenderedRowCount(initial);
 
-    if (sortedRows.length <= initial) return;
+    if (totalRows <= initial) return;
 
     let cancelled = false;
     let i = initial;
@@ -390,9 +376,9 @@ export default function InvoiceFileConvertPage() {
         setTimeout(tick, 100);
         return;
       }
-      i = Math.min(i + baseChunk, sortedRows.length);
+      i = Math.min(i + baseChunk, totalRows);
       setRenderedRowCount(i);
-      if (i < sortedRows.length) {
+      if (i < totalRows) {
         // 브라우저에 프레임을 양보
         setTimeout(tick, 30);
       }
@@ -403,7 +389,7 @@ export default function InvoiceFileConvertPage() {
     return () => {
       cancelled = true;
     };
-  }, [previewReady, sortedRows, courierHeaders.length]);
+  }, [previewReady, previewRows.length, courierHeaders.length, isPreviewExpanded]);
 
   /** 세 가지가 모두 있어야 미리보기 표시 (없을 때 안내 문구) */
   const invoicePreviewGateMessage = useMemo(() => {
