@@ -359,13 +359,19 @@ export default function OrderConvertPage() {
       return;
     }
 
+    // 한 번 전체 렌더링이 완료된 뒤에는
+    // 펼치기 닫기/정렬 변경 등으로 다시 100건 모드로 되돌리지 않습니다.
+    if (renderedRowCount >= totalRows) {
+      return;
+    }
+
     if (isPreviewExpanded) {
       setRenderedRowCount(totalRows);
       return;
     }
 
     setRenderedRowCount(Math.min(PREVIEW_BATCH_SIZE, totalRows));
-  }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
+  }, [previewRows.length, courierHeaders.length, isPreviewExpanded, renderedRowCount]);
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
 
