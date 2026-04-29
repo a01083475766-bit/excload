@@ -1821,42 +1821,44 @@ export default function OrderConvertPage() {
                   )}
                 </div>
 
-                {/* 기능 안내 문구 - 고정 위치 */}
+                {/* 기능 안내 문구 + 추가 조회 안내 (동일 시작점 정렬) */}
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <p className="text-sm text-gray-500 flex-1">
-                    ✔ 셀을 클릭하면 수정할 수 있습니다.  
-                    ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.  
-                    ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                  </p>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500">
+                      ✔ 셀을 클릭하면 수정할 수 있습니다.  
+                      ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.  
+                      ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+                    </p>
+                    {!isPreviewExpanded && (
+                      <div className="mt-1 flex items-center gap-2 text-xs text-blue-600">
+                        <span>
+                          총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
+                        </span>
+                        {hasMorePreviewRows && (
+                          <>
+                            <button
+                              className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                              onClick={() =>
+                                setRenderedRowCount((prev) =>
+                                  Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                                )
+                              }
+                            >
+                              추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
+                            </button>
+                            <button
+                              className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                              onClick={() => setRenderedRowCount(sortedRows.length)}
+                            >
+                              전체 보기
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                <div className="mt-1 ml-[240px] flex items-center gap-2 text-xs text-blue-600">
-                  <span>
-                    총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                  </span>
-                  {hasMorePreviewRows && (
-                    <>
-                      <button
-                        className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
-                        onClick={() =>
-                          setRenderedRowCount((prev) =>
-                            Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                          )
-                        }
-                      >
-                        추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                      </button>
-                      <button
-                        className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
-                        onClick={() => setRenderedRowCount(sortedRows.length)}
-                      >
-                        전체 보기
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
             {previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
