@@ -1404,7 +1404,13 @@ export default function InvoiceFileConvertPage() {
                 {invoicePreviewGateMessage ??
                   (fileProcessingStatus === 'processing'
                     ? '주문 데이터를 불러오는 중입니다…'
-                    : '변환된 데이터가 여기에 표시됩니다.')}
+                    : (
+                      <>
+                        변환된 주문 데이터가 여기에 표시됩니다.
+                        <br />
+                        파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                      </>
+                    ))}
               </div>
             ) : (
               <>

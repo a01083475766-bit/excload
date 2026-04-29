@@ -1826,10 +1826,12 @@ export default function OrderConvertPage() {
               </div>
             </div>
             {previewRows.length === 0 || courierHeaders.length === 0 ? (
-              <div className="min-h-[192px] flex items-center justify-center text-gray-400">
-                {fileProcessingStatus === 'processing'
-                  ? `파일 정보가 많아 정리 중입니다${processingDots} 잠시만 기다려주세요.`
-                  : '변환된 주문 데이터가 여기에 표시됩니다.'}
+              <div className="min-h-[192px] flex items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
+                <p>
+                  변환된 주문 데이터가 여기에 표시됩니다.
+                  <br />
+                  파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                </p>
               </div>
             ) : (
               <>
