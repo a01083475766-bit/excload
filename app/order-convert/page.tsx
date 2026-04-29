@@ -1922,7 +1922,10 @@ export default function OrderConvertPage() {
                 <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
                   isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
                 }`}>
+                  <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
+                  </div>
                   <div
+                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}
                     onMouseEnter={() => {
                       previewHoverPausedRef.current = true;
                     }}
@@ -1930,9 +1933,6 @@ export default function OrderConvertPage() {
                       previewHoverPausedRef.current = false;
                     }}
                   >
-                  <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
-                  </div>
-                  <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}>
                     <table className="min-w-max text-sm border border-gray-300 border-collapse">
                       <thead className="bg-gray-50 sticky top-0 z-20">
                         <tr>
@@ -2089,7 +2089,6 @@ export default function OrderConvertPage() {
                         })}
                       </tbody>
                     </table>
-                  </div>
                   </div>
                 </div>
               </>
