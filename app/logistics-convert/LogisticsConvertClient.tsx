@@ -993,8 +993,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   // 정렬은 대용량일 때 Worker로 오프로드
   const sortedRows = useWorkerSortedRows(previewRows, sortConfig, userOverrides);
 
-  // 대용량 미리보기에서 DOM 생성/스타일 계산 비용을 줄이기 위해
-  // 화면에는 일부 행만 먼저 렌더하고, 이후 천천히 추가 렌더합니다.
+  // 미리보기 초기 노출량 (대용량에서 첫 화면 체감 개선)
+  const PREVIEW_BATCH_SIZE = 100;
   const [renderedRowCount, setRenderedRowCount] = useState(0);
   const displayRows = useMemo(
     () => sortedRows.slice(0, renderedRowCount),
@@ -1008,35 +1008,21 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       return;
     }
 
+    // 한 번 전체 렌더링이 완료된 뒤에는
+    // 펼치기 닫기/정렬 변경 등으로 다시 100건 모드로 되돌리지 않습니다.
+    if (renderedRowCount >= totalRows) {
+      return;
+    }
+
     if (isPreviewExpanded) {
       setRenderedRowCount(totalRows);
       return;
     }
 
-    const baseChunk = totalRows >= 800 ? 40 : 60;
-    const initial = Math.min(baseChunk, totalRows);
-    setRenderedRowCount(initial);
+    setRenderedRowCount(Math.min(PREVIEW_BATCH_SIZE, totalRows));
+  }, [previewRows.length, courierHeaders.length, isPreviewExpanded, renderedRowCount]);
 
-    if (totalRows <= initial) return;
-
-    let cancelled = false;
-    let i = initial;
-
-    const tick = () => {
-      if (cancelled) return;
-      i = Math.min(i + baseChunk, totalRows);
-      setRenderedRowCount(i);
-      if (i < totalRows) {
-        setTimeout(tick, 30);
-      }
-    };
-
-    setTimeout(tick, 50);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
+  const hasMorePreviewRows = sortedRows.length > renderedRowCount;
 
   // fixedHeaderValues를 localStorage에 저장
   useEffect(() => {
@@ -3399,11 +3385,40 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   {!trialMode &&
                     previewRows.length > 0 &&
                     courierHeaders.length > 0 && (
-                      <p className="min-w-0 flex-1 text-sm text-gray-500">
-                        ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
-                        ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
-                        ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-gray-500">
+                          ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
+                          ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
+                          ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+                        </p>
+                        {!isPreviewExpanded && (
+                          <div className="mt-1 ml-6 flex items-center gap-2 text-xs text-blue-600">
+                            <span>
+                              총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
+                            </span>
+                            {hasMorePreviewRows && (
+                              <>
+                                <button
+                                  className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                                  onClick={() =>
+                                    setRenderedRowCount((prev) =>
+                                      Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                                    )
+                                  }
+                                >
+                                  추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
+                                </button>
+                                <button
+                                  className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                                  onClick={() => setRenderedRowCount(sortedRows.length)}
+                                >
+                                  전체 보기
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                 </div>
 
@@ -3418,6 +3433,33 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       <span className="mt-0.5 block">
                         ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.
                       </span>
+                      {!isPreviewExpanded && (
+                        <div className="mt-1 ml-6 flex items-center gap-2 text-xs text-blue-600">
+                          <span>
+                            총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
+                          </span>
+                          {hasMorePreviewRows && (
+                            <>
+                              <button
+                                className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                                onClick={() =>
+                                  setRenderedRowCount((prev) =>
+                                    Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                                  )
+                                }
+                              >
+                                추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
+                              </button>
+                              <button
+                                className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                                onClick={() => setRenderedRowCount(sortedRows.length)}
+                              >
+                                전체 보기
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
               </div>
