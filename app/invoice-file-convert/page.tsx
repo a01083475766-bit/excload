@@ -346,6 +346,46 @@ export default function InvoiceFileConvertPage() {
     });
   }, [previewRows, sortConfig, userOverrides]);
 
+  // 대용량 미리보기에서 DOM 생성/스타일 계산 비용을 줄이기 위해
+  // 처음엔 일부 행부터 보여주고, 이후 천천히 추가 렌더합니다.
+  const [renderedRowCount, setRenderedRowCount] = useState(0);
+  const displayRows = useMemo(
+    () => sortedRows.slice(0, renderedRowCount),
+    [sortedRows, renderedRowCount],
+  );
+
+  useEffect(() => {
+    if (!previewReady || !sortedRows || sortedRows.length === 0 || courierHeaders.length === 0) {
+      setRenderedRowCount(0);
+      return;
+    }
+
+    const baseChunk = sortedRows.length >= 800 ? 40 : 60;
+    const initial = Math.min(baseChunk, sortedRows.length);
+    setRenderedRowCount(initial);
+
+    if (sortedRows.length <= initial) return;
+
+    let cancelled = false;
+    let i = initial;
+
+    const tick = () => {
+      if (cancelled) return;
+      i = Math.min(i + baseChunk, sortedRows.length);
+      setRenderedRowCount(i);
+      if (i < sortedRows.length) {
+        // 브라우저에 프레임을 양보
+        setTimeout(tick, 30);
+      }
+    };
+
+    setTimeout(tick, 50);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previewReady, sortedRows, courierHeaders.length]);
+
   /** 세 가지가 모두 있어야 미리보기 표시 (없을 때 안내 문구) */
   const invoicePreviewGateMessage = useMemo(() => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !templateBridgeFile) {
@@ -985,6 +1025,10 @@ export default function InvoiceFileConvertPage() {
 
         setUploadedFileMeta((prev) => [{ name: file.name, size: file.size }, ...prev]);
         setConversionProgress(100);
+        // previewReady=true가 되는 순간 테이블이 0행부터 보이지 않게
+        // 초기 렌더 카운트를 먼저 잡아둡니다.
+        const baseChunk = stage3Result.previewRows.length >= 800 ? 40 : 60;
+        setRenderedRowCount(Math.min(baseChunk, stage3Result.previewRows.length));
         setPreviewReady(true);
         setFileProcessingStatus('idle');
       } else {
@@ -1542,7 +1586,7 @@ export default function InvoiceFileConvertPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedRows.map((row) => {
+                        {displayRows.map((row) => {
                           const isNewRow = newRows.has(row.rowId);
                           return (
                           <tr

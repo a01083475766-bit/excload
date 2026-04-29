@@ -363,6 +363,45 @@ export default function OrderConvertPage() {
     });
   }, [previewRows, sortConfig, userOverrides]);
 
+  // 대용량 미리보기에서 DOM 생성/스타일 계산 비용을 줄이기 위해
+  // 처음엔 일부 행만 렌더하고, 이후 천천히 추가 렌더합니다.
+  const [renderedRowCount, setRenderedRowCount] = useState(0);
+  const displayRows = useMemo(
+    () => sortedRows.slice(0, renderedRowCount),
+    [sortedRows, renderedRowCount],
+  );
+
+  useEffect(() => {
+    if (!previewRows || previewRows.length === 0 || courierHeaders.length === 0) {
+      setRenderedRowCount(0);
+      return;
+    }
+
+    const baseChunk = sortedRows.length >= 800 ? 40 : 60;
+    const initial = Math.min(baseChunk, sortedRows.length);
+    setRenderedRowCount(initial);
+
+    if (sortedRows.length <= initial) return;
+
+    let cancelled = false;
+    let i = initial;
+
+    const tick = () => {
+      if (cancelled) return;
+      i = Math.min(i + baseChunk, sortedRows.length);
+      setRenderedRowCount(i);
+      if (i < sortedRows.length) {
+        setTimeout(tick, 30);
+      }
+    };
+
+    setTimeout(tick, 50);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sortedRows, previewRows, courierHeaders.length]);
+
   // fixedHeaderValues를 localStorage에 저장
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1941,7 +1980,7 @@ export default function OrderConvertPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedRows.map((row) => {
+                        {displayRows.map((row) => {
                           const isNewRow = newRows.has(row.rowId);
                           return (
                           <tr
