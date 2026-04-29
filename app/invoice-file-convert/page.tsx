@@ -344,6 +344,42 @@ export default function InvoiceFileConvertPage() {
     });
   }, [previewRows, sortConfig, userOverrides]);
 
+  // 대용량 미리보기에서 한 번에 DOM을 만드는 비용을 줄이기 위해
+  // sortedRows를 청크 단위로 점진 렌더링합니다.
+  const [renderedRowCount, setRenderedRowCount] = useState(0);
+  const displayRows = useMemo(() => sortedRows.slice(0, renderedRowCount), [sortedRows, renderedRowCount]);
+
+  useEffect(() => {
+    if (!previewRows || previewRows.length === 0 || courierHeaders.length === 0) {
+      setRenderedRowCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    setRenderedRowCount(0);
+
+    const CHUNK_SIZE = 80; // 300~1,000행에서도 프레임 드랍을 줄이기 위한 적정치
+    let i = 0;
+
+    const tick = () => {
+      if (cancelled) return;
+      i += CHUNK_SIZE;
+      setRenderedRowCount(i);
+      if (i < sortedRows.length) {
+        // 브라우저에 숨 쉴 시간을 줍니다.
+        setTimeout(tick, 0);
+      }
+    };
+
+    // 첫 렌더 지연 방지
+    setTimeout(tick, 0);
+
+    return () => {
+      cancelled = true;
+    };
+    // sortedRows는 정렬/미리보기 변경에 따라 바뀌므로 의존성에 포함합니다.
+  }, [sortedRows, previewRows, courierHeaders.length]);
+
   /** 세 가지가 모두 있어야 미리보기 표시 (없을 때 안내 문구) */
   const invoicePreviewGateMessage = useMemo(() => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !templateBridgeFile) {
@@ -1520,7 +1556,7 @@ export default function InvoiceFileConvertPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedRows.map((row) => {
+                        {displayRows.map((row) => {
                           const isNewRow = newRows.has(row.rowId);
                           return (
                           <tr

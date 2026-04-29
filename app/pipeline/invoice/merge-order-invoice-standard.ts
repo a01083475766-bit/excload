@@ -14,9 +14,13 @@ import type { OrderStandardFile } from '@/app/pipeline/order/order-pipeline';
 
 const JOIN_HEADER = '주문번호';
 const FALLBACK_JOIN_HEADER = '상품주문번호';
+const PERSONAL_MATCH_MIN_SCORE = 80;
 
 /** 송장 엑셀에서만 덮어쓸 기준헤더 (주문 원본 유지) */
 const OVERLAY_FROM_INVOICE_HEADERS = new Set<string>(['운송장번호']);
+const NAME_HEADERS = ['받는사람'];
+const PHONE_HEADERS = ['받는사람전화1', '받는사람전화2', '주문자연락처'];
+const ADDRESS_HEADERS = ['받는사람주소1', '받는사람주소2'];
 
 export function normalizeJoinKey(value: string | undefined | null): string {
   const raw = String(value ?? '').trim();
@@ -56,18 +60,98 @@ export function mergeStandardRowPair(
  * 송장 쪽 행을 주문번호로 인덱싱 (동일 키 여러 행 허용)
  */
 function buildInvoiceRowsByOrderKey(
-  invoiceRows: Record<string, string>[],
+  invoiceRows: Array<{ row: Record<string, string>; idx: number }>,
   joinHeader: string,
-): Map<string, Record<string, string>[]> {
-  const map = new Map<string, Record<string, string>[]>();
-  for (const row of invoiceRows) {
-    const key = normalizeJoinKey(row[joinHeader]);
+): Map<string, Array<{ row: Record<string, string>; idx: number }>> {
+  const map = new Map<string, Array<{ row: Record<string, string>; idx: number }>>();
+  for (const entry of invoiceRows) {
+    const key = normalizeJoinKey(entry.row[joinHeader]);
     if (!key) continue;
     const list = map.get(key) ?? [];
-    list.push(row);
+    list.push(entry);
     map.set(key, list);
   }
   return map;
+}
+
+function pickFirstNonEmpty(
+  row: Record<string, string>,
+  headers: readonly string[],
+): string {
+  for (const h of headers) {
+    const v = String(row[h] ?? '').trim();
+    if (v) return v;
+  }
+  return '';
+}
+
+function normalizeName(value: string): string {
+  return String(value ?? '').trim().replace(/\s+/g, '').toUpperCase();
+}
+
+function normalizePhone(value: string): string {
+  return String(value ?? '').replace(/\D+/g, '');
+}
+
+function normalizeAddress(value: string): string {
+  return String(value ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^\w가-힣]/g, '');
+}
+
+function scorePersonalMatch(
+  orderRow: Record<string, string>,
+  invoiceRow: Record<string, string>,
+): number {
+  const orderName = normalizeName(pickFirstNonEmpty(orderRow, NAME_HEADERS));
+  const invName = normalizeName(pickFirstNonEmpty(invoiceRow, NAME_HEADERS));
+  const orderPhone = normalizePhone(pickFirstNonEmpty(orderRow, PHONE_HEADERS));
+  const invPhone = normalizePhone(pickFirstNonEmpty(invoiceRow, PHONE_HEADERS));
+  const orderAddr = normalizeAddress(pickFirstNonEmpty(orderRow, ADDRESS_HEADERS));
+  const invAddr = normalizeAddress(pickFirstNonEmpty(invoiceRow, ADDRESS_HEADERS));
+
+  let score = 0;
+  if (orderPhone && invPhone && orderPhone === invPhone) score += 50;
+  if (orderName && invName && orderName === invName) score += 25;
+  if (
+    orderAddr &&
+    invAddr &&
+    (orderAddr === invAddr || orderAddr.includes(invAddr) || invAddr.includes(orderAddr))
+  ) {
+    score += 25;
+  }
+  return score;
+}
+
+function findBestPersonalMatch(
+  orderRow: Record<string, string>,
+  invoiceRows: Array<{ row: Record<string, string>; idx: number }>,
+  usedInvoiceIdx: Set<number>,
+): { row: Record<string, string>; idx: number } | null {
+  let best: { row: Record<string, string>; idx: number } | null = null;
+  let bestScore = -1;
+  let bestCount = 0;
+
+  for (const entry of invoiceRows) {
+    if (usedInvoiceIdx.has(entry.idx)) continue;
+    const score = scorePersonalMatch(orderRow, entry.row);
+    if (score < PERSONAL_MATCH_MIN_SCORE) continue;
+
+    if (score > bestScore) {
+      best = entry;
+      bestScore = score;
+      bestCount = 1;
+      continue;
+    }
+    if (score === bestScore) {
+      bestCount += 1;
+    }
+  }
+
+  // 동점 후보가 여러 개인 경우는 오매핑 위험 때문에 자동 매칭하지 않음
+  if (!best || bestCount > 1) return null;
+  return best;
 }
 
 function countIntersectKeys(
@@ -115,22 +199,36 @@ export function mergeOrderAndInvoiceStandardFiles(
   invoiceFile: OrderStandardFile,
 ): OrderStandardFile {
   const baseHeaders = orderFile.baseHeaders;
+  const invoiceEntries = invoiceFile.rows.map((row, idx) => ({ row, idx }));
   const joinHeader = selectJoinHeader(orderFile.rows, invoiceFile.rows);
-  const invoiceByKey = buildInvoiceRowsByOrderKey(invoiceFile.rows, joinHeader);
+  const invoiceByKey = buildInvoiceRowsByOrderKey(invoiceEntries, joinHeader);
+  const usedInvoiceIdx = new Set<number>();
 
   const mergedRows: Record<string, string>[] = [];
 
   for (const orderRow of orderFile.rows) {
     const key = normalizeJoinKey(orderRow[joinHeader]);
-    const matches = key ? invoiceByKey.get(key) : undefined;
+    const keyMatches = key ? invoiceByKey.get(key) : undefined;
+    const matches =
+      keyMatches && keyMatches.length > 0
+        ? keyMatches
+        : (() => {
+            const personal = findBestPersonalMatch(
+              orderRow,
+              invoiceEntries,
+              usedInvoiceIdx,
+            );
+            return personal ? [personal] : undefined;
+          })();
 
     if (!matches || matches.length === 0) {
       mergedRows.push({ ...orderRow });
       continue;
     }
 
-    for (const invRow of matches) {
-      mergedRows.push(mergeStandardRowPair(orderRow, invRow, baseHeaders));
+    for (const m of matches) {
+      usedInvoiceIdx.add(m.idx);
+      mergedRows.push(mergeStandardRowPair(orderRow, m.row, baseHeaders));
     }
   }
 

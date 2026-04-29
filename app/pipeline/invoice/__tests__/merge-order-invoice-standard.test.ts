@@ -69,3 +69,63 @@ test('주문번호가 비어 있어도 상품주문번호가 일치하면 송장
   assert.equal(m.rows.length, 1);
   assert.equal(m.rows[0].운송장번호, '9988776655');
 });
+
+test('번호 키가 없어도 받는사람+전화+주소가 일치하면 보조 매칭', () => {
+  const order = ofile([
+    {
+      주문번호: '',
+      상품주문번호: '',
+      받는사람: '홍길동',
+      받는사람전화1: '010-1111-2222',
+      받는사람주소1: '서울시 강남구 테헤란로 1',
+      운송장번호: '',
+    } as Record<string, string>,
+  ]);
+  const inv = ofile([
+    {
+      주문번호: '',
+      상품주문번호: '',
+      받는사람: '홍 길 동',
+      받는사람전화1: '01011112222',
+      받는사람주소1: '서울시강남구테헤란로1',
+      운송장번호: 'A-TRACK-1',
+    } as Record<string, string>,
+  ]);
+
+  const m = mergeOrderAndInvoiceStandardFiles(order, inv);
+  assert.equal(m.rows[0].운송장번호, 'A-TRACK-1');
+});
+
+test('보조 매칭 동점 후보가 2개면 자동 매칭하지 않음', () => {
+  const order = ofile([
+    {
+      주문번호: '',
+      상품주문번호: '',
+      받는사람: '김민수',
+      받는사람전화1: '010-2222-3333',
+      받는사람주소1: '경기도 성남시 분당구',
+      운송장번호: '',
+    } as Record<string, string>,
+  ]);
+  const inv = ofile([
+    {
+      주문번호: '',
+      상품주문번호: '',
+      받는사람: '김민수',
+      받는사람전화1: '01022223333',
+      받는사람주소1: '경기도성남시분당구',
+      운송장번호: 'TRACK-1',
+    } as Record<string, string>,
+    {
+      주문번호: '',
+      상품주문번호: '',
+      받는사람: '김민수',
+      받는사람전화1: '01022223333',
+      받는사람주소1: '경기도성남시분당구',
+      운송장번호: 'TRACK-2',
+    } as Record<string, string>,
+  ]);
+
+  const m = mergeOrderAndInvoiceStandardFiles(order, inv);
+  assert.equal(m.rows[0].운송장번호, '');
+});
