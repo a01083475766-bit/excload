@@ -1831,7 +1831,7 @@ export default function OrderConvertPage() {
                 )}
               </div>
               {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
+                <div className="mt-1 ml-[180px] flex items-center gap-2 text-xs text-gray-600">
                   <span>
                     총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
                   </span>
