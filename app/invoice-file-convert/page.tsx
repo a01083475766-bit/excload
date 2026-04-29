@@ -281,6 +281,7 @@ export default function InvoiceFileConvertPage() {
     rowId: string;
     header: string;
   } | null>(null);
+  const [editingValue, setEditingValue] = useState('');
   const [newRows, setNewRows] = useState<Set<string>>(new Set());
   const [isDraggingOrder, setIsDraggingOrder] = useState(false);
   const [isDraggingCourier, setIsDraggingCourier] = useState(false);
@@ -372,6 +373,16 @@ export default function InvoiceFileConvertPage() {
   }, [previewReady, previewRows.length, courierHeaders.length, isPreviewExpanded, renderedRowCount]);
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
+
+  const commitCellEdit = (rowId: string, header: string, value: string) => {
+    setUserOverrides(prev => ({
+      ...prev,
+      [rowId]: {
+        ...prev[rowId],
+        [header]: value,
+      },
+    }));
+  };
 
   /** 세 가지가 모두 있어야 미리보기 표시 (없을 때 안내 문구) */
   const invoicePreviewGateMessage = useMemo(() => {
@@ -1673,18 +1684,20 @@ export default function InvoiceFileConvertPage() {
                                       autoFocus
                                       className="w-full h-full border-0 p-0 bg-transparent outline-none text-sm"
                                       style={{ minHeight: '1.25rem' }}
-                                      value={displayValue}
-                                      onChange={(e) => {
-                                        const newValue = e.target.value;
-                                        setUserOverrides(prev => ({
-                                          ...prev,
-                                          [row.rowId]: {
-                                            ...prev[row.rowId],
-                                            [header]: newValue
-                                          }
-                                        }));
+                                      value={editingValue}
+                                      onChange={(e) => setEditingValue(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          commitCellEdit(row.rowId, header, editingValue);
+                                          setEditingCell(null);
+                                          setActiveCell(null);
+                                        } else if (e.key === 'Escape') {
+                                          setEditingCell(null);
+                                          setActiveCell(null);
+                                        }
                                       }}
                                       onBlur={() => {
+                                        commitCellEdit(row.rowId, header, editingValue);
                                         setEditingCell(null);
                                         setActiveCell(null);
                                       }}
@@ -1702,6 +1715,7 @@ export default function InvoiceFileConvertPage() {
                                     isActiveCell ? 'bg-yellow-100' : ''
                                   }`}
                                   onClick={() => {
+                                    setEditingValue(displayValue);
                                     setActiveCell({ rowId: row.rowId, header });
                                     setEditingCell({ rowId: row.rowId, header });
                                   }}
