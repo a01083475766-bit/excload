@@ -1830,7 +1830,7 @@ export default function OrderConvertPage() {
                       ✔ 체크박스로 선택 후 삭제할 수 있습니다.
                     </p>
                     {!isPreviewExpanded && (
-                      <div className="mt-1 flex items-center gap-2 text-xs text-blue-600">
+                      <div className="mt-1 ml-6 flex items-center gap-2 text-xs text-blue-600">
                         <span>
                           총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
                         </span>
