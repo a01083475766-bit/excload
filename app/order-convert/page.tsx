@@ -344,15 +344,13 @@ export default function OrderConvertPage() {
   // 정렬은 대용량일 때 Worker로 오프로드
   const sortedRows = useWorkerSortedRows(previewRows, sortConfig, userOverrides);
 
-  // 대용량 미리보기에서 DOM 생성/스타일 계산 비용을 줄이기 위해
-  // 처음엔 일부 행만 렌더하고, 이후 천천히 추가 렌더합니다.
+  // 미리보기 초기 노출량 (대용량에서 첫 화면 체감 개선)
+  const PREVIEW_BATCH_SIZE = 100;
   const [renderedRowCount, setRenderedRowCount] = useState(0);
   const displayRows = useMemo(
     () => sortedRows.slice(0, renderedRowCount),
     [sortedRows, renderedRowCount],
   );
-
-  const previewHoverPausedRef = useRef(false);
 
   useEffect(() => {
     const totalRows = previewRows.length;
@@ -366,34 +364,10 @@ export default function OrderConvertPage() {
       return;
     }
 
-    const baseChunk = totalRows >= 800 ? 40 : 60;
-    const initial = Math.min(baseChunk, totalRows);
-    setRenderedRowCount(initial);
-
-    if (totalRows <= initial) return;
-
-    let cancelled = false;
-    let i = initial;
-
-    const tick = () => {
-      if (cancelled) return;
-    if (previewHoverPausedRef.current) {
-      setTimeout(tick, 100);
-      return;
-    }
-      i = Math.min(i + baseChunk, totalRows);
-      setRenderedRowCount(i);
-      if (i < totalRows) {
-        setTimeout(tick, 30);
-      }
-    };
-
-    setTimeout(tick, 50);
-
-    return () => {
-      cancelled = true;
-    };
+    setRenderedRowCount(Math.min(PREVIEW_BATCH_SIZE, totalRows));
   }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
+
+  const hasMorePreviewRows = sortedRows.length > renderedRowCount;
 
   // fixedHeaderValues를 localStorage에 저장
   useEffect(() => {
@@ -1856,6 +1830,33 @@ export default function OrderConvertPage() {
                   </p>
                 )}
               </div>
+              {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
+                <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
+                  <span>
+                    총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
+                  </span>
+                  {hasMorePreviewRows && (
+                    <>
+                      <button
+                        className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                        onClick={() =>
+                          setRenderedRowCount((prev) =>
+                            Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                          )
+                        }
+                      >
+                        추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
+                      </button>
+                      <button
+                        className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                        onClick={() => setRenderedRowCount(sortedRows.length)}
+                      >
+                        전체 보기
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             {previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
@@ -1911,15 +1912,7 @@ export default function OrderConvertPage() {
                 }`}>
                   <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
                   </div>
-                  <div
-                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}
-                    onMouseEnter={() => {
-                      previewHoverPausedRef.current = true;
-                    }}
-                    onMouseLeave={() => {
-                      previewHoverPausedRef.current = false;
-                    }}
-                  >
+                  <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}>
                     <table className="min-w-max text-sm border border-gray-300 border-collapse">
                       <thead className="bg-gray-50 sticky top-0 z-20">
                         <tr>
