@@ -1038,18 +1038,14 @@ export default function InvoiceFileConvertPage() {
 
         setUploadedFileMeta((prev) => [{ name: file.name, size: file.size }, ...prev]);
         setConversionProgress(100);
-        // 테스트용: 미리보기를 10초 후에 한 번에 열어서
-        // "미리보기 진입 시점"의 버벅임/깜빡임 원인을 분리합니다.
         const baseChunk = stage3Result.previewRows.length >= 800 ? 40 : 60;
         setRenderedRowCount(Math.min(baseChunk, stage3Result.previewRows.length));
-        setPreviewReady(false);
         if (previewRevealTimeoutRef.current) {
           window.clearTimeout(previewRevealTimeoutRef.current);
+          previewRevealTimeoutRef.current = null;
         }
-        previewRevealTimeoutRef.current = window.setTimeout(() => {
-          setPreviewReady(true);
-          setFileProcessingStatus('idle');
-        }, 10000);
+        setPreviewReady(true);
+        setFileProcessingStatus('idle');
       } else {
         console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
         if (previewRevealTimeoutRef.current) {
