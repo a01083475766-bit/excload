@@ -289,6 +289,8 @@ export default function InvoiceFileConvertPage() {
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "processing" | "done">("idle");
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
+  const [previewReady, setPreviewReady] = useState(false);
+  const [conversionProgress, setConversionProgress] = useState(0);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [processingDots, setProcessingDots] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -344,48 +346,6 @@ export default function InvoiceFileConvertPage() {
     });
   }, [previewRows, sortConfig, userOverrides]);
 
-  // 대용량 미리보기에서 한 번에 DOM을 만드는 비용을 줄이기 위해
-  // sortedRows를 청크 단위로 점진 렌더링합니다.
-  const [renderedRowCount, setRenderedRowCount] = useState(0);
-  const displayRows = useMemo(() => sortedRows.slice(0, renderedRowCount), [sortedRows, renderedRowCount]);
-
-  useEffect(() => {
-    if (!previewRows || previewRows.length === 0 || courierHeaders.length === 0) {
-      setRenderedRowCount(0);
-      return;
-    }
-
-    let cancelled = false;
-
-    const CHUNK_SIZE = 80; // 300~1,000행에서도 프레임 드랍을 줄이기 위한 적정치
-    let i = Math.min(CHUNK_SIZE, sortedRows.length);
-    setRenderedRowCount(i);
-
-    if (sortedRows.length <= CHUNK_SIZE) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const tick = () => {
-      if (cancelled) return;
-      i += CHUNK_SIZE;
-      setRenderedRowCount(Math.min(i, sortedRows.length));
-      if (i < sortedRows.length) {
-        // 브라우저에 숨 쉴 시간을 줍니다.
-        setTimeout(tick, 0);
-      }
-    };
-
-    // 첫 렌더 직후 다음 청크를 계속 채웁니다.
-    setTimeout(tick, 0);
-
-    return () => {
-      cancelled = true;
-    };
-    // sortedRows는 정렬/미리보기 변경에 따라 바뀌므로 의존성에 포함합니다.
-  }, [sortedRows, previewRows, courierHeaders.length]);
-
   /** 세 가지가 모두 있어야 미리보기 표시 (없을 때 안내 문구) */
   const invoicePreviewGateMessage = useMemo(() => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !templateBridgeFile) {
@@ -438,6 +398,8 @@ export default function InvoiceFileConvertPage() {
     // 기존 변환 결과 초기화
     setPreviewRows([]);
     setCourierHeaders([]);
+    setPreviewReady(false);
+    setConversionProgress(0);
   }, [templateBridgeFile]);
 
   // 점 애니메이션 처리 (파일 처리용)
@@ -911,6 +873,14 @@ export default function InvoiceFileConvertPage() {
     }
 
     setFileProcessingStatus('processing');
+    setPreviewReady(false);
+    setConversionProgress(5);
+    setPreviewRows([]);
+    setCourierHeaders([]);
+    setSelectedRows([]);
+    setNewRows(new Set());
+    setUserOverrides({});
+    setUnknownHeadersWarning([]);
     setInputSourceType('excel');
 
     const newOrderSessionId = crypto.randomUUID();
@@ -973,10 +943,7 @@ export default function InvoiceFileConvertPage() {
 
       const stage2Merged = mergeOrderAndInvoiceStandardFiles(orderStage2, invoiceStage2);
 
-      setFileProcessingStatus('done');
-      setTimeout(() => {
-        setFileProcessingStatus('idle');
-      }, 1500);
+      setConversionProgress(70);
 
       if (stage2Merged.unknownHeaders?.length > 0) {
         setUnknownHeadersWarning(stage2Merged.unknownHeaders);
@@ -988,19 +955,20 @@ export default function InvoiceFileConvertPage() {
 
       const bridgeNow = templateBridgeFileRef.current;
       if (bridgeNow) {
+        setConversionProgress(85);
         const stage3Result = await runMergePipeline(bridgeNow, stage2Merged, fixedHeaderValues);
 
         const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
-        setPreviewRows((prev) => [
-          ...stage3Result.previewRows.map((row, index) => ({
+        setConversionProgress(95);
+        setPreviewRows(
+          stage3Result.previewRows.map((row, index) => ({
             rowId: newRowIds[index],
             data: row,
           })),
-          ...prev,
-        ]);
+        );
 
-        setNewRows((prev) => {
-          const updated = new Set(prev);
+        setNewRows(() => {
+          const updated = new Set<string>();
           newRowIds.forEach((id) => updated.add(id));
           return updated;
         });
@@ -1016,8 +984,14 @@ export default function InvoiceFileConvertPage() {
         setCourierHeaders(stage3Result.courierHeaders);
 
         setUploadedFileMeta((prev) => [{ name: file.name, size: file.size }, ...prev]);
+        setConversionProgress(100);
+        setPreviewReady(true);
+        setFileProcessingStatus('idle');
       } else {
         console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
+        setPreviewReady(false);
+        setConversionProgress(0);
+        setFileProcessingStatus('idle');
       }
 
       if (typeof window !== 'undefined') {
@@ -1031,6 +1005,8 @@ export default function InvoiceFileConvertPage() {
     } catch (err) {
       console.error('[InvoiceFileConvertPage] 주문 엑셀 처리 오류:', err);
       alert(err instanceof Error ? err.message : '주문 파일 처리 중 오류가 발생했습니다.');
+      setPreviewReady(false);
+      setConversionProgress(0);
       setFileProcessingStatus('idle');
     }
   };
@@ -1441,11 +1417,15 @@ export default function InvoiceFileConvertPage() {
                 )}
               </div>
             </div>
-            {previewRows.length === 0 || courierHeaders.length === 0 ? (
+            {!previewReady || previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center text-gray-400 px-4 text-center text-sm leading-relaxed">
                 {invoicePreviewGateMessage ??
                   (fileProcessingStatus === 'processing'
-                    ? '주문 데이터를 불러오는 중입니다…'
+                    ? (
+                      <>
+                        변환 중입니다… ({conversionProgress}%)
+                      </>
+                    )
                     : (
                       <>
                         변환된 주문 데이터가 여기에 표시됩니다.
@@ -1562,7 +1542,7 @@ export default function InvoiceFileConvertPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {displayRows.map((row) => {
+                        {sortedRows.map((row) => {
                           const isNewRow = newRows.has(row.rowId);
                           return (
                           <tr
