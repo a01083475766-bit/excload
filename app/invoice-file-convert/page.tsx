@@ -356,22 +356,28 @@ export default function InvoiceFileConvertPage() {
     }
 
     let cancelled = false;
-    setRenderedRowCount(0);
 
     const CHUNK_SIZE = 80; // 300~1,000행에서도 프레임 드랍을 줄이기 위한 적정치
-    let i = 0;
+    let i = Math.min(CHUNK_SIZE, sortedRows.length);
+    setRenderedRowCount(i);
+
+    if (sortedRows.length <= CHUNK_SIZE) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const tick = () => {
       if (cancelled) return;
       i += CHUNK_SIZE;
-      setRenderedRowCount(i);
+      setRenderedRowCount(Math.min(i, sortedRows.length));
       if (i < sortedRows.length) {
         // 브라우저에 숨 쉴 시간을 줍니다.
         setTimeout(tick, 0);
       }
     };
 
-    // 첫 렌더 지연 방지
+    // 첫 렌더 직후 다음 청크를 계속 채웁니다.
     setTimeout(tick, 0);
 
     return () => {
