@@ -119,6 +119,12 @@ export const authOptions: NextAuthOptions = {
                 password: 'test1234',
                 name: 'Test User',
               },
+              {
+                id: 'seed-test-a1234',
+                email: 'a1234@naver.com',
+                password: '123456',
+                name: 'Test Account',
+              },
             ];
 
             const testUser = testUsers.find(
