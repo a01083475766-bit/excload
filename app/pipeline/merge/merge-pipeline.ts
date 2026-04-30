@@ -16,10 +16,11 @@
 
 import type { TemplateBridgeFile } from '../template/types';
 import type { OrderStandardFile } from '../order/order-pipeline';
-import type { FixedInput, PreviewRow, MergePipelineResult } from './types';
+import type { PreviewRow, MergePipelineResult, RunMergePipelineParams } from './types';
 import { applyFillOnly } from './apply-fill-only';
 import { sanitizeDeliveryMessage } from './sanitize-delivery-message';
 import { validateMergeInputs, validatePreviewRow, logValidationResult, throwIfInvalid } from '../utils/validation';
+import { mergeOrderAndInvoiceStandardFiles } from '../invoice/merge-order-invoice-standard';
 
 /**
  * Merge Pipeline을 실행합니다.
@@ -28,29 +29,40 @@ import { validateMergeInputs, validatePreviewRow, logValidationResult, throwIfIn
  * 2. rows 반복하여 PreviewRow 생성
  * 3. PreviewRow 배열 반환
  * 
- * @param bridgeFile - TemplateBridgeFile (Stage1 출력)
- * @param orderFile - OrderStandardFile (Stage2 출력)
- * @param fixedInput - FixedInput (고정 입력값)
+ * @param params - Stage3 실행 파라미터
  * @returns MergePipelineResult
  * 
  * @example
  * ```typescript
- * const result = await runMergePipeline(bridgeFile, orderFile, fixedInput);
+ * const result = await runMergePipeline({
+ *   template: bridgeFile,
+ *   orderData: orderFile,
+ *   fixedInput,
+ *   invoiceData: invoiceFile,
+ * });
  * // result.courierHeaders: 택배사 헤더 배열
  * // result.previewRows: 미리보기 행 데이터 배열
  * ```
  */
-export async function runMergePipeline(
-  bridgeFile: TemplateBridgeFile,
-  orderFile: OrderStandardFile,
-  fixedInput: FixedInput
-): Promise<MergePipelineResult> {
+export async function runMergePipeline({
+  template,
+  orderData,
+  fixedInput,
+  invoiceData,
+}: RunMergePipelineParams): Promise<MergePipelineResult> {
+  // Stage 경계 고정:
+  // - Stage2: 파일별 표준화까지만 수행
+  // - Stage3: 주문/송장 병합 + 템플릿 매핑을 단일 책임으로 처리
+  const stage3Source = invoiceData
+    ? mergeOrderAndInvoiceStandardFiles(orderData, invoiceData)
+    : orderData;
+
   // 0. 입력 통합 검증 체크포인트
-  const inputValidation = validateMergeInputs(bridgeFile, orderFile, fixedInput);
+  const inputValidation = validateMergeInputs(template, stage3Source, fixedInput);
   logValidationResult(inputValidation, 'Stage3 Merge Pipeline - Input');
   throwIfInvalid(inputValidation, 'Stage3 Merge Pipeline - Input');
   
-  const { courierHeaders, mappedBaseHeaders } = bridgeFile;
+  const { courierHeaders, mappedBaseHeaders } = template;
   
   // STEP 1. 입력 검증
   if (courierHeaders.length !== mappedBaseHeaders.length) {
@@ -62,8 +74,8 @@ export async function runMergePipeline(
   // STEP 2. rows 반복하여 PreviewRow 생성
   const previewRows: PreviewRow[] = [];
   
-  for (let rowIndex = 0; rowIndex < orderFile.rows.length; rowIndex++) {
-    const standardRow = orderFile.rows[rowIndex];
+  for (let rowIndex = 0; rowIndex < stage3Source.rows.length; rowIndex++) {
+    const standardRow = stage3Source.rows[rowIndex];
     const previewRow: PreviewRow = {};
     
     // courierHeaders 순서대로 반복

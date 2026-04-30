@@ -2677,11 +2677,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     
     // Stage3 실행 (handleExcelUpload 내부에서만 실행)
     if (templateBridgeFile) {
-      const stage3Result = await runMergePipeline(
-        templateBridgeFile,
-        stage2Result,     // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
-        fixedHeaderValues
-      );
+      const stage3Result = await runMergePipeline({
+        template: templateBridgeFile,
+        orderData: stage2Result, // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
+        fixedInput: fixedHeaderValues,
+      });
 
       try {
         const pcccCourierHeader =

@@ -1290,11 +1290,11 @@ export default function OrderConvertPage() {
     
     // Stage3 실행 (handleExcelUpload 내부에서만 실행)
     if (templateBridgeFile) {
-      const stage3Result = await runMergePipeline(
-        templateBridgeFile,
-        stage2Result,     // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
-        fixedHeaderValues
-      );
+      const stage3Result = await runMergePipeline({
+        template: templateBridgeFile,
+        orderData: stage2Result, // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
+        fixedInput: fixedHeaderValues,
+      });
 
       // 디버그: 개인통관번호(PCCC) 값이 Stage3 미리보기(=previewRows)로도 넘어오는지 확인
       try {

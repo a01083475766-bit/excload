@@ -20,7 +20,6 @@ import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 import { runMergePipeline } from '@/app/pipeline/merge/merge-pipeline';
 import type { PreviewRow } from '@/app/pipeline/merge/types';
 import type { OrderStandardFile } from '@/app/pipeline/order/order-pipeline';
-import { mergeOrderAndInvoiceStandardFiles } from '@/app/pipeline/invoice/merge-order-invoice-standard';
 import * as XLSX from 'xlsx';
 import {
   alignRowsFromHeader,
@@ -987,22 +986,30 @@ export default function InvoiceFileConvertPage() {
       const orderStage2 = (await orderResponse.json()) as OrderStandardFile;
       const invoiceStage2 = (await invoiceResponse.json()) as OrderStandardFile;
 
-      const stage2Merged = mergeOrderAndInvoiceStandardFiles(orderStage2, invoiceStage2);
+      const combinedUnknownHeaders = [
+        ...new Set([...(orderStage2.unknownHeaders ?? []), ...(invoiceStage2.unknownHeaders ?? [])]),
+      ];
 
       setConversionProgress(70);
 
-      if (stage2Merged.unknownHeaders?.length > 0) {
-        setUnknownHeadersWarning(stage2Merged.unknownHeaders);
+      if (combinedUnknownHeaders.length > 0) {
+        setUnknownHeadersWarning(combinedUnknownHeaders);
       } else {
         setUnknownHeadersWarning([]);
       }
 
-      setOrderStandardFile(stage2Merged);
+      // Stage2에는 파일별 표준화 결과만 유지합니다.
+      setOrderStandardFile(orderStage2);
 
       const bridgeNow = templateBridgeFileRef.current;
       if (bridgeNow) {
         setConversionProgress(85);
-        const stage3Result = await runMergePipeline(bridgeNow, stage2Merged, fixedHeaderValues);
+        const stage3Result = await runMergePipeline({
+          template: bridgeNow,
+          orderData: orderStage2,
+          fixedInput: fixedHeaderValues,
+          invoiceData: invoiceStage2,
+        });
 
         const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
         setConversionProgress(95);
@@ -1051,7 +1058,7 @@ export default function InvoiceFileConvertPage() {
       }
 
       if (typeof window !== 'undefined') {
-        (window as any).__lastOrderResult = stage2Merged;
+        (window as any).__lastOrderResult = orderStage2;
         (window as any).__lastOrderFile = file.name;
         (window as any).__lastInvoiceMerge = {
           orderFile: file.name,

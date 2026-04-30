@@ -1,3 +1,6 @@
+import type { TemplateBridgeFile } from '../template/types';
+import type { OrderStandardFile } from '../order/order-pipeline';
+
 /**
  * EXCLOAD Merge Pipeline 타입 정의
  * 
@@ -36,4 +39,17 @@ export interface MergePipelineResult {
   
   /** 미리보기 행 데이터 배열 */
   previewRows: PreviewRow[];
+}
+
+/**
+ * Stage3 Merge Pipeline 입력 파라미터
+ *
+ * - orderData: Stage2 주문 표준화 결과 (필수)
+ * - invoiceData: Stage2 송장 표준화 결과 (선택)
+ */
+export interface RunMergePipelineParams {
+  template: TemplateBridgeFile;
+  orderData: OrderStandardFile;
+  fixedInput: FixedInput;
+  invoiceData?: OrderStandardFile;
 }

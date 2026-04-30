@@ -123,11 +123,11 @@ export async function runUnifiedInputOrderPipelines(
     }
   }
 
-  const mergeResult = await runMergePipeline(
-    templateBridgeFile,
-    orderStandardFile,
-    fixedInput
-  );
+  const mergeResult = await runMergePipeline({
+    template: templateBridgeFile,
+    orderData: orderStandardFile,
+    fixedInput,
+  });
 
   return {
     orderStandardFile,
