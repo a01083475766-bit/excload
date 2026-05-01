@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2 } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
@@ -328,6 +328,7 @@ export default function OrderConvertPage() {
   /** 텍스트 변환 중복 클릭·사용량 차감 이중 호출 방지 (await 전에 state가 안 올라가는 레이스 대비) */
   const textConvertInFlightRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
   const isCancelledRef = useRef<boolean>(false);
   const previewRowsRef = useRef<PreviewRowWithId[]>([]);
@@ -349,10 +350,30 @@ export default function OrderConvertPage() {
   // 미리보기 초기 노출량 (대용량에서 첫 화면 체감 개선)
   const PREVIEW_BATCH_SIZE = 100;
   const [renderedRowCount, setRenderedRowCount] = useState(0);
+  const VIRTUAL_ROW_HEIGHT = 30;
+  const VIRTUAL_OVERSCAN = 8;
+  const [previewScrollTop, setPreviewScrollTop] = useState(0);
+  const [previewViewportHeight, setPreviewViewportHeight] = useState(260);
   const displayRows = useMemo(
     () => sortedRows.slice(0, renderedRowCount),
     [sortedRows, renderedRowCount],
   );
+  const visibleRowCount = Math.max(
+    1,
+    Math.ceil(previewViewportHeight / VIRTUAL_ROW_HEIGHT) + VIRTUAL_OVERSCAN * 2,
+  );
+  const virtualStartIndex = Math.min(
+    Math.max(0, displayRows.length - visibleRowCount),
+    Math.max(0, Math.floor(previewScrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN),
+  );
+  const virtualEndIndex = Math.min(displayRows.length, virtualStartIndex + visibleRowCount);
+  const virtualRows = useMemo(
+    () => displayRows.slice(virtualStartIndex, virtualEndIndex),
+    [displayRows, virtualStartIndex, virtualEndIndex],
+  );
+  const virtualTopSpacerHeight = virtualStartIndex * VIRTUAL_ROW_HEIGHT;
+  const virtualBottomSpacerHeight =
+    (displayRows.length - virtualEndIndex) * VIRTUAL_ROW_HEIGHT;
 
   useEffect(() => {
     const totalRows = previewRows.length;
@@ -376,6 +397,23 @@ export default function OrderConvertPage() {
   }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
+
+  const handlePreviewScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
+    setPreviewScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  useEffect(() => {
+    const node = previewScrollContainerRef.current;
+    if (!node) return;
+
+    const syncViewport = () => {
+      setPreviewViewportHeight(node.clientHeight || 260);
+    };
+
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, [isPreviewExpanded, displayRows.length, courierHeaders.length]);
 
   const commitCellEdit = useCallback((rowId: string, header: string, value: string) => {
     setUserOverrides((prev) => {
@@ -1961,7 +1999,11 @@ export default function OrderConvertPage() {
                 }`}>
                   <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
                   </div>
-                  <div className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}>
+                  <div
+                    ref={previewScrollContainerRef}
+                    onScroll={handlePreviewScroll}
+                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}
+                  >
                     <table className="min-w-max text-sm border border-gray-300 border-collapse">
                       <thead className="bg-gray-50 sticky top-0 z-20">
                         <tr>
@@ -2023,7 +2065,15 @@ export default function OrderConvertPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {displayRows.map((row) => (
+                        {virtualTopSpacerHeight > 0 && (
+                          <tr aria-hidden="true">
+                            <td
+                              colSpan={courierHeaders.length + 1}
+                              style={{ height: `${virtualTopSpacerHeight}px`, padding: 0, border: 0 }}
+                            />
+                          </tr>
+                        )}
+                        {virtualRows.map((row) => (
                           <OrderConvertPreviewTableRow
                             key={row.rowId}
                             row={row}
@@ -2047,6 +2097,14 @@ export default function OrderConvertPage() {
                             onFinishEditUi={handlePreviewFinishEditUi}
                           />
                         ))}
+                        {virtualBottomSpacerHeight > 0 && (
+                          <tr aria-hidden="true">
+                            <td
+                              colSpan={courierHeaders.length + 1}
+                              style={{ height: `${virtualBottomSpacerHeight}px`, padding: 0, border: 0 }}
+                            />
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
