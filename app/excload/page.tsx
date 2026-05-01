@@ -39,7 +39,7 @@ export default function HomePage() {
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const [betweenBlocks, setBetweenBlocks] = useState(false);
-  const [isDemoOpen, setIsDemoOpen] = useState(true);
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
 
   useEffect(() => {
     if (betweenBlocks) {
@@ -62,7 +62,7 @@ export default function HomePage() {
       : lineIdx + 1 < lines.length
         ? 420
         : blockIdx === 0
-          ? 380
+          ? 2000
           : 0;
 
     const timer = window.setTimeout(() => {
