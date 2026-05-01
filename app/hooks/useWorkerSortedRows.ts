@@ -34,6 +34,14 @@ export function useWorkerSortedRows<T extends PreviewRowLike>(
     return map;
   }, [previewRows]);
 
+  /** 정렬이 꺼진 동안에는 userOverrides 변경에 반응하지 않음 → 셀 편집 시 전표 재정렬/Worker 재실행 방지 */
+  const sortedColumnFingerprint = useMemo(() => {
+    if (!sortConfig) return '';
+    const h = sortConfig.header;
+    return previewRows.map((r) => userOverrides[r.rowId]?.[h] ?? r.data[h] ?? '').join('\x1e');
+  }, [previewRows, sortConfig, sortConfig ? userOverrides : null]);
+
+  // sortedColumnFingerprint가 같으면 정렬 키(해당 컬럼) 값 불변 → 다른 열 편집 시 재정렬 생략 (userOverrides는 지문 갱신 시점의 클로저)
   const localSortedRows = useMemo(() => {
     if (!sortConfig) return previewRows;
     const { header, direction } = sortConfig;
@@ -44,7 +52,7 @@ export function useWorkerSortedRows<T extends PreviewRowLike>(
       if (av > bv) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [previewRows, sortConfig, userOverrides]);
+  }, [previewRows, sortConfig, sortedColumnFingerprint]);
 
   const canUseWorker =
     !!sortConfig &&
@@ -59,7 +67,7 @@ export function useWorkerSortedRows<T extends PreviewRowLike>(
       rowId: r.rowId,
       value: String(userOverrides[r.rowId]?.[header] ?? r.data[header] ?? ''),
     }));
-  }, [previewRows, sortConfig, userOverrides]);
+  }, [previewRows, sortConfig, sortedColumnFingerprint]);
 
   useEffect(() => {
     if (!canUseWorker || !sortConfig) {

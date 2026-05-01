@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2 } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
@@ -15,7 +15,6 @@ import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { ExcelPreprocessPipeline } from '@/app/pipeline/preprocess/excel-preprocess-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 import { runMergePipeline } from '@/app/pipeline/merge/merge-pipeline';
-import type { PreviewRow } from '@/app/pipeline/merge/types';
 import * as XLSX from 'xlsx';
 import {
   alignRowsFromHeader,
@@ -27,7 +26,6 @@ import type { UnifiedInputPipelineResult } from '@/app/unified-input/adapters/ru
 import { extractTextFromImage } from '@/app/unified-input/adapters/ImageToTextAdapter';
 import { runTextToCleanInputAdapter } from '@/app/unified-input/adapters/TextToCleanInputAdapter';
 import { runUnifiedInputOrderPipelines } from '@/app/unified-input/adapters/runUnifiedInputOrderPipelines';
-import { formatPhoneDisplay } from '@/app/utils/format-phone';
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
@@ -37,11 +35,10 @@ import {
   NormalizeQualityNoticeModal,
   isLikelyClientNetworkError,
 } from '@/app/components/NormalizeQualityNoticeModal';
-
-type PreviewRowWithId = {
-  rowId: string;
-  data: PreviewRow;
-};
+import {
+  OrderConvertPreviewTableRow,
+  type PreviewRowWithId,
+} from '@/app/order-convert/OrderConvertPreviewTableRow';
 
 interface CourierUploadHeader {
   name: string;
@@ -333,6 +330,7 @@ export default function OrderConvertPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
   const isCancelledRef = useRef<boolean>(false);
+  const previewRowsRef = useRef<PreviewRowWithId[]>([]);
 
   // 고정 헤더 순서 배열 (courierUploadTemplate.headers 기준)
   const FIXED_HEADER_ORDER = useMemo(() => {
@@ -342,8 +340,11 @@ export default function OrderConvertPage() {
     return [];
   }, [courierUploadTemplate]);
 
+  previewRowsRef.current = previewRows;
+
   // 정렬은 대용량일 때 Worker로 오프로드
   const sortedRows = useWorkerSortedRows(previewRows, sortConfig, userOverrides);
+  const selectedRowSet = useMemo(() => new Set(selectedRows), [selectedRows]);
 
   // 미리보기 초기 노출량 (대용량에서 첫 화면 체감 개선)
   const PREVIEW_BATCH_SIZE = 100;
@@ -376,15 +377,44 @@ export default function OrderConvertPage() {
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
 
-  const commitCellEdit = (rowId: string, header: string, value: string) => {
-    setUserOverrides(prev => ({
-      ...prev,
-      [rowId]: {
-        ...prev[rowId],
-        [header]: value,
-      },
-    }));
-  };
+  const commitCellEdit = useCallback((rowId: string, header: string, value: string) => {
+    setUserOverrides((prev) => {
+      const row = previewRowsRef.current.find((r) => r.rowId === rowId);
+      const base = String(row?.data[header] ?? '');
+      const currentOverride = prev[rowId]?.[header];
+      const effective = currentOverride !== undefined ? String(currentOverride) : base;
+      if (value === effective) return prev;
+
+      return {
+        ...prev,
+        [rowId]: {
+          ...(prev[rowId] ?? {}),
+          [header]: value,
+        },
+      };
+    });
+  }, []);
+
+  const handlePreviewRowToggleSelect = useCallback((rowId: string, checked: boolean) => {
+    setSelectedRows((prev) =>
+      checked ? (prev.includes(rowId) ? prev : [...prev, rowId]) : prev.filter((id) => id !== rowId),
+    );
+  }, []);
+
+  const handlePreviewCellClickStartEdit = useCallback((rowId: string, header: string, displayValue: string) => {
+    setEditingValue(displayValue);
+    setActiveCell({ rowId, header });
+    setEditingCell({ rowId, header });
+  }, []);
+
+  const handlePreviewEditingInputChange = useCallback((v: string) => {
+    setEditingValue(v);
+  }, []);
+
+  const handlePreviewFinishEditUi = useCallback(() => {
+    setEditingCell(null);
+    setActiveCell(null);
+  }, []);
 
   // fixedHeaderValues를 localStorage에 저장
   useEffect(() => {
@@ -1993,102 +2023,30 @@ export default function OrderConvertPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {displayRows.map((row) => {
-                          const isNewRow = newRows.has(row.rowId);
-                          return (
-                          <tr
+                        {displayRows.map((row) => (
+                          <OrderConvertPreviewTableRow
                             key={row.rowId}
-                            className={`transition-colors
-                              ${
-                                selectedRows.includes(row.rowId)
-                                  ? "bg-blue-100"
-                                  : isNewRow
-                                  ? "bg-green-100 animate-pulse"
-                                  : "hover:bg-gray-50"
-                              }
-                            `}
-                          >
-                            <td
-                              className={`sticky left-0 z-10 border border-gray-300 px-2 py-1 border-b whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)] ${
-                                selectedRows.includes(row.rowId)
-                                  ? 'bg-blue-100'
-                                  : isNewRow
-                                  ? 'bg-green-100'
-                                  : 'bg-white'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedRows.includes(row.rowId)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedRows(prev => [...prev, row.rowId]);
-                                  } else {
-                                    setSelectedRows(prev =>
-                                      prev.filter(id => id !== row.rowId)
-                                    );
-                                  }
-                                }}
-                              />
-                            </td>
-                            {courierHeaders.map((header) => {
-                              const cellValue = row.data[header] ?? '';
-                              const overrideValue = userOverrides[row.rowId]?.[header];
-                              const displayValue = overrideValue ?? cellValue;
-                              
-                              // 전화번호 필드인지 확인 (헤더 이름에 "전화" 포함)
-                              const isPhoneField = header.includes('전화') || header.includes('phone');
-
-                              if (editingCell?.rowId === row.rowId && editingCell?.header === header) {
-                                return (
-                                  <td key={header} className="border border-gray-300 px-2 py-1 border-b whitespace-nowrap bg-yellow-100">
-                                    <input
-                                      autoFocus
-                                      className="w-full h-full border-0 p-0 bg-transparent outline-none text-sm"
-                                      style={{ minHeight: '1.25rem' }}
-                                      value={editingValue}
-                                      onChange={(e) => setEditingValue(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          commitCellEdit(row.rowId, header, editingValue);
-                                          setEditingCell(null);
-                                          setActiveCell(null);
-                                        } else if (e.key === 'Escape') {
-                                          setEditingCell(null);
-                                          setActiveCell(null);
-                                        }
-                                      }}
-                                      onBlur={() => {
-                                        commitCellEdit(row.rowId, header, editingValue);
-                                        setEditingCell(null);
-                                        setActiveCell(null);
-                                      }}
-                                    />
-                                  </td>
-                                );
-                              }
-
-                              const isActiveCell = activeCell?.rowId === row.rowId && activeCell?.header === header;
-                              
-                              return (
-                                <td
-                                  key={header}
-                                  className={`border border-gray-300 px-2 py-1 border-b whitespace-nowrap cursor-pointer ${
-                                    isActiveCell ? 'bg-yellow-100' : ''
-                                  }`}
-                                  onClick={() => {
-                                    setEditingValue(displayValue);
-                                    setActiveCell({ rowId: row.rowId, header });
-                                    setEditingCell({ rowId: row.rowId, header });
-                                  }}
-                                >
-                                  {isPhoneField ? formatPhoneDisplay(displayValue) : displayValue}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                          );
-                        })}
+                            row={row}
+                            courierHeaders={courierHeaders}
+                            overridesForRow={userOverrides[row.rowId]}
+                            isSelected={selectedRowSet.has(row.rowId)}
+                            isNewRow={newRows.has(row.rowId)}
+                            localEditingHeader={
+                              editingCell?.rowId === row.rowId ? editingCell.header : null
+                            }
+                            localEditingValue={
+                              editingCell?.rowId === row.rowId ? editingValue : ''
+                            }
+                            localActiveHeader={
+                              activeCell?.rowId === row.rowId ? activeCell.header : null
+                            }
+                            onToggleSelect={handlePreviewRowToggleSelect}
+                            onCellClickStartEdit={handlePreviewCellClickStartEdit}
+                            onEditingInputChange={handlePreviewEditingInputChange}
+                            onCommitEdit={commitCellEdit}
+                            onFinishEditUi={handlePreviewFinishEditUi}
+                          />
+                        ))}
                       </tbody>
                     </table>
                   </div>
