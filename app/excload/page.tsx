@@ -4,6 +4,7 @@ import DemoAnimation from '@/app/components/DemoAnimation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 const TrialEmbed = dynamic(
   () =>
@@ -21,6 +22,40 @@ const TrialEmbed = dynamic(
 );
 
 export default function HomePage() {
+  const typingLines = useMemo(
+    () => [
+      '엑클로드는 주문 데이터를 자동으로 변환하여',
+      '택배 업로드 파일을 간편하게 만들어주는 서비스입니다.',
+      '복잡한 기능을 빼고 "빠른주문정리"에만 집중해 사용법이 어렵지 않습니다',
+      '이제 복사해서 붙이면 준비 끝',
+    ],
+    [],
+  );
+  const [typedLineIndex, setTypedLineIndex] = useState(0);
+  const [typedCharIndex, setTypedCharIndex] = useState(0);
+  const [isDemoOpen, setIsDemoOpen] = useState(true);
+
+  useEffect(() => {
+    if (typedLineIndex >= typingLines.length) return;
+
+    const currentLine = typingLines[typedLineIndex];
+    const timer = window.setTimeout(
+      () => {
+        if (typedCharIndex < currentLine.length) {
+          setTypedCharIndex((prev) => prev + 1);
+          return;
+        }
+
+        // 줄 완성 후 짧은 쉼을 주고 다음 줄로 이동
+        setTypedLineIndex((prev) => prev + 1);
+        setTypedCharIndex(0);
+      },
+      typedCharIndex < currentLine.length ? 42 : 520,
+    );
+
+    return () => window.clearTimeout(timer);
+  }, [typedLineIndex, typedCharIndex, typingLines]);
+
   const plans = [
     {
       planKey: 'free' as const,
@@ -54,6 +89,30 @@ export default function HomePage() {
         {/* Hero 섹션 */}
         <section className="blue-unified-theme pt-4 pb-8 lg:pt-6 lg:pb-12">
           <div className="flex flex-col gap-0">
+            <div className="mx-auto mb-4 w-full max-w-3xl rounded-2xl border border-blue-200 bg-white/90 p-4 text-left shadow-sm dark:border-blue-900 dark:bg-zinc-900/90">
+              <div className="mb-2 text-xs font-semibold text-blue-600 dark:text-blue-400">빠른 안내</div>
+              <div className="space-y-1.5 text-sm leading-relaxed text-zinc-700 dark:text-zinc-200 min-h-[92px]">
+                {typingLines.map((line, idx) => {
+                  if (idx < typedLineIndex) {
+                    return <p key={line}>{line}</p>;
+                  }
+                  if (idx === typedLineIndex) {
+                    return (
+                      <p key={line}>
+                        {line.slice(0, typedCharIndex)}
+                        <span className="animate-pulse">|</span>
+                      </p>
+                    );
+                  }
+                  return (
+                    <p key={line} className="text-zinc-300 dark:text-zinc-700">
+                      {line}
+                    </p>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex flex-col items-center text-center gap-2.5 sm:gap-3">
               <h1
                 className="mx-auto w-full max-w-[min(100%,90rem)] px-2 text-center font-bold leading-tight text-zinc-950 dark:text-zinc-100
@@ -75,7 +134,16 @@ export default function HomePage() {
 
             {/* 데모: 히어로·가격 문구와의 상하 여백 2배 (기존 gap-4 대비 ≈2rem) */}
             <div className="w-full py-8 lg:py-12">
-              <DemoAnimation />
+              <div className="mb-3 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setIsDemoOpen((prev) => !prev)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  {isDemoOpen ? '데모 접기' : '데모 펼치기'}
+                </button>
+              </div>
+              {isDemoOpen && <DemoAnimation />}
             </div>
 
             {/* 데모 하단: 가격 강조 (한 줄) */}
