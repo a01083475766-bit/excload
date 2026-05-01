@@ -153,25 +153,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="flex flex-col items-center text-center gap-2.5 sm:gap-3">
-              <h1
-                className="mx-auto w-full max-w-[min(100%,90rem)] px-2 text-center font-bold leading-tight text-zinc-950 dark:text-zinc-100
-                text-[clamp(1.5rem,5vw,2.25rem)] tracking-tighter
-                lg:whitespace-nowrap [word-break:keep-all]"
-              >
-                엑클로드는 주문 데이터를 자동으로 변환하여
-                <br />
-                택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
-              </h1>
-              <p className="max-w-3xl text-sm sm:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                복잡한 기능을 빼고{' '}
-                <strong className="font-bold text-zinc-900 dark:text-zinc-100">&quot;빠른주문정리&quot;</strong>에만
-                집중해 사용법이 어렵지 않습니다
-                <br />
-                이제 복사해서 붙이면 준비 끝
-              </p>
-            </div>
-
             {/* 데모: 히어로·가격 문구와의 상하 여백 2배 (기존 gap-4 대비 ≈2rem) */}
             <div className="w-full py-8 lg:py-12">
               <div className="mb-3 flex justify-center">
