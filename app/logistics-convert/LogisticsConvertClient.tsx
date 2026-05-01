@@ -3462,11 +3462,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                 >
                                   전체 보기
                                 </button>
-                                <span className="text-blue-600">
-                                  주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                                </span>
                               </>
                             )}
+                            <span className="text-blue-600">
+                              주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                            </span>
                           </div>
                         )}
                       </div>
@@ -3507,11 +3507,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                               >
                                 전체 보기
                               </button>
-                              <span className="text-blue-600">
-                                주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                              </span>
                             </>
                           )}
+                          <span className="text-blue-600">
+                            주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                          </span>
                         </div>
                       )}
                     </div>
