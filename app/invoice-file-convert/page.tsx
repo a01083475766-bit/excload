@@ -1075,8 +1075,9 @@ export default function InvoiceFileConvertPage() {
 
         setUploadedFileMeta((prev) => [{ name: file.name, size: file.size }, ...prev]);
         setConversionProgress(100);
-        const baseChunk = stage3Result.previewRows.length >= 800 ? 40 : 60;
-        setRenderedRowCount(Math.min(baseChunk, stage3Result.previewRows.length));
+        setRenderedRowCount(
+          Math.min(PREVIEW_BATCH_SIZE, stage3Result.previewRows.length),
+        );
         if (previewRevealTimeoutRef.current) {
           window.clearTimeout(previewRevealTimeoutRef.current);
           previewRevealTimeoutRef.current = null;
