@@ -1429,7 +1429,7 @@ export default function InvoiceFileConvertPage() {
                     style={{ display: 'none' }}
                   />
                   <p className="text-xs text-gray-600 mt-2.5 leading-relaxed text-center">
-                    주문번호가 포함된 <span className="font-medium text-gray-800">원본 주문 엑셀</span>을 올려주세요.
+                    <span className="font-medium text-gray-800">원본 주문 엑셀</span>을 올려주세요.
                   </p>
                 </div>
 
@@ -1846,7 +1846,7 @@ export default function InvoiceFileConvertPage() {
                 </h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 text-center">
-                송장 업로드 파일의 모든 행에 동일하게 넣을 값(보내는 사람 등)을
+                택배사, 배송방법 등 모든 주문에 공통으로 적용되는 값을
                 <br />
                 미리 지정해 두면 매번 채우는 수고를 줄일 수 있습니다.
               </p>
