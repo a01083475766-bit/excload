@@ -21,23 +21,38 @@ const TrialEmbed = dynamic(
   },
 );
 
+const typingHeroTextClass =
+  'font-bold leading-tight text-zinc-950 dark:text-zinc-100 text-[clamp(1.5rem,5vw,2.25rem)] tracking-tighter [word-break:keep-all]';
+
 export default function HomePage() {
-  /** ① 블록을 모두 친 뒤 ② 블록 타이핑 (순서 고정) */
+  /** ① 블록 타이핑 완료 → 잠시 비움 → ② 블록 타이핑 (히어로와 동일 글자 크기) */
   const typingBlocks = useMemo(
     () =>
       [
-        ['주문 데이터를 자동으로 변환하여', '택배 업로드 파일을 간편하게 만들어주는 서비스입니다.'],
+        ['엑클로드는 주문 데이터를 자동으로 변환하여', '택배 업로드 파일을 간편하게 만들어주는 서비스입니다.'],
         ['복잡한 기능을 빼고 "빠른주문정리"에만 집중해 사용법이 어렵지 않습니다', '이제 복사해서 붙이면 준비 끝'],
       ] as const,
     [],
   );
-  const [blockIdx, setBlockIdx] = useState(0);
+  /** 0=1번 블록 타이핑, 1=2번 블록 타이핑, 2=애니메이션 종료(2번 고정 표시) */
+  const [blockIdx, setBlockIdx] = useState<0 | 1 | 2>(0);
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
+  const [betweenBlocks, setBetweenBlocks] = useState(false);
   const [isDemoOpen, setIsDemoOpen] = useState(true);
 
   useEffect(() => {
-    if (blockIdx >= typingBlocks.length) return;
+    if (betweenBlocks) {
+      const t = window.setTimeout(() => {
+        setBetweenBlocks(false);
+        setBlockIdx(1);
+        setLineIdx(0);
+        setCharIdx(0);
+      }, 520);
+      return () => window.clearTimeout(t);
+    }
+
+    if (blockIdx >= 2) return;
 
     const lines = typingBlocks[blockIdx];
     const currentLine = lines[lineIdx];
@@ -46,8 +61,8 @@ export default function HomePage() {
       ? 38
       : lineIdx + 1 < lines.length
         ? 420
-        : blockIdx + 1 < typingBlocks.length
-          ? 720
+        : blockIdx === 0
+          ? 380
           : 0;
 
     const timer = window.setTimeout(() => {
@@ -60,17 +75,15 @@ export default function HomePage() {
         setCharIdx(0);
         return;
       }
-      if (blockIdx + 1 < typingBlocks.length) {
-        setBlockIdx((prev) => prev + 1);
-        setLineIdx(0);
-        setCharIdx(0);
+      if (blockIdx === 0) {
+        setBetweenBlocks(true);
         return;
       }
-      setBlockIdx(typingBlocks.length);
+      setBlockIdx(2);
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [blockIdx, lineIdx, charIdx, typingBlocks]);
+  }, [betweenBlocks, blockIdx, lineIdx, charIdx, typingBlocks]);
 
   const plans = [
     {
@@ -105,43 +118,38 @@ export default function HomePage() {
         {/* Hero 섹션 */}
         <section className="blue-unified-theme pt-4 pb-8 lg:pt-6 lg:pb-12">
           <div className="flex flex-col gap-0">
-            <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-white/90 p-8 text-left shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-10 lg:p-12">
-              <div className="mb-3 text-lg font-bold text-blue-600 dark:text-blue-400 md:mb-4 md:text-xl">엑클로드는</div>
-              <div className="min-h-[min(340px,44vh)] space-y-4 text-lg leading-relaxed text-zinc-700 dark:text-zinc-200 md:min-h-[400px] md:space-y-5 md:text-xl md:leading-relaxed">
-                {typingBlocks.map((lines, bIndex) => {
-                  if (bIndex > blockIdx) return null;
+            <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
+              <div
+                className={`flex min-h-[min(170px,22vh)] flex-col justify-center md:min-h-[200px] ${typingHeroTextClass} space-y-2 md:space-y-2.5`}
+              >
+                {betweenBlocks ? null : blockIdx === 2 ? (
+                  typingBlocks[1].map((line, lIndex) => (
+                    <p key={`done-${lIndex}`}>{line}</p>
+                  ))
+                ) : (
+                  typingBlocks[blockIdx].map((line, lIndex) => {
+                    const isPast = lIndex < lineIdx;
+                    const isCurrent = lIndex === lineIdx;
+                    const isFutureInBlock = lIndex > lineIdx;
 
-                  return (
-                    <div key={bIndex} className={bIndex === 1 ? 'pt-1' : ''}>
-                      {lines.map((line, lIndex) => {
-                        const isPast = bIndex < blockIdx || (bIndex === blockIdx && lIndex < lineIdx);
-                        const isCurrent = bIndex === blockIdx && lIndex === lineIdx;
-                        const isFutureInBlock = bIndex === blockIdx && lIndex > lineIdx;
+                    if (isFutureInBlock) return null;
 
-                        if (isFutureInBlock) return null;
+                    if (isPast) {
+                      return <p key={`${blockIdx}-${lIndex}`}>{line}</p>;
+                    }
 
-                        if (isPast) {
-                          return (
-                            <p key={`${bIndex}-${lIndex}`} className="text-zinc-800 dark:text-zinc-100">
-                              {line}
-                            </p>
-                          );
-                        }
+                    if (isCurrent) {
+                      return (
+                        <p key={`${blockIdx}-${lIndex}`}>
+                          {line.slice(0, charIdx)}
+                          {charIdx < line.length ? <span className="animate-pulse text-zinc-400">|</span> : null}
+                        </p>
+                      );
+                    }
 
-                        if (isCurrent) {
-                          return (
-                            <p key={`${bIndex}-${lIndex}`} className="text-zinc-800 dark:text-zinc-100">
-                              {line.slice(0, charIdx)}
-                              {charIdx < line.length ? <span className="animate-pulse">|</span> : null}
-                            </p>
-                          );
-                        }
-
-                        return null;
-                      })}
-                    </div>
-                  );
-                })}
+                    return null;
+                  })
+                )}
               </div>
             </div>
 
