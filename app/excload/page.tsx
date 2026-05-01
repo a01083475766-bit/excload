@@ -22,7 +22,7 @@ const TrialEmbed = dynamic(
 );
 
 const typingHeroTextClass =
-  'font-bold leading-tight text-zinc-950 dark:text-zinc-100 text-[clamp(1.5rem,5vw,2.25rem)] tracking-tighter [word-break:keep-all]';
+  'font-bold leading-tight text-zinc-950 dark:text-zinc-100 text-[clamp(1.2rem,4vw,1.8rem)] tracking-tight [word-break:keep-all]';
 
 export default function HomePage() {
   /** ① 블록 타이핑 완료 → 잠시 비움 → ② 블록 타이핑 (히어로와 동일 글자 크기) */
@@ -118,7 +118,7 @@ export default function HomePage() {
         {/* Hero 섹션 */}
         <section className="blue-unified-theme pt-4 pb-8 lg:pt-6 lg:pb-12">
           <div className="flex flex-col gap-0">
-            <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
+            <div className="mx-auto mb-4 w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
               <div
                 className={`flex min-h-[min(170px,22vh)] flex-col justify-center md:min-h-[200px] ${typingHeroTextClass} space-y-2 md:space-y-2.5`}
               >
