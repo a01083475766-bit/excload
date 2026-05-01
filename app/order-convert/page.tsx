@@ -360,19 +360,19 @@ export default function OrderConvertPage() {
       return;
     }
 
-    // 한 번 전체 렌더링이 완료된 뒤에는
-    // 펼치기 닫기/정렬 변경 등으로 다시 100건 모드로 되돌리지 않습니다.
-    if (renderedRowCount >= totalRows) {
-      return;
-    }
-
     if (isPreviewExpanded) {
       setRenderedRowCount(totalRows);
       return;
     }
 
-    setRenderedRowCount(Math.min(PREVIEW_BATCH_SIZE, totalRows));
-  }, [previewRows.length, courierHeaders.length, isPreviewExpanded, renderedRowCount]);
+    // renderedRowCount를 의존성에 넣지 않는다 — 넣으면 '추가 조회'로 늘린 직후
+    // 같은 effect가 다시 돌며 Math.min(BATCH, total)으로 100으로 되돌아가는 버그가 생긴다.
+    setRenderedRowCount((prev) => {
+      if (prev >= totalRows) return totalRows;
+      if (prev > 0) return Math.min(prev, totalRows);
+      return Math.min(PREVIEW_BATCH_SIZE, totalRows);
+    });
+  }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
 

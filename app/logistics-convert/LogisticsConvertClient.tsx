@@ -1009,19 +1009,18 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       return;
     }
 
-    // 한 번 전체 렌더링이 완료된 뒤에는
-    // 펼치기 닫기/정렬 변경 등으로 다시 100건 모드로 되돌리지 않습니다.
-    if (renderedRowCount >= totalRows) {
-      return;
-    }
-
     if (isPreviewExpanded) {
       setRenderedRowCount(totalRows);
       return;
     }
 
-    setRenderedRowCount(Math.min(PREVIEW_BATCH_SIZE, totalRows));
-  }, [previewRows.length, courierHeaders.length, isPreviewExpanded, renderedRowCount]);
+    // renderedRowCount 의존성 금지: '추가 조회' 후 effect가 초기 배치(100건)로 리셋되는 것 방지
+    setRenderedRowCount((prev) => {
+      if (prev >= totalRows) return totalRows;
+      if (prev > 0) return Math.min(prev, totalRows);
+      return Math.min(PREVIEW_BATCH_SIZE, totalRows);
+    });
+  }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
 
