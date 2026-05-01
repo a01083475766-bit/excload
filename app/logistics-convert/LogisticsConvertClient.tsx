@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
@@ -927,6 +927,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   /** 텍스트 변환 중복 클릭·사용량 차감 이중 호출 방지 */
   const textConvertInFlightRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
   const isCancelledRef = useRef<boolean>(false);
 
@@ -997,10 +998,30 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   // 미리보기 초기 노출량 (대용량에서 첫 화면 체감 개선)
   const PREVIEW_BATCH_SIZE = 100;
   const [renderedRowCount, setRenderedRowCount] = useState(0);
+  const VIRTUAL_ROW_HEIGHT = 30;
+  const VIRTUAL_OVERSCAN = 8;
+  const [previewScrollTop, setPreviewScrollTop] = useState(0);
+  const [previewViewportHeight, setPreviewViewportHeight] = useState(260);
   const displayRows = useMemo(
     () => sortedRows.slice(0, renderedRowCount),
     [sortedRows, renderedRowCount],
   );
+  const visibleRowCount = Math.max(
+    1,
+    Math.ceil(previewViewportHeight / VIRTUAL_ROW_HEIGHT) + VIRTUAL_OVERSCAN * 2,
+  );
+  const virtualStartIndex = Math.min(
+    Math.max(0, displayRows.length - visibleRowCount),
+    Math.max(0, Math.floor(previewScrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN),
+  );
+  const virtualEndIndex = Math.min(displayRows.length, virtualStartIndex + visibleRowCount);
+  const virtualRows = useMemo(
+    () => displayRows.slice(virtualStartIndex, virtualEndIndex),
+    [displayRows, virtualStartIndex, virtualEndIndex],
+  );
+  const virtualTopSpacerHeight = virtualStartIndex * VIRTUAL_ROW_HEIGHT;
+  const virtualBottomSpacerHeight =
+    (displayRows.length - virtualEndIndex) * VIRTUAL_ROW_HEIGHT;
 
   useEffect(() => {
     const totalRows = previewRows.length;
@@ -1023,6 +1044,23 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
+
+  const handlePreviewScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
+    setPreviewScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  useEffect(() => {
+    const node = previewScrollContainerRef.current;
+    if (!node) return;
+
+    const syncViewport = () => {
+      setPreviewViewportHeight(node.clientHeight || 260);
+    };
+
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, [isPreviewExpanded, displayRows.length, courierHeaders.length, trialMode]);
 
   const commitCellEdit = (rowId: string, header: string, value: string) => {
     setUserOverrides(prev => ({
@@ -3402,7 +3440,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           ✔ 체크박스로 선택 후 삭제할 수 있습니다.
                         </p>
                         {!isPreviewExpanded && (
-                          <div className="mt-1 ml-6 flex items-center gap-2 text-xs text-blue-600">
+                          <div className="mt-1 ml-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
                             <span>
                               총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
                             </span>
@@ -3424,6 +3462,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                 >
                                   전체 보기
                                 </button>
+                                <span className="text-blue-600">
+                                  주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                                </span>
                               </>
                             )}
                           </div>
@@ -3444,7 +3485,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.
                       </span>
                       {!isPreviewExpanded && (
-                        <div className="mt-1 ml-6 flex items-center gap-2 text-xs text-blue-600">
+                        <div className="mt-1 ml-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
                           <span>
                             총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
                           </span>
@@ -3466,6 +3507,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                               >
                                 전체 보기
                               </button>
+                              <span className="text-blue-600">
+                                주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                              </span>
                             </>
                           )}
                         </div>
@@ -3563,6 +3607,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     </p>
                   </div>
                   <div
+                  ref={previewScrollContainerRef}
+                  onScroll={handlePreviewScroll}
                     className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar preview-scrollbar-emerald ${
                       trialMode ? 'select-none' : ''
                     }`}
@@ -3658,7 +3704,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         </tr>
                       </thead>
                       <tbody>
-                        {displayRows.map((row) => {
+                        {virtualTopSpacerHeight > 0 && (
+                          <tr aria-hidden="true">
+                            <td
+                              colSpan={courierHeaders.length + 1}
+                              style={{ height: `${virtualTopSpacerHeight}px`, padding: 0, border: 0 }}
+                            />
+                          </tr>
+                        )}
+                        {virtualRows.map((row) => {
                           const isNewRow = newRows.has(row.rowId);
                           return (
                           <tr
@@ -3760,6 +3814,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           </tr>
                           );
                         })}
+                        {virtualBottomSpacerHeight > 0 && (
+                          <tr aria-hidden="true">
+                            <td
+                              colSpan={courierHeaders.length + 1}
+                              style={{ height: `${virtualBottomSpacerHeight}px`, padding: 0, border: 0 }}
+                            />
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>

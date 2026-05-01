@@ -10,7 +10,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Truck, Search, ArrowDown, X, Check, Upload } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
@@ -301,6 +301,7 @@ export default function InvoiceFileConvertPage() {
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const courierInvoiceFileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const previewRevealTimeoutRef = useRef<number | null>(null);
   // 미리보기 테이블 위로 마우스가 올라가면(스크롤 시도 포함)
@@ -335,10 +336,30 @@ export default function InvoiceFileConvertPage() {
   // 미리보기 초기 노출량 (대용량에서 첫 화면 체감 개선)
   const PREVIEW_BATCH_SIZE = 100;
   const [renderedRowCount, setRenderedRowCount] = useState(0);
+  const VIRTUAL_ROW_HEIGHT = 30;
+  const VIRTUAL_OVERSCAN = 8;
+  const [previewScrollTop, setPreviewScrollTop] = useState(0);
+  const [previewViewportHeight, setPreviewViewportHeight] = useState(260);
   const displayRows = useMemo(
     () => sortedRows.slice(0, renderedRowCount),
     [sortedRows, renderedRowCount],
   );
+  const visibleRowCount = Math.max(
+    1,
+    Math.ceil(previewViewportHeight / VIRTUAL_ROW_HEIGHT) + VIRTUAL_OVERSCAN * 2,
+  );
+  const virtualStartIndex = Math.min(
+    Math.max(0, displayRows.length - visibleRowCount),
+    Math.max(0, Math.floor(previewScrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN),
+  );
+  const virtualEndIndex = Math.min(displayRows.length, virtualStartIndex + visibleRowCount);
+  const virtualRows = useMemo(
+    () => displayRows.slice(virtualStartIndex, virtualEndIndex),
+    [displayRows, virtualStartIndex, virtualEndIndex],
+  );
+  const virtualTopSpacerHeight = virtualStartIndex * VIRTUAL_ROW_HEIGHT;
+  const virtualBottomSpacerHeight =
+    (displayRows.length - virtualEndIndex) * VIRTUAL_ROW_HEIGHT;
 
   // "펼치기"를 누르면 사용자 기대대로 전체를 즉시 렌더합니다.
   // (청크 렌더링 중이더라도 스크롤바/마우스 이벤트로 인해 완전 로딩이 지연될 수 있으므로 강제 보정)
@@ -371,6 +392,23 @@ export default function InvoiceFileConvertPage() {
   }, [previewReady, previewRows.length, courierHeaders.length, isPreviewExpanded]);
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
+
+  const handlePreviewScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
+    setPreviewScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  useEffect(() => {
+    const node = previewScrollContainerRef.current;
+    if (!node) return;
+
+    const syncViewport = () => {
+      setPreviewViewportHeight(node.clientHeight || 260);
+    };
+
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, [isPreviewExpanded, displayRows.length, courierHeaders.length, previewReady]);
 
   const commitCellEdit = (rowId: string, header: string, value: string) => {
     setUserOverrides(prev => ({
@@ -1482,7 +1520,7 @@ export default function InvoiceFileConvertPage() {
                       ✔ 체크박스로 선택 후 삭제할 수 있습니다.
                     </p>
                     {!isPreviewExpanded && (
-                      <div className="mt-1 ml-6 flex items-center gap-2 text-xs text-blue-600">
+                      <div className="mt-1 ml-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
                         <span>
                           총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
                         </span>
@@ -1504,6 +1542,9 @@ export default function InvoiceFileConvertPage() {
                             >
                               전체 보기
                             </button>
+                            <span className="text-blue-600">
+                              주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                            </span>
                           </>
                         )}
                       </div>
@@ -1576,6 +1617,8 @@ export default function InvoiceFileConvertPage() {
                   <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
                   </div>
                   <div
+                    ref={previewScrollContainerRef}
+                    onScroll={handlePreviewScroll}
                     className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}
                     onMouseEnter={() => {
                       previewHoverPausedRef.current = true;
@@ -1645,7 +1688,15 @@ export default function InvoiceFileConvertPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {displayRows.map((row) => {
+                        {virtualTopSpacerHeight > 0 && (
+                          <tr aria-hidden="true">
+                            <td
+                              colSpan={courierHeaders.length + 1}
+                              style={{ height: `${virtualTopSpacerHeight}px`, padding: 0, border: 0 }}
+                            />
+                          </tr>
+                        )}
+                        {virtualRows.map((row) => {
                           const isNewRow = newRows.has(row.rowId);
                           return (
                           <tr
@@ -1733,6 +1784,14 @@ export default function InvoiceFileConvertPage() {
                           </tr>
                           );
                         })}
+                        {virtualBottomSpacerHeight > 0 && (
+                          <tr aria-hidden="true">
+                            <td
+                              colSpan={courierHeaders.length + 1}
+                              style={{ height: `${virtualBottomSpacerHeight}px`, padding: 0, border: 0 }}
+                            />
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
