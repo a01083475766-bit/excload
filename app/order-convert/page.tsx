@@ -1964,11 +1964,11 @@ export default function OrderConvertPage() {
         <section className="relative py-3">
           <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
             <div className="px-6 pt-6 pb-4">
-              {/* 미리보기: 1줄=제목·버튼·건수·처리시간 안내 / 2줄=편집 안내 */}
-              <div className="mb-2 flex flex-col gap-y-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                  <h3 className="text-lg font-semibold">미리보기</h3>
+              {/* 미리보기: 그리드로 제목(1열) / 버튼·건수안내·편집안내(2열, 펼치기 시작점 정렬) */}
+              <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 items-start">
+                <h3 className="row-start-1 col-start-1 self-center text-lg font-semibold">미리보기</h3>
 
+                <div className="row-start-1 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
                       className="inline-flex h-9 w-20 flex-shrink-0 items-center justify-center rounded border text-sm transition"
@@ -2002,8 +2002,8 @@ export default function OrderConvertPage() {
                   </div>
 
                   {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                    <div className="min-w-0 flex flex-[1_1_16rem] flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
-                      <span>
+                    <div className="min-w-0 flex flex-[1_1_12rem] flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-snug text-blue-600 sm:flex-nowrap sm:leading-tight">
+                      <span className="sm:whitespace-nowrap">
                         총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
                       </span>
                       {hasMorePreviewRows && (
@@ -2028,7 +2028,7 @@ export default function OrderConvertPage() {
                           </button>
                         </>
                       )}
-                      <span className="text-blue-600">
+                      <span className="text-blue-600 sm:whitespace-nowrap">
                         주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
                       </span>
                     </div>
@@ -2036,7 +2036,7 @@ export default function OrderConvertPage() {
                 </div>
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <p className="text-sm text-gray-500">
+                  <p className="row-start-2 col-start-2 min-w-0 text-sm text-gray-500">
                     ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
                     ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
                     ✔ 체크박스로 선택 후 삭제할 수 있습니다.
