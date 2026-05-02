@@ -1527,9 +1527,9 @@ export default function InvoiceFileConvertPage() {
         <section className="relative py-3">
           <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
             <div className="px-6 pt-6 pb-4">
-              {/* 미리보기 제목 + 버튼 + 안내 (물류변환 페이지와 동일 레이아웃·문구) */}
-              <div className="mb-2 flex flex-col gap-y-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-                <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center gap-3">
+              {/* 미리보기: 1줄=제목·버튼·건수·처리시간 안내 / 2줄=편집 안내 */}
+              <div className="mb-2 flex flex-col gap-y-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                   <h3 className="text-lg font-semibold">미리보기</h3>
 
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
@@ -1563,46 +1563,47 @@ export default function InvoiceFileConvertPage() {
                       </button>
                     )}
                   </div>
+
+                  {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
+                    <div className="min-w-0 flex flex-[1_1_16rem] flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
+                      <span>
+                        총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
+                      </span>
+                      {hasMorePreviewRows && (
+                        <>
+                          <button
+                            className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
+                            type="button"
+                            onClick={() =>
+                              setRenderedRowCount((prev) =>
+                                Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                              )
+                            }
+                          >
+                            추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
+                          </button>
+                          <button
+                            className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
+                            type="button"
+                            onClick={() => setRenderedRowCount(sortedRows.length)}
+                          >
+                            전체 보기
+                          </button>
+                        </>
+                      )}
+                      <span className="text-blue-600">
+                        주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <div className="min-w-0 flex-1 basis-full sm:mt-0 sm:basis-auto sm:min-w-[12rem]">
-                    <p className="text-sm text-gray-500">
-                      ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
-                      ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
-                      ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                    </p>
-                    {!isPreviewExpanded && (
-                      <div className="mt-1 ml-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
-                        <span>
-                          총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                        </span>
-                        {hasMorePreviewRows && (
-                          <>
-                            <button
-                              className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
-                              onClick={() =>
-                                setRenderedRowCount((prev) =>
-                                  Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                                )
-                              }
-                            >
-                              추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                            </button>
-                            <button
-                              className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
-                              onClick={() => setRenderedRowCount(sortedRows.length)}
-                            >
-                              전체 보기
-                            </button>
-                          </>
-                        )}
-                        <span className="text-blue-600">
-                          주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                  <p className="text-sm text-gray-500">
+                    ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
+                    ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
+                    ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+                  </p>
                 )}
               </div>
             </div>
