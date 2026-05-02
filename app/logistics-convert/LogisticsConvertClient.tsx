@@ -629,6 +629,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [previewRows, setPreviewRows] = useState<PreviewRowWithId[]>([]);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isPreviewResetModalOpen, setIsPreviewResetModalOpen] = useState(false);
   const [courierHeaders, setCourierHeaders] = useState<string[]>([]);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
@@ -960,16 +961,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setSelectedImage(null);
   }, [resetProductCodeColumnToggle]);
 
-  /** 체험판: 다운로드 없이 미리보기·변환 결과만 비우기 (새로고침 없이 재테스트) */
-  const handleTrialPreviewReset = useCallback(() => {
-    if (!trialMode) return;
-    if (
-      !window.confirm(
-        '미리보기와 이번에 선택한 파일·이미지·텍스트 입력을 초기화합니다. 계속할까요?',
-      )
-    ) {
-      return;
-    }
+  /** 미리보기·입력 소스·변환 결과 비우기 (양식·브릿지·고정값은 유지). 확인 모달 후 실행 */
+  const applyFullPreviewWorkspaceReset = useCallback(() => {
     applyPreviewWorkspaceReset();
     setCourierHeaders([]);
     setSelectedRows([]);
@@ -984,7 +977,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setErrorMessageTextImage(null);
     setCurrentFilePreviewData([]);
     setOrderStandardFile(null);
-  }, [trialMode, applyPreviewWorkspaceReset]);
+    setIsPreviewResetModalOpen(false);
+  }, [applyPreviewWorkspaceReset]);
 
   // 고정 헤더 순서 배열 (courierUploadTemplate.headers 기준)
   const FIXED_HEADER_ORDER = useMemo(() => {
@@ -3061,6 +3055,38 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         </div>
       )}
 
+      {isPreviewResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg w-[min(100%,400px)] p-6 border border-zinc-200 dark:border-zinc-700">
+            <h4 className="text-lg font-semibold mb-3 text-zinc-900 dark:text-zinc-100">
+              미리보기 초기화
+            </h4>
+            <p className="text-sm text-gray-600 dark:text-zinc-400 mb-2 leading-relaxed">
+              미리보기와 이번에 선택한 파일·이미지·텍스트 입력을 초기화합니다.
+            </p>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">
+              등록한 택배 양식·고정 입력은 그대로 둡니다.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 text-sm border rounded hover:bg-gray-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                onClick={() => setIsPreviewResetModalOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 text-sm rounded bg-amber-600 text-white hover:bg-amber-700"
+                onClick={applyFullPreviewWorkspaceReset}
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 체험판: 다운로드 안내 — 미리보기 취지와 정식 서비스(엑셀) 구분 */}
       {showTrialDownloadModal && (
         <div
@@ -3419,12 +3445,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     </button>
                   )}
 
-                  {trialMode && previewRows.length > 0 && courierHeaders.length > 0 && (
+                  {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
                       type="button"
-                      data-ex-tooltip={trialMode ? '현재 미리보기/입력 데이터를 초기화하고 다시 테스트합니다.' : undefined}
+                      data-ex-tooltip={
+                        trialMode
+                          ? '현재 미리보기/입력 데이터를 초기화하고 다시 테스트합니다.'
+                          : undefined
+                      }
                       className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
-                      onClick={handleTrialPreviewReset}
+                      onClick={() => setIsPreviewResetModalOpen(true)}
                     >
                       미리보기 초기화
                     </button>
