@@ -1782,38 +1782,36 @@ export default function OrderConvertPage() {
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
-            {/* 서비스 설명 텍스트 영역 + 사용량 표시 */}
-            <div className="relative flex items-center justify-center">
-              {/* 주문변환 안내 컨테이너 (항상 중앙) */}
-              <div className="flex flex-col gap-2 text-center min-h-[32px]">
-                <p className="text-sm text-gray-500 leading-tight">
-                  엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 택배 업로드 파일로 자동 변환합니다.
-                </p>
+            {/* 주문 가져오기 | 안내 문구 | 잔여 사용량 (한 줄, 좌·우 배지 크기 맞춤) */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 lg:gap-4">
+              <div className="flex shrink-0 justify-center sm:min-w-[200px] sm:justify-start">
+                {connectedMalls.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/order/fetch')}
+                    className="w-full min-w-0 rounded-lg bg-green-600 px-4 py-1.5 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px] sm:max-w-[200px]"
+                  >
+                    주문 가져오기
+                  </button>
+                ) : null}
               </div>
-              
-              {/* 사용량 표시 UI (오른쪽 절대 위치) */}
-              {user && (
-                <div className="absolute right-0 bg-gradient-to-r from-blue-500 to-sky-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
-                  <div className="flex items-center gap-2 justify-end">
-                    <Coins className="w-4 h-4" />
-                    <span className="font-medium text-sm">잔여 사용량</span>
-                    <span className="text-lg font-bold">:{user.points.toLocaleString()}</span>
+              <p className="min-w-0 flex-1 text-center text-sm leading-tight text-gray-500 sm:px-1">
+                엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 택배 업로드 파일로 자동 변환합니다.
+              </p>
+              <div className="flex shrink-0 justify-center sm:min-w-[200px] sm:justify-end">
+                {user ? (
+                  <div className="w-full min-w-0 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-4 py-1.5 text-white shadow-md sm:w-[200px] sm:max-w-[200px]">
+                    <div className="flex items-center justify-end gap-2">
+                      <Coins className="h-4 w-4 shrink-0" />
+                      <span className="text-sm font-medium">잔여 사용량</span>
+                      <span className="text-base font-bold tabular-nums sm:text-lg">
+                        :{user.points.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {connectedMalls.length > 0 && (
-              <div className="mb-4">
-                <button
-                  type="button"
-                  onClick={() => router.push('/order/fetch')}
-                  className="w-full py-3 rounded-xl bg-green-600 text-white font-semibold hover:bg-green-700 transition"
-                >
-                  주문 가져오기
-                </button>
+                ) : null}
               </div>
-            )}
+            </div>
 
             {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
             <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">
