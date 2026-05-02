@@ -3172,22 +3172,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         {/* Hero 섹션 - 세로 흐름 구조 */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
-            {trialMode && (
-              <div
-                data-ex-tooltip={
-                  trialMode
-                    ? '체험판은 미리보기 중심으로 제공되며, 다운로드는 가입 후 이용할 수 있습니다.'
-                    : undefined
-                }
-                className={`${trialMode ? 'ex-tooltip-target' : ''} rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950 dark:text-amber-100 dark:bg-amber-950/40 dark:border-amber-600`}
-              >
-                <p className="font-semibold">무료체험</p>
-                <p className="mt-1 text-amber-900/90 dark:text-amber-200/90">
-                  무료체험으로 기본 기능을 편하게 익혀보세요. 사용법이 어렵지 않습니다.
-                </p>
-              </div>
-            )}
-            {/* 좌·우 200px + 가운데 flex-1 (택배·송장 주문변환 상단과 동일 레이아웃 · 체험은 좌측 빈 칸 대칭) */}
+            {/* 좌·우 200px + 가운데 flex-1 · 체험은 호박 박스 대신 이 줄에 안내 문구 */}
             <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
                 {trialMode ? (
@@ -3209,7 +3194,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.
                 </p>
               ) : (
-                <div className="order-first min-w-0 flex-1 sm:order-none" aria-hidden />
+                <p
+                  data-ex-tooltip={
+                    trialMode
+                      ? '체험판은 미리보기 중심으로 제공되며, 다운로드는 가입 후 이용할 수 있습니다.'
+                      : undefined
+                  }
+                  className={`order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none ${trialMode ? 'ex-tooltip-target' : ''}`}
+                >
+                  무료체험으로 기본 기능을 편하게 익혀보세요. 사용법이 어렵지 않습니다.
+                </p>
               )}
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
                 {trialMode ? (
