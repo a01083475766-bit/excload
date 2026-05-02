@@ -3423,14 +3423,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 className={
                   trialMode
                     ? 'mb-2 flex flex-wrap items-start gap-x-3 gap-y-2'
-                    : 'mb-2 flex flex-wrap items-center gap-3'
+                    : 'mb-2 flex flex-col gap-y-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3'
                 }
               >
+                {/* 정식(!trialMode)은 display:contents 금지 — 플렉스 레이아웃에서 초기화 버튼이 누락되는 브라우저 이슈 방지 */}
                 <div
                   className={
                     trialMode
                       ? 'flex flex-wrap items-center gap-3'
-                      : 'contents'
+                      : 'flex min-w-0 flex-shrink-0 flex-wrap items-center gap-3'
                   }
                 >
                   <h3 className="text-lg font-semibold">미리보기</h3>
@@ -3438,7 +3439,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
                       data-ex-tooltip={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
-                      className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 items-center justify-center rounded border text-sm transition`}
+                      className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 flex-shrink-0 items-center justify-center rounded border text-sm transition`}
                       onClick={() => setIsPreviewExpanded(prev => !prev)}
                     >
                       {isPreviewExpanded ? '닫기' : '펼치기'}
@@ -3453,7 +3454,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           ? '현재 미리보기/입력 데이터를 초기화하고 다시 테스트합니다.'
                           : undefined
                       }
-                      className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
+                      className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
                       onClick={() => setIsPreviewResetModalOpen(true)}
                     >
                       미리보기 초기화
@@ -3461,7 +3462,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   )}
 
                   {/* 삭제 버튼 영역 - 고정 너비로 텍스트 위치 고정 */}
-                  <div className="w-20 flex-shrink-0">
+                  <div className="flex w-20 flex-shrink-0 justify-start">
                     {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
                       <button
                         className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700`}
@@ -3474,11 +3475,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       </button>
                     )}
                   </div>
+                </div>
 
                   {!trialMode &&
                     previewRows.length > 0 &&
                     courierHeaders.length > 0 && (
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 basis-full sm:mt-0 sm:basis-auto sm:min-w-[12rem]">
                         <p className="text-sm text-gray-500">
                           ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
                           ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
@@ -3516,7 +3518,6 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         )}
                       </div>
                     )}
-                </div>
 
                 {trialMode &&
                   previewRows.length > 0 &&
