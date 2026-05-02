@@ -155,16 +155,22 @@ export default function HomePage() {
 
             {/* 데모: 히어로·가격 문구와의 상하 여백 2배 (기존 gap-4 대비 ≈2rem) */}
             <div className="w-full py-8 lg:py-12">
-              <div className="mb-3 flex justify-center">
+              <div className="mb-3 flex justify-center px-2">
                 <button
                   type="button"
+                  aria-expanded={isDemoOpen}
+                  aria-controls="home-order-conversion-demo"
                   onClick={() => setIsDemoOpen((prev) => !prev)}
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="max-w-[min(100%,22rem)] rounded-lg border border-zinc-300 bg-white px-3 py-2 text-center text-xs font-medium leading-snug text-zinc-700 hover:bg-zinc-100 sm:max-w-none sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 >
-                  {isDemoOpen ? '데모 접기' : '데모 펼치기'}
+                  {isDemoOpen ? '예시 닫기' : '실제 주문이 어떻게 정리되는지 보기'}
                 </button>
               </div>
-              {isDemoOpen && <DemoAnimation />}
+              {isDemoOpen ? (
+                <div id="home-order-conversion-demo">
+                  <DemoAnimation />
+                </div>
+              ) : null}
             </div>
 
             {/* 데모 하단: 가격 강조 (한 줄) */}
