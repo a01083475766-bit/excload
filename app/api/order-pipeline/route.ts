@@ -13,8 +13,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import { checkOrderPipelineRateLimit } from '@/app/lib/api-rate-limit';
 import { run as runOrderPipeline } from '@/app/pipeline/order/order-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
+import type { MappingResult } from '@/app/pipeline/template/map-template-to-base';
 import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
 
 /**
@@ -37,14 +39,50 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const prompt = (body as { prompt?: string | null })?.prompt;
-    const { fileSessionId, ...cleanInputFile } = body;
-    
+    const { fileSessionId, reuseHeaderMapping, ...cleanInputFile } = body as Record<string, unknown> & {
+      fileSessionId?: string;
+      reuseHeaderMapping?: unknown;
+    };
+
+    const isChunkFollowUp =
+      reuseHeaderMapping !== undefined &&
+      reuseHeaderMapping !== null &&
+      typeof reuseHeaderMapping === 'object' &&
+      !Array.isArray(reuseHeaderMapping);
+
+    const rateLimited = checkOrderPipelineRateLimit(
+      request,
+      session?.user?.email ?? undefined,
+      isChunkFollowUp ? 'chunkFollowUp' : 'full',
+    );
+    if (rateLimited) {
+      return rateLimited;
+    }
+
     // CleanInputFile 검증
     if (!cleanInputFile || !Array.isArray(cleanInputFile.headers) || !Array.isArray(cleanInputFile.rows)) {
       return NextResponse.json(
         { error: 'CleanInputFile 형식이 올바르지 않습니다.' },
         { status: 400 }
       );
+    }
+
+    if (reuseHeaderMapping !== undefined && reuseHeaderMapping !== null) {
+      const rh = reuseHeaderMapping as Partial<MappingResult>;
+      const headers = cleanInputFile.headers as string[];
+      if (
+        !Array.isArray(rh.mappedBaseHeaders) ||
+        !Array.isArray(rh.unknownHeaders) ||
+        rh.mappedBaseHeaders.length !== headers.length
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              'reuseHeaderMapping이 올바르지 않거나 mappedBaseHeaders 길이가 headers와 일치하지 않습니다.',
+          },
+          { status: 400 },
+        );
+      }
     }
     
     console.log('[Stage2 INPUT]', {
@@ -56,7 +94,13 @@ export async function POST(request: NextRequest) {
     // Stage2 Order Pipeline 실행
     let result;
     try {
-      result = await runOrderPipeline(cleanInputFile as CleanInputFile, fileSessionId);
+      result = await runOrderPipeline(
+        cleanInputFile as unknown as CleanInputFile,
+        fileSessionId,
+        reuseHeaderMapping
+          ? { reuseHeaderMapping: reuseHeaderMapping as MappingResult }
+          : undefined,
+      );
     } catch (error) {
       console.error('[Stage2 ERROR FULL]', error);
       throw error;

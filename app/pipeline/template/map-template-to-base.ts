@@ -14,6 +14,7 @@
 
 import { ALIAS_DICTIONARY } from '../base/alias-dictionary';
 import { BASE_HEADERS } from '../base/base-headers';
+import { getHeaderAliasDictionary } from '@/app/lib/header-alias-cache';
 import { prisma } from '@/app/lib/prisma';
 import { isExcloudPipelineDebugMapping } from '@/app/lib/excloud-pipeline-debug';
 import { refineMappedBaseHeadersCouriers } from './refine-mapped-base-headers';
@@ -108,12 +109,7 @@ export async function mapTemplateToBase(
   let dbAliasDictionary: Record<string, string> = {};
   if (typeof window === 'undefined') {
     try {
-      const dbAliases = await prisma.headerAlias.findMany();
-      dbAliasDictionary = dbAliases.reduce((acc, item) => {
-        acc[item.alias] = item.baseHeader;
-        return acc;
-      }, {} as Record<string, string>);
-      
+      dbAliasDictionary = await getHeaderAliasDictionary();
       if (Object.keys(dbAliasDictionary).length > 0) {
         console.log('[Stage1] DB Alias Dictionary loaded:', Object.keys(dbAliasDictionary).length, 'aliases');
       }

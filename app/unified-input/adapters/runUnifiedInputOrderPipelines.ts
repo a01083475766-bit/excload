@@ -20,6 +20,7 @@ import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import type { MergePipelineResult, FixedInput } from '@/app/pipeline/merge/types';
 import { runMergePipeline } from '@/app/pipeline/merge/merge-pipeline';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
+import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
 
 export interface UnifiedInputPipelineParams {
   /** Stage0/1을 거치지 않고 생성된 CleanInputFile 확장 타입 */
@@ -30,6 +31,8 @@ export interface UnifiedInputPipelineParams {
   fixedHeaderValues: Record<string, string>;
   /** 파일/세션 단위 식별자 (AI 호출 통제용) */
   fileSessionId?: string;
+  /** Stage2 행 청크 진행(대용량 텍스트/이미지 경로) */
+  onStage2ChunkProgress?: (completed: number, total: number) => void;
 }
 
 export interface UnifiedInputPipelineResult {
@@ -49,28 +52,25 @@ export interface UnifiedInputPipelineResult {
 export async function runUnifiedInputOrderPipelines(
   params: UnifiedInputPipelineParams
 ): Promise<UnifiedInputPipelineResult> {
-  const { cleanInputFile, templateBridgeFile, fixedHeaderValues, fileSessionId } = params;
+  const {
+    cleanInputFile,
+    templateBridgeFile,
+    fixedHeaderValues,
+    fileSessionId,
+    onStage2ChunkProgress,
+  } = params;
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const isTrialContext = pathname === '/' || pathname.startsWith('/excload') || pathname.startsWith('/trial');
 
-  // Stage2: Order Pipeline 실행 (기존 API 재사용)
-  const response = await fetch('/api/order-pipeline', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(isTrialContext ? { 'x-excload-trial': '1' } : {}),
+  // Stage2: Order Pipeline 실행 (대용량 시 행 청크 순차 호출)
+  const orderStandardFile = await fetchOrderPipelineStage2(
+    cleanInputFile,
+    fileSessionId ?? crypto.randomUUID(),
+    {
+      trialHeader: isTrialContext,
+      onChunkProgress: onStage2ChunkProgress,
     },
-    body: JSON.stringify({
-      ...cleanInputFile,
-      fileSessionId,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Stage2(Order Pipeline) 실행 실패: ${response.statusText}`);
-  }
-
-  const orderStandardFile = await response.json();
+  );
 
   const dbg = isExcloudPipelineDebugClient();
   if (dbg && orderStandardFile?.rows?.[0]) {

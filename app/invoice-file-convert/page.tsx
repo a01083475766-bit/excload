@@ -20,6 +20,7 @@ import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 import { runMergePipeline } from '@/app/pipeline/merge/merge-pipeline';
 import type { PreviewRow } from '@/app/pipeline/merge/types';
 import type { OrderStandardFile } from '@/app/pipeline/order/order-pipeline';
+import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
 import * as XLSX from 'xlsx';
 import {
   alignRowsFromHeader,
@@ -994,34 +995,10 @@ export default function InvoiceFileConvertPage() {
 
       const invoiceSessionId = crypto.randomUUID();
 
-      const [orderResponse, invoiceResponse] = await Promise.all([
-        fetch('/api/order-pipeline', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...orderCleanInput,
-            fileSessionId: newOrderSessionId,
-          }),
-        }),
-        fetch('/api/order-pipeline', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...invoiceCleanInput,
-            fileSessionId: invoiceSessionId,
-          }),
-        }),
+      const [orderStage2, invoiceStage2] = await Promise.all([
+        fetchOrderPipelineStage2(orderCleanInput, newOrderSessionId),
+        fetchOrderPipelineStage2(invoiceCleanInput, invoiceSessionId),
       ]);
-
-      if (!orderResponse.ok) {
-        throw new Error(`주문 파일 Stage2 실패: ${orderResponse.statusText}`);
-      }
-      if (!invoiceResponse.ok) {
-        throw new Error(`송장 파일 Stage2 실패: ${invoiceResponse.statusText}`);
-      }
-
-      const orderStage2 = (await orderResponse.json()) as OrderStandardFile;
-      const invoiceStage2 = (await invoiceResponse.json()) as OrderStandardFile;
 
       const combinedUnknownHeaders = [
         ...new Set([...(orderStage2.unknownHeaders ?? []), ...(invoiceStage2.unknownHeaders ?? [])]),

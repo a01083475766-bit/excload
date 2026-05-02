@@ -26,6 +26,7 @@ import type { UnifiedInputPipelineResult } from '@/app/unified-input/adapters/ru
 import { extractTextFromImage } from '@/app/unified-input/adapters/ImageToTextAdapter';
 import { runTextToCleanInputAdapter } from '@/app/unified-input/adapters/TextToCleanInputAdapter';
 import { runUnifiedInputOrderPipelines } from '@/app/unified-input/adapters/runUnifiedInputOrderPipelines';
+import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
@@ -315,6 +316,8 @@ export default function OrderConvertPage() {
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "processing" | "done">("idle");
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
+  /** 대용량 Stage2 청크 호출 시에만 표시 */
+  const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [processingDots, setProcessingDots] = useState("");
   const [textProcessingDots, setTextProcessingDots] = useState("");
@@ -1273,6 +1276,7 @@ export default function OrderConvertPage() {
 
   const parseExcelFile = async (file: File) => {
     setFileProcessingStatus("processing");
+    setStage2ChunkLabel(null);
     setInputSourceType('excel'); // 엑셀 업로드로 입력 방식 기록
     
     const newOrderSessionId = crypto.randomUUID();
@@ -1283,9 +1287,11 @@ export default function OrderConvertPage() {
       f => f.name === file.name && f.size === file.size
     )) {
       alert('이미 업로드된 파일입니다.');
+      setFileProcessingStatus("idle");
       return;
     }
 
+    try {
     const buffer = await file.arrayBuffer();
     const rawData = readFirstSheetMatrixFromArrayBuffer(buffer);
 
@@ -1297,23 +1303,20 @@ export default function OrderConvertPage() {
     const preprocessPipeline = new ExcelPreprocessPipeline();
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
 
-    // Stage2 실행 (서버 API 호출)
-    const response = await fetch('/api/order-pipeline', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    // Stage2 실행 (대용량 시 행 청크로 서버 API 순차 호출)
+    const stage2Result = await fetchOrderPipelineStage2(
+      cleanInputFile,
+      newOrderSessionId,
+      {
+        onChunkProgress: (completed, total) => {
+          if (total > 1) {
+            setStage2ChunkLabel(`서버 변환 ${completed}/${total}`);
+          } else {
+            setStage2ChunkLabel(null);
+          }
+        },
       },
-      body: JSON.stringify({
-        ...cleanInputFile,
-        fileSessionId: newOrderSessionId,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Stage2 실행 실패: ${response.statusText}`);
-    }
-
-    const stage2Result = await response.json();
+    );
 
     // 디버그: 개인통관번호(PCCC) 값이 Stage2(OrderStandardFile)에 실제로 들어가는지 확인
     // (콘솔에서 Stage2 값/Stage3 미리보기 값을 바로 대조할 수 있게 PCCC만 최소 로그)
@@ -1341,6 +1344,7 @@ export default function OrderConvertPage() {
     }
 
     // Stage2 완료 직후 상태 설정
+    setStage2ChunkLabel(null);
     setFileProcessingStatus("done");
     setTimeout(() => {
       setFileProcessingStatus("idle");
@@ -1438,6 +1442,16 @@ export default function OrderConvertPage() {
     if (typeof window !== 'undefined') {
       (window as any).__lastOrderResult = stage2Result;
       (window as any).__lastOrderFile = file.name;
+    }
+    } catch (error) {
+      console.error('[OrderConvertPage] parseExcelFile', error);
+      setStage2ChunkLabel(null);
+      setFileProcessingStatus("idle");
+      alert(
+        error instanceof Error
+          ? error.message
+          : '엑셀 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+      );
     }
   };
   
@@ -1779,8 +1793,15 @@ export default function OrderConvertPage() {
 
                           <span className="w-[110px] text-right inline-block">
                             {fileProcessingStatus === "processing" && (
-                              <span className="text-blue-600 font-medium">
-                                ⏳ 처리중{processingDots}
+                              <span className="inline-flex flex-col items-end gap-0.5 text-blue-600 font-medium">
+                                <span>
+                                  ⏳ 처리중{processingDots}
+                                </span>
+                                {stage2ChunkLabel ? (
+                                  <span className="text-[11px] font-normal text-blue-500/90">
+                                    {stage2ChunkLabel}
+                                  </span>
+                                ) : null}
                               </span>
                             )}
 

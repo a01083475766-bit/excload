@@ -30,6 +30,7 @@ import { runTextToCleanInputAdapter } from '@/app/unified-input/adapters/TextToC
 import { runUnifiedInputOrderPipelines } from '@/app/unified-input/adapters/runUnifiedInputOrderPipelines';
 import { formatPhoneDisplay } from '@/app/utils/format-phone';
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
+import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
@@ -758,6 +759,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [showTrialDownloadModal, setShowTrialDownloadModal] = useState(false);
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
+  const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [processingDots, setProcessingDots] = useState("");
   const [textProcessingDots, setTextProcessingDots] = useState("");
@@ -2632,6 +2634,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   const parseExcelFile = async (file: File) => {
     setFileProcessingStatus("processing");
+    setStage2ChunkLabel(null);
     setInputSourceType('excel'); // 엑셀 업로드로 입력 방식 기록
     
     const newOrderSessionId = crypto.randomUUID();
@@ -2642,9 +2645,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       f => f.name === file.name && f.size === file.size
     )) {
       alert('이미 업로드된 파일입니다.');
+      setFileProcessingStatus("idle");
       return;
     }
 
+    try {
     const buffer = await file.arrayBuffer();
     const rawData = readFirstSheetMatrixFromArrayBuffer(buffer);
 
@@ -2656,23 +2661,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     const preprocessPipeline = new ExcelPreprocessPipeline();
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
 
-    // Stage2 실행 (서버 API 호출)
-    const response = await fetch('/api/order-pipeline', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    const stage2Result = await fetchOrderPipelineStage2(cleanInputFile, newOrderSessionId, {
+      onChunkProgress: (completed, total) => {
+        if (total > 1) {
+          setStage2ChunkLabel(`서버 변환 ${completed}/${total}`);
+        } else {
+          setStage2ChunkLabel(null);
+        }
       },
-      body: JSON.stringify({
-        ...cleanInputFile,
-        fileSessionId: newOrderSessionId,
-      }),
     });
-
-    if (!response.ok) {
-      throw new Error(`Stage2 실행 실패: ${response.statusText}`);
-    }
-
-    const stage2Result = await response.json();
 
     try {
       const pcccBaseHeader = '개인통관번호';
@@ -2697,6 +2694,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }
 
     // Stage2 완료 직후 상태 설정
+    setStage2ChunkLabel(null);
     setFileProcessingStatus("done");
     setTimeout(() => {
       setFileProcessingStatus("idle");
@@ -2797,6 +2795,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     if (typeof window !== 'undefined') {
       (window as any).__lastOrderResult = stage2Result;
       (window as any).__lastOrderFile = file.name;
+    }
+    } catch (error) {
+      console.error('[LogisticsConvertClient] parseExcelFile', error);
+      setStage2ChunkLabel(null);
+      setFileProcessingStatus("idle");
+      alert(
+        error instanceof Error
+          ? error.message
+          : '엑셀 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+      );
     }
   };
   
@@ -3243,8 +3251,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
                           <span className="w-[110px] text-right inline-block">
                             {fileProcessingStatus === "processing" && (
-                              <span className="text-emerald-600 font-medium">
-                                ⏳ 처리중{processingDots}
+                              <span className="inline-flex flex-col items-end gap-0.5 text-emerald-600 font-medium">
+                                <span>
+                                  ⏳ 처리중{processingDots}
+                                </span>
+                                {stage2ChunkLabel ? (
+                                  <span className="text-[11px] font-normal text-emerald-700/90 dark:text-emerald-400/90">
+                                    {stage2ChunkLabel}
+                                  </span>
+                                ) : null}
                               </span>
                             )}
 
@@ -4555,7 +4570,6 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                       </button>
                                       {isTrialDefaultProtectedFormat(format) ? (
                                         <span
-                                          className="px-2 py-1 text-xs text-zinc-400 cursor-default"
                                           data-ex-tooltip={trialMode ? '체험 기본 양식은 삭제할 수 없습니다.' : undefined}
                                           className={`${trialMode ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs text-zinc-400 cursor-default`}
                                         >

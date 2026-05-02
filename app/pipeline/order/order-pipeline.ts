@@ -19,6 +19,7 @@ import { BASE_HEADERS } from '../base/base-headers';
 import { ALIAS_DICTIONARY } from '../base/alias-dictionary';
 import type { CleanInputFile } from '../preprocess/types';
 import { validateCleanInputFile, validateOrderStandardFile, logValidationResult, throwIfInvalid } from '../utils/validation';
+import type { MappingResult } from '../template/map-template-to-base';
 import { mapTemplateToBase } from '../template/map-template-to-base';
 
 /**
@@ -42,6 +43,16 @@ export interface OrderStandardFile {
   /** 매핑 실패한 헤더 배열 */
   unknownHeaders: string[];
 }
+
+/** Stage2 API가 행 청크 후속 요청에 헤더 매핑을 재사용할 수 있게 내려주는 확장 필드 */
+export type OrderPipelineStage2Response = OrderStandardFile & {
+  _reuseHeaderMapping?: MappingResult;
+};
+
+export type OrderPipelineRunOptions = {
+  /** 동일 파일의 이전 청크에서 받은 매핑(헤더 길이 일치 필수). 있으면 Stage1/AI를 건너뜁니다. */
+  reuseHeaderMapping?: MappingResult;
+};
 
 /**
  * 헤더 정규화 함수
@@ -78,7 +89,11 @@ function normalizeHeader(header: string): string {
  * // result.unknownHeaders: 매핑 실패한 헤더 배열
  * ```
  */
-export async function run(cleanInputFile: CleanInputFile, fileSessionId?: string): Promise<OrderStandardFile> {
+export async function run(
+  cleanInputFile: CleanInputFile,
+  fileSessionId?: string,
+  options?: OrderPipelineRunOptions,
+): Promise<OrderPipelineStage2Response> {
   // 0. 입력 검증 체크포인트
   const inputValidation = validateCleanInputFile(cleanInputFile);
   logValidationResult(inputValidation, 'Stage2 Order Pipeline - Input');
@@ -104,9 +119,21 @@ export async function run(cleanInputFile: CleanInputFile, fileSessionId?: string
     type: typeof stage2Input,
   });
 
-  // 1. Stage1 헤더 매핑 로직 사용 (AI Header Mapping 포함)
-  let mappingResult;
-  if (isNormalizedText) {
+  // 1. Stage1 헤더 매핑 (청크 후속 요청은 재사용 매핑으로 AI/DB 매핑 생략)
+  let mappingResult: MappingResult;
+  const reuse = options?.reuseHeaderMapping;
+  if (reuse) {
+    if (reuse.mappedBaseHeaders.length !== headers.length) {
+      throw new Error(
+        `reuseHeaderMapping.mappedBaseHeaders 길이(${reuse.mappedBaseHeaders.length})가 headers 길이(${headers.length})와 일치하지 않습니다.`,
+      );
+    }
+    mappingResult = {
+      mappedBaseHeaders: [...reuse.mappedBaseHeaders],
+      unknownHeaders: [...reuse.unknownHeaders],
+    };
+    console.log('[Stage2 REUSE HEADER MAP]', { headerCount: headers.length });
+  } else if (isNormalizedText) {
     console.log('[TEXT FLOW - SKIP HEADER MAP]', headers);
     mappingResult = {
       mappedBaseHeaders: [...headers],
@@ -253,6 +280,16 @@ export async function run(cleanInputFile: CleanInputFile, fileSessionId?: string
   const outputValidation = validateOrderStandardFile(orderStandardFile);
   logValidationResult(outputValidation, 'Stage2 Order Pipeline - Output');
   throwIfInvalid(outputValidation, 'Stage2 Order Pipeline - Output');
-  
-  return orderStandardFile;
+
+  if (reuse) {
+    return orderStandardFile;
+  }
+
+  return {
+    ...orderStandardFile,
+    _reuseHeaderMapping: {
+      mappedBaseHeaders: [...mappingResult.mappedBaseHeaders],
+      unknownHeaders: [...mappingResult.unknownHeaders],
+    },
+  };
 }
