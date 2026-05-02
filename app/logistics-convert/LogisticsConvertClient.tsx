@@ -3522,14 +3522,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 {trialMode &&
                   previewRows.length > 0 &&
                   courierHeaders.length > 0 && (
-                    <div className="min-w-0 flex-1 basis-full text-sm leading-snug text-gray-500 sm:basis-[min(100%,24rem)] md:max-w-xl">
-                      <span className="block">✔ 셀을 클릭하면 수정할 수 있습니다.</span>
-                      <span className="mt-0.5 block">
+                    <div className="min-w-0 flex-1 basis-full sm:mt-0 sm:basis-auto sm:min-w-[12rem] md:max-w-xl">
+                      <p className="text-sm text-gray-500">
+                        ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
+                        ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
                         ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                      </span>
-                      <span className="mt-0.5 block">
-                        ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.
-                      </span>
+                      </p>
                       {!isPreviewExpanded && (
                         <div className="mt-1 ml-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
                           <span>

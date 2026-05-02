@@ -1964,49 +1964,49 @@ export default function OrderConvertPage() {
         <section className="relative py-3">
           <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
             <div className="px-6 pt-6 pb-4">
-              {/* 1줄: 미리보기 제목 + 펼치기 버튼 + 선택 삭제 버튼 + 기능 안내 문구 */}
-              <div className="flex items-center gap-3 mb-2">
-                <h3 className="text-lg font-semibold">미리보기</h3>
+              {/* 미리보기 제목 + 버튼 + 안내 (물류변환 페이지와 동일 레이아웃·문구) */}
+              <div className="mb-2 flex flex-col gap-y-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+                <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center gap-3">
+                  <h3 className="text-lg font-semibold">미리보기</h3>
 
-                {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <button
-                    className="w-20 h-9 inline-flex items-center justify-center text-sm border rounded transition"
-                    onClick={() => setIsPreviewExpanded(prev => !prev)}
-                  >
-                    {isPreviewExpanded ? '닫기' : '펼치기'}
-                  </button>
-                )}
-
-                {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
-                    onClick={() => setIsPreviewResetModalOpen(true)}
-                  >
-                    미리보기 초기화
-                  </button>
-                )}
-
-                {/* 삭제 버튼 영역 - 고정 너비로 텍스트 위치 고정 */}
-                <div className="w-20 flex-shrink-0">
-                  {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
+                  {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
-                      className="w-20 h-9 inline-flex items-center justify-center text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700"
-                      onClick={() => {
-                        setIsDeleteModalOpen(true);
-                      }}
+                      className="inline-flex h-9 w-20 flex-shrink-0 items-center justify-center rounded border text-sm transition"
+                      onClick={() => setIsPreviewExpanded(prev => !prev)}
                     >
-                      선택 삭제
+                      {isPreviewExpanded ? '닫기' : '펼치기'}
                     </button>
                   )}
+
+                  {previewRows.length > 0 && courierHeaders.length > 0 && (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
+                      onClick={() => setIsPreviewResetModalOpen(true)}
+                    >
+                      미리보기 초기화
+                    </button>
+                  )}
+
+                  <div className="flex w-20 flex-shrink-0 justify-start">
+                    {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
+                      <button
+                        className="inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700"
+                        onClick={() => {
+                          setIsDeleteModalOpen(true);
+                        }}
+                      >
+                        선택 삭제
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {/* 기능 안내 문구 + 추가 조회 안내 (동일 시작점 정렬) */}
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1 basis-full sm:mt-0 sm:basis-auto sm:min-w-[12rem]">
                     <p className="text-sm text-gray-500">
-                      ✔ 셀을 클릭하면 수정할 수 있습니다.  
-                      ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.  
+                      ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
+                      ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
                       ✔ 체크박스로 선택 후 삭제할 수 있습니다.
                     </p>
                     {!isPreviewExpanded && (
@@ -2095,7 +2095,10 @@ export default function OrderConvertPage() {
                 <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
                   isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
                 }`}>
-                  <div className="px-4 py-3 border-b bg-gray-50 flex-shrink-0">
+                  <div className="flex flex-shrink-0 items-center gap-2 border-b bg-gray-50 px-3 py-2">
+                    <p className="text-xs text-gray-600">
+                      헤더 체크박스를 선택하면 원하는 값을 설정할 수 있습니다. 미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.
+                    </p>
                   </div>
                   <div
                     ref={previewScrollContainerRef}
