@@ -3278,8 +3278,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           <span className="w-[110px] text-right inline-block">
                             {fileProcessingStatus === "processing" && (
                               <span className="inline-flex flex-col items-end gap-0.5 text-emerald-600 font-medium">
-                                <span>
-                                  ⏳ 처리중{processingDots}
+                                <span className="inline-flex items-center justify-end gap-2">
+                                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                  <span>변환 중{processingDots}</span>
                                 </span>
                                 {stage2ChunkLabel ? (
                                   <span className="text-[11px] font-normal text-emerald-700/90 dark:text-emerald-400/90">

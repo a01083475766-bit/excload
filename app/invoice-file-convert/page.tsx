@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Truck, Search, ArrowDown, X, Check, Upload } from 'lucide-react';
+import { Truck, Search, ArrowDown, X, Check, Upload, Loader2 } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { ExcelPreprocessPipeline } from '@/app/pipeline/preprocess/excel-preprocess-pipeline';
@@ -1493,7 +1493,10 @@ export default function InvoiceFileConvertPage() {
                           </span>
                           <span className="w-[110px] text-right inline-block">
                             {fileProcessingStatus === 'processing' && (
-                              <span className="text-blue-600 font-medium">⏳ 처리중{processingDots}</span>
+                              <span className="inline-flex items-center justify-end gap-2 font-medium text-blue-600">
+                                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                <span>변환 중{processingDots}</span>
+                              </span>
                             )}
                             {fileProcessingStatus === 'done' && (
                               <span className="text-green-600 font-medium">✔ 완료</span>
