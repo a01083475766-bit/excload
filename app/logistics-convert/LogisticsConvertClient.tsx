@@ -546,6 +546,23 @@ const saveRecentExcelFormat = (
 const TRIAL_INITIAL_POINTS = 2000;
 const TRIAL_POINTS_STORAGE_KEY = 'logistics_trial_points_v1';
 
+/** 체험 텍스트 입력란 커서 추적 툴팁(줄바꿈은 globals `.ex-floating-tooltip` 의 pre-line) */
+const TRIAL_TEXT_ORDER_TOOLTIP = [
+  '카카오톡·문자·텍스트 주문을 복사한 뒤 붙여넣으면, 미리보기에서 항목별로 나뉘어 정리할 수 있습니다.',
+  '',
+  '〈복사 후 붙여넣기 예〉',
+  '010-1234-5766  김철수  서울시 강남구 테헤란로123',
+  '키보드 1개  문앞에 놓아주세요',
+  '',
+  '〈변환 후 예시〉',
+  '받으시는분 : 김철수',
+  '배송지 : 서울시 강남구 테헤란로123',
+  '연락처 : 010-1234-5766',
+  '상품 : 키보드',
+  '수량 : 1개',
+  '배송요청사항 : 문앞에 놓아주세요',
+].join('\n');
+
 function readTrialPointsFromStorage(): number {
   if (typeof window === 'undefined') return TRIAL_INITIAL_POINTS;
   try {
@@ -696,7 +713,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       const target = (event.target as HTMLElement | null)?.closest?.('[data-ex-tooltip]') as
         | HTMLElement
         | null;
-      const tooltipText = target?.getAttribute('data-ex-tooltip')?.trim() ?? '';
+      const tooltipRaw = target?.getAttribute('data-ex-tooltip') ?? '';
+      const tooltipText = tooltipRaw.trim();
 
       if (!tooltipText) {
         setFloatingTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
@@ -705,9 +723,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       const cursorGapX = 14;
       const cursorGapY = 18;
-      const maxWidth = 320;
+      const maxWidth = Math.min(420, Math.floor(window.innerWidth * 0.78));
       const viewportPadding = 12;
-      const estimatedHeight = 56;
+      const lineBreaks = tooltipRaw.includes('\n') ? tooltipRaw.split(/\n/).length : tooltipText.split(/\n/).length;
+      const estimatedHeight = Math.min(360, Math.max(52, lineBreaks * 20 + 32));
 
       const nextX = Math.min(
         Math.max(viewportPadding, event.clientX + cursorGapX),
@@ -3355,11 +3374,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <div className="space-y-2.5">
                     <textarea
                       ref={textInputRef}
-                      data-ex-tooltip={
-                        trialMode
-                          ? '카카오톡/ 문자 / 텍스트 주문을 복사한후 붙여넣으면 미리보기에 구분하여 주문정리를 할수있습니다.'
-                          : undefined
-                      }
+                      data-ex-tooltip={trialMode ? TRIAL_TEXT_ORDER_TOOLTIP : undefined}
                       className={`w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white ${
                         trialMode ? 'ex-tooltip-target' : ''
                       }`}
@@ -5228,7 +5243,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       {trialMode && isDesktopHoverDevice && (
         <div
-          className={`ex-floating-tooltip ${floatingTooltip.visible ? 'is-visible' : ''}`}
+          className={`ex-floating-tooltip ${floatingTooltip.visible ? 'is-visible' : ''} ${
+            floatingTooltip.visible && floatingTooltip.text.includes('\n')
+              ? 'ex-floating-tooltip--multiline'
+              : ''
+          }`}
           style={{
             left: `${floatingTooltip.x}px`,
             top: `${floatingTooltip.y}px`,

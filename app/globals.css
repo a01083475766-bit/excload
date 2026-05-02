@@ -324,7 +324,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   text-align: center;
-  white-space: normal;
+  white-space: pre-line;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
   pointer-events: none;
   opacity: 0;
@@ -337,6 +337,13 @@ body {
 .ex-floating-tooltip.is-visible {
   opacity: 1;
   transform: translate3d(0, 0, 0);
+}
+
+/* 줄바꿈이 많은 안내(예: 텍스트 주문 입력 예시) */
+.ex-floating-tooltip.ex-floating-tooltip--multiline {
+  font-size: 13px;
+  line-height: 1.52;
+  text-align: left;
 }
 
 /* 홈 랜딩(데모+체험) 색상 통일: 파란 계열 */
