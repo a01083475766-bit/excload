@@ -298,6 +298,11 @@ export default function InvoiceFileConvertPage() {
   const [processingDots, setProcessingDots] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [inputSourceType, setInputSourceType] = useState<'excel' | null>(null);
+  /** 주문·송장 드롭존: 파일 새로 붙을 때만 2회 플래시 (globals `.invoice-dropzone-double-flash`) */
+  const [orderDropzoneFlashPlaying, setOrderDropzoneFlashPlaying] = useState(false);
+  const [courierDropzoneFlashPlaying, setCourierDropzoneFlashPlaying] = useState(false);
+  const orderDropzoneFlashSigRef = useRef<string | null>(null);
+  const courierDropzoneFlashSigRef = useRef<string | null>(null);
 
   const courierFileInputRef = useRef<HTMLInputElement | null>(null);
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -323,6 +328,36 @@ export default function InvoiceFileConvertPage() {
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  const INVOICE_DROPZONE_FLASH_MS = 1200;
+
+  useEffect(() => {
+    if (!uploadedExcelFile) {
+      orderDropzoneFlashSigRef.current = null;
+      setOrderDropzoneFlashPlaying(false);
+      return;
+    }
+    const sig = `${uploadedExcelFile.name}\0${uploadedExcelFile.size}\0${uploadedExcelFile.lastModified}`;
+    if (orderDropzoneFlashSigRef.current === sig) return;
+    orderDropzoneFlashSigRef.current = sig;
+    setOrderDropzoneFlashPlaying(true);
+    const tid = window.setTimeout(() => setOrderDropzoneFlashPlaying(false), INVOICE_DROPZONE_FLASH_MS);
+    return () => window.clearTimeout(tid);
+  }, [uploadedExcelFile]);
+
+  useEffect(() => {
+    if (!courierInvoiceFile) {
+      courierDropzoneFlashSigRef.current = null;
+      setCourierDropzoneFlashPlaying(false);
+      return;
+    }
+    const sig = `${courierInvoiceFile.name}\0${courierInvoiceFile.size}\0${courierInvoiceFile.lastModified}`;
+    if (courierDropzoneFlashSigRef.current === sig) return;
+    courierDropzoneFlashSigRef.current = sig;
+    setCourierDropzoneFlashPlaying(true);
+    const tid = window.setTimeout(() => setCourierDropzoneFlashPlaying(false), INVOICE_DROPZONE_FLASH_MS);
+    return () => window.clearTimeout(tid);
+  }, [courierInvoiceFile]);
 
   // 고정 헤더 순서 배열 (courierUploadTemplate.headers 기준)
   const FIXED_HEADER_ORDER = useMemo(() => {
@@ -1431,10 +1466,16 @@ export default function InvoiceFileConvertPage() {
                   <label
                     htmlFor="invoice-order-file-input"
                     style={{ cursor: 'pointer' }}
-                    className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
+                    className={`w-full h-[180px] border-2 border-dashed rounded-lg p-4 overflow-hidden flex flex-col ${
+                      orderDropzoneFlashPlaying ? '' : 'transition-colors'
+                    } ${
                       isDraggingOrder
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 hover:border-blue-400'
+                        ? 'border-blue-500 bg-blue-100'
+                        : orderDropzoneFlashPlaying
+                          ? 'invoice-dropzone-double-flash'
+                          : uploadedExcelFile
+                            ? 'border-blue-300 bg-blue-50 hover:border-blue-400'
+                            : 'border-gray-300 bg-gray-50 hover:border-blue-400'
                     }`}
                   >
                     <div className="flex-1 flex flex-col items-center justify-center gap-2.5 text-center">
@@ -1485,10 +1526,16 @@ export default function InvoiceFileConvertPage() {
                   <label
                     htmlFor="invoice-courier-file-input"
                     style={{ cursor: 'pointer' }}
-                    className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
+                    className={`w-full h-[180px] border-2 border-dashed rounded-lg p-4 overflow-hidden flex flex-col ${
+                      courierDropzoneFlashPlaying ? '' : 'transition-colors'
+                    } ${
                       isDraggingCourier
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 hover:border-blue-400'
+                        ? 'border-blue-500 bg-blue-100'
+                        : courierDropzoneFlashPlaying
+                          ? 'invoice-dropzone-double-flash'
+                          : courierInvoiceFile
+                            ? 'border-blue-300 bg-blue-50 hover:border-blue-400'
+                            : 'border-gray-300 bg-gray-50 hover:border-blue-400'
                     }`}
                   >
                     <div className="flex-1 flex flex-col items-center justify-center gap-2.5 text-center">
