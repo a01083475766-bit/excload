@@ -1782,33 +1782,35 @@ export default function OrderConvertPage() {
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
-            {/* 주문 가져오기 | 안내 문구 | 잔여 사용량 (한 줄, 좌·우 배지 크기 맞춤) */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 lg:gap-4">
-              <div className="flex shrink-0 justify-center sm:min-w-[200px] sm:justify-start">
+            {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (한쪽만 있을 때는 반대쪽 빈 슬롯으로 대칭) */}
+            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
+              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
                 {connectedMalls.length > 0 ? (
                   <button
                     type="button"
                     onClick={() => router.push('/order/fetch')}
-                    className="w-full min-w-0 rounded-lg bg-green-600 px-4 py-1.5 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px] sm:max-w-[200px]"
+                    className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
                   >
                     주문 가져오기
                   </button>
+                ) : user ? (
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
                 ) : null}
               </div>
-              <p className="min-w-0 flex-1 text-center text-sm leading-tight text-gray-500 sm:px-1">
+              <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
                 엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 택배 업로드 파일로 자동 변환합니다.
               </p>
-              <div className="flex shrink-0 justify-center sm:min-w-[200px] sm:justify-end">
+              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
                 {user ? (
-                  <div className="w-full min-w-0 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-4 py-1.5 text-white shadow-md sm:w-[200px] sm:max-w-[200px]">
-                    <div className="flex items-center justify-end gap-2">
-                      <Coins className="h-4 w-4 shrink-0" />
-                      <span className="text-sm font-medium">잔여 사용량</span>
-                      <span className="text-base font-bold tabular-nums sm:text-lg">
-                        :{user.points.toLocaleString()}
-                      </span>
-                    </div>
+                  <div className="flex h-[38px] w-full min-w-0 items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white shadow-md sm:w-[200px]">
+                    <Coins className="h-4 w-4 shrink-0" />
+                    <span className="shrink-0 text-sm font-medium">잔여 사용량</span>
+                    <span className="min-w-0 truncate text-sm font-bold tabular-nums" title={String(user.points)}>
+                      :{user.points.toLocaleString()}
+                    </span>
                   </div>
+                ) : connectedMalls.length > 0 ? (
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
                 ) : null}
               </div>
             </div>
