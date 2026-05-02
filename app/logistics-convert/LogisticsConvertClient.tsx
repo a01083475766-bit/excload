@@ -3418,22 +3418,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         <section className="relative py-3">
           <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
             <div className="px-6 pt-6 pb-4">
-              {/* 미리보기 제목 + 버튼 + 안내 (체험판: 안내는 오른쪽 세로 스택 — 체크박스 문구가 셀 안내 바로 아래) */}
-              <div
-                className={
-                  trialMode
-                    ? 'mb-2 flex flex-wrap items-start gap-x-3 gap-y-2'
-                    : 'mb-2 flex flex-col gap-y-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3'
-                }
-              >
-                {/* 정식(!trialMode)은 display:contents 금지 — 플렉스 레이아웃에서 초기화 버튼이 누락되는 브라우저 이슈 방지 */}
-                <div
-                  className={
-                    trialMode
-                      ? 'flex flex-wrap items-center gap-3'
-                      : 'flex min-w-0 flex-shrink-0 flex-wrap items-center gap-3'
-                  }
-                >
+              {/* 미리보기 제목 + 버튼 + 안내 (체험판·정식 동일 레이아웃) */}
+              <div className="mb-2 flex flex-col gap-y-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+                <div className="flex min-w-0 flex-shrink-0 flex-wrap items-center gap-3">
                   <h3 className="text-lg font-semibold">미리보기</h3>
 
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
@@ -3477,89 +3464,45 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   </div>
                 </div>
 
-                  {!trialMode &&
-                    previewRows.length > 0 &&
-                    courierHeaders.length > 0 && (
-                      <div className="min-w-0 flex-1 basis-full sm:mt-0 sm:basis-auto sm:min-w-[12rem]">
-                        <p className="text-sm text-gray-500">
-                          ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
-                          ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
-                          ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                        </p>
-                        {!isPreviewExpanded && (
-                          <div className="mt-1 ml-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
-                            <span>
-                              총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                            </span>
-                            {hasMorePreviewRows && (
-                              <>
-                                <button
-                                  className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
-                                  onClick={() =>
-                                    setRenderedRowCount((prev) =>
-                                      Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                                    )
-                                  }
-                                >
-                                  추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                                </button>
-                                <button
-                                  className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
-                                  onClick={() => setRenderedRowCount(sortedRows.length)}
-                                >
-                                  전체 보기
-                                </button>
-                              </>
-                            )}
-                            <span className="text-blue-600">
-                              주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                            </span>
-                          </div>
+                {previewRows.length > 0 && courierHeaders.length > 0 && (
+                  <div className="min-w-0 flex-1 basis-full sm:mt-0 sm:basis-auto sm:min-w-[12rem]">
+                    <p className="text-sm text-gray-500">
+                      ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
+                      ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
+                      ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+                    </p>
+                    {!isPreviewExpanded && (
+                      <div className="mt-1 ml-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
+                        <span>
+                          총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
+                        </span>
+                        {hasMorePreviewRows && (
+                          <>
+                            <button
+                              className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                              onClick={() =>
+                                setRenderedRowCount((prev) =>
+                                  Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                                )
+                              }
+                            >
+                              추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
+                            </button>
+                            <button
+                              className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
+                              onClick={() => setRenderedRowCount(sortedRows.length)}
+                            >
+                              전체 보기
+                            </button>
+                          </>
                         )}
+                        <span className="text-blue-600">
+                          주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                        </span>
                       </div>
                     )}
-
-                {trialMode &&
-                  previewRows.length > 0 &&
-                  courierHeaders.length > 0 && (
-                    <div className="min-w-0 flex-1 basis-full sm:mt-0 sm:basis-auto sm:min-w-[12rem] md:max-w-xl">
-                      <p className="text-sm text-gray-500">
-                        ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
-                        ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
-                        ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                      </p>
-                      {!isPreviewExpanded && (
-                        <div className="mt-1 ml-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-blue-600">
-                          <span>
-                            총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                          </span>
-                          {hasMorePreviewRows && (
-                            <>
-                              <button
-                                className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
-                                onClick={() =>
-                                  setRenderedRowCount((prev) =>
-                                    Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                                  )
-                                }
-                              >
-                                추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                              </button>
-                              <button
-                                className="h-7 px-2.5 border rounded text-xs hover:bg-gray-100"
-                                onClick={() => setRenderedRowCount(sortedRows.length)}
-                              >
-                                전체 보기
-                              </button>
-                            </>
-                          )}
-                          <span className="text-blue-600">
-                            주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  </div>
+                )}
               </div>
             </div>
             {previewRows.length === 0 || courierHeaders.length === 0 ? (
