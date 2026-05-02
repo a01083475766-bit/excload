@@ -221,6 +221,8 @@ const saveRecentExcelFormat = (
 
 export default function InvoiceFileConvertPage() {
   const router = useRouter();
+  /** 택배주문변환과 동일: 연동 몰이 있으면 주문 가져오기 노출 (추후 API로 통합 가능) */
+  const connectedMalls = ['coupang'];
   const user = useUserStore((state) => state.user);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
@@ -1432,25 +1434,37 @@ export default function InvoiceFileConvertPage() {
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
         <section className="relative pt-2 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
-            {/* 서비스 설명 텍스트 영역 + 사용량 표시 */}
-            <div className="relative flex items-center justify-center">
-              {/* 주문변환 안내 컨테이너 (항상 중앙) */}
-              <div className="flex flex-col gap-2 text-center min-h-[32px]">
-                <p className="text-sm text-gray-500 leading-tight">
-                  송장파일변환 — 주문 엑셀 파일과 송장 엑셀 파일을 등록하여 쇼핑몰 송장 업로드 양식에 맞게 변환합니다.
-                </p>
+            {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (택배주문변환과 동일 레이아웃) */}
+            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
+              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
+                {connectedMalls.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/order/fetch')}
+                    className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
+                  >
+                    주문 가져오기
+                  </button>
+                ) : user ? (
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
+                ) : null}
               </div>
-              
-              {/* 사용량 표시 UI (오른쪽 절대 위치) */}
-              {user && (
-                <div className="absolute right-0 bg-gradient-to-r from-blue-500 to-sky-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
-                  <div className="flex items-center gap-2 justify-end">
-                    <Coins className="w-4 h-4" />
-                    <span className="font-medium text-sm">잔여 사용량</span>
-                    <span className="text-lg font-bold">:{user.points.toLocaleString()}</span>
+              <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
+                송장파일변환 — 주문 엑셀 파일과 송장 엑셀 파일을 등록하여 쇼핑몰 송장 업로드 양식에 맞게 변환합니다.
+              </p>
+              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
+                {user ? (
+                  <div className="flex h-[38px] w-full min-w-0 items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white shadow-md sm:w-[200px]">
+                    <Coins className="h-4 w-4 shrink-0" />
+                    <span className="shrink-0 text-sm font-medium">잔여 사용량</span>
+                    <span className="min-w-0 truncate text-sm font-bold tabular-nums" title={String(user.points)}>
+                      :{user.points.toLocaleString()}
+                    </span>
                   </div>
-                </div>
-              )}
+                ) : connectedMalls.length > 0 ? (
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
+                ) : null}
+              </div>
             </div>
 
             {/* 이중 파일 업로드: 주문 엑셀 + 택배사 송장 엑셀 */}

@@ -575,6 +575,8 @@ const TRIAL_DEFAULT_TEMPLATE_PUBLIC_PATH = '/trial-default-upload-template.xlsx'
 
 export function LogisticsConvertClient({ trialMode = false }: { trialMode?: boolean }) {
   const router = useRouter();
+  /** 택배주문변환과 동일: 연동 시 주문 가져오기 노출 (추후 API로 통합 가능) */
+  const connectedMalls = ['coupang'];
   const [isDesktopHoverDevice, setIsDesktopHoverDevice] = useState(false);
   const [floatingTooltip, setFloatingTooltip] = useState<{
     visible: boolean;
@@ -3185,49 +3187,71 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 </p>
               </div>
             )}
-            {/* 주문 변환 안내 + 사용량 (order-convert와 동일 높이 유지) */}
-            <div className="relative flex items-center justify-center">
-            <div className="flex flex-col gap-2 text-center min-h-[32px]">
-                {!trialMode && (
-                  <p className="text-sm text-gray-500 leading-tight">
-                    엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.
-                  </p>
-                )}
+            {/* 좌·우 200px + 가운데 flex-1 (택배·송장 주문변환 상단과 동일 레이아웃 · 체험은 좌측 빈 칸 대칭) */}
+            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
+              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
+                {trialMode ? (
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
+                ) : connectedMalls.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/order/fetch')}
+                    className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
+                  >
+                    주문 가져오기
+                  </button>
+                ) : user ? (
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
+                ) : null}
               </div>
-
-              {/* 사용량 표시는 레이아웃 영향 없이 오른쪽 절대 위치 */}
-              {trialMode ? (
-                <div
-                  data-ex-tooltip={
-                    trialMode
-                      ? '텍스트 변환은 입력 글자 수만큼 사용량이 차감됩니다.'
-                      : undefined
-                  }
-                  className={`${trialMode ? 'ex-tooltip-target' : ''} trial-usage-badge absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md shadow-emerald-600/30 min-w-[140px]`}
-                >
-                  <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                    <Coins className="w-4 h-4 shrink-0" />
-                    <span className="text-[11px] font-medium opacity-90">체험 잔여 사용량</span>
-                    <span className="text-lg font-bold tabular-nums leading-none">
-                      {trialPoints === null
-                        ? '…'
-                        : `${trialPoints.toLocaleString()} / ${TRIAL_INITIAL_POINTS.toLocaleString()}`}
-                    </span>
-                  </div>
-                </div>
+              {!trialMode ? (
+                <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
+                  엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.
+                </p>
               ) : (
-                user && (
-                  <div className="absolute right-0 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-1.5 px-4 rounded-lg shadow-md min-w-[200px]">
-                    <div className="flex items-center gap-2 justify-end">
-                      <Coins className="w-4 h-4" />
-                      <span className="font-medium text-sm">잔여 사용량</span>
-                      <span className="text-lg font-bold">
-                        :{user.points.toLocaleString()}
+                <div className="order-first min-w-0 flex-1 sm:order-none" aria-hidden />
+              )}
+              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
+                {trialMode ? (
+                  <div
+                    data-ex-tooltip={
+                      trialMode
+                        ? '텍스트 변환은 입력 글자 수만큼 사용량이 차감됩니다.'
+                        : undefined
+                    }
+                    className={`${trialMode ? 'ex-tooltip-target' : ''} trial-usage-badge flex h-[38px] w-full min-w-0 items-center justify-end rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-3 text-white shadow-md shadow-emerald-600/30 sm:w-[200px]`}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-hidden">
+                      <Coins className="h-4 w-4 shrink-0" />
+                      <span className="shrink-0 text-[10px] font-medium opacity-90 leading-tight sm:text-[11px]">
+                        체험 잔여 사용량
+                      </span>
+                      <span
+                        className="min-w-0 truncate text-xs font-bold tabular-nums leading-none"
+                        title={
+                          trialPoints === null
+                            ? undefined
+                            : `${trialPoints.toLocaleString()} / ${TRIAL_INITIAL_POINTS.toLocaleString()}`
+                        }
+                      >
+                        {trialPoints === null
+                          ? '…'
+                          : `${trialPoints.toLocaleString()} / ${TRIAL_INITIAL_POINTS.toLocaleString()}`}
                       </span>
                     </div>
                   </div>
-                )
-              )}
+                ) : user ? (
+                  <div className="flex h-[38px] w-full min-w-0 items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-3 text-white shadow-md sm:w-[200px]">
+                    <Coins className="h-4 w-4 shrink-0" />
+                    <span className="shrink-0 text-sm font-medium">잔여 사용량</span>
+                    <span className="min-w-0 truncate text-sm font-bold tabular-nums" title={String(user.points)}>
+                      :{user.points.toLocaleString()}
+                    </span>
+                  </div>
+                ) : !trialMode && connectedMalls.length > 0 ? (
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
+                ) : null}
+              </div>
             </div>
 
             {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
