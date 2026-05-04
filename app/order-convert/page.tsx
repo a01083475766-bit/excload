@@ -1899,10 +1899,12 @@ export default function OrderConvertPage() {
 
                 {/* 오른쪽: 텍스트 주문입력 영역 */}
                 <div className="w-full lg:w-1/2 border-l-0 lg:border-l border-gray-200 pl-0 lg:pl-5 flex flex-col">
-                  <h3 className="text-base font-semibold text-gray-900 mb-2.5">텍스트 주문입력</h3>
-                  <p className="text-xs text-gray-600 mb-2.5 leading-relaxed">
-                    카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣어주세요
-                  </p>
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-2.5">
+                    <h3 className="text-base font-semibold text-gray-900 shrink-0">텍스트 주문입력</h3>
+                    <p className="text-xs text-gray-600 leading-relaxed min-w-0">
+                      카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣어주세요
+                    </p>
+                  </div>
                   <div className="space-y-2.5">
                     <textarea
                       ref={textInputRef}
