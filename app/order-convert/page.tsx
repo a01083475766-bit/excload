@@ -1817,7 +1817,7 @@ export default function OrderConvertPage() {
 
             {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
             <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">
-              <div className="flex flex-col lg:flex-row gap-5">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
                 {/* 왼쪽: 파일선택 영역 (엑셀 + 이미지 드래그존) */}
                 <div 
                   className="w-full lg:w-1/2 flex flex-col"
@@ -1897,18 +1897,18 @@ export default function OrderConvertPage() {
                   </button>
                 </div>
 
-                {/* 오른쪽: 텍스트 주문입력 영역 */}
-                <div className="w-full lg:w-1/2 border-l-0 lg:border-l border-gray-200 pl-0 lg:pl-5 flex flex-col">
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-2.5">
+                {/* 오른쪽: 텍스트 주문입력 영역 (lg에서 좌측 파일 영역과 동일 높이·하단 버튼 정렬) */}
+                <div className="flex min-h-0 w-full flex-col border-l-0 border-gray-200 pl-0 lg:w-1/2 lg:border-l lg:pl-5">
+                  <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                     <h3 className="text-base font-semibold text-gray-900 shrink-0">텍스트 주문입력</h3>
-                    <p className="text-xs text-gray-600 leading-relaxed min-w-0">
+                    <p className="min-w-0 text-xs leading-relaxed text-gray-600">
                       카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣어주세요
                     </p>
                   </div>
-                  <div className="space-y-2.5">
+                  <div className="flex min-h-0 flex-1 flex-col gap-2.5">
                     <textarea
                       ref={textInputRef}
-                      className="w-full h-36 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      className="min-h-[180px] w-full flex-1 basis-0 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder={
                         '예) 홍길동 010-1234-5766   무선마우스 2개\n' +
                         '서울시 강남구 테헤란로 123  문앞에 놓아주세요'
