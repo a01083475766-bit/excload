@@ -65,11 +65,11 @@ const primaryLinkClass = `
   whitespace-nowrap
 `;
 
-/** 2단: 보조 메뉴 — 간격 최소화(부가 메뉴) */
+/** 2단: 보조 메뉴 — 글자: 기존 11px + 0.1rem(요청)만 반영 */
 const secondaryLinkClass = `
   flex shrink-0 items-center gap-0.5
   whitespace-nowrap rounded px-1 py-0.5
-  text-[11px] leading-none text-gray-600
+  text-[calc(11px+0.1rem)] leading-snug text-gray-600
   relative
   hover:text-blue-600
 `;
@@ -175,7 +175,10 @@ export default function MainNav() {
             );
           })}
 
-          <span className="shrink-0 px-px text-[10px] leading-none text-gray-300" aria-hidden>
+          <span
+            className="shrink-0 px-px leading-none text-gray-300 text-[calc(11px+0.1rem)]"
+            aria-hidden
+          >
             |
           </span>
 
