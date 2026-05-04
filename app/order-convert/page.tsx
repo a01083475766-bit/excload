@@ -1901,7 +1901,7 @@ export default function OrderConvertPage() {
                 <div className="w-full lg:w-1/2 border-l-0 lg:border-l border-gray-200 pl-0 lg:pl-5 flex flex-col">
                   <h3 className="text-base font-semibold text-gray-900 mb-2.5">텍스트 주문입력</h3>
                   <p className="text-xs text-gray-600 mb-2.5 leading-relaxed">
-                    카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣으면 주문변환할 수 있습니다
+                    카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣어주세요
                   </p>
                   <div className="space-y-2.5">
                     <textarea
