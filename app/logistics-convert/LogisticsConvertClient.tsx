@@ -3542,7 +3542,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             {previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
                 <p>
-                  변환된 주문 데이터가 여기에 표시됩니다.
+                  주문을 가져오면 변환결과가 여기에 표시됩니다
                   <br />
                   파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
                 </p>
