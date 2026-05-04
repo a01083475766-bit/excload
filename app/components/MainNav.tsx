@@ -53,22 +53,31 @@ const secondaryMenuItems: MenuItem[] = [
   { href: '/contact', label: '고객문의', icon: MessageCircle },
 ];
 
+/** 본문 영역(main max-w-[1200px] mx-auto px-8)과 좌우 기준선 맞춤 */
+const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-8';
+
 const primaryLinkClass = `
-  flex items-center justify-center gap-1.5
-  min-w-[120px] max-w-[140px] h-full shrink-0
-  px-2.5 py-1.5
+  flex h-full shrink-0 items-center justify-center gap-1.5
+  min-w-[108px] max-w-[148px]
+  px-2 py-1.5
   text-xs
   relative
   whitespace-nowrap
 `;
 
+/** 2단: 보조 메뉴 — 여백·글자 크기 축소 */
 const secondaryLinkClass = `
-  flex items-center justify-center gap-1.5
-  min-w-[88px] sm:min-w-[100px] h-full shrink-0
-  px-2 py-1
-  text-[11px] sm:text-xs
+  flex shrink-0 items-center gap-1
+  whitespace-nowrap rounded px-1.5 py-0.5
+  text-[11px] leading-tight text-gray-600
   relative
-  whitespace-nowrap
+  hover:text-blue-600
+`;
+
+const logoLinkClass = `
+  relative flex shrink-0 items-center
+  py-1
+  min-w-0
 `;
 
 export default function MainNav() {
@@ -88,12 +97,14 @@ export default function MainNav() {
 
   return (
     <nav className="sticky top-0 left-0 right-0 z-[100] border-b border-gray-200 bg-[#ffffff]">
-      {/* 1단: 로고 + 실행 메뉴 */}
-      <div className="flex h-10 min-h-[40px] justify-center gap-0.5 overflow-x-auto overflow-y-hidden">
+      {/* 1단: 로고(왼쪽 끝) · 실행 메뉴(오른쪽 끝) */}
+      <div
+        className={`${navInnerClass} h-10 min-h-[40px] min-w-0 items-stretch justify-between gap-3`}
+      >
         <Link
           href="/excload"
           className={`
-            ${primaryLinkClass}
+            ${logoLinkClass}
             ${isLogoActive ? 'font-medium text-blue-600' : 'font-normal text-gray-500'}
           `}
         >
@@ -103,40 +114,45 @@ export default function MainNav() {
             width={150}
             height={50}
             priority
+            className="h-8 w-auto sm:h-9"
           />
           {isLogoActive && (
-            <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-600" />
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
           )}
         </Link>
 
-        {displayPrimaryItems.map((item) => {
-          const Icon = item.icon;
-          const isActive =
-            pathname === item.href ||
-            (item.href === '/akman' && pathname?.startsWith('/akman/'));
+        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-end gap-0.5 overflow-x-auto overflow-y-hidden pb-px sm:gap-1">
+          {displayPrimaryItems.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              pathname === item.href ||
+              (item.href === '/akman' && pathname?.startsWith('/akman/'));
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`
-                ${primaryLinkClass}
-                ${isActive ? 'font-medium text-blue-600' : 'font-normal text-gray-500'}
-              `}
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{item.label}</span>
-              {isActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-600" />
-              )}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`
+                  ${primaryLinkClass}
+                  ${isActive ? 'font-medium text-blue-600' : 'font-normal text-gray-500'}
+                `}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{item.label}</span>
+                {isActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-600" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
-      {/* 2단: 서비스소개·가격·문의 | 로그인·마이페이지·로그아웃 */}
-      <div className="flex min-h-[36px] items-center justify-center gap-x-1 gap-y-1 border-t border-gray-100 bg-zinc-50/95 px-2 py-1 sm:gap-x-2">
-        <div className="flex max-w-full flex-wrap items-center justify-center gap-x-1 sm:gap-x-2">
+      {/* 2단: 본문과 동일 좌측 기준선, 간격 좁게(보조 메뉴) */}
+      <div className="border-t border-gray-100 bg-zinc-50/95">
+        <div
+          className={`${navInnerClass} min-h-[34px] flex-wrap items-center justify-start gap-x-1 gap-y-1 py-1.5`}
+        >
           {secondaryMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -147,40 +163,34 @@ export default function MainNav() {
                 href={item.href}
                 className={`
                   ${secondaryLinkClass}
-                  ${isActive ? 'font-medium text-blue-600' : 'font-normal text-gray-600 hover:text-blue-600'}
+                  ${isActive ? 'font-semibold text-blue-600 hover:text-blue-600' : 'font-normal'}
                 `}
               >
-                <Icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                <span className="truncate">{item.label}</span>
+                <Icon className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                <span>{item.label}</span>
                 {isActive && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                  <span className="absolute bottom-0 left-1 right-1 h-px bg-blue-600" />
                 )}
               </Link>
             );
           })}
-        </div>
 
-        <span
-          className="hidden shrink-0 px-1 text-gray-300 sm:inline"
-          aria-hidden
-        >
-          |
-        </span>
+          <span className="shrink-0 px-0.5 text-[11px] text-gray-300" aria-hidden>
+            |
+          </span>
 
-        <div className="flex flex-wrap items-center justify-center gap-x-1 sm:gap-x-2">
           {!user && (
             <Link
               href="/auth"
               className={`
                 ${secondaryLinkClass}
-                min-w-[120px] sm:min-w-[130px]
-                ${authActive ? 'font-medium text-blue-600' : 'font-normal text-gray-600 hover:text-blue-600'}
+                ${authActive ? 'font-semibold text-blue-600 hover:text-blue-600' : 'font-normal'}
               `}
             >
-              <LogIn className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-              <span className="truncate">로그인/회원가입</span>
+              <LogIn className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+              <span>로그인/회원가입</span>
               {authActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                <span className="absolute bottom-0 left-1 right-1 h-px bg-blue-600" />
               )}
             </Link>
           )}
@@ -191,13 +201,13 @@ export default function MainNav() {
                 href="/mypage"
                 className={`
                   ${secondaryLinkClass}
-                  ${mypageActive ? 'font-medium text-blue-600' : 'font-normal text-gray-600 hover:text-blue-600'}
+                  ${mypageActive ? 'font-semibold text-blue-600 hover:text-blue-600' : 'font-normal'}
                 `}
               >
-                <User className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                <span className="truncate">마이페이지</span>
+                <User className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                <span>마이페이지</span>
                 {mypageActive && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                  <span className="absolute bottom-0 left-1 right-1 h-px bg-blue-600" />
                 )}
               </Link>
               <button
@@ -207,14 +217,10 @@ export default function MainNav() {
                   clearUser();
                   window.location.href = '/auth/login';
                 }}
-                className={`
-                  ${secondaryLinkClass}
-                  font-normal text-gray-600 hover:text-blue-600
-                  border-0 bg-transparent cursor-pointer
-                `}
+                className={`${secondaryLinkClass} cursor-pointer border-0 bg-transparent font-normal`}
               >
-                <LogIn className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-                <span className="truncate">로그아웃</span>
+                <LogIn className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                <span>로그아웃</span>
               </button>
             </>
           )}
