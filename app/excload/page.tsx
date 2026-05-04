@@ -168,8 +168,8 @@ export default function HomePage() {
             {/* 데모 하단: 가격 강조 (한 줄) */}
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto px-3 pt-0.5">
               <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
-                비싼 프로그램은 부담되고 주문정리가 힘들 때, 정답은{' '}
-                <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span> 엑클로드!
+                비싼 프로그램은 부담스럽고 주문 정리가 힘들다면, 부담을 줄여 보세요 —{' '}
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span> 엑클로드.
               </p>
             </div>
 
@@ -193,18 +193,18 @@ export default function HomePage() {
         <section className="py-6 lg:py-8">
           <div className="max-w-4xl mx-auto px-3 space-y-3">
             <h2 className="text-center text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
-              엑클로드만의 편리성, 중요기능
+              주문 정리, 이렇게 돕습니다
             </h2>
             <div className="flex justify-center overflow-x-auto">
               <div className="grid w-max max-w-full min-w-0 grid-cols-[max-content_auto_minmax(8rem,1fr)] gap-x-2 gap-y-2 text-left text-sm sm:gap-x-3 sm:text-base leading-snug text-zinc-600 dark:text-zinc-400">
                 <div className="text-right font-semibold text-zinc-800 dark:text-zinc-200 [word-break:keep-all]">
-                  어떤 방식의 주문도 OK
+                  어떤 방식의 주문도
                 </div>
                 <div className="shrink-0 px-0.5 text-center font-semibold text-zinc-800 dark:text-zinc-200">
                   :
                 </div>
                 <div className="min-w-0 text-left [word-break:keep-all]">
-                  카톡 주문, 엑셀 주문, 스크린샷 주문도 모두 OK
+                  카톡·엑셀·스크린샷 등, 받은 형태 그대로 다룰 수 있습니다
                 </div>
 
                 <div className="text-right font-semibold text-zinc-800 dark:text-zinc-200 [word-break:keep-all]">
@@ -214,17 +214,17 @@ export default function HomePage() {
                   :
                 </div>
                 <div className="min-w-0 text-left [word-break:keep-all]">
-                  복잡한 양식 필요 없이 쓰고 있는 양식 그대로 OK
+                  새 양식을 만들기보다, 지금 쓰는 업로드 양식에 맞춰 드립니다
                 </div>
 
                 <div className="text-right font-semibold text-zinc-800 dark:text-zinc-200 [word-break:keep-all]">
-                  배울 필요 없는 시스템
+                  배울 필요 없는 흐름
                 </div>
                 <div className="shrink-0 px-0.5 text-center font-semibold text-zinc-800 dark:text-zinc-200">
                   :
                 </div>
                 <div className="min-w-0 text-left [word-break:keep-all]">
-                  ctrl + c , ctrl + v 로 끝나는 주문정리 OK
+                  복사(Ctrl+C)와 붙여넣기(Ctrl+V)로 이어지는 주문 정리
                 </div>
               </div>
             </div>
@@ -238,7 +238,9 @@ export default function HomePage() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
               <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100">가격 플랜</h2>
-              <p className="mt-2 text-zinc-600 dark:text-zinc-400">가격 페이지의 핵심 정보를 바로 확인하고 시작하세요.</p>
+              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+                요금과 사용 조건을 한눈에 비교해 보고 선택하세요.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

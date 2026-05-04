@@ -27,7 +27,7 @@ export function LandingHowToSteps({ variant = 'default' }: { variant?: LandingHo
           3단계로 끝나요
         </h2>
         <p className="mt-2 text-base text-zinc-500 dark:text-zinc-400 sm:text-lg">
-          배울 것 없이, 바로 쓸 수 있습니다.
+          복잡한 설정 없이, 주문 파일만 넣으면 됩니다.
         </p>
       </div>
       <div className="relative grid gap-10 md:grid-cols-3 md:gap-6 lg:gap-8">
@@ -125,7 +125,7 @@ export function LandingWhyHowCarriers() {
               왜 엑클로드인가요?
             </h2>
             <p className="mt-3 text-lg text-zinc-500 dark:text-zinc-400">
-              복잡한 AI 설명은 빼고, 핵심만 말씀드릴게요.
+              긴 설명 없이, 필요한 것만 말씀드릴게요.
             </p>
           </div>
           <div className="grid gap-8 md:grid-cols-3">
@@ -142,18 +142,19 @@ export function LandingWhyHowCarriers() {
               <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white">
                 <Truck className="h-7 w-7" strokeWidth={2} aria-hidden />
               </div>
-              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">모든 택배사 지원</h3>
+              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">주요 택배사 지원</h3>
               <p className="leading-relaxed text-zinc-500 dark:text-zinc-400">
-                CJ대한통운, 로젠, 한진, 롯데 등 국내 주요 택배사 양식을 모두 지원합니다. 원하는 양식만 선택하세요.
+                CJ대한통운, 로젠, 한진, 롯데 등 국내에서 많이 쓰는 택배사 업로드 양식을 지원합니다. 쓰시는 양식을 선택하세요.
               </p>
             </article>
             <article className="rounded-2xl border border-zinc-200/90 bg-white p-8 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
               <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
                 <ShieldCheck className="h-7 w-7" strokeWidth={2} aria-hidden />
               </div>
-              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">에러 제로</h3>
+              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">실수 줄이기</h3>
               <p className="leading-relaxed text-zinc-500 dark:text-zinc-400">
-                수작업으로 인한 오타와 누락이 사라집니다. 정확한 데이터 변환으로 반송과 클레임을 줄이세요.
+                손으로 옮기다 생기기 쉬운 오타·누락을 줄이는 데 도움이 됩니다. 변환 결과를 한 번 더 확인하며 반송·클레임 부담을
+                낮춰 보세요.
               </p>
             </article>
           </div>
@@ -167,7 +168,7 @@ export function LandingWhyHowCarriers() {
         <div className={containerClass}>
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 md:text-4xl">
-              국내 주요 택배사 모두 지원
+              국내 주요 택배사 지원
             </h2>
             <p className="mt-3 text-lg text-zinc-500 dark:text-zinc-400">
               사용하시는 택배사 양식을 선택하면, 그에 맞춰 자동 변환됩니다.
