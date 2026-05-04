@@ -65,18 +65,18 @@ const primaryLinkClass = `
   whitespace-nowrap
 `;
 
-/** 2단: 보조 메뉴 — 여백·글자 크기 축소 */
+/** 2단: 보조 메뉴 — 간격 최소화(부가 메뉴) */
 const secondaryLinkClass = `
-  flex shrink-0 items-center gap-1
-  whitespace-nowrap rounded px-1.5 py-0.5
-  text-[11px] leading-tight text-gray-600
+  flex shrink-0 items-center gap-0.5
+  whitespace-nowrap rounded px-1 py-0.5
+  text-[11px] leading-none text-gray-600
   relative
   hover:text-blue-600
 `;
 
 const logoLinkClass = `
   relative flex shrink-0 items-center
-  py-1
+  py-0.5
   min-w-0
 `;
 
@@ -148,10 +148,10 @@ export default function MainNav() {
         </div>
       </div>
 
-      {/* 2단: 본문과 동일 좌측 기준선, 간격 좁게(보조 메뉴) */}
+      {/* 2단: 1단 실행 메뉴와 같은 오른쪽 정렬 · 1단과 간격 축소 */}
       <div className="border-t border-gray-100 bg-zinc-50/95">
         <div
-          className={`${navInnerClass} min-h-[34px] flex-wrap items-center justify-start gap-x-1 gap-y-1 py-1.5`}
+          className={`${navInnerClass} flex flex-wrap items-center justify-end gap-x-0.5 gap-y-0.5 py-0.5`}
         >
           {secondaryMenuItems.map((item) => {
             const Icon = item.icon;
@@ -166,7 +166,7 @@ export default function MainNav() {
                   ${isActive ? 'font-semibold text-blue-600 hover:text-blue-600' : 'font-normal'}
                 `}
               >
-                <Icon className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                <Icon className="size-3 shrink-0 opacity-60" aria-hidden />
                 <span>{item.label}</span>
                 {isActive && (
                   <span className="absolute bottom-0 left-1 right-1 h-px bg-blue-600" />
@@ -175,7 +175,7 @@ export default function MainNav() {
             );
           })}
 
-          <span className="shrink-0 px-0.5 text-[11px] text-gray-300" aria-hidden>
+          <span className="shrink-0 px-px text-[10px] leading-none text-gray-300" aria-hidden>
             |
           </span>
 
@@ -187,7 +187,7 @@ export default function MainNav() {
                 ${authActive ? 'font-semibold text-blue-600 hover:text-blue-600' : 'font-normal'}
               `}
             >
-              <LogIn className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+              <LogIn className="size-3 shrink-0 opacity-60" aria-hidden />
               <span>로그인/회원가입</span>
               {authActive && (
                 <span className="absolute bottom-0 left-1 right-1 h-px bg-blue-600" />
@@ -204,7 +204,7 @@ export default function MainNav() {
                   ${mypageActive ? 'font-semibold text-blue-600 hover:text-blue-600' : 'font-normal'}
                 `}
               >
-                <User className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                <User className="size-3 shrink-0 opacity-60" aria-hidden />
                 <span>마이페이지</span>
                 {mypageActive && (
                   <span className="absolute bottom-0 left-1 right-1 h-px bg-blue-600" />
@@ -219,7 +219,7 @@ export default function MainNav() {
                 }}
                 className={`${secondaryLinkClass} cursor-pointer border-0 bg-transparent font-normal`}
               >
-                <LogIn className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                <LogIn className="size-3 shrink-0 opacity-60" aria-hidden />
                 <span>로그아웃</span>
               </button>
             </>
