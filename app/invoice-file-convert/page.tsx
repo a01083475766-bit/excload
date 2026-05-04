@@ -1462,7 +1462,12 @@ export default function InvoiceFileConvertPage() {
                   onDragLeave={handleDragLeaveOrder}
                   onDrop={handleDropOrder}
                 >
-                  <h3 className="text-base font-semibold text-gray-900 mb-2.5">① 주문 파일</h3>
+                  <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <h3 className="text-base font-semibold text-gray-900 shrink-0">① 주문 파일</h3>
+                    <p className="min-w-0 text-xs leading-relaxed text-gray-600">
+                      주문 엑셀을 선택하거나 이 영역에 끌어다 놓아 주세요
+                    </p>
+                  </div>
                   <label
                     htmlFor="invoice-order-file-input"
                     style={{ cursor: 'pointer' }}
@@ -1525,7 +1530,12 @@ export default function InvoiceFileConvertPage() {
                   onDragLeave={handleDragLeaveCourier}
                   onDrop={handleDropCourier}
                 >
-                  <h3 className="text-base font-semibold text-gray-900 mb-2.5">② 송장 파일</h3>
+                  <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <h3 className="text-base font-semibold text-gray-900 shrink-0">② 송장 파일</h3>
+                    <p className="min-w-0 text-xs leading-relaxed text-gray-600">
+                      송장번호 엑셀을 선택하거나 이 영역에 끌어다 놓아 주세요
+                    </p>
+                  </div>
                   <label
                     htmlFor="invoice-courier-file-input"
                     style={{ cursor: 'pointer' }}

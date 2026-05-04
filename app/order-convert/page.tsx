@@ -1825,7 +1825,12 @@ export default function OrderConvertPage() {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  <h3 className="text-base font-semibold text-gray-900 mb-2.5">파일선택</h3>
+                  <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <h3 className="text-base font-semibold text-gray-900 shrink-0">파일선택</h3>
+                    <p className="min-w-0 text-xs leading-relaxed text-gray-600">
+                      주문엑셀·이미지 파일을 선택하거나 이 영역에 끌어다 놓아 주세요
+                    </p>
+                  </div>
                   <label
                     htmlFor="unified-file-input"
                     style={{ cursor: 'pointer' }}
