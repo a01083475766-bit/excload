@@ -1,6 +1,10 @@
 'use client';
 
 import DemoAnimation from '@/app/components/DemoAnimation';
+import {
+  LandingPrePricingCta,
+  LandingWhyHowCarriers,
+} from '@/app/components/landing/LandingReferenceSections';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
@@ -195,6 +199,8 @@ export default function HomePage() {
           </div>
         </section>
 
+        <LandingWhyHowCarriers />
+
         {/* 설명 텍스트 섹션 — 콜론(:) 세로 정렬 (Grid 3열), 여백·줄간격 타이트 */}
         <section className="py-6 lg:py-8">
           <div className="max-w-4xl mx-auto px-3 space-y-3">
@@ -236,6 +242,8 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        <LandingPrePricingCta />
 
         {/* 가격 섹션 */}
         <section className="py-16 lg:py-24">
