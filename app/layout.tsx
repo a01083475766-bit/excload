@@ -39,7 +39,7 @@ export default function RootLayout({
         <StoreInitializer />
         <GlobalDragDropBlocker />
         <MainNav />
-        <div className="pt-[48px]">
+        <div className="pt-24 sm:pt-[80px]">
           {children}
         </div>
         <footer className="mt-8 border-t border-zinc-200 px-4 py-8 text-center text-sm leading-7 text-zinc-600 sm:text-base sm:leading-8">
