@@ -57,10 +57,10 @@ const secondaryMenuItems: MenuItem[] = [
 const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-8';
 
 const primaryLinkClass = `
-  flex h-full shrink-0 items-center justify-center gap-1.5
-  min-w-[108px] max-w-[148px]
-  px-2 py-1.5
-  text-xs
+  flex h-full shrink-0 items-center justify-center gap-2
+  min-w-[118px] max-w-[172px]
+  px-4 py-1.5
+  text-sm
   relative
   whitespace-nowrap
 `;
@@ -121,7 +121,7 @@ export default function MainNav() {
           )}
         </Link>
 
-        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-end gap-0.5 overflow-x-auto overflow-y-hidden pb-px sm:gap-1">
+        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-end gap-2 overflow-x-auto overflow-y-hidden pb-px sm:gap-3">
           {displayPrimaryItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -137,7 +137,7 @@ export default function MainNav() {
                   ${isActive ? 'font-medium text-blue-600' : 'font-normal text-gray-500'}
                 `}
               >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <Icon className="size-4 shrink-0" />
                 <span className="truncate">{item.label}</span>
                 {isActive && (
                   <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-600" />
