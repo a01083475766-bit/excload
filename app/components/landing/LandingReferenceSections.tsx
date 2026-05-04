@@ -3,15 +3,95 @@
 import Link from 'next/link';
 import {
   ArrowRight,
-  Check,
   Download,
   ShieldCheck,
+  SquareCheck,
   Truck,
   Upload,
   Zap,
 } from 'lucide-react';
 
 const containerClass = 'max-w-6xl mx-auto w-full px-0';
+
+export type LandingHowToVariant = 'default' | 'embedded';
+
+/** 3단계 사용법 (참고 랜딩) — `embedded`는 히어로 카드 안에 넣을 때 */
+export function LandingHowToSteps({ variant = 'default' }: { variant?: LandingHowToVariant }) {
+  const body = (
+    <>
+      <div className="mb-10 text-center md:mb-14">
+        <h2
+          id="landing-howto"
+          className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-3xl md:text-4xl"
+        >
+          3단계로 끝나요
+        </h2>
+        <p className="mt-2 text-base text-zinc-500 dark:text-zinc-400 sm:text-lg">
+          배울 것 없이, 바로 쓸 수 있습니다.
+        </p>
+      </div>
+      <div className="relative grid gap-10 md:grid-cols-3 md:gap-6 lg:gap-8">
+        <div
+          className="pointer-events-none absolute left-[14%] right-[14%] top-[2.35rem] hidden h-0.5 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-200 md:block lg:left-[16%] lg:right-[16%]"
+          aria-hidden
+        />
+        <div className="relative z-10 text-center">
+          <div className="relative z-10 mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400 md:mb-6">
+            <Upload className="h-10 w-10" strokeWidth={1.5} aria-hidden />
+          </div>
+          <span className="mb-2 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 md:mb-3">
+            STEP 01
+          </span>
+          <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 sm:text-xl md:mb-3">
+            엑셀/이미지 업로드
+          </h3>
+          <p className="mx-auto max-w-xs text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
+            주문이 담긴 엑셀 파일이나 스크린샷 이미지를 드래그 앤 드롭으로 올리세요. 카카오톡 주문 텍스트도
+            붙여넣기 가능합니다.
+          </p>
+        </div>
+        <div className="relative z-10 text-center">
+          <div className="relative z-10 mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400 md:mb-6">
+            <SquareCheck className="h-10 w-10" strokeWidth={1.5} aria-hidden />
+          </div>
+          <span className="mb-2 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 md:mb-3">
+            STEP 02
+          </span>
+          <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 sm:text-xl md:mb-3">
+            택배사 양식 선택
+          </h3>
+          <p className="mx-auto max-w-xs text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
+            사용 중이신 택배사 양식을 선택하세요. 이미 등록된 내 양식이 있다면 그대로 적용됩니다.
+          </p>
+        </div>
+        <div className="relative z-10 text-center">
+          <div className="relative z-10 mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400 md:mb-6">
+            <Download className="h-10 w-10" strokeWidth={1.5} aria-hidden />
+          </div>
+          <span className="mb-2 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 md:mb-3">
+            STEP 03
+          </span>
+          <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 sm:text-xl md:mb-3">
+            변환 완료, 다운로드
+          </h3>
+          <p className="mx-auto max-w-xs text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
+            1초 만에 변환된 엑셀 파일을 다운로드하세요. 택배사 시스템에 바로 업로드할 수 있습니다.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+
+  if (variant === 'embedded') {
+    return <div className="w-full">{body}</div>;
+  }
+
+  return (
+    <section className="bg-white py-16 dark:bg-zinc-950 lg:py-24">
+      <div className={containerClass}>{body}</div>
+    </section>
+  );
+}
 
 const carriers = [
   'CJ대한통운',
@@ -77,60 +157,6 @@ export function LandingWhyHowCarriers() {
                 수작업으로 인한 오타와 누락이 사라집니다. 정확한 데이터 변환으로 반송과 클레임을 줄이세요.
               </p>
             </article>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white py-16 dark:bg-zinc-950 lg:py-24">
-        <div className={containerClass}>
-          <div className="mb-14 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 md:text-4xl">
-              3단계로 끝나요
-            </h2>
-            <p className="mt-3 text-lg text-zinc-500 dark:text-zinc-400">배울 것 없이, 바로 쓸 수 있습니다.</p>
-          </div>
-          <div className="relative grid gap-12 md:grid-cols-3 md:gap-8">
-            <div
-              className="pointer-events-none absolute left-[16%] right-[16%] top-[2.35rem] hidden h-0.5 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-200 md:block"
-              aria-hidden
-            />
-            <div className="relative z-10 text-center">
-              <div className="relative z-10 mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400">
-                <Upload className="h-10 w-10" strokeWidth={1.5} aria-hidden />
-              </div>
-              <span className="mb-3 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
-                STEP 01
-              </span>
-              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">엑셀/이미지 업로드</h3>
-              <p className="mx-auto max-w-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                주문이 담긴 엑셀 파일이나 스크린샷 이미지를 드래그 앤 드롭으로 올리세요. 카카오톡 주문 텍스트도
-                붙여넣기 가능합니다.
-              </p>
-            </div>
-            <div className="relative z-10 text-center">
-              <div className="relative z-10 mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400">
-                <Check className="h-10 w-10" strokeWidth={1.5} aria-hidden />
-              </div>
-              <span className="mb-3 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
-                STEP 02
-              </span>
-              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">택배사 양식 선택</h3>
-              <p className="mx-auto max-w-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                사용 중이신 택배사 양식을 선택하세요. 이미 등록된 내 양식이 있다면 그대로 적용됩니다.
-              </p>
-            </div>
-            <div className="relative z-10 text-center">
-              <div className="relative z-10 mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400">
-                <Download className="h-10 w-10" strokeWidth={1.5} aria-hidden />
-              </div>
-              <span className="mb-3 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
-                STEP 03
-              </span>
-              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">변환 완료, 다운로드</h3>
-              <p className="mx-auto max-w-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                1초 만에 변환된 엑셀 파일을 다운로드하세요. 택배사 시스템에 바로 업로드할 수 있습니다.
-              </p>
-            </div>
           </div>
         </div>
       </section>

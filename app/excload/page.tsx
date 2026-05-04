@@ -1,7 +1,7 @@
 'use client';
 
-import DemoAnimation from '@/app/components/DemoAnimation';
 import {
+  LandingHowToSteps,
   LandingPrePricingCta,
   LandingWhyHowCarriers,
 } from '@/app/components/landing/LandingReferenceSections';
@@ -43,7 +43,6 @@ export default function HomePage() {
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const [betweenBlocks, setBetweenBlocks] = useState(false);
-  const [isDemoOpen, setIsDemoOpen] = useState(false);
 
   useEffect(() => {
     if (betweenBlocks) {
@@ -157,24 +156,13 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* 데모: 히어로·가격 문구와의 상하 여백 2배 (기존 gap-4 대비 ≈2rem) */}
+            {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
             <div className="w-full py-8 lg:py-12">
-              <div className="mb-3 flex justify-center px-2">
-                <button
-                  type="button"
-                  aria-expanded={isDemoOpen}
-                  aria-controls="home-order-conversion-demo"
-                  onClick={() => setIsDemoOpen((prev) => !prev)}
-                  className="max-w-[min(100%,22rem)] rounded-lg border border-zinc-300 bg-white px-3 py-2 text-center text-xs font-medium leading-snug text-zinc-700 hover:bg-zinc-100 sm:max-w-none sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  {isDemoOpen ? '예시 닫기' : '실제 주문이 어떻게 정리되는지 보기'}
-                </button>
-              </div>
-              {isDemoOpen ? (
-                <div id="home-order-conversion-demo">
-                  <DemoAnimation />
+              <div className="mx-auto w-full max-w-6xl">
+                <div className="rounded-2xl border border-blue-200 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-7 lg:p-8">
+                  <LandingHowToSteps variant="embedded" />
                 </div>
-              ) : null}
+              </div>
             </div>
 
             {/* 데모 하단: 가격 강조 (한 줄) */}
