@@ -1415,10 +1415,10 @@ export default function InvoiceFileConvertPage() {
         </div>
       )}
 
-      <div className="pt-3 pb-4 bg-zinc-50 dark:bg-black">
+      <div className="pt-1.5 pb-4 bg-zinc-50 dark:bg-black">
       <main className="max-w-[1200px] mx-auto px-8">
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
-        <section className="relative pt-2 pb-3">
+        <section className="relative pt-1 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
             {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (택배주문변환과 동일 레이아웃) */}
             <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
