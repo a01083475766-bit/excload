@@ -246,11 +246,11 @@ export default function HomePage() {
                 <div
                   key={plan.planKey}
                   className={`relative p-6 rounded-2xl border-2 bg-white dark:bg-zinc-900 shadow-lg transition-all ${
-                    plan.popular ? 'border-emerald-500' : 'border-zinc-200 dark:border-zinc-800'
+                    plan.popular ? 'border-blue-500' : 'border-zinc-200 dark:border-zinc-800'
                   }`}
                 >
                   {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
                       인기 플랜
                     </div>
                   )}
@@ -262,7 +262,7 @@ export default function HomePage() {
                   <ul className="space-y-2 mb-6">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                        <Check className="w-4 h-4 mt-0.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <Check className="w-4 h-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -270,9 +270,9 @@ export default function HomePage() {
 
                   <Link
                     href={`/subscribe?plan=${encodeURIComponent(plan.planKey)}`}
-                    className="block w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-emerald-700"
+                    className="block w-full rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
                   >
-                    {plan.name} 시작하기
+                    {plan.planKey === 'free' ? '무료체험 사용해보기' : `${plan.name} 시작하기`}
                   </Link>
                 </div>
               ))}
@@ -280,7 +280,7 @@ export default function HomePage() {
 
             <p className="mt-6 text-center text-xs text-zinc-500">자세한 비교는 가격 페이지에서 확인하세요.</p>
             <div className="mt-3 text-center">
-              <Link href="/pricing" className="text-sm text-emerald-700 dark:text-emerald-400 hover:underline underline-offset-2">
+              <Link href="/pricing" className="text-sm text-blue-700 dark:text-blue-400 hover:underline underline-offset-2">
                 가격 페이지 전체 보기
               </Link>
             </div>

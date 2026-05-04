@@ -75,7 +75,7 @@ export function LandingHowToSteps({ variant = 'default' }: { variant?: LandingHo
             변환 완료, 다운로드
           </h3>
           <p className="mx-auto max-w-xs text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
-            1초 만에 변환된 엑셀 파일을 다운로드하세요. 택배사 시스템에 바로 업로드할 수 있습니다.
+            변환이 끝난 뒤 엑셀 파일을 다운로드하세요. 택배사 시스템에 바로 업로드할 수 있습니다.
           </p>
         </div>
       </div>
@@ -133,10 +133,9 @@ export function LandingWhyHowCarriers() {
               <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                 <Zap className="h-7 w-7" strokeWidth={2} aria-hidden />
               </div>
-              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">1초 변환</h3>
+              <h3 className="mb-3 text-xl font-bold text-zinc-900 dark:text-zinc-100">빠른 변환</h3>
               <p className="leading-relaxed text-zinc-500 dark:text-zinc-400">
-                엑셀 파일을 업로드하면 1초 만에 택배사 양식으로 자동 변환됩니다. 복잡한 수식이나 매크로는 필요
-                없어요.
+                엑셀 파일을 올리면 택배사 업로드용 양식으로 자동 변환됩니다. 복잡한 수식이나 매크로는 필요 없어요.
               </p>
             </article>
             <article className="rounded-2xl border border-zinc-200/90 bg-white p-8 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
@@ -214,7 +213,7 @@ export function LandingPrePricingCta() {
           href="/trial"
           className="mt-10 inline-flex items-center gap-2 rounded-xl bg-white px-10 py-4 text-base font-semibold text-blue-600 shadow-xl transition hover:scale-[1.02] hover:bg-blue-50"
         >
-          무료로 시작하기
+          무료체험 사용해보기
           <ArrowRight className="h-5 w-5" aria-hidden />
         </Link>
         <p className="mt-6 text-sm text-blue-200/70">
