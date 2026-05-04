@@ -459,20 +459,6 @@ export default function InvoiceFileConvertPage() {
     }));
   };
 
-  /** 세 가지가 모두 있어야 미리보기 표시 (없을 때 안내 문구) */
-  const invoicePreviewGateMessage = useMemo(() => {
-    if (!isValidCourierTemplate(courierUploadTemplate) || !templateBridgeFile) {
-      return '쇼핑몰 송장 업로드 양식을 등록해 주세요.';
-    }
-    if (!courierInvoiceFile) {
-      return '택배사 송장 엑셀 파일을 등록해 주세요.';
-    }
-    if (!uploadedExcelFile) {
-      return '주문 엑셀 파일을 등록해 주세요.';
-    }
-    return null;
-  }, [courierUploadTemplate, templateBridgeFile, courierInvoiceFile, uploadedExcelFile]);
-
   // fixedHeaderValues를 localStorage에 저장
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1673,14 +1659,11 @@ export default function InvoiceFileConvertPage() {
             </div>
             {!previewReady || previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center text-gray-400 px-4 text-center text-sm leading-relaxed">
-                {invoicePreviewGateMessage ??
-                  (
-                    <>
-                      주문을 가져오면 변환결과가 여기에 표시됩니다
-                      <br />
-                      파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                    </>
-                  )}
+                <>
+                  주문파일과 송장번호파일을 가져오면 변환결과가 여기에 표시됩니다
+                  <br />
+                  파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                </>
               </div>
             ) : (
               <>
