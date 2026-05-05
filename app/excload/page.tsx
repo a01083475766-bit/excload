@@ -101,36 +101,38 @@ export default function HomePage() {
             <p className="mb-6 mx-auto max-w-5xl text-center text-base sm:text-lg font-medium leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all] md:mb-8">
               엑클로드는 택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
             </p>
-            <div className="mx-auto mb-4 w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
-              <div
-                className={`flex min-h-[min(170px,22vh)] flex-col justify-center md:min-h-[200px] ${typingHeroTextClass} space-y-2 md:space-y-2.5`}
-              >
-                {heroTypingDone ? (
-                  heroTypingLines.map((line, lIndex) => <p key={`done-${lIndex}`}>{line}</p>)
-                ) : (
-                  heroTypingLines.map((line, lIndex) => {
-                    const isPast = lIndex < lineIdx;
-                    const isCurrent = lIndex === lineIdx;
-                    const isFuture = lIndex > lineIdx;
+            <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-sm dark:border-blue-900 dark:bg-blue-950/30 md:p-5 lg:p-6">
+              <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
+                <div
+                  className={`flex min-h-[min(170px,22vh)] flex-col justify-center md:min-h-[200px] ${typingHeroTextClass} space-y-2 md:space-y-2.5`}
+                >
+                  {heroTypingDone ? (
+                    heroTypingLines.map((line, lIndex) => <p key={`done-${lIndex}`}>{line}</p>)
+                  ) : (
+                    heroTypingLines.map((line, lIndex) => {
+                      const isPast = lIndex < lineIdx;
+                      const isCurrent = lIndex === lineIdx;
+                      const isFuture = lIndex > lineIdx;
 
-                    if (isFuture) return null;
+                      if (isFuture) return null;
 
-                    if (isPast) {
-                      return <p key={`line-${lIndex}`}>{line}</p>;
-                    }
+                      if (isPast) {
+                        return <p key={`line-${lIndex}`}>{line}</p>;
+                      }
 
-                    if (isCurrent) {
-                      return (
-                        <p key={`line-${lIndex}`}>
-                          {line.slice(0, charIdx)}
-                          {charIdx < line.length ? <span className="animate-pulse text-zinc-400">|</span> : null}
-                        </p>
-                      );
-                    }
+                      if (isCurrent) {
+                        return (
+                          <p key={`line-${lIndex}`}>
+                            {line.slice(0, charIdx)}
+                            {charIdx < line.length ? <span className="animate-pulse text-zinc-400">|</span> : null}
+                          </p>
+                        );
+                      }
 
-                    return null;
-                  })
-                )}
+                      return null;
+                    })
+                  )}
+                </div>
               </div>
             </div>
 
