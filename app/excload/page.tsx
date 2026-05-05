@@ -135,7 +135,7 @@ export default function HomePage() {
             </div>
 
             {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
-            <div className="w-full py-8 lg:py-12">
+            <div className="w-full pt-8 pb-4 lg:pt-12 lg:pb-6">
               <div className="mx-auto w-full max-w-6xl">
                 <div className="rounded-2xl border border-blue-200 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-7 lg:p-8">
                   <LandingHowToSteps variant="embedded" />
@@ -143,8 +143,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* 데모 하단: 가격 강조 (한 줄) */}
-            <div className="flex flex-col items-center text-center max-w-3xl mx-auto px-3 pt-0.5">
+            {/* 데모 하단: 가격 강조 (한 줄) — 상하 여백 대칭, 아래 체험 박스와 간격 확보 */}
+            <div className="flex flex-col items-center text-center max-w-3xl mx-auto px-3 py-8 lg:py-10">
               <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                 비싼 프로그램은 부담스럽고 주문 정리가 힘들다면, 부담을 줄여 보세요 —{' '}
                 <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span> 엑클로드.
@@ -152,7 +152,7 @@ export default function HomePage() {
             </div>
 
             {/* 홈에서도 바로 체험 가능: 기존 /trial 페이지는 그대로 유지 */}
-            <div className="w-full mt-4">
+            <div className="w-full">
               <TrialEmbed trialMode />
               <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
                 전체 화면이 필요하면{' '}
