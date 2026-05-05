@@ -96,9 +96,9 @@ export default function HomePage() {
     <div className="pt-6 bg-zinc-50 dark:bg-black min-h-screen">
       <main className="max-w-7xl mx-auto px-6">
         {/* Hero 섹션 */}
-        <section className="blue-unified-theme pt-4 pb-8 lg:pt-6 lg:pb-12">
+        <section className="blue-unified-theme pt-8 pb-8 lg:pt-12 lg:pb-12">
           <div className="flex flex-col gap-0">
-            <p className="mb-3 mx-auto max-w-5xl text-center text-sm sm:text-base font-normal leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all] md:mb-4">
+            <p className="mb-6 mx-auto max-w-5xl text-center text-base sm:text-lg font-medium leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all] md:mb-8">
               엑클로드는 택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
             </p>
             <div className="mx-auto mb-4 w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
