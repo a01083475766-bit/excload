@@ -29,64 +29,41 @@ const typingHeroTextClass =
   'font-bold leading-tight text-zinc-950 dark:text-zinc-100 text-[clamp(1.2rem,4vw,1.8rem)] tracking-tight [word-break:keep-all]';
 
 export default function HomePage() {
-  /** ① 블록 타이핑 완료 → 잠시 비움 → ② 블록 타이핑 (히어로와 동일 글자 크기) */
-  const typingBlocks = useMemo(
+  /** 서비스 한 줄은 박스 위에 고정, 박스 안에서는 아래 두 줄만 타이핑 */
+  const heroTypingLines = useMemo(
     () =>
       [
-        ['엑클로드는 주문 데이터를 자동으로 변환하여', '택배 업로드 파일을 간편하게 만들어주는 서비스입니다.'],
-        ['복잡한 기능을 빼고 "빠른주문정리"에만 집중해 사용법이 어렵지 않습니다', '이제 복사해서 붙이면 준비 끝'],
+        '복잡한 기능을 빼고 "빠른주문정리"에만 집중해 사용법이 어렵지 않습니다',
+        '이제 복사해서 붙이면 준비 끝',
       ] as const,
     [],
   );
-  /** 0=1번 블록 타이핑, 1=2번 블록 타이핑, 2=애니메이션 종료(2번 고정 표시) */
-  const [blockIdx, setBlockIdx] = useState<0 | 1 | 2>(0);
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
-  const [betweenBlocks, setBetweenBlocks] = useState(false);
+  const [heroTypingDone, setHeroTypingDone] = useState(false);
 
   useEffect(() => {
-    if (betweenBlocks) {
-      const t = window.setTimeout(() => {
-        setBetweenBlocks(false);
-        setBlockIdx(1);
-        setLineIdx(0);
-        setCharIdx(0);
-      }, 520);
-      return () => window.clearTimeout(t);
-    }
+    if (heroTypingDone) return;
 
-    if (blockIdx >= 2) return;
-
-    const lines = typingBlocks[blockIdx];
-    const currentLine = lines[lineIdx];
+    const currentLine = heroTypingLines[lineIdx];
     const isTypingChar = charIdx < currentLine.length;
-    const delay = isTypingChar
-      ? 38
-      : lineIdx + 1 < lines.length
-        ? 420
-        : blockIdx === 0
-          ? 2000
-          : 0;
+    const delay = isTypingChar ? 38 : lineIdx + 1 < heroTypingLines.length ? 420 : 0;
 
     const timer = window.setTimeout(() => {
       if (isTypingChar) {
         setCharIdx((prev) => prev + 1);
         return;
       }
-      if (lineIdx + 1 < lines.length) {
+      if (lineIdx + 1 < heroTypingLines.length) {
         setLineIdx((prev) => prev + 1);
         setCharIdx(0);
         return;
       }
-      if (blockIdx === 0) {
-        setBetweenBlocks(true);
-        return;
-      }
-      setBlockIdx(2);
+      setHeroTypingDone(true);
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [betweenBlocks, blockIdx, lineIdx, charIdx, typingBlocks]);
+  }, [heroTypingDone, lineIdx, charIdx, heroTypingLines]);
 
   const plans = [
     {
@@ -121,29 +98,30 @@ export default function HomePage() {
         {/* Hero 섹션 */}
         <section className="blue-unified-theme pt-4 pb-8 lg:pt-6 lg:pb-12">
           <div className="flex flex-col gap-0">
+            <p className="mb-3 mx-auto max-w-5xl text-center text-sm sm:text-base font-normal leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all] md:mb-4">
+              엑클로드는 택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
+            </p>
             <div className="mx-auto mb-4 w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
               <div
                 className={`flex min-h-[min(170px,22vh)] flex-col justify-center md:min-h-[200px] ${typingHeroTextClass} space-y-2 md:space-y-2.5`}
               >
-                {betweenBlocks ? null : blockIdx === 2 ? (
-                  typingBlocks[1].map((line, lIndex) => (
-                    <p key={`done-${lIndex}`}>{line}</p>
-                  ))
+                {heroTypingDone ? (
+                  heroTypingLines.map((line, lIndex) => <p key={`done-${lIndex}`}>{line}</p>)
                 ) : (
-                  typingBlocks[blockIdx].map((line, lIndex) => {
+                  heroTypingLines.map((line, lIndex) => {
                     const isPast = lIndex < lineIdx;
                     const isCurrent = lIndex === lineIdx;
-                    const isFutureInBlock = lIndex > lineIdx;
+                    const isFuture = lIndex > lineIdx;
 
-                    if (isFutureInBlock) return null;
+                    if (isFuture) return null;
 
                     if (isPast) {
-                      return <p key={`${blockIdx}-${lIndex}`}>{line}</p>;
+                      return <p key={`line-${lIndex}`}>{line}</p>;
                     }
 
                     if (isCurrent) {
                       return (
-                        <p key={`${blockIdx}-${lIndex}`}>
+                        <p key={`line-${lIndex}`}>
                           {line.slice(0, charIdx)}
                           {charIdx < line.length ? <span className="animate-pulse text-zinc-400">|</span> : null}
                         </p>
@@ -175,9 +153,6 @@ export default function HomePage() {
 
             {/* 홈에서도 바로 체험 가능: 기존 /trial 페이지는 그대로 유지 */}
             <div className="w-full mt-4">
-              <p className="mb-4 mx-auto max-w-2xl text-center text-sm sm:text-base font-normal leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all]">
-                엑클로드는 택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
-              </p>
               <TrialEmbed trialMode />
               <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
                 전체 화면이 필요하면{' '}
