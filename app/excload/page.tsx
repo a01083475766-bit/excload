@@ -175,6 +175,9 @@ export default function HomePage() {
 
             {/* 홈에서도 바로 체험 가능: 기존 /trial 페이지는 그대로 유지 */}
             <div className="w-full mt-4">
+              <p className="mb-4 mx-auto max-w-2xl text-center text-sm sm:text-base font-normal leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all]">
+                엑클로드는 택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
+              </p>
               <TrialEmbed trialMode />
               <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
                 전체 화면이 필요하면{' '}
