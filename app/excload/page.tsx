@@ -28,74 +28,104 @@ const TrialEmbed = dynamic(
 const typingHeroTextClass =
   'font-bold leading-tight text-zinc-950 dark:text-zinc-100 text-[clamp(1.2rem,4vw,1.8rem)] tracking-tight [word-break:keep-all]';
 
-type HeroSeg = { kind: 'headline' | 'title' | 'body'; text: string };
+type HeroSeg = { kind: 'title' | 'body'; text: string };
+type HeroBlock = { id: string; segments: readonly HeroSeg[] };
 
-function heroSegClass(kind: HeroSeg['kind'], index: number) {
-  if (kind === 'headline') {
-    return `${typingHeroTextClass} mb-6`;
-  }
+function heroSegClass(kind: HeroSeg['kind']) {
   if (kind === 'title') {
-    const top = index === 1 ? 'mt-0' : 'mt-8';
-    return `${top} text-[clamp(1.05rem,3.2vw,1.4rem)] font-bold leading-snug text-zinc-950 dark:text-zinc-100 [word-break:keep-all]`;
+    return 'mt-1 text-[clamp(1.05rem,3.2vw,1.34rem)] font-bold leading-snug text-zinc-950 dark:text-zinc-100 [word-break:keep-all]';
   }
-  return 'text-[clamp(0.95rem,2.6vw,1.12rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all]';
+  return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all]';
 }
 
 export default function HomePage() {
-  /** 서비스 한 줄은 박스 위 고정 → 안쪽은 첫 문장 후 1~4번 순서 타이핑 */
-  const heroScript = useMemo(
+  /** 고정 높이 박스에서 1~4번을 순차 재생하고, 블록이 바뀌면 이전 블록은 지웁니다. */
+  const heroHeadline = '복잡한 기능을 빼고 "빠른주문정리"에만 집중해 사용법이 어렵지 않습니다';
+  const heroBlocks = useMemo(
     () =>
       [
-        { kind: 'headline' as const, text: '복잡한 기능을 빼고 \'빠른주문정리\'에만 집중해 사용법이 어렵지 않습니다' },
-        { kind: 'title' as const, text: '왜 쇼핑몰마다 양식이 다를까요?' },
-        { kind: 'body' as const, text: '스마트스토어, 쿠팡, 자사몰…' },
-        { kind: 'body' as const, text: '사용하는 시스템이 모두 다르기 때문입니다.' },
-        { kind: 'body' as const, text: '택배사 업로드 양식도 모두 다릅니다.' },
-        { kind: 'body' as const, text: '이제 하나하나 수정하지 마세요.' },
-        { kind: 'body' as const, text: '여러 쇼핑몰 주문파일도 쉽게 업로드하면' },
-        { kind: 'body' as const, text: '자동으로 하나의 업로드 파일로 정리됩니다.' },
-        { kind: 'title' as const, text: '아직도 카톡 주문을 손으로 정리하시나요?' },
-        { kind: 'body' as const, text: '핸드폰 화면 보고, 주소 복사하고, 주문 정리하고…' },
-        { kind: 'body' as const, text: '이제는 그대로 붙여넣으세요.' },
-        { kind: 'body' as const, text: '엑셀파일, 캡쳐이미지, 텍스트주문, 카톡주문까지' },
-        { kind: 'body' as const, text: '양식 상관없이 자동으로 정리됩니다.' },
-        { kind: 'title' as const, text: '송장번호 입력도 아직 엑셀로 하시나요?' },
-        { kind: 'body' as const, text: '주문파일과 송장파일만 넣으면' },
-        { kind: 'body' as const, text: '자동으로 매칭 파일이 생성됩니다.' },
-        { kind: 'body' as const, text: '복잡한 함수나 매크로 사용은 필요 없습니다.' },
-        { kind: 'title' as const, text: '주문서 엑셀 칸 옮기기 이제 그만하셔도 됩니다.' },
-        { kind: 'body' as const, text: '복잡한 기능을 빼고' },
-        { kind: 'body' as const, text: '빠른 주문정리에만 집중했습니다.' },
-        { kind: 'body' as const, text: '복사해서 붙여넣으면' },
-        { kind: 'body' as const, text: '택배 업로드 파일.' },
-        { kind: 'body' as const, text: '아래 무료체험에서 직접 확인해보세요.' },
-      ] satisfies readonly HeroSeg[],
+        {
+          id: '1',
+          segments: [
+            { kind: 'title' as const, text: '1번. 왜 쇼핑몰마다 양식이 다를까요?' },
+            { kind: 'body' as const, text: '스마트스토어, 쿠팡, 자사몰…' },
+            { kind: 'body' as const, text: '사용하는 시스템이 모두 다르기 때문입니다.' },
+            { kind: 'body' as const, text: '택배사 업로드 양식도 모두 다릅니다.' },
+            { kind: 'body' as const, text: '여러 쇼핑몰 주문파일도 쉽게 업로드하면 자동으로 정리됩니다.' },
+          ],
+        },
+        {
+          id: '2',
+          segments: [
+            { kind: 'title' as const, text: '2번. 아직도 카톡 주문을 손으로 정리하시나요?' },
+            { kind: 'body' as const, text: '핸드폰 화면 보고, 주소 복사하고, 주문 정리하고…' },
+            { kind: 'body' as const, text: '이제는 그대로 붙여넣으세요.' },
+            { kind: 'body' as const, text: '엑셀파일, 캡쳐이미지, 텍스트주문, 카톡주문까지 자동 정리됩니다.' },
+          ],
+        },
+        {
+          id: '3',
+          segments: [
+            { kind: 'title' as const, text: '3번. 송장번호 입력도 아직 엑셀로 하시나요?' },
+            { kind: 'body' as const, text: '주문파일과 송장파일만 넣으면 자동으로 매칭 파일이 생성됩니다.' },
+            { kind: 'body' as const, text: '복잡한 함수나 매크로 사용은 필요 없습니다.' },
+          ],
+        },
+        {
+          id: '4',
+          segments: [
+            { kind: 'title' as const, text: '4번. 주문서 엑셀 칸 옮기기 이제 그만하셔도 됩니다.' },
+            { kind: 'body' as const, text: '복잡한 기능을 빼고 빠른 주문정리에만 집중했습니다.' },
+            { kind: 'body' as const, text: '복사해서 붙여넣으면 택배 업로드 파일이 완성됩니다.' },
+            { kind: 'body' as const, text: '아래 무료체험에서 직접 확인해보세요.' },
+          ],
+        },
+      ] satisfies readonly HeroBlock[],
     [],
   );
 
+  const [blockIdx, setBlockIdx] = useState(0);
   const [segIdx, setSegIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
+  const [betweenBlocks, setBetweenBlocks] = useState(false);
   const [heroTypingDone, setHeroTypingDone] = useState(false);
 
   useEffect(() => {
     if (heroTypingDone) return;
+    if (betweenBlocks) {
+      const transition = window.setTimeout(() => {
+        if (blockIdx + 1 < heroBlocks.length) {
+          setBlockIdx((prev) => prev + 1);
+          setSegIdx(0);
+          setCharIdx(0);
+          setBetweenBlocks(false);
+          return;
+        }
+        setHeroTypingDone(true);
+      }, 650);
+      return () => window.clearTimeout(transition);
+    }
 
-    const seg = heroScript[segIdx];
-    if (!seg) {
+    const currentBlock = heroBlocks[blockIdx];
+    if (!currentBlock) {
       setHeroTypingDone(true);
       return;
     }
 
+    const seg = currentBlock.segments[segIdx];
+    if (!seg) {
+      setBetweenBlocks(true);
+      return;
+    }
+
     const isTypingChar = charIdx < seg.text.length;
-    /** 문장 단위: 글자 간격 + 줄 끝 0.8~1.2초 전후 멈춤 */
-    const linePauseMs =
-      seg.kind === 'headline' ? 1100 : seg.kind === 'title' ? 1000 : 900;
-    const charDelayMs = (() => {
+    const linePauseMs = seg.kind === 'title' ? 980 : 860;
+    const delay = (() => {
       if (!isTypingChar) return linePauseMs;
       const ch = seg.text.charAt(charIdx);
       if (ch === ' ') return 22;
-      if (/[.,…!?]/.test(ch)) return 48;
-      return 34;
+      if (/[.,…!?]/.test(ch)) return 50;
+      return 33;
     })();
 
     const timer = window.setTimeout(() => {
@@ -103,16 +133,28 @@ export default function HomePage() {
         setCharIdx((prev) => prev + 1);
         return;
       }
-      if (segIdx + 1 < heroScript.length) {
+      if (segIdx + 1 < currentBlock.segments.length) {
         setSegIdx((prev) => prev + 1);
         setCharIdx(0);
         return;
       }
-      setHeroTypingDone(true);
-    }, charDelayMs);
+      setBetweenBlocks(true);
+    }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [heroTypingDone, segIdx, charIdx, heroScript]);
+  }, [heroTypingDone, betweenBlocks, blockIdx, segIdx, charIdx, heroBlocks]);
+
+  const heroVisibleSegments = useMemo(() => {
+    const currentBlock = heroBlocks[blockIdx];
+    if (!currentBlock) return [] as HeroSeg[];
+    const completed = currentBlock.segments.slice(0, segIdx);
+    const current = currentBlock.segments[segIdx];
+    const withCurrent = current
+      ? [...completed, { ...current, text: current.text.slice(0, charIdx) }]
+      : [...completed];
+    const maxLines = 8;
+    return withCurrent.slice(-maxLines);
+  }, [heroBlocks, blockIdx, segIdx, charIdx]);
 
   const plans = [
     {
@@ -152,41 +194,23 @@ export default function HomePage() {
             </p>
             <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-sm dark:border-blue-900 dark:bg-blue-950/30 md:p-5 lg:p-6">
               <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
-                <div className="flex min-h-0 flex-col justify-start gap-0 py-1">
-                  {heroTypingDone ? (
-                    heroScript.map((seg, i) => (
-                      <p key={`done-${i}`} className={heroSegClass(seg.kind, i)}>
+                <div className="flex h-[340px] flex-col overflow-hidden py-1 md:h-[360px]">
+                  <p className={`${typingHeroTextClass} mb-5`}>{heroHeadline}</p>
+                  {betweenBlocks && !heroTypingDone ? null : heroVisibleSegments.map((seg, idx) => {
+                    const isCurrent = idx === heroVisibleSegments.length - 1;
+                    const isTyping =
+                      !heroTypingDone &&
+                      !betweenBlocks &&
+                      segIdx < heroBlocks[blockIdx].segments.length &&
+                      isCurrent;
+
+                    return (
+                      <p key={`${heroBlocks[blockIdx].id}-${idx}-${seg.text}`} className={heroSegClass(seg.kind)}>
                         {seg.text}
+                        {isTyping ? <span className="animate-pulse text-zinc-400">|</span> : null}
                       </p>
-                    ))
-                  ) : (
-                    heroScript.map((seg, sIndex) => {
-                      const isPast = sIndex < segIdx;
-                      const isCurrent = sIndex === segIdx;
-                      const isFuture = sIndex > segIdx;
-
-                      if (isFuture) return null;
-
-                      if (isPast) {
-                        return (
-                          <p key={`seg-${sIndex}`} className={heroSegClass(seg.kind, sIndex)}>
-                            {seg.text}
-                          </p>
-                        );
-                      }
-
-                      if (isCurrent) {
-                        return (
-                          <p key={`seg-${sIndex}`} className={heroSegClass(seg.kind, sIndex)}>
-                            {seg.text.slice(0, charIdx)}
-                            {charIdx < seg.text.length ? <span className="animate-pulse text-zinc-400">|</span> : null}
-                          </p>
-                        );
-                      }
-
-                      return null;
-                    })
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             </div>
