@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import MainNav from "./components/MainNav";
+import AuthProviders from "./components/AuthProviders";
 import StoreInitializer from "./components/StoreInitializer";
 import GlobalDragDropBlocker from "./components/GlobalDragDropBlocker";
 import GlobalPopupManager from "./components/GlobalPopupManager";
@@ -36,12 +37,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ClientConsoleSilencer />
-        <StoreInitializer />
-        <GlobalDragDropBlocker />
-        <MainNav />
-        <div className="pt-[44px] sm:pt-[35px]">
-          {children}
-        </div>
+        <AuthProviders>
+          <StoreInitializer />
+          <GlobalDragDropBlocker />
+          <MainNav />
+          <div className="pt-[44px] sm:pt-[35px]">
+            {children}
+          </div>
+        </AuthProviders>
         <footer className="mt-8 border-t border-zinc-200 px-4 py-8 text-center text-sm leading-7 text-zinc-600 sm:text-base sm:leading-8">
           <p className="mx-auto max-w-6xl">
             상호: 원클 (엑클로드 EXCLOAD) | 대표자: 최영순 | 사업자등록번호: 834-19-02117 | 주소: 인천시

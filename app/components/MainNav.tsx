@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -82,9 +84,21 @@ const logoLinkClass = `
 
 export default function MainNav() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
   const user = useUserStore((state) => state.user);
+  const fetchUser = useUserStore((state) => state.fetchUser);
   const clearUser = useUserStore((state) => state.clearUser);
-  const isAdmin = user && isAdminEmailClient(user.email);
+
+  /** Google OAuth 등으로 세션만 있고 Zustand가 비어 있는 경우 스토어를 채움 */
+  useEffect(() => {
+    if (status === 'authenticated') {
+      void fetchUser();
+    }
+  }, [status, fetchUser]);
+
+  const emailForRole = user?.email ?? session?.user?.email ?? null;
+  const isLoggedIn = status === 'authenticated' || !!user;
+  const isAdmin = emailForRole && isAdminEmailClient(emailForRole);
 
   const adminMenuItem: MenuItem = { href: '/akman', label: '관리자페이지', icon: Shield };
   const displayPrimaryItems = isAdmin ? [adminMenuItem, ...primaryMenuItems] : primaryMenuItems;
@@ -182,7 +196,7 @@ export default function MainNav() {
             |
           </span>
 
-          {!user && (
+          {!isLoggedIn && (
             <Link
               href="/auth"
               className={`
@@ -198,7 +212,7 @@ export default function MainNav() {
             </Link>
           )}
 
-          {user && (
+          {isLoggedIn && (
             <>
               <Link
                 href="/mypage"
