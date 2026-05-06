@@ -130,9 +130,9 @@ export default function HomePage() {
     const delay = (() => {
       if (!isTypingChar) return linePauseMs;
       const ch = seg.text.charAt(charIdx);
-      if (ch === ' ') return 22;
-      if (/[.,…!?]/.test(ch)) return 50;
-      return 33;
+      if (ch === ' ') return 28;
+      if (/[.,…!?]/.test(ch)) return 58;
+      return 40;
     })();
 
     const timer = window.setTimeout(() => {
