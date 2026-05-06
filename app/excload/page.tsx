@@ -31,12 +31,20 @@ const typingHeroTextClass =
 type HeroSeg = { kind: 'title' | 'body'; text: string };
 type HeroBlock = { id: string; segments: readonly HeroSeg[] };
 
-function heroSegClass(kind: HeroSeg['kind'], text: string) {
+const confirmText = '아래 무료체험에서 직접 확인해보세요.';
+
+function heroSegClass(
+  kind: HeroSeg['kind'],
+  text: string,
+  confirmBumped: boolean,
+) {
   if (kind === 'title') {
     return 'mt-1 text-[clamp(1.05rem,3.2vw,1.34rem)] font-bold leading-snug text-zinc-950 dark:text-zinc-100 [word-break:keep-all]';
   }
-  if (text === '아래 무료체험에서 직접 확인해보세요.') {
-    return 'text-[clamp(1.02rem,2.8vw,1.2rem)] font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all]';
+  if (text === confirmText) {
+    return confirmBumped
+      ? 'text-[clamp(1.12rem,3.1vw,1.34rem)] font-bold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all] transition-all duration-500'
+      : 'text-[clamp(1.02rem,2.8vw,1.2rem)] font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all] transition-all duration-500';
   }
   if (text === '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.') {
     return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all] whitespace-nowrap';
@@ -94,6 +102,22 @@ export default function HomePage() {
   const [segIdx, setSegIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const [betweenBlocks, setBetweenBlocks] = useState(false);
+  const [confirmBumped, setConfirmBumped] = useState(false);
+
+  // 안내문(무료체험 유도 문구)이 "완성"된 뒤 2초 후 글자를 한 단계 더 키웁니다.
+  useEffect(() => {
+    const currentBlock = heroBlocks[blockIdx];
+    const seg = currentBlock?.segments?.[segIdx];
+
+    const isConfirm = seg?.text === confirmText;
+    const isComplete = !!seg && isConfirm && charIdx >= seg.text.length;
+
+    setConfirmBumped(false);
+    if (!isConfirm || !isComplete || betweenBlocks) return;
+
+    const t = window.setTimeout(() => setConfirmBumped(true), 2000);
+    return () => window.clearTimeout(t);
+  }, [betweenBlocks, blockIdx, segIdx, charIdx, heroBlocks]);
 
   useEffect(() => {
     if (betweenBlocks) {
@@ -216,8 +240,13 @@ export default function HomePage() {
                       segIdx < heroBlocks[blockIdx].segments.length &&
                       isCurrent;
 
+                    const isConfirm = seg.text === confirmText;
+
                     return (
-                      <p key={`${heroBlocks[blockIdx].id}-${idx}-${seg.text}`} className={heroSegClass(seg.kind, seg.text)}>
+                      <p
+                        key={`${heroBlocks[blockIdx].id}-${idx}-${seg.text}`}
+                        className={heroSegClass(seg.kind, seg.text, isConfirm && confirmBumped)}
+                      >
                         {seg.text}
                         {isTyping ? <span className="animate-pulse text-zinc-400">|</span> : null}
                       </p>
