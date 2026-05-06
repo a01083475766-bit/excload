@@ -9,6 +9,15 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 
+// redirect_uri 조립 시 끝 슬래시가 있으면 OAuth 토큰 교환 단계에서 실패할 수 있음
+(() => {
+  const raw = process.env.NEXTAUTH_URL?.trim();
+  if (raw?.endsWith('/')) {
+    process.env.NEXTAUTH_URL = raw.replace(/\/+$/, '');
+    console.warn('[Auth] NEXTAUTH_URL 끝 슬래시 제거됨 (OAuth redirect_uri 일치용)');
+  }
+})();
+
 if (!process.env.NEXTAUTH_SECRET) {
   console.warn(
     '[Auth] NEXTAUTH_SECRET missing — 운영 배포 전 반드시 설정하세요. (로컬 빌드용 임시 시크릿 사용)'
@@ -270,6 +279,23 @@ export const authOptions: NextAuthOptions = {
 
   /** Vercel에 NEXTAUTH_DEBUG=true 넣으면 Functions 로그에 OAuth 상세가 남음(해결 후 반드시 제거) */
   debug: process.env.NEXTAUTH_DEBUG === 'true',
+
+  logger: {
+    error(code, metadata) {
+      const meta = metadata as Error | { error?: Error } | undefined;
+      const nested =
+        meta && typeof meta === 'object' && 'error' in meta
+          ? (meta as { error?: Error }).error
+          : meta instanceof Error
+            ? meta
+            : undefined;
+      console.error('[NextAuth][error]', code, {
+        message: nested instanceof Error ? nested.message : String(metadata),
+        stack: nested instanceof Error ? nested.stack : undefined,
+        metadata,
+      });
+    },
+  },
 
   // 보안 설정 — NEXTAUTH_SECRET 미설정 시에만 임시값(빌드 통과용). 운영에서는 반드시 환경 변수 설정.
   secret:
