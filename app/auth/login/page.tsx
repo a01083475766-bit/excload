@@ -11,17 +11,16 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
     params.set('mode', 'login');
     router.replace(`/auth?${params.toString()}`);
-  }, [router, searchParams]);
+  }, [router]);
 
   return null;
 }
