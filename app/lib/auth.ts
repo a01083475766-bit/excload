@@ -7,6 +7,7 @@
 
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 
 if (!process.env.NEXTAUTH_SECRET) {
   console.warn(
@@ -17,11 +18,11 @@ if (!process.env.NEXTAUTH_SECRET) {
 const AKMAN_ADMIN_EMAIL = 'akman@excload.com';
 const AKMAN_ADMIN_BCRYPT_HASH = '$2b$10$WP8wPfSr5v/HHQlo0pf9I.piql9e9PLm/NJZ2trg4o2Q8GJgHUvtm';
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+
 /**
  * NextAuth 옵션 설정
- * 
- * ⚠️ Google Provider는 현재 제외 (모듈 해석 문제로 인해)
- * 필요시 나중에 추가 가능
  */
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -189,6 +190,14 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
+    ...(googleClientId && googleClientSecret
+      ? [
+          GoogleProvider({
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+          }),
+        ]
+      : []),
   ],
 
   // Session 전략: JWT 사용 (DB가 없으므로)
@@ -198,11 +207,59 @@ export const authOptions: NextAuthOptions = {
 
   // JWT 설정
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider !== 'google') {
+        return true;
+      }
+
+      const email = user.email?.trim().toLowerCase();
+      if (!email) {
+        return false;
+      }
+
+      try {
+        const { prisma } = await import('@/app/lib/prisma');
+        await prisma.user.upsert({
+          where: { email },
+          update: {
+            name: user.name ?? undefined,
+            image: user.image ?? undefined,
+            emailVerified: new Date(),
+          },
+          create: {
+            email,
+            name: user.name ?? null,
+            image: user.image ?? null,
+            emailVerified: new Date(),
+          },
+        });
+        return true;
+      } catch (error) {
+        console.error('[Auth] GOOGLE SIGNIN UPSERT FAILED:', error);
+        return false;
+      }
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
+      }
+
+      if (!token.id && token.email) {
+        try {
+          const { prisma } = await import('@/app/lib/prisma');
+          const existingUser = await prisma.user.findUnique({
+            where: { email: token.email },
+            select: { id: true, name: true },
+          });
+          if (existingUser) {
+            token.id = existingUser.id;
+            token.name = existingUser.name ?? token.name;
+          }
+        } catch (error) {
+          console.error('[Auth] JWT USER LOOKUP FAILED:', error);
+        }
       }
       return token;
     },
