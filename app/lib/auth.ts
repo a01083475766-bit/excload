@@ -268,6 +268,9 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/login',
   },
 
+  /** Vercel에 NEXTAUTH_DEBUG=true 넣으면 Functions 로그에 OAuth 상세가 남음(해결 후 반드시 제거) */
+  debug: process.env.NEXTAUTH_DEBUG === 'true',
+
   // 보안 설정 — NEXTAUTH_SECRET 미설정 시에만 임시값(빌드 통과용). 운영에서는 반드시 환경 변수 설정.
   secret:
     process.env.NEXTAUTH_SECRET?.trim() ||
