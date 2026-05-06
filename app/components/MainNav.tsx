@@ -121,7 +121,7 @@ export default function MainNav() {
           )}
         </Link>
 
-        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-end gap-2 overflow-x-auto overflow-y-hidden pb-px sm:gap-3">
+        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-start sm:justify-end gap-2 overflow-x-auto overflow-y-hidden pb-px sm:gap-3">
           {displayPrimaryItems.map((item) => {
             const Icon = item.icon;
             const isActive =
