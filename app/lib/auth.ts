@@ -217,27 +217,9 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
 
-      try {
-        const { prisma } = await import('@/app/lib/prisma');
-        await prisma.user.upsert({
-          where: { email },
-          update: {
-            name: user.name ?? undefined,
-            image: user.image ?? undefined,
-            emailVerified: new Date(),
-          },
-          create: {
-            email,
-            name: user.name ?? null,
-            image: user.image ?? null,
-            emailVerified: new Date(),
-          },
-        });
-        return true;
-      } catch (error) {
-        console.error('[Auth] GOOGLE SIGNIN UPSERT FAILED:', error);
-        return false;
-      }
+      // Google 인증은 통과시킨 뒤, DB 보정은 jwt 단계에서 재시도한다.
+      // signIn에서 false를 반환하면 OAuth 완료 후 로그인 페이지로 되돌아간다.
+      return true;
     },
     async jwt({ token, user }) {
       if (user) {
@@ -246,19 +228,25 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name;
       }
 
-      if (!token.id && token.email) {
+      const tokenEmail =
+        typeof token.email === 'string' ? token.email.trim().toLowerCase() : '';
+      if (tokenEmail) {
         try {
           const { prisma } = await import('@/app/lib/prisma');
-          const existingUser = await prisma.user.findUnique({
-            where: { email: token.email },
+          const ensuredUser = await prisma.user.upsert({
+            where: { email: tokenEmail },
+            update: {},
+            create: {
+              email: tokenEmail,
+              name: typeof token.name === 'string' ? token.name : null,
+              emailVerified: new Date(),
+            },
             select: { id: true, name: true },
           });
-          if (existingUser) {
-            token.id = existingUser.id;
-            token.name = existingUser.name ?? token.name;
-          }
+          token.id = ensuredUser.id;
+          token.name = ensuredUser.name ?? token.name;
         } catch (error) {
-          console.error('[Auth] JWT USER LOOKUP FAILED:', error);
+          console.error('[Auth] JWT USER UPSERT FAILED:', error);
         }
       }
       return token;
