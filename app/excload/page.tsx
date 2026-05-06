@@ -71,7 +71,7 @@ export default function HomePage() {
         {
           id: '2',
           segments: [
-            { kind: 'title' as const, text: '아직도 카톡 주문을 손으로 정리하시나요?' },
+            { kind: 'title' as const, text: '카톡, 문자 등의 단건 주문 타이핑 입력, 힘드시죠?' },
             { kind: 'body' as const, text: '핸드폰 화면 보고, 주소 복사하고, 주문 정리하고…' },
             { kind: 'body' as const, text: '이제는 그대로 붙여넣으세요.' },
             { kind: 'body' as const, text: '엑셀파일, 캡쳐이미지, 텍스트주문, 카톡주문까지 자동 정리됩니다.' },
