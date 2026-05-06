@@ -38,6 +38,9 @@ function heroSegClass(kind: HeroSeg['kind'], text: string) {
   if (text === '아래 무료체험에서 직접 확인해보세요.') {
     return 'text-[clamp(1.02rem,2.8vw,1.2rem)] font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all]';
   }
+  if (text === '택배 업로드 파일로 자동 정리됩니다.') {
+    return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all] whitespace-nowrap';
+  }
   return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all]';
 }
 
