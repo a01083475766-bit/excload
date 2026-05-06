@@ -4,6 +4,17 @@ import type { NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // OAuth/NextAuth는 시작 호스트의 쿠키(state·CSRF)가 콜백 호스트와 같아야 합니다.
+  // apex(excload.com)로 들어오면 www로 통일합니다. (localhost·미리보기는 영향 없음)
+  const rawHost = request.headers.get('host') ?? '';
+  const hostOnly = rawHost.split(':')[0]?.toLowerCase() ?? '';
+  if (hostOnly === 'excload.com') {
+    const url = request.nextUrl.clone();
+    url.hostname = 'www.excload.com';
+    url.protocol = 'https:';
+    return NextResponse.redirect(url, 308);
+  }
+
   // 랜딩 UI는 app/excload/page.tsx 단일 소스. 루트 `/`는 파일 하단에서 /excload로 리다이렉트.
   if (pathname.startsWith('/excload')) {
     return NextResponse.next();
