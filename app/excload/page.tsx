@@ -47,7 +47,7 @@ export default function HomePage() {
         {
           id: '1',
           segments: [
-            { kind: 'title' as const, text: '1번. 왜 쇼핑몰마다 양식이 다를까요?' },
+            { kind: 'title' as const, text: '왜 쇼핑몰마다 양식이 다를까요?' },
             { kind: 'body' as const, text: '스마트스토어, 쿠팡, 자사몰…' },
             { kind: 'body' as const, text: '사용하는 시스템이 모두 다르기 때문입니다.' },
             { kind: 'body' as const, text: '택배사 업로드 양식도 모두 다릅니다.' },
@@ -57,7 +57,7 @@ export default function HomePage() {
         {
           id: '2',
           segments: [
-            { kind: 'title' as const, text: '2번. 아직도 카톡 주문을 손으로 정리하시나요?' },
+            { kind: 'title' as const, text: '아직도 카톡 주문을 손으로 정리하시나요?' },
             { kind: 'body' as const, text: '핸드폰 화면 보고, 주소 복사하고, 주문 정리하고…' },
             { kind: 'body' as const, text: '이제는 그대로 붙여넣으세요.' },
             { kind: 'body' as const, text: '엑셀파일, 캡쳐이미지, 텍스트주문, 카톡주문까지 자동 정리됩니다.' },
@@ -66,7 +66,7 @@ export default function HomePage() {
         {
           id: '3',
           segments: [
-            { kind: 'title' as const, text: '3번. 송장번호 입력도 아직 엑셀로 하시나요?' },
+            { kind: 'title' as const, text: '송장번호 입력도 아직 엑셀로 하시나요?' },
             { kind: 'body' as const, text: '주문파일과 송장파일만 넣으면 자동으로 매칭 파일이 생성됩니다.' },
             { kind: 'body' as const, text: '복잡한 함수나 매크로 사용은 필요 없습니다.' },
           ],
@@ -74,7 +74,7 @@ export default function HomePage() {
         {
           id: '4',
           segments: [
-            { kind: 'title' as const, text: '4번. 주문서 엑셀 칸 옮기기 이제 그만하셔도 됩니다.' },
+            { kind: 'title' as const, text: '주문서 엑셀 칸 옮기기 이제 그만하셔도 됩니다.' },
             { kind: 'body' as const, text: '복잡한 기능을 빼고 빠른 주문정리에만 집중했습니다.' },
             { kind: 'body' as const, text: '복사해서 붙여넣으면 택배 업로드 파일이 완성됩니다.' },
             { kind: 'body' as const, text: '아래 무료체험에서 직접 확인해보세요.' },
@@ -194,7 +194,7 @@ export default function HomePage() {
             </p>
             <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-sm dark:border-blue-900 dark:bg-blue-950/30 md:p-5 lg:p-6">
               <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
-                <div className="flex h-[340px] flex-col overflow-hidden py-1 md:h-[360px]">
+                <div className="flex h-[204px] flex-col overflow-hidden py-1 md:h-[216px]">
                   <p className={`${typingHeroTextClass} mb-5`}>{heroHeadline}</p>
                   {betweenBlocks && !heroTypingDone ? null : heroVisibleSegments.map((seg, idx) => {
                     const isCurrent = idx === heroVisibleSegments.length - 1;
