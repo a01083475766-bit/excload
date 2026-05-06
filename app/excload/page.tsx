@@ -72,7 +72,7 @@ export default function HomePage() {
         {
           id: '3',
           segments: [
-            { kind: 'title' as const, text: '송장번호 입력도 아직 엑셀로 하시나요?' },
+            { kind: 'title' as const, text: '송장번호 매핑 입력, 힘드시죠?' },
             { kind: 'body' as const, text: '주문파일과 송장파일만 넣으면 자동으로 매칭 파일이 생성됩니다.' },
             { kind: 'body' as const, text: '복잡한 함수나 매크로 사용은 필요 없습니다.' },
           ],
