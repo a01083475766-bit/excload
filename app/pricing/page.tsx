@@ -80,7 +80,7 @@ export default function PricingPage() {
 
   return (
     <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen">
-      <main className="max-w-[1200px] mx-auto px-8 py-8">
+      <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8 py-8">
         {/* 헤더 */}
         <div className="text-center mb-16">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-zinc-950 dark:text-zinc-100 mb-4">

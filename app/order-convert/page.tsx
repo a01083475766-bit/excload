@@ -1711,7 +1711,7 @@ export default function OrderConvertPage() {
       {/* 삭제 확인 모달 */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg w-[400px] p-6">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-[400px] p-6">
             <h4 className="text-lg font-semibold mb-3">
               선택한 {selectedRows.length}개 항목을 삭제하시겠습니까?
             </h4>
@@ -1778,7 +1778,7 @@ export default function OrderConvertPage() {
       )}
 
       <div className="pt-1.5 pb-4 bg-zinc-50 dark:bg-black">
-      <main className="max-w-[1200px] mx-auto px-8">
+      <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
         <section className="relative pt-1 pb-3">
           <div className="flex flex-col gap-2 lg:gap-3">
@@ -2117,7 +2117,7 @@ export default function OrderConvertPage() {
                     <table className="min-w-max text-sm border border-gray-300 border-collapse">
                       <thead className="bg-gray-50 sticky top-0 z-20">
                         <tr>
-                          <th className="sticky left-0 z-30 border border-gray-300 bg-gray-50 px-2 py-1 text-left font-semibold border-b whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
+                          <th className="sticky left-0 z-30 border border-gray-300 bg-gray-50 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
                             <input
                               type="checkbox"
                               onChange={(e) => {
@@ -2132,7 +2132,7 @@ export default function OrderConvertPage() {
                           {courierHeaders.map((header) => (
                             <th
                               key={header}
-                              className="border border-gray-300 px-2 py-1 text-left font-semibold border-b whitespace-nowrap cursor-pointer select-none"
+                              className="border border-gray-300 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap cursor-pointer select-none"
                               onClick={() => {
                                 setSortConfig(prev => {
                                   if (!prev || prev.header !== header) {
@@ -2329,7 +2329,7 @@ export default function OrderConvertPage() {
           onClick={handleCloseCourierTemplateModal}
         >
           <div
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[900px] h-[798px] max-h-[798px] flex flex-col p-6"
+            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[900px] h-[90vh] max-h-[90vh] sm:h-[798px] sm:max-h-[798px] flex flex-col p-4 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
@@ -2436,7 +2436,7 @@ export default function OrderConvertPage() {
                                           }
                                         }}
                                         autoFocus
-                                        className="w-[40%] min-w-[240px] px-2 py-1 text-sm rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+                                        className="w-[40%] min-w-0 sm:min-w-[240px] px-2 py-1 text-sm rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
                                         placeholder="양식 이름을 입력하세요"
                                       />
                                       <button
@@ -2444,7 +2444,7 @@ export default function OrderConvertPage() {
                                           e.stopPropagation();
                                           handleConfirmEditName(format.id);
                                         }}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs whitespace-nowrap"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs sm:whitespace-nowrap"
                                       >
                                         확인
                                       </button>
@@ -2453,7 +2453,7 @@ export default function OrderConvertPage() {
                                           e.stopPropagation();
                                           handleCancelEditName();
                                         }}
-                                        className="bg-white border border-gray-300 text-gray-900 px-3 py-1 rounded text-xs whitespace-nowrap"
+                                        className="bg-white border border-gray-300 text-gray-900 px-3 py-1 rounded text-xs sm:whitespace-nowrap"
                                       >
                                         취소
                                       </button>
@@ -2676,7 +2676,7 @@ export default function OrderConvertPage() {
           onClick={handleCloseSenderModal}
         >
           <div
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[84vh] flex flex-col p-6"
+            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[88vh] sm:h-[84vh] flex flex-col p-4 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 모달 헤더 */}

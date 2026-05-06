@@ -53,8 +53,8 @@ const secondaryMenuItems: MenuItem[] = [
   { href: '/contact', label: '고객문의', icon: MessageCircle },
 ];
 
-/** 본문 영역(main max-w-[1200px] mx-auto px-8)과 좌우 기준선 맞춤 */
-const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-8';
+/** 본문 영역 기준선 유지 + 모바일 세로에서 좌우 패딩 축소 */
+const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-3 sm:px-5 lg:px-8';
 
 const primaryLinkClass = `
   flex h-full shrink-0 items-center justify-center gap-2
@@ -69,7 +69,7 @@ const primaryLinkClass = `
 const secondaryLinkClass = `
   flex shrink-0 items-center gap-0.5
   whitespace-nowrap rounded px-1 py-0.5
-  text-[calc(11px+0.1rem)] leading-snug text-gray-600
+  text-[12px] sm:text-[calc(11px+0.1rem)] leading-snug text-gray-600
   relative
   hover:text-blue-600
 `;
@@ -151,7 +151,7 @@ export default function MainNav() {
       {/* 2단: 1단 실행 메뉴와 같은 오른쪽 정렬 · 1단과 간격 축소 */}
       <div className="border-t border-gray-100 bg-zinc-50/95">
         <div
-          className={`${navInnerClass} flex flex-wrap items-center justify-end gap-x-0.5 gap-y-0.5 py-0.5`}
+          className={`${navInnerClass} flex flex-nowrap items-center justify-start sm:justify-end gap-x-0.5 gap-y-0.5 overflow-x-auto overflow-y-hidden py-0.5 whitespace-nowrap`}
         >
           {secondaryMenuItems.map((item) => {
             const Icon = item.icon;

@@ -85,7 +85,7 @@ export default function MessageOrderPage() {
 
   return (
     <div className="pt-12 bg-zinc-50 dark:bg-black">
-      <main className="max-w-[1200px] mx-auto px-8">
+      <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
         {/* Hero 섹션 - 세로 흐름 구조 */}
         <section className="py-6">
           <div className="flex flex-col gap-2 lg:gap-3">

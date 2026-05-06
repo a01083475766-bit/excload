@@ -231,7 +231,7 @@ export default function HomePage() {
             </p>
             <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-sm dark:border-blue-900 dark:bg-blue-950/30 md:p-5 lg:p-6">
               <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
-                <div className="flex h-[204px] flex-col overflow-hidden py-1 md:h-[216px]">
+                <div className="flex h-[292px] flex-col overflow-hidden py-1 sm:h-[248px] md:h-[216px]">
                   <p className={`${typingHeroTextClass} mb-5`}>{heroHeadline}</p>
                   {heroVisibleSegments.map((seg, idx) => {
                     const isCurrent = idx === heroVisibleSegments.length - 1;
