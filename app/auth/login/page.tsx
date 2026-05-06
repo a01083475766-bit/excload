@@ -11,13 +11,17 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    router.replace('/auth?mode=login');
-  }, [router]);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('mode', 'login');
+    router.replace(`/auth?${params.toString()}`);
+  }, [router, searchParams]);
 
   return null;
 }

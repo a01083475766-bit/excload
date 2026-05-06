@@ -11,7 +11,7 @@
 
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, LogIn, UserPlus, Loader2, Eye, EyeOff, Smartphone, X, Search } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
@@ -21,6 +21,7 @@ type AuthMode = 'login' | 'signup';
 
 export default function AuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fetchUser = useUserStore((state) => state.fetchUser);
   
   const [mode, setMode] = useState<AuthMode>('login');
@@ -46,14 +47,33 @@ export default function AuthPage() {
   const [findEmailError, setFindEmailError] = useState('');
   const [findEmailResult, setFindEmailResult] = useState<string | null>(null);
 
-  // URL 쿼리 파라미터 변경 시 모드 업데이트
+  const getAuthErrorMessage = (errorCode: string | null): string => {
+    switch (errorCode) {
+      case 'OAuthAccountNotLinked':
+        return '이미 다른 로그인 방식으로 가입된 이메일입니다. 기존 방식으로 로그인해주세요.';
+      case 'AccessDenied':
+        return '로그인이 취소되었거나 권한이 거부되었습니다.';
+      case 'OAuthCallback':
+      case 'OAuthSignin':
+      case 'OAuthCreateAccount':
+        return 'Google 로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      default:
+        return '로그인 처리 중 오류가 발생했습니다.';
+    }
+  };
+
+  // URL 쿼리 파라미터 변경 시 모드/에러 업데이트
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const urlMode = new URLSearchParams(window.location.search).get('mode') as AuthMode | null;
+    const urlMode = searchParams.get('mode') as AuthMode | null;
     if (urlMode === 'signup' || urlMode === 'login') {
       setMode(urlMode);
     }
-  }, []);
+
+    const authError = searchParams.get('error');
+    if (authError) {
+      setError(getAuthErrorMessage(authError));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!findEmailOpen) return;
