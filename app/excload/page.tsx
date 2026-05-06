@@ -35,6 +35,9 @@ function heroSegClass(kind: HeroSeg['kind'], text: string) {
   if (kind === 'title') {
     return 'mt-1 text-[clamp(1.05rem,3.2vw,1.34rem)] font-bold leading-snug text-zinc-950 dark:text-zinc-100 [word-break:keep-all]';
   }
+  if (text === '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게') {
+    return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all] whitespace-nowrap';
+  }
   if (text === '아래 무료체험에서 직접 확인해보세요.') {
     return 'text-[clamp(1.02rem,2.8vw,1.2rem)] font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all]';
   }
