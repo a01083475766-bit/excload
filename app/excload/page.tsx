@@ -88,12 +88,18 @@ export default function HomePage() {
   const [segIdx, setSegIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const [betweenBlocks, setBetweenBlocks] = useState(false);
-  const [heroTypingDone, setHeroTypingDone] = useState(false);
 
   useEffect(() => {
-    if (heroTypingDone) return;
     if (betweenBlocks) {
+      const isLastBlock = blockIdx + 1 >= heroBlocks.length;
       const transition = window.setTimeout(() => {
+        if (isLastBlock) {
+          setBlockIdx(0);
+          setSegIdx(0);
+          setCharIdx(0);
+          setBetweenBlocks(false);
+          return;
+        }
         if (blockIdx + 1 < heroBlocks.length) {
           setBlockIdx((prev) => prev + 1);
           setSegIdx(0);
@@ -101,14 +107,15 @@ export default function HomePage() {
           setBetweenBlocks(false);
           return;
         }
-        setHeroTypingDone(true);
-      }, 650);
+      }, isLastBlock ? 180000 : 3000);
       return () => window.clearTimeout(transition);
     }
 
     const currentBlock = heroBlocks[blockIdx];
     if (!currentBlock) {
-      setHeroTypingDone(true);
+      setBlockIdx(0);
+      setSegIdx(0);
+      setCharIdx(0);
       return;
     }
 
@@ -142,7 +149,7 @@ export default function HomePage() {
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [heroTypingDone, betweenBlocks, blockIdx, segIdx, charIdx, heroBlocks]);
+  }, [betweenBlocks, blockIdx, segIdx, charIdx, heroBlocks]);
 
   const heroVisibleSegments = useMemo(() => {
     const currentBlock = heroBlocks[blockIdx];
@@ -196,10 +203,9 @@ export default function HomePage() {
               <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
                 <div className="flex h-[204px] flex-col overflow-hidden py-1 md:h-[216px]">
                   <p className={`${typingHeroTextClass} mb-5`}>{heroHeadline}</p>
-                  {betweenBlocks && !heroTypingDone ? null : heroVisibleSegments.map((seg, idx) => {
+                  {heroVisibleSegments.map((seg, idx) => {
                     const isCurrent = idx === heroVisibleSegments.length - 1;
                     const isTyping =
-                      !heroTypingDone &&
                       !betweenBlocks &&
                       segIdx < heroBlocks[blockIdx].segments.length &&
                       isCurrent;
