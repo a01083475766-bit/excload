@@ -107,7 +107,7 @@ export default function HomePage() {
           setBetweenBlocks(false);
           return;
         }
-      }, isLastBlock ? 180000 : 3000);
+      }, isLastBlock ? 120000 : 3000);
       return () => window.clearTimeout(transition);
     }
 
