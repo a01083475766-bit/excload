@@ -35,13 +35,10 @@ function heroSegClass(kind: HeroSeg['kind'], text: string) {
   if (kind === 'title') {
     return 'mt-1 text-[clamp(1.05rem,3.2vw,1.34rem)] font-bold leading-snug text-zinc-950 dark:text-zinc-100 [word-break:keep-all]';
   }
-  if (text === '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게') {
-    return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all] whitespace-nowrap';
-  }
   if (text === '아래 무료체험에서 직접 확인해보세요.') {
     return 'text-[clamp(1.02rem,2.8vw,1.2rem)] font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all]';
   }
-  if (text === '택배 업로드 파일로 자동 정리됩니다.') {
+  if (text === '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.') {
     return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all] whitespace-nowrap';
   }
   return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all]';
@@ -60,8 +57,7 @@ export default function HomePage() {
             { kind: 'body' as const, text: '스마트스토어, 쿠팡, 자사몰…' },
             { kind: 'body' as const, text: '사용하는 시스템이 모두 다르기 때문입니다.' },
             { kind: 'body' as const, text: '택배사 업로드 양식도 모두 다릅니다.' },
-            { kind: 'body' as const, text: '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게' },
-            { kind: 'body' as const, text: '택배 업로드 파일로 자동 정리됩니다.' },
+            { kind: 'body' as const, text: '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.' },
           ],
         },
         {
