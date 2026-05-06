@@ -54,7 +54,8 @@ export default function HomePage() {
             { kind: 'body' as const, text: '스마트스토어, 쿠팡, 자사몰…' },
             { kind: 'body' as const, text: '사용하는 시스템이 모두 다르기 때문입니다.' },
             { kind: 'body' as const, text: '택배사 업로드 양식도 모두 다릅니다.' },
-            { kind: 'body' as const, text: '여러 쇼핑몰 주문파일도 쉽게 업로드하면 자동으로 정리됩니다.' },
+            { kind: 'body' as const, text: '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게' },
+            { kind: 'body' as const, text: '택배 업로드 파일로 자동 정리됩니다.' },
           ],
         },
         {
