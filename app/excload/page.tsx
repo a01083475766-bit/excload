@@ -31,9 +31,12 @@ const typingHeroTextClass =
 type HeroSeg = { kind: 'title' | 'body'; text: string };
 type HeroBlock = { id: string; segments: readonly HeroSeg[] };
 
-function heroSegClass(kind: HeroSeg['kind']) {
+function heroSegClass(kind: HeroSeg['kind'], text: string) {
   if (kind === 'title') {
     return 'mt-1 text-[clamp(1.05rem,3.2vw,1.34rem)] font-bold leading-snug text-zinc-950 dark:text-zinc-100 [word-break:keep-all]';
+  }
+  if (text === '아래 무료체험에서 직접 확인해보세요.') {
+    return 'text-[clamp(1.02rem,2.8vw,1.2rem)] font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all]';
   }
   return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all]';
 }
@@ -211,7 +214,7 @@ export default function HomePage() {
                       isCurrent;
 
                     return (
-                      <p key={`${heroBlocks[blockIdx].id}-${idx}-${seg.text}`} className={heroSegClass(seg.kind)}>
+                      <p key={`${heroBlocks[blockIdx].id}-${idx}-${seg.text}`} className={heroSegClass(seg.kind, seg.text)}>
                         {seg.text}
                         {isTyping ? <span className="animate-pulse text-zinc-400">|</span> : null}
                       </p>
