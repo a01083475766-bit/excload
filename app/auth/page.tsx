@@ -19,6 +19,20 @@ import { formatPhoneForInput } from '@/app/utils/format-phone';
 
 type AuthMode = 'login' | 'signup';
 
+function AuthPageSuspenseFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50">
+          <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+        </div>
+        <p className="text-base font-semibold text-gray-900">로그인 정보를 확인하는 중입니다.</p>
+        <p className="mt-2 text-sm text-gray-500">잠시만 기다려주세요.</p>
+      </div>
+    </div>
+  );
+}
+
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -189,7 +203,7 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('google', { callbackUrl: '/' }).catch(() => {
+    void signIn('google', { callbackUrl: '/auth/social-loading' }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('Google 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -201,7 +215,7 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('kakao', { callbackUrl: '/' }).catch(() => {
+    void signIn('kakao', { callbackUrl: '/auth/social-loading' }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -213,7 +227,7 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('naver', { callbackUrl: '/' }).catch(() => {
+    void signIn('naver', { callbackUrl: '/auth/social-loading' }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('네이버 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -864,7 +878,7 @@ function AuthPageContent() {
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthPageSuspenseFallback />}>
       <AuthPageContent />
     </Suspense>
   );

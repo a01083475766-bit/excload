@@ -1,0 +1,48 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { Loader2 } from 'lucide-react';
+import { useUserStore } from '@/app/store/userStore';
+
+export default function SocialLoadingPage() {
+  const router = useRouter();
+  const { status } = useSession();
+  const fetchUser = useUserStore((state) => state.fetchUser);
+  const redirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (redirectedRef.current) return;
+
+    if (status === 'authenticated') {
+      redirectedRef.current = true;
+      void (async () => {
+        try {
+          await fetchUser();
+        } finally {
+          router.replace('/');
+          router.refresh();
+        }
+      })();
+      return;
+    }
+
+    if (status === 'unauthenticated') {
+      redirectedRef.current = true;
+      router.replace('/auth?mode=login&error=OAuthSignin');
+    }
+  }, [status, fetchUser, router]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50">
+          <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+        </div>
+        <p className="text-base font-semibold text-gray-900">로그인 처리 중입니다.</p>
+        <p className="mt-2 text-sm text-gray-500">계정 정보를 확인하고 있습니다. 잠시만 기다려주세요.</p>
+      </div>
+    </div>
+  );
+}
