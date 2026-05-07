@@ -208,6 +208,18 @@ function AuthPageContent() {
     });
   };
 
+  const handleNaverLogin = () => {
+    if (googleOAuthLockRef.current || isLoading || isGoogleRedirecting) return;
+    googleOAuthLockRef.current = true;
+    setError('');
+    setIsGoogleRedirecting(true);
+    void signIn('naver', { callbackUrl: '/' }).catch(() => {
+      googleOAuthLockRef.current = false;
+      setIsGoogleRedirecting(false);
+      setError('네이버 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    });
+  };
+
   // 회원가입 처리
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -524,6 +536,30 @@ function AuthPageContent() {
                       />
                     </svg>
                     <span>카카오로 로그인</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleNaverLogin}
+                disabled={isLoading || isGoogleRedirecting}
+                aria-busy={isGoogleRedirecting}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-[#03C75A] bg-[#03C75A] text-white rounded-lg hover:brightness-95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isGoogleRedirecting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 shrink-0 animate-spin" aria-hidden />
+                    <span>네이버로 이동 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
+                      <path
+                        d="M16.27 12.5L7.37 0H0v24h7.73V11.5L16.63 24H24V0h-7.73v12.5z"
+                        fill="white"
+                      />
+                    </svg>
+                    <span>네이버로 로그인</span>
                   </>
                 )}
               </button>

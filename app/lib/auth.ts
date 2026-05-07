@@ -9,6 +9,7 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import KakaoProvider from 'next-auth/providers/kakao';
+import NaverProvider from 'next-auth/providers/naver';
 
 // redirect_uri 조립 시 끝 슬래시가 있으면 OAuth 토큰 교환 단계에서 실패할 수 있음
 (() => {
@@ -32,6 +33,8 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 const kakaoClientId = process.env.KAKAO_CLIENT_ID?.trim();
 const kakaoClientSecret = process.env.KAKAO_CLIENT_SECRET?.trim();
+const naverClientId = process.env.NAVER_CLIENT_ID?.trim();
+const naverClientSecret = process.env.NAVER_CLIENT_SECRET?.trim();
 
 /**
  * NextAuth 옵션 설정
@@ -218,6 +221,14 @@ export const authOptions: NextAuthOptions = {
           }),
         ]
       : []),
+    ...(naverClientId && naverClientSecret
+      ? [
+          NaverProvider({
+            clientId: naverClientId,
+            clientSecret: naverClientSecret,
+          }),
+        ]
+      : []),
   ],
 
   // Session 전략: JWT 사용 (DB가 없으므로)
@@ -228,7 +239,10 @@ export const authOptions: NextAuthOptions = {
   // JWT 설정
   callbacks: {
     async signIn({ user, account }) {
-      const isSocialProvider = account?.provider === 'google' || account?.provider === 'kakao';
+      const isSocialProvider =
+        account?.provider === 'google' ||
+        account?.provider === 'kakao' ||
+        account?.provider === 'naver';
       if (!isSocialProvider) {
         return true;
       }
