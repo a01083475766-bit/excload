@@ -37,11 +37,28 @@ interface UserDetail {
   phone?: string | null;
   plan: string;
   points: number;
+  signupProvider?: string | null;
+  lastLoginProvider?: string | null;
   emailVerified: boolean | null;
   createdAt: string;
   pointHistory: PointHistory[];
   payments: Payment[];
 }
+
+const providerLabel = (provider?: string | null) => {
+  switch (provider) {
+    case 'CREDENTIALS':
+      return '기본(이메일)';
+    case 'GOOGLE':
+      return 'Google';
+    case 'KAKAO':
+      return 'Kakao';
+    case 'NAVER':
+      return 'Naver';
+    default:
+      return '-';
+  }
+};
 
 export default function UserDetailPage() {
   const router = useRouter();
@@ -261,6 +278,14 @@ export default function UserDetailPage() {
                 day: '2-digit',
               })}
             </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>가입 경로</div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{providerLabel(user.signupProvider)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>최근 로그인 경로</div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{providerLabel(user.lastLoginProvider)}</div>
           </div>
         </div>
       </div>

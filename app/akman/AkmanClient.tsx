@@ -14,12 +14,37 @@ interface AkmanStats {
   monthlyRevenue: number;
 }
 
+interface DuplicateReportUser {
+  id: string;
+  email: string;
+  phone?: string | null;
+  signupProvider: string;
+  lastLoginProvider: string;
+  createdAt: string;
+}
+
+interface DuplicateReportGroup {
+  normalizedEmail: string;
+  count: number;
+  users: DuplicateReportUser[];
+}
+
+interface DuplicateReportSummary {
+  checkedAt: string;
+  totalUsers: number;
+  duplicateEmailGroupCount: number;
+  duplicateUserCount: number;
+  signupProviderCounts: Array<{ provider: string; count: number }>;
+}
+
 interface AdminUserRow {
   id: string;
   email: string;
   phone?: string | null;
   plan: 'FREE' | 'PRO' | 'YEARLY' | string;
   points: number;
+  signupProvider?: 'CREDENTIALS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'UNKNOWN' | string;
+  lastLoginProvider?: 'CREDENTIALS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'UNKNOWN' | string;
   createdAt: string;
 }
 
@@ -51,6 +76,21 @@ const statCard: React.CSSProperties = {
   background: '#fafafa',
 };
 
+const providerLabel = (provider?: string | null) => {
+  switch (provider) {
+    case 'CREDENTIALS':
+      return '기본(이메일)';
+    case 'GOOGLE':
+      return 'Google';
+    case 'KAKAO':
+      return 'Kakao';
+    case 'NAVER':
+      return 'Naver';
+    default:
+      return '-';
+  }
+};
+
 const menuCard: React.CSSProperties = {
   border: '1px solid #e0e0e0',
   borderRadius: '8px',
@@ -74,6 +114,10 @@ export default function AkmanClient() {
   const [userPlanFilter, setUserPlanFilter] = useState<'ALL' | 'FREE' | 'PRO' | 'YEARLY'>('ALL');
   const [userDateFilter, setUserDateFilter] = useState<'ALL' | 'today' | 'thisMonth'>('ALL');
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [duplicateSummary, setDuplicateSummary] = useState<DuplicateReportSummary | null>(null);
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateReportGroup[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,6 +247,26 @@ export default function AkmanClient() {
       alert(error instanceof Error ? error.message : '사용자 삭제에 실패했습니다.');
     } finally {
       setDeletingUserId(null);
+    }
+  };
+
+  const loadDuplicateReport = async () => {
+    setDuplicateLoading(true);
+    setDuplicateError(null);
+    try {
+      const res = await fetch('/api/akman/users/duplicate-report');
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || '중복 계정 리포트를 불러오지 못했습니다.');
+      }
+      setDuplicateSummary(data.summary ?? null);
+      setDuplicateGroups(data.groups ?? []);
+    } catch (error) {
+      setDuplicateSummary(null);
+      setDuplicateGroups([]);
+      setDuplicateError(error instanceof Error ? error.message : '중복 계정 리포트를 불러오지 못했습니다.');
+    } finally {
+      setDuplicateLoading(false);
     }
   };
 
@@ -368,7 +432,7 @@ export default function AkmanClient() {
                     onClick={() => router.push(`/akman/users/${encodeURIComponent(u.id)}`)}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '2fr 1.2fr 90px 110px 110px 90px',
+                      gridTemplateColumns: '1.8fr 1fr 90px 90px 90px 110px 110px 90px',
                       gap: '8px',
                       alignItems: 'center',
                       padding: '10px 12px',
@@ -380,6 +444,8 @@ export default function AkmanClient() {
                     <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</div>
                     <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.phone || '-'}</div>
                     <div>{u.plan}</div>
+                    <div>{providerLabel(u.signupProvider)}</div>
+                    <div>{providerLabel(u.lastLoginProvider)}</div>
                     <div>{fmt(u.points)}</div>
                     <div>{new Date(u.createdAt).toLocaleDateString('ko-KR')}</div>
                     <button
@@ -443,6 +509,76 @@ export default function AkmanClient() {
             이동
           </button>
         </div>
+      </div>
+
+      <div
+        style={{
+          border: '1px solid #e0e0e0',
+          borderRadius: '8px',
+          padding: '20px',
+          marginTop: '12px',
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: '10px' }}>중복 계정 점검 리포트</div>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => void loadDuplicateReport()}
+            disabled={duplicateLoading}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #ccc',
+              background: '#fff',
+              borderRadius: '6px',
+              cursor: duplicateLoading ? 'not-allowed' : 'pointer',
+              opacity: duplicateLoading ? 0.7 : 1,
+            }}
+          >
+            {duplicateLoading ? '점검 중...' : '중복 계정 점검 실행'}
+          </button>
+        </div>
+        {duplicateError && <div style={{ color: '#b42318', marginBottom: '8px' }}>{duplicateError}</div>}
+        {duplicateSummary && (
+          <div style={{ marginBottom: '12px', fontSize: '13px', color: '#333' }}>
+            전체 회원 {fmt(duplicateSummary.totalUsers)}명 / 대소문자 무시 이메일 중복 그룹 {fmt(duplicateSummary.duplicateEmailGroupCount)}건 / 중복 의심 계정 {fmt(duplicateSummary.duplicateUserCount)}명
+            <div style={{ color: '#666', marginTop: '4px' }}>
+              점검 시각: {new Date(duplicateSummary.checkedAt).toLocaleString('ko-KR')}
+            </div>
+          </div>
+        )}
+        {duplicateSummary && (
+          <div style={{ marginBottom: '12px', fontSize: '13px', color: '#333' }}>
+            가입경로 분포:{' '}
+            {duplicateSummary.signupProviderCounts
+              .map((row) => `${providerLabel(row.provider)} ${fmt(row.count)}명`)
+              .join(' / ')}
+          </div>
+        )}
+        {duplicateSummary && duplicateGroups.length === 0 && (
+          <div style={{ color: '#0a7f2e', fontSize: '13px' }}>
+            중복 의심 계정이 없습니다. (대소문자 무시 이메일 기준)
+          </div>
+        )}
+        {duplicateGroups.length > 0 && (
+          <div style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px' }}>
+            {duplicateGroups.map((group) => (
+              <div key={group.normalizedEmail} style={{ borderBottom: '1px solid #f2f2f2', padding: '10px 12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>
+                  {group.normalizedEmail} ({fmt(group.count)}건)
+                </div>
+                {group.users.map((u) => (
+                  <div key={u.id} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 90px 90px 110px', gap: '8px', fontSize: '12px', marginBottom: '4px' }}>
+                    <div>{u.email}</div>
+                    <div>{u.phone || '-'}</div>
+                    <div>{providerLabel(u.signupProvider)}</div>
+                    <div>{providerLabel(u.lastLoginProvider)}</div>
+                    <div>{new Date(u.createdAt).toLocaleDateString('ko-KR')}</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

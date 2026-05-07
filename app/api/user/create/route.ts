@@ -95,6 +95,8 @@ export async function POST(request: NextRequest) {
           plan,
           points: initialPoints,
           emailVerified: null, // 이메일 인증 전
+          signupProvider: 'CREDENTIALS',
+          lastLoginProvider: 'CREDENTIALS',
           deviceId: deviceId || null,
           lastIp: ip,
           nextPointDate: new Date(

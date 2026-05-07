@@ -36,6 +36,14 @@ const kakaoClientSecret = process.env.KAKAO_CLIENT_SECRET?.trim();
 const naverClientId = process.env.NAVER_CLIENT_ID?.trim();
 const naverClientSecret = process.env.NAVER_CLIENT_SECRET?.trim();
 
+function mapProviderToDb(provider: string | null | undefined): 'CREDENTIALS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'UNKNOWN' {
+  if (provider === 'credentials') return 'CREDENTIALS';
+  if (provider === 'google') return 'GOOGLE';
+  if (provider === 'kakao') return 'KAKAO';
+  if (provider === 'naver') return 'NAVER';
+  return 'UNKNOWN';
+}
+
 /**
  * NextAuth 옵션 설정
  */
@@ -190,6 +198,14 @@ export const authOptions: NextAuthOptions = {
           
           if (passwordMatch) {
             console.log('[Auth] LOGIN SUCCESS:', user.email);
+            try {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { lastLoginProvider: 'CREDENTIALS' },
+              });
+            } catch (updateError) {
+              console.error('[Auth] LAST LOGIN PROVIDER UPDATE FAILED:', updateError);
+            }
             return {
               id: user.id,
               email: user.email,
@@ -239,6 +255,7 @@ export const authOptions: NextAuthOptions = {
   // JWT 설정
   callbacks: {
     async signIn({ user, account }) {
+      const providerDbValue = mapProviderToDb(account?.provider);
       const isSocialProvider =
         account?.provider === 'google' ||
         account?.provider === 'kakao' ||
@@ -254,9 +271,18 @@ export const authOptions: NextAuthOptions = {
 
       // Google 인증은 통과시킨 뒤, DB 보정은 jwt 단계에서 재시도한다.
       // signIn에서 false를 반환하면 OAuth 완료 후 로그인 페이지로 되돌아간다.
+      try {
+        const { prisma } = await import('@/app/lib/prisma');
+        await prisma.user.updateMany({
+          where: { email },
+          data: { lastLoginProvider: providerDbValue },
+        });
+      } catch (error) {
+        console.error('[Auth] SOCIAL SIGNIN LOGIN PROVIDER UPDATE FAILED:', error);
+      }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
@@ -268,13 +294,18 @@ export const authOptions: NextAuthOptions = {
       if (tokenEmail) {
         try {
           const { prisma } = await import('@/app/lib/prisma');
+          const providerDbValue = mapProviderToDb(account?.provider);
+          const updateData =
+            providerDbValue === 'UNKNOWN' ? {} : { lastLoginProvider: providerDbValue };
           const ensuredUser = await prisma.user.upsert({
             where: { email: tokenEmail },
-            update: {},
+            update: updateData,
             create: {
               email: tokenEmail,
               name: typeof token.name === 'string' ? token.name : null,
               emailVerified: new Date(),
+              signupProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
+              lastLoginProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
             },
             select: { id: true, name: true },
           });

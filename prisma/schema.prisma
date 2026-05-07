@@ -11,6 +11,14 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+  KAKAO
+  NAVER
+  UNKNOWN
+}
+
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -20,6 +28,8 @@ model User {
   name             String?
   emailVerified    DateTime?
   image            String?
+  signupProvider   AuthProvider @default(CREDENTIALS)
+  lastLoginProvider AuthProvider @default(CREDENTIALS)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   

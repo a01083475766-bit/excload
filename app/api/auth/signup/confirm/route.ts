@@ -79,6 +79,8 @@ export async function POST(request: NextRequest) {
             plan: verification.plan,
             points: initialPoints,
             emailVerified: new Date(),
+            signupProvider: 'CREDENTIALS',
+            lastLoginProvider: 'CREDENTIALS',
             deviceId: verification.deviceId || null,
             nextPointDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           },

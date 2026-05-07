@@ -138,6 +138,8 @@ export async function GET(request: NextRequest) {
         phone: true,
         plan: true,
         points: true,
+        signupProvider: true,
+        lastLoginProvider: true,
         createdAt: true,
         emailVerified: true,
       },

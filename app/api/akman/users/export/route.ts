@@ -67,6 +67,8 @@ export async function GET(request: NextRequest) {
         lastIp: true,
         deviceId: true,
         name: true,
+        signupProvider: true,
+        lastLoginProvider: true,
       },
     });
 
@@ -148,7 +150,8 @@ export async function GET(request: NextRequest) {
         이메일인증: u.emailVerified ? '인증완료' : '미인증',
         가입일시: u.createdAt.toISOString(),
         마지막IP: u.lastIp ?? '',
-        가입경로: '',
+        가입경로: u.signupProvider ?? '',
+        최근로그인경로: u.lastLoginProvider ?? '',
         최근결제일시: pay ? pay.createdAt.toISOString() : '',
         '최근결제금액(원)': pay ? pay.amount : '',
         최근결제플랜: pay ? pay.plan : '',
