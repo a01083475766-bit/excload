@@ -196,6 +196,18 @@ function AuthPageContent() {
     });
   };
 
+  const handleKakaoLogin = () => {
+    if (googleOAuthLockRef.current || isLoading || isGoogleRedirecting) return;
+    googleOAuthLockRef.current = true;
+    setError('');
+    setIsGoogleRedirecting(true);
+    void signIn('kakao', { callbackUrl: '/' }).catch(() => {
+      googleOAuthLockRef.current = false;
+      setIsGoogleRedirecting(false);
+      setError('카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    });
+  };
+
   // 회원가입 처리
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -488,6 +500,30 @@ function AuthPageContent() {
                       />
                     </svg>
                     <span>Google로 로그인</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleKakaoLogin}
+                disabled={isLoading || isGoogleRedirecting}
+                aria-busy={isGoogleRedirecting}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-[#FEE500] bg-[#FEE500] text-[#3C1E1E] rounded-lg hover:brightness-95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isGoogleRedirecting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 shrink-0 animate-spin" aria-hidden />
+                    <span>카카오로 이동 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
+                      <path
+                        d="M12 3C6.48 3 2 6.58 2 11c0 2.76 1.97 5.18 4.93 6.5l-1.25 4.6c-.11.4.35.72.7.48l5.42-3.63c.4.03.8.05 1.2.05 5.52 0 10-3.58 10-8s-4.48-8-10-8z"
+                        fill="#3C1E1E"
+                      />
+                    </svg>
+                    <span>카카오로 로그인</span>
                   </>
                 )}
               </button>
