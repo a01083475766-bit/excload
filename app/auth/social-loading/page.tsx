@@ -4,12 +4,10 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
-import { useUserStore } from '@/app/store/userStore';
 
 export default function SocialLoadingPage() {
   const router = useRouter();
   const { status } = useSession();
-  const fetchUser = useUserStore((state) => state.fetchUser);
   const redirectedRef = useRef(false);
 
   useEffect(() => {
@@ -17,14 +15,7 @@ export default function SocialLoadingPage() {
 
     if (status === 'authenticated') {
       redirectedRef.current = true;
-      void (async () => {
-        try {
-          await fetchUser();
-        } finally {
-          router.replace('/');
-          router.refresh();
-        }
-      })();
+      router.replace('/');
       return;
     }
 
@@ -32,7 +23,7 @@ export default function SocialLoadingPage() {
       redirectedRef.current = true;
       router.replace('/auth?mode=login&error=OAuthSignin');
     }
-  }, [status, fetchUser, router]);
+  }, [status, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">

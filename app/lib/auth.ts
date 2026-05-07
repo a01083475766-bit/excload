@@ -35,6 +35,17 @@ const kakaoClientId = process.env.KAKAO_CLIENT_ID?.trim();
 const kakaoClientSecret = process.env.KAKAO_CLIENT_SECRET?.trim();
 const naverClientId = process.env.NAVER_CLIENT_ID?.trim();
 const naverClientSecret = process.env.NAVER_CLIENT_SECRET?.trim();
+const enableAuthPerfLog = process.env.NEXTAUTH_DEBUG_PERF === 'true';
+
+function perfNowMs() {
+  return Date.now();
+}
+
+function perfLog(label: string, startedAtMs: number, extra?: Record<string, unknown>) {
+  if (!enableAuthPerfLog) return;
+  const elapsedMs = perfNowMs() - startedAtMs;
+  console.log(`[Auth][Perf] ${label}: ${elapsedMs}ms`, extra || {});
+}
 
 function mapProviderToDb(provider: string | null | undefined): 'CREDENTIALS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'UNKNOWN' {
   if (provider === 'credentials') return 'CREDENTIALS';
@@ -255,34 +266,29 @@ export const authOptions: NextAuthOptions = {
   // JWT 설정
   callbacks: {
     async signIn({ user, account }) {
-      const providerDbValue = mapProviderToDb(account?.provider);
+      const startedAt = perfNowMs();
       const isSocialProvider =
         account?.provider === 'google' ||
         account?.provider === 'kakao' ||
         account?.provider === 'naver';
       if (!isSocialProvider) {
+        perfLog('signIn(credentials)', startedAt);
         return true;
       }
 
       const email = user.email?.trim().toLowerCase();
       if (!email) {
+        perfLog('signIn(social-no-email)', startedAt, { provider: account?.provider });
         return false;
       }
 
       // Google 인증은 통과시킨 뒤, DB 보정은 jwt 단계에서 재시도한다.
       // signIn에서 false를 반환하면 OAuth 완료 후 로그인 페이지로 되돌아간다.
-      try {
-        const { prisma } = await import('@/app/lib/prisma');
-        await prisma.user.updateMany({
-          where: { email },
-          data: { lastLoginProvider: providerDbValue },
-        });
-      } catch (error) {
-        console.error('[Auth] SOCIAL SIGNIN LOGIN PROVIDER UPDATE FAILED:', error);
-      }
+      perfLog('signIn(social-pass)', startedAt, { provider: account?.provider });
       return true;
     },
     async jwt({ token, user, account }) {
+      const startedAt = perfNowMs();
       if (user) {
         token.id = user.id;
         token.email = user.email;
@@ -291,12 +297,16 @@ export const authOptions: NextAuthOptions = {
 
       const tokenEmail =
         typeof token.email === 'string' ? token.email.trim().toLowerCase() : '';
-      if (tokenEmail) {
+      // jwt 콜백은 세션 확인 시에도 자주 실행되므로,
+      // 사용자 DB 동기화는 실제 로그인(sign-in) 타이밍에만 수행한다.
+      const shouldSyncUser = Boolean(user) || Boolean(account);
+      if (tokenEmail && shouldSyncUser) {
         try {
           const { prisma } = await import('@/app/lib/prisma');
           const providerDbValue = mapProviderToDb(account?.provider);
           const updateData =
             providerDbValue === 'UNKNOWN' ? {} : { lastLoginProvider: providerDbValue };
+          const dbStartedAt = perfNowMs();
           const ensuredUser = await prisma.user.upsert({
             where: { email: tokenEmail },
             update: updateData,
@@ -309,12 +319,20 @@ export const authOptions: NextAuthOptions = {
             },
             select: { id: true, name: true },
           });
+          perfLog('jwt.user-upsert', dbStartedAt, {
+            email: tokenEmail,
+            provider: account?.provider ?? null,
+          });
           token.id = ensuredUser.id;
           token.name = ensuredUser.name ?? token.name;
         } catch (error) {
           console.error('[Auth] JWT USER UPSERT FAILED:', error);
         }
       }
+      perfLog('jwt.total', startedAt, {
+        hasUser: Boolean(user),
+        hasAccount: Boolean(account),
+      });
       return token;
     },
     async session({ session, token }) {
