@@ -35,8 +35,10 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           email: true,
+          phone: true,
           plan: true,
           points: true,
+          lastLoginProvider: true,
           nextPointDate: true,
           createdAt: true,
           updatedAt: true,
@@ -55,8 +57,10 @@ export async function GET(request: NextRequest) {
         user: {
           id: user.id,
           email: user.email,
+          phone: user.phone,
           plan: user.plan as 'FREE' | 'PRO' | 'YEARLY',
           points: user.points,
+          lastLoginProvider: user.lastLoginProvider,
           monthlyPoints: undefined,
           lastMonthlyGrant: user.nextPointDate?.toISOString() || null,
           createdAt: user.createdAt.toISOString(),

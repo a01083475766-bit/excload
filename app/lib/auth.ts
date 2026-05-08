@@ -261,6 +261,14 @@ export const authOptions: NextAuthOptions = {
   // Session 전략: JWT 사용 (DB가 없으므로)
   session: {
     strategy: 'jwt',
+    // 엑클로드 로그인 유지 기간(초): 30일
+    maxAge: 30 * 24 * 60 * 60,
+    // 세션 갱신 주기(초): 24시간
+    updateAge: 24 * 60 * 60,
+  },
+  jwt: {
+    // JWT도 세션과 동일하게 30일 유지
+    maxAge: 30 * 24 * 60 * 60,
   },
 
   // JWT 설정

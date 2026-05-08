@@ -13,8 +13,10 @@ export type Plan = 'FREE' | 'PRO' | 'YEARLY';
 export interface User {
   userId: string;
   email: string;
+  phone?: string | null;
   plan: Plan;
   points: number;
+  lastLoginProvider?: 'CREDENTIALS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'UNKNOWN' | string;
   monthlyPoints?: number;
   lastMonthlyGrant?: string | null;
 }
@@ -69,8 +71,10 @@ export const useUserStore = create<UserStoreState>()(
                 user: {
                   userId: data.user.id,
                   email: data.user.email,
+                  phone: data.user.phone,
                   plan: data.user.plan,
                   points: data.user.points,
+                  lastLoginProvider: data.user.lastLoginProvider,
                   monthlyPoints: data.user.monthlyPoints,
                   lastMonthlyGrant: data.user.lastMonthlyGrant,
                 },

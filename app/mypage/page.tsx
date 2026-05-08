@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
-import { User, Calendar, CreditCard, Settings, Bell, Shield, LogOut } from 'lucide-react';
+import { signOut, useSession } from 'next-auth/react';
+import { User, Calendar, CreditCard, Bell, Shield, LogOut } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
+import { formatPhoneDisplay, formatPhoneForInput } from '@/app/utils/format-phone';
 
 interface SubscriptionState {
   status: string | null;
@@ -25,11 +26,11 @@ interface RefundState {
 
 export default function MyPage() {
   const router = useRouter();
+  const { status } = useSession();
   const user = useUserStore((state) => state.user);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const clearUser = useUserStore((state) => state.clearUser);
   const isLoading = useUserStore((state) => state.isLoading);
-  const [activeTab, setActiveTab] = useState<'profile' | 'settings' | 'billing'>('profile');
   const [subscriptionState, setSubscriptionState] = useState<SubscriptionState>({
     status: null,
     cancelAtPeriodEnd: false,
@@ -51,11 +52,15 @@ export default function MyPage() {
   const [refundAccountNumber, setRefundAccountNumber] = useState('');
   const [refundAccountHolder, setRefundAccountHolder] = useState('');
   const [refundReplyEmail, setRefundReplyEmail] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
   
-  // 컴포넌트 마운트 시 사용자 정보를 항상 새로 가져와 최신 사용량/플랜 동기화
+  // 세션이 확인된 뒤 사용자 정보 동기화
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    if (status === 'authenticated' && !user && !isLoading) {
+      void fetchUser();
+    }
+  }, [status, user, isLoading, fetchUser]);
 
   const handleLogout = async () => {
     try {
@@ -72,12 +77,16 @@ export default function MyPage() {
     }
   };
 
-  // 사용자 정보가 없으면 로그인 페이지로 리다이렉트
   useEffect(() => {
-    if (!isLoading && !user) {
+    setPhoneInput(formatPhoneDisplay(user?.phone));
+  }, [user?.phone]);
+
+  // 세션이 명확히 unauthenticated일 때만 로그인 페이지로 이동
+  useEffect(() => {
+    if (status === 'unauthenticated' && !isLoading && !user) {
       router.push('/auth/login');
     }
-  }, [user, isLoading, router]);
+  }, [status, user, isLoading, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -274,8 +283,39 @@ export default function MyPage() {
     }
   };
 
+  const handleSavePhone = async () => {
+    if (!user) return;
+    const digits = phoneInput.replace(/[^0-9]/g, '');
+    if (!digits) {
+      alert('휴대폰 번호를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSavingPhone(true);
+      const response = await fetch('/api/user/update-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ phone: digits }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        alert(data?.error || '휴대폰 번호 저장에 실패했습니다.');
+        return;
+      }
+      await fetchUser();
+      alert('휴대폰 번호가 저장되었습니다.');
+    } catch (error) {
+      console.error('[MyPage] 휴대폰 번호 저장 실패:', error);
+      alert('휴대폰 번호 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
+
   // 사용자 정보가 없으면 로딩 표시
-  if (isLoading || !user) {
+  if (status === 'loading' || isLoading || (status === 'authenticated' && !user)) {
     return (
       <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -321,29 +361,9 @@ export default function MyPage() {
                 </p>
               </div>
 
-              <nav className="space-y-2">
-                {[
-                  { id: 'profile', label: '프로필', icon: User },
-                  { id: 'settings', label: '설정', icon: Settings },
-                  { id: 'billing', label: '결제 정보', icon: CreditCard },
-                ].map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                        activeTab === tab.id
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                          : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="font-medium">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+                프로필 화면에서 계정 정보, 결제 정보, 설정을 한 번에 확인할 수 있습니다.
+              </div>
 
               <Link
                 href="/setting/mall"
@@ -364,9 +384,7 @@ export default function MyPage() {
 
           {/* 메인 컨텐츠 */}
           <div className="lg:col-span-3">
-            {/* 프로필 탭 */}
-            {activeTab === 'profile' && (
-              <div className="space-y-6">
+            <div className="space-y-6">
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-8">
                   <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">
                     프로필 정보
@@ -394,6 +412,34 @@ export default function MyPage() {
                         disabled
                         className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 cursor-not-allowed"
                       />
+                    </div>
+
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+                      <div className="mb-3">
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">휴대폰 번호 등록 (계정 보호)</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          선택사항입니다. 등록해두면 이메일 찾기/계정 복구에 도움이 됩니다.
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete="tel"
+                          value={phoneInput}
+                          onChange={(e) => setPhoneInput(formatPhoneForInput(e.target.value))}
+                          placeholder="010-1234-5678"
+                          className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSavePhone}
+                          disabled={isSavingPhone}
+                          className="px-4 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {isSavingPhone ? '저장 중...' : '번호 저장'}
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
@@ -477,10 +523,7 @@ export default function MyPage() {
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* 설정 탭 */}
-            {activeTab === 'settings' && (
               <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-8">
                 <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">
                   설정
@@ -516,10 +559,7 @@ export default function MyPage() {
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* 결제 정보 탭 */}
-            {activeTab === 'billing' && (
               <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-8">
                 <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">
                   결제 정보
@@ -585,9 +625,8 @@ export default function MyPage() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
       </main>
       {showRefundModal && (
         <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center px-4">

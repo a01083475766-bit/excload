@@ -10,7 +10,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, useRef } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, LogIn, UserPlus, Loader2, Eye, EyeOff, Smartphone, X, Search } from 'lucide-react';
@@ -36,7 +36,9 @@ function AuthPageSuspenseFallback() {
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { status } = useSession();
   const fetchUser = useUserStore((state) => state.fetchUser);
+  const storeUser = useUserStore((state) => state.user);
   
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -63,6 +65,7 @@ function AuthPageContent() {
   const [findEmailLoading, setFindEmailLoading] = useState(false);
   const [findEmailError, setFindEmailError] = useState('');
   const [findEmailResult, setFindEmailResult] = useState<string | null>(null);
+  const [preferredSocialProvider, setPreferredSocialProvider] = useState<'google' | 'kakao' | 'naver' | ''>('');
 
   const getAuthErrorMessage = (errorCode: string | null): string => {
     switch (errorCode) {
@@ -92,6 +95,35 @@ function AuthPageContent() {
       setError(getAuthErrorMessage(authError));
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.replace('/');
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (storeUser?.lastLoginProvider === 'GOOGLE') {
+      setPreferredSocialProvider('google');
+      return;
+    }
+    if (storeUser?.lastLoginProvider === 'KAKAO') {
+      setPreferredSocialProvider('kakao');
+      return;
+    }
+    if (storeUser?.lastLoginProvider === 'NAVER') {
+      setPreferredSocialProvider('naver');
+      return;
+    }
+    try {
+      const provider = (window.localStorage.getItem('preferred-social-provider') || '').toLowerCase();
+      if (provider === 'google' || provider === 'kakao' || provider === 'naver') {
+        setPreferredSocialProvider(provider);
+      }
+    } catch {
+      // ignore localStorage failures
+    }
+  }, [storeUser?.lastLoginProvider]);
 
   useEffect(() => {
     if (!findEmailOpen) return;
@@ -203,7 +235,7 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('google', { callbackUrl: '/auth/social-loading' }).catch(() => {
+    void signIn('google', { callbackUrl: '/auth/social-loading?provider=google' }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('Google 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -215,7 +247,7 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('kakao', { callbackUrl: '/auth/social-loading' }).catch(() => {
+    void signIn('kakao', { callbackUrl: '/auth/social-loading?provider=kakao' }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -227,7 +259,7 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('naver', { callbackUrl: '/auth/social-loading' }).catch(() => {
+    void signIn('naver', { callbackUrl: '/auth/social-loading?provider=naver' }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('네이버 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -526,6 +558,9 @@ function AuthPageContent() {
                       />
                     </svg>
                     <span>Google로 로그인</span>
+                    {preferredSocialProvider === 'google' && (
+                      <span className="ml-1 rounded bg-blue-50 px-1.5 py-0.5 text-[11px] text-blue-700">최근 사용</span>
+                    )}
                   </>
                 )}
               </button>
@@ -550,6 +585,9 @@ function AuthPageContent() {
                       />
                     </svg>
                     <span>카카오로 로그인</span>
+                    {preferredSocialProvider === 'kakao' && (
+                      <span className="ml-1 rounded bg-[#fff3b0] px-1.5 py-0.5 text-[11px] text-[#5c3a00]">최근 사용</span>
+                    )}
                   </>
                 )}
               </button>
@@ -574,6 +612,9 @@ function AuthPageContent() {
                       />
                     </svg>
                     <span>네이버로 로그인</span>
+                    {preferredSocialProvider === 'naver' && (
+                      <span className="ml-1 rounded bg-green-100 px-1.5 py-0.5 text-[11px] text-green-700">최근 사용</span>
+                    )}
                   </>
                 )}
               </button>
