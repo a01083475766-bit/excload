@@ -54,6 +54,9 @@ export default function MyPage() {
   const [refundReplyEmail, setRefundReplyEmail] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [isSavingPhone, setIsSavingPhone] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState('');
+  const [isSavingNickname, setIsSavingNickname] = useState(false);
+  const showTwoFactorSection = false;
   
   // 세션이 확인된 뒤 사용자 정보 동기화
   useEffect(() => {
@@ -80,6 +83,10 @@ export default function MyPage() {
   useEffect(() => {
     setPhoneInput(formatPhoneDisplay(user?.phone));
   }, [user?.phone]);
+
+  useEffect(() => {
+    setNicknameInput((user?.name || user?.email?.split('@')[0] || '').trim());
+  }, [user?.name, user?.email]);
 
   // 세션이 명확히 unauthenticated일 때만 로그인 페이지로 이동
   useEffect(() => {
@@ -314,6 +321,37 @@ export default function MyPage() {
     }
   };
 
+  const handleSaveNickname = async () => {
+    if (!user) return;
+    const nickname = nicknameInput.trim();
+    if (nickname.length < 2 || nickname.length > 20) {
+      alert('닉네임은 2자 이상 20자 이하로 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsSavingNickname(true);
+      const response = await fetch('/api/user/update-nickname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ nickname }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        alert(data?.error || '닉네임 저장에 실패했습니다.');
+        return;
+      }
+      await fetchUser();
+      alert('닉네임이 저장되었습니다.');
+    } catch (error) {
+      console.error('[MyPage] 닉네임 저장 실패:', error);
+      alert('닉네임 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingNickname(false);
+    }
+  };
+
   // 사용자 정보가 없으면 로딩 표시
   if (status === 'loading' || isLoading || (status === 'authenticated' && !user)) {
     return (
@@ -327,7 +365,7 @@ export default function MyPage() {
   }
 
   // 이메일에서 이름 추출 (이메일 앞부분 사용)
-  const userName = user.email.split('@')[0] || '사용자';
+  const userName = (user.name || user.email.split('@')[0] || '사용자').trim();
   
   // 가입일은 임시로 현재 날짜 사용 (실제로는 API에서 가져와야 함)
   const joinDate = new Date().toISOString().split('T')[0];
@@ -391,15 +429,31 @@ export default function MyPage() {
                   </h2>
                   
                   <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                        이름
-                      </label>
-                      <input
-                        type="text"
-                        defaultValue={userName}
-                        className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
+                      <div className="mb-3">
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">닉네임 수정</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          고객문의 응대에 표시되는 이름입니다. 2~20자로 입력해주세요.
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <input
+                          type="text"
+                          value={nicknameInput}
+                          onChange={(e) => setNicknameInput(e.target.value)}
+                          maxLength={20}
+                          placeholder="닉네임 입력"
+                          className="flex-1 w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSaveNickname}
+                          disabled={isSavingNickname}
+                          className="sm:w-[120px] px-3 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                          {isSavingNickname ? '저장 중...' : '닉네임 저장'}
+                        </button>
+                      </div>
                     </div>
                     
                     <div>
@@ -544,22 +598,24 @@ export default function MyPage() {
                     </label>
                   </div>
                   
-                  <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                    <div className="flex items-center gap-3">
-                      <Shield className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                      <div>
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">2단계 인증</p>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                          계정에 추가 인증(예: 휴대폰 OTP)을 붙여 로그인 보안을 강화합니다.
-                          현재는 UI 안내 단계입니다.
-                        </p>
+                  {showTwoFactorSection && (
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                      <div className="flex items-center gap-3">
+                        <Shield className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                        <div>
+                          <p className="font-medium text-zinc-900 dark:text-zinc-100">2단계 인증</p>
+                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                            계정에 추가 인증(예: 휴대폰 OTP)을 붙여 로그인 보안을 강화합니다.
+                            현재는 UI 안내 단계입니다.
+                          </p>
+                        </div>
                       </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" />
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                      </label>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" />
-                      <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
+                  )}
                 </div>
               </div>
 

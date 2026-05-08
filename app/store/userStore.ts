@@ -13,6 +13,7 @@ export type Plan = 'FREE' | 'PRO' | 'YEARLY';
 export interface User {
   userId: string;
   email: string;
+  name?: string | null;
   phone?: string | null;
   plan: Plan;
   points: number;
@@ -71,6 +72,7 @@ export const useUserStore = create<UserStoreState>()(
                 user: {
                   userId: data.user.id,
                   email: data.user.email,
+                  name: data.user.name,
                   phone: data.user.phone,
                   plan: data.user.plan,
                   points: data.user.points,

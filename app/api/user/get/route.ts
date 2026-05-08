@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           email: true,
+          name: true,
           phone: true,
           plan: true,
           points: true,
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
         user: {
           id: user.id,
           email: user.email,
+          name: user.name,
           phone: user.phone,
           plan: user.plan as 'FREE' | 'PRO' | 'YEARLY',
           points: user.points,
