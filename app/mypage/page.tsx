@@ -410,13 +410,6 @@ export default function MyPage() {
                 내 주문 연동하기
               </Link>
 
-              <button 
-                onClick={handleLogout}
-                className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="font-medium">로그아웃</span>
-              </button>
             </div>
           </div>
 
@@ -433,7 +426,7 @@ export default function MyPage() {
                       <div className="mb-3">
                         <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">닉네임 수정</p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          고객문의 응대에 표시되는 이름입니다. 2~20자로 입력해주세요.
+                          닉네임 수정이 가능합니다.
                         </p>
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
