@@ -530,7 +530,7 @@ function AuthPageContent() {
                 onClick={handleGoogleLogin}
                 disabled={isLoading || isGoogleRedirecting}
                 aria-busy={isGoogleRedirecting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium relative"
               >
                 {isGoogleRedirecting ? (
                   <>
@@ -559,7 +559,9 @@ function AuthPageContent() {
                     </svg>
                     <span>Google로 로그인</span>
                     {preferredSocialProvider === 'google' && (
-                      <span className="ml-1 rounded bg-blue-50 px-1.5 py-0.5 text-[11px] text-blue-700">최근 사용</span>
+                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 whitespace-nowrap">
+                        최근 사용
+                      </span>
                     )}
                   </>
                 )}
@@ -569,7 +571,7 @@ function AuthPageContent() {
                 onClick={handleKakaoLogin}
                 disabled={isLoading || isGoogleRedirecting}
                 aria-busy={isGoogleRedirecting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-[#FEE500] bg-[#FEE500] text-[#3C1E1E] rounded-lg hover:brightness-95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-[#FEE500] bg-[#FEE500] text-[#3C1E1E] rounded-lg hover:brightness-95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium relative"
               >
                 {isGoogleRedirecting ? (
                   <>
@@ -586,7 +588,9 @@ function AuthPageContent() {
                     </svg>
                     <span>카카오로 로그인</span>
                     {preferredSocialProvider === 'kakao' && (
-                      <span className="ml-1 rounded bg-[#fff3b0] px-1.5 py-0.5 text-[11px] text-[#5c3a00]">최근 사용</span>
+                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded bg-[#fff3b0] px-2 py-0.5 text-[11px] text-[#5c3a00] whitespace-nowrap">
+                        최근 사용
+                      </span>
                     )}
                   </>
                 )}
@@ -596,7 +600,7 @@ function AuthPageContent() {
                 onClick={handleNaverLogin}
                 disabled={isLoading || isGoogleRedirecting}
                 aria-busy={isGoogleRedirecting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-[#03C75A] bg-[#03C75A] text-white rounded-lg hover:brightness-95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-[#03C75A] bg-[#03C75A] text-white rounded-lg hover:brightness-95 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium relative"
               >
                 {isGoogleRedirecting ? (
                   <>
@@ -613,7 +617,9 @@ function AuthPageContent() {
                     </svg>
                     <span>네이버로 로그인</span>
                     {preferredSocialProvider === 'naver' && (
-                      <span className="ml-1 rounded bg-green-100 px-1.5 py-0.5 text-[11px] text-green-700">최근 사용</span>
+                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded bg-green-100 px-2 py-0.5 text-[11px] text-green-700 whitespace-nowrap">
+                        최근 사용
+                      </span>
                     )}
                   </>
                 )}

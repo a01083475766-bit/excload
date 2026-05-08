@@ -414,14 +414,14 @@ export default function MyPage() {
                       />
                     </div>
 
-                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
                       <div className="mb-3">
                         <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">휴대폰 번호 등록 (계정 보호)</p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
                           선택사항입니다. 등록해두면 이메일 찾기/계정 복구에 도움이 됩니다.
                         </p>
                       </div>
-                      <div className="flex flex-col gap-2 sm:flex-row">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <input
                           type="tel"
                           inputMode="numeric"
@@ -429,13 +429,13 @@ export default function MyPage() {
                           value={phoneInput}
                           onChange={(e) => setPhoneInput(formatPhoneForInput(e.target.value))}
                           placeholder="010-1234-5678"
-                          className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button
                           type="button"
                           onClick={handleSavePhone}
                           disabled={isSavingPhone}
-                          className="px-4 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="sm:w-[120px] px-3 py-3 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
                         >
                           {isSavingPhone ? '저장 중...' : '번호 저장'}
                         </button>
@@ -549,7 +549,10 @@ export default function MyPage() {
                       <Shield className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
                       <div>
                         <p className="font-medium text-zinc-900 dark:text-zinc-100">2단계 인증</p>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">계정 보안을 강화합니다</p>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          계정에 추가 인증(예: 휴대폰 OTP)을 붙여 로그인 보안을 강화합니다.
+                          현재는 UI 안내 단계입니다.
+                        </p>
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
