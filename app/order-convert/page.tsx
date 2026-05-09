@@ -2043,9 +2043,7 @@ export default function OrderConvertPage() {
                           </button>
                         </>
                       )}
-                      <span
-                        className={`text-blue-600 ${trialMode ? 'basis-full text-xs leading-snug pt-0.5 sm:whitespace-normal' : 'sm:whitespace-nowrap'}`}
-                      >
+                      <span className="basis-full pt-0.5 text-xs leading-snug text-blue-600 sm:whitespace-normal">
                         주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
                       </span>
                     </div>
