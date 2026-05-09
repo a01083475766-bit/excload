@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import { Fragment } from 'react';
 
+import { InvoiceFileUserGuideSection } from './InvoiceFileUserGuideSection';
+import { LogisticsUserGuideSection } from './LogisticsUserGuideSection';
+
 const USER_GUIDE_WORKFLOW_STEPS = [
   {
     label: '택배사 업로드 양식 등록',
@@ -44,6 +47,8 @@ export default function UserGuidePage() {
           각 위치에 마우스를 올리시면 기능 설명으로 안내하는 사용가이드입니다. 실제 변환 및 기능은 적용되지
           않습니다. 사용설명서처럼 활용하세요.
         </div>
+
+        <h2 className="mb-4 text-center text-xl font-bold text-zinc-900 dark:text-zinc-100">택배 주문변환</h2>
 
         {/* Hero + 입력 — order-convert와 동일한 껍데기 */}
         <section className="relative pt-1 pb-3">
@@ -278,6 +283,10 @@ export default function UserGuidePage() {
             </ol>
           </div>
         </section>
+
+        <LogisticsUserGuideSection />
+
+        <InvoiceFileUserGuideSection />
       </main>
     </div>
   );
