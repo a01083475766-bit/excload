@@ -3,8 +3,7 @@
 import Link from 'next/link';
 
 /** 택배·물류·송장 변환 등 본페이지 비로그인 안내에 공통 사용 */
-export const REQUIRES_ACCOUNT_ORDER_REASON =
-  '주문 정보 변환은 계정 연동 후 이용할 수 있어요.';
+export const REQUIRES_ACCOUNT_ORDER_REASON = '로그인 후 이용 가능합니다.';
 
 type BannerProps = {
   visible: boolean;
@@ -28,7 +27,7 @@ export function RequiresAccountOrderBanner({ visible, className = '' }: BannerPr
           로그인
         </Link>
         <Link
-          href="/auth/signup"
+          href="/auth/login"
           className="inline-flex min-h-9 items-center justify-center rounded-lg border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-950 transition hover:bg-amber-100 dark:border-amber-700 dark:bg-zinc-900 dark:text-amber-50 dark:hover:bg-zinc-800"
         >
           회원가입
@@ -77,7 +76,7 @@ export function RequiresAccountOrderModal({ open, onClose }: ModalProps) {
             로그인
           </Link>
           <Link
-            href="/auth/signup"
+            href="/auth/login"
             className="inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-900 transition hover:bg-gray-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 sm:flex-initial"
             onClick={onClose}
           >
