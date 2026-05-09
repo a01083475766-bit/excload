@@ -11,15 +11,38 @@ import {
   Truck,
   Upload,
 } from 'lucide-react';
+import { Fragment } from 'react';
+
+const USER_GUIDE_WORKFLOW_STEPS = [
+  {
+    label: '택배사 업로드 양식 등록',
+    tip: '(필수) 택배사에 업로드할 때 쓰는 엑셀 양식을 먼저 등록합니다. 아래 ‘택배 업로드 양식 등록’에서 진행합니다.',
+  },
+  {
+    label: '주문 파일 또는 주문 정보(텍스트·이미지) 입력',
+    tip: '주문 엑셀·이미지를 올리거나, 텍스트·카톡·문자 내용을 붙여 넣어 주문을 반영합니다. 실제 서비스에서는 주문 입력이 필요합니다(필수).',
+  },
+  {
+    label: '변환 완료',
+    tip: '업로드·변환 처리가 끝나면 미리보기 표에 결과가 채워집니다. 파일 크기·주문량·환경에 따라 시간이 조금 걸릴 수 있습니다.',
+  },
+  {
+    label: '미리보기 확인 및 수정',
+    tip: '미리보기에서 주소·상품 등을 확인하고, 필요하면 셀을 수정하거나 정렬·삭제합니다.',
+  },
+  {
+    label: '택배 업로드 파일 다운로드',
+    tip: '(필수) 내용이 맞으면 택배사 업로드용 엑셀 파일을 내려받습니다. 아래 ‘택배 업로드 파일 다운로드’에서 저장합니다.',
+  },
+] as const;
 
 export default function UserGuidePage() {
   return (
     <div className="pt-1.5 pb-8 bg-zinc-50 dark:bg-black">
       <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50/80 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
-          이 페이지는 <strong>안내만</strong> 제공합니다. 실제 변환·파일 업로드는{' '}
-          <strong>택배주문변환</strong> 메뉴에서 이용해 주세요. 버튼에 마우스를 올리면 짧은 설명이
-          나타납니다.
+          각 위치에 마우스를 올리시면 기능 설명으로 안내하는 사용가이드입니다. 실제 변환 및 기능은 적용되지
+          않습니다. 사용설명서처럼 활용하세요.
         </div>
 
         {/* Hero + 입력 — order-convert와 동일한 껍데기 */}
@@ -41,7 +64,7 @@ export default function UserGuidePage() {
               </p>
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
                 <div
-                  data-ex-tooltip="회원일 때 표시됩니다. 이용 가능한 건수가 여기서 줄어듭니다."
+                  data-ex-tooltip="회원일 때 표시됩니다. 이용 가능한 사용량이 여기서 줄어듭니다."
                   className="ex-tooltip-target flex h-[38px] w-full min-w-0 cursor-default items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white opacity-90 shadow-md sm:w-[200px]"
                 >
                   <Coins className="h-4 w-4 shrink-0" aria-hidden />
@@ -54,21 +77,23 @@ export default function UserGuidePage() {
             <div className="w-full rounded-xl border-2 border-blue-500 bg-white p-5">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
                 <div className="flex w-full flex-col lg:w-1/2">
-                  <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-                    <h3 className="shrink-0 text-base font-semibold text-gray-900">파일선택</h3>
-                    <p className="min-w-0 text-xs leading-relaxed text-gray-600">
-                      주문엑셀·이미지 파일을 선택하거나 이 영역에 끌어다 놓아 주세요
-                    </p>
-                  </div>
                   <div
-                    data-ex-tooltip="엑셀·이미지를 올리면 변환을 시작합니다. 가이드에서는 데모입니다."
-                    className="ex-tooltip-target flex h-[180px] w-full cursor-default flex-col items-center justify-center gap-2.5 overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4"
+                    data-ex-tooltip="주문 엑셀·이미지를 선택하거나 아래 점선 영역에 끌어다 놓으면 변환이 진행됩니다. (가이드에서는 실제 업로드·변환이 되지 않습니다.) 실제 서비스에서는 주문 데이터 반영(필수) 후 변환이 가능합니다."
+                    className="ex-tooltip-target cursor-default rounded-lg outline-offset-2"
                   >
-                    <Upload className="h-8 w-8 text-gray-400" aria-hidden />
-                    <div className="space-y-0.5 text-center">
-                      <p className="text-sm font-medium text-gray-700">엑셀파일 · 이미지파일</p>
-                      <p className="text-xs text-gray-500">클릭하거나 드래그하여 업로드하세요</p>
-                      <p className="mt-1.5 text-xs text-gray-400">(xlsx, xls, jpg, png, gif)</p>
+                    <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <h3 className="shrink-0 text-base font-semibold text-gray-900">파일선택</h3>
+                      <p className="min-w-0 text-xs leading-relaxed text-gray-600">
+                        주문엑셀·이미지 파일을 선택하거나 이 영역에 끌어다 놓아 주세요
+                      </p>
+                    </div>
+                    <div className="flex h-[180px] w-full cursor-default flex-col items-center justify-center gap-2.5 overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4">
+                      <Upload className="h-8 w-8 text-gray-400" aria-hidden />
+                      <div className="space-y-0.5 text-center">
+                        <p className="text-sm font-medium text-gray-700">엑셀파일 · 이미지파일</p>
+                        <p className="text-xs text-gray-500">클릭하거나 드래그하여 업로드하세요</p>
+                        <p className="mt-1.5 text-xs text-gray-400">(xlsx, xls, jpg, png, gif)</p>
+                      </div>
                     </div>
                   </div>
                   <button
@@ -82,28 +107,31 @@ export default function UserGuidePage() {
                 </div>
 
                 <div className="flex min-h-0 w-full flex-col border-l-0 border-gray-200 pl-0 lg:w-1/2 lg:border-l lg:pl-5">
-                  <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-                    <h3 className="shrink-0 text-base font-semibold text-gray-900">텍스트 주문입력</h3>
-                    <p className="min-w-0 text-xs leading-relaxed text-gray-600">
-                      카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣어주세요
-                    </p>
-                  </div>
-                  <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+                  {/* textarea는 CSS ::after 미지원 → 래퍼에 툴팁 */}
+                  <div
+                    data-ex-tooltip="카카오톡·문자·주문페이지 등에서 받은 주문 글을 이 칸에 붙여 넣습니다. 아래 '텍스트 주문 변환'으로 등록한 택배 업로드 양식(필수)에 맞춰 표로 바꿉니다."
+                    className="ex-tooltip-target flex min-h-0 flex-1 flex-col cursor-default rounded-lg outline-offset-2"
+                  >
+                    <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <h3 className="shrink-0 text-base font-semibold text-gray-900">텍스트 주문입력</h3>
+                      <p className="min-w-0 text-xs leading-relaxed text-gray-600">
+                        카카오톡·문자·주문페이지 등에서 받은 주문내용을 붙여넣어주세요
+                      </p>
+                    </div>
                     <textarea
                       readOnly
-                      data-ex-tooltip="붙여 넣은 글을 주문 표로 정리할 때 사용하는 칸입니다."
-                      className="ex-tooltip-target min-h-[180px] w-full flex-1 basis-0 cursor-default resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600"
+                      className="min-h-[180px] w-full flex-1 basis-0 cursor-default resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600"
                       placeholder="예) 홍길동 010-1234-5766   무선마우스 2개&#10;서울시 강남구 테헤란로 123  문앞에 놓아주세요"
                     />
-                    <button
-                      type="button"
-                      data-ex-tooltip="입력한 텍스트를 위쪽에 설정한 택배 양식에 맞춰 표로 바꿉니다. 먼저 양식을 등록하는 것이 좋아요."
-                      className="ex-tooltip-target flex w-full cursor-default items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white opacity-90"
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      텍스트 주문 변환
-                    </button>
                   </div>
+                  <button
+                    type="button"
+                    data-ex-tooltip="입력한 텍스트를 등록해 둔 택배 업로드 양식(필수)에 맞춰 표로 바꿉니다. 미리 양식을 등록해 주세요."
+                    className="ex-tooltip-target mt-2.5 flex w-full cursor-default items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white opacity-90"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    텍스트 주문 변환
+                  </button>
                 </div>
               </div>
             </div>
@@ -144,7 +172,7 @@ export default function UserGuidePage() {
               <p>
                 주문을 가져오면 변환결과가 여기에 표시됩니다
                 <br />
-                파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                파일 크기·주문 사용량·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
               </p>
             </div>
           </div>
@@ -155,7 +183,7 @@ export default function UserGuidePage() {
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
             <button
               type="button"
-              data-ex-tooltip="택배사에 올리는 엑셀 형식을 한 번 등록해 두면, 그 열 구조에 맞춰 결과가 나갑니다."
+              data-ex-tooltip="(필수) 택배사에 올리는 엑셀 양식을 한 번 등록해 두면, 그 열 구조에 맞춰 결과가 나갑니다."
               className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
               onClick={(e) => e.preventDefault()}
             >
@@ -193,7 +221,7 @@ export default function UserGuidePage() {
 
             <button
               type="button"
-              data-ex-tooltip="미리보기가 맞으면, 택배사에 올릴 엑셀 파일로 저장합니다."
+              data-ex-tooltip="미리보기가 맞으면, 택배사에 올릴 엑셀 파일로 저장합니다. (필수)"
               className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
               onClick={(e) => e.preventDefault()}
             >
@@ -209,6 +237,45 @@ export default function UserGuidePage() {
                 택배사 업로드용 파일로 내려받는 단계입니다.
               </p>
             </button>
+          </div>
+        </section>
+
+        {/* 권장 작업 순서 (랜딩·가이드용) */}
+        <section className="relative pb-2 pt-2" aria-labelledby="user-guide-workflow-heading">
+          <div className="rounded-xl border-2 border-dashed border-zinc-300 bg-white px-4 py-5 shadow-sm dark:border-zinc-600 dark:bg-zinc-900/40 sm:px-6">
+            <h3
+              id="user-guide-workflow-heading"
+              className="mb-4 text-center text-base font-semibold text-zinc-900 dark:text-zinc-100"
+            >
+              택배 주문변환 · 권장 순서
+            </h3>
+            <ol className="mx-auto max-w-3xl space-y-0">
+              {USER_GUIDE_WORKFLOW_STEPS.map((step, index) => (
+                <Fragment key={step.label}>
+                  {index > 0 ? (
+                    <li className="flex justify-center py-0.5 text-zinc-400" aria-hidden>
+                      <span className="text-lg leading-none">↓</span>
+                    </li>
+                  ) : null}
+                  <li>
+                    <div
+                      data-ex-tooltip={step.tip}
+                      className="ex-tooltip-target flex cursor-default gap-3 rounded-lg py-2.5 pl-1 pr-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                    >
+                      <span
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white"
+                        aria-hidden
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 self-center text-sm font-medium leading-snug text-zinc-800 dark:text-zinc-200">
+                        {step.label}
+                      </span>
+                    </div>
+                  </li>
+                </Fragment>
+              ))}
+            </ol>
           </div>
         </section>
       </main>
