@@ -256,16 +256,18 @@ body {
   left: 50%;
   bottom: calc(100% + 11px);
   transform: translateX(-50%) translateY(4px);
-  max-width: min(340px, 72vw);
+  max-width: min(420px, 90vw);
   width: max-content;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 14px 18px;
+  border-radius: 11px;
   background: rgba(17, 24, 39, 0.95);
   color: #ffffff;
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.55;
   text-align: center;
   white-space: pre-line;
+  word-break: keep-all;
+  overflow-wrap: break-word;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
   z-index: 70;
   pointer-events: none;
@@ -315,16 +317,18 @@ body {
 .ex-floating-tooltip {
   position: fixed;
   z-index: 90;
-  max-width: min(440px, 78vw);
+  max-width: min(480px, 90vw);
   width: max-content;
-  padding: 12px 15px;
+  padding: 14px 18px;
   border-radius: 11px;
   background: rgba(17, 24, 39, 0.95);
   color: #ffffff;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.55;
   text-align: center;
   white-space: pre-line;
+  word-break: keep-all;
+  overflow-wrap: break-word;
   box-shadow: 0 11px 30px rgba(0, 0, 0, 0.22);
   pointer-events: none;
   opacity: 0;
@@ -342,7 +346,7 @@ body {
 /* 줄바꿈이 많은 안내(예: 텍스트 주문 입력 예시) */
 .ex-floating-tooltip.ex-floating-tooltip--multiline {
   font-size: 15px;
-  line-height: 1.52;
+  line-height: 1.58;
   text-align: left;
 }
 

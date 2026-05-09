@@ -10,15 +10,15 @@ import { Fragment } from 'react';
 const INVOICE_FILE_WORKFLOW_STEPS = [
   {
     label: '쇼핑몰 송장 업로드 양식 등록',
-    tip: '쇼핑몰에 송장을 일괄 넣을 때 쓰는 엑셀 양식을 먼저 등록합니다.\n아래 ‘쇼핑몰 송장 업로드 양식 등록’에서 진행합니다.',
+    tip: '쇼핑몰에 송장을 일괄 넣을 때 쓰는 엑셀 양식을 먼저 등록합니다.\u000a아래 ‘쇼핑몰 송장 업로드 양식 등록’에서 진행합니다.',
   },
   {
     label: '주문 파일·송장 파일 업로드',
-    tip: '① 원본 주문 엑셀과 ② 택배사에서 받은 송장번호 엑셀을 각각 올립니다.\n두 파일이 모두 있어야 주문과 송장번호를 맞출 수 있습니다.',
+    tip: '① 원본 주문 엑셀과 ② 택배사에서 받은 송장번호 엑셀을 각각 올립니다.\u000a두 파일이 모두 있어야 주문과 송장번호를 맞출 수 있습니다.',
   },
   {
     label: '변환(매핑) 완료',
-    tip: '주문·송장·등록 양식을 맞추면 미리보기 표에 결과가 채워집니다.\n파일 크기·주문량·환경에 따라 시간이 조금 걸릴 수 있습니다.',
+    tip: '주문·송장·등록 양식을 맞추면 미리보기 표에 결과가 채워집니다.\u000a파일 크기·주문량·환경에 따라 시간이 조금 걸릴 수 있습니다.',
   },
   {
     label: '미리보기 확인 및 수정',
@@ -26,7 +26,7 @@ const INVOICE_FILE_WORKFLOW_STEPS = [
   },
   {
     label: '송장 업로드 파일 다운로드',
-    tip: '내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀 파일을 내려받습니다.\n다운로드된 엑셀 파일을 쇼핑몰에 업로드하시면 됩니다.',
+    tip: '내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀 파일을 내려받습니다.\u000a다운로드된 엑셀 파일을 쇼핑몰에 업로드하시면 됩니다.',
   },
 ] as const;
 
@@ -44,7 +44,7 @@ export function InvoiceFileUserGuideSection() {
             <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
               <button
                 type="button"
-                data-ex-tooltip="쇼핑몰과 연결된 경우, 여기서 주문 목록을 불러올 수 있어요.\n(가이드에서는 동작하지 않습니다.)"
+                data-ex-tooltip={`쇼핑몰과 연결된 경우, 여기서 주문 목록을 불러올 수 있어요.\u000a(가이드에서는 동작하지 않습니다.)`}
                 className="ex-tooltip-target flex h-[38px] w-full cursor-default items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white opacity-90 sm:w-[200px]"
                 onClick={(e) => e.preventDefault()}
               >
@@ -56,7 +56,7 @@ export function InvoiceFileUserGuideSection() {
             </p>
             <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
               <div
-                data-ex-tooltip="회원일 때 표시됩니다.\n이용 가능한 사용량이 여기서 줄어듭니다."
+                data-ex-tooltip={`회원일 때 표시됩니다.\u000a이용 가능한 사용량이 여기서 줄어듭니다.`}
                 className="ex-tooltip-target flex h-[38px] w-full min-w-0 cursor-default items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white opacity-90 shadow-md sm:w-[200px]"
               >
                 <Coins className="h-4 w-4 shrink-0" aria-hidden />
@@ -70,7 +70,7 @@ export function InvoiceFileUserGuideSection() {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
               <div className="flex w-full flex-col lg:w-1/2">
                 <div
-                  data-ex-tooltip="쇼핑몰·자사몰 등에서 받은 주문 원본 엑셀입니다.\n먼저 올린 뒤 송장 엑셀과 짝을 맞춥니다.\n(가이드에서는 데모입니다.)"
+                  data-ex-tooltip={`쇼핑몰·자사몰 등에서 받은 주문 원본 엑셀입니다.\u000a먼저 올린 뒤 송장 엑셀과 짝을 맞춥니다.\u000a(가이드에서는 데모입니다.)`}
                   className="ex-tooltip-target cursor-default rounded-lg outline-offset-2"
                 >
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -95,7 +95,7 @@ export function InvoiceFileUserGuideSection() {
 
               <div className="flex w-full flex-col border-l-0 border-gray-200 lg:w-1/2 lg:border-l lg:pl-5">
                 <div
-                  data-ex-tooltip="택배사에서 내려받은 송장번호가 들어 있는 엑셀입니다.\n주문 엑셀과 함께 있어야 매핑됩니다.\n(가이드에서는 데모입니다.)"
+                  data-ex-tooltip={`택배사에서 내려받은 송장번호가 들어 있는 엑셀입니다.\u000a주문 엑셀과 함께 있어야 매핑됩니다.\u000a(가이드에서는 데모입니다.)`}
                   className="ex-tooltip-target cursor-default rounded-lg outline-offset-2"
                 >
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -166,7 +166,7 @@ export function InvoiceFileUserGuideSection() {
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
           <button
             type="button"
-            data-ex-tooltip="(필수) 쇼핑몰 송장 업로드에 쓰는 엑셀 양식을 한 번 등록합니다.\n한 번 등록해 두면, 그 양식에 맞게 주문 정리가 됩니다."
+            data-ex-tooltip={`(필수) 쇼핑몰 송장 업로드에 쓰는 엑셀 양식을 한 번 등록합니다.\u000a한 번 등록해 두면, 그 양식에 맞게 주문 정리가 됩니다.`}
             className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             onClick={(e) => e.preventDefault()}
           >
@@ -185,7 +185,7 @@ export function InvoiceFileUserGuideSection() {
 
           <button
             type="button"
-            data-ex-tooltip="모든 주문에 같은 고정입력이 필요할 때 사용합니다.\n보내는 사람 정보, 택배사 등의 고정입력을 설정할 수 있습니다 (선택)"
+            data-ex-tooltip={`모든 주문에 같은 고정입력이 필요할 때 사용합니다.\u000a보내는 사람 정보, 택배사 등의 고정입력을 설정할 수 있습니다 (선택)`}
             className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             onClick={(e) => e.preventDefault()}
           >
@@ -204,7 +204,7 @@ export function InvoiceFileUserGuideSection() {
 
           <button
             type="button"
-            data-ex-tooltip="내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀 파일을 내려받습니다.\n다운로드된 엑셀 파일을 쇼핑몰에 업로드하시면 됩니다."
+            data-ex-tooltip={`내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀 파일을 내려받습니다.\u000a다운로드된 엑셀 파일을 쇼핑몰에 업로드하시면 됩니다.`}
             className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             onClick={(e) => e.preventDefault()}
           >
