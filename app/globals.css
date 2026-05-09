@@ -262,10 +262,10 @@ body {
   border-radius: 10px;
   background: rgba(17, 24, 39, 0.95);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
   text-align: center;
-  white-space: normal;
+  white-space: pre-line;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.2);
   z-index: 70;
   pointer-events: none;
@@ -321,7 +321,7 @@ body {
   border-radius: 11px;
   background: rgba(17, 24, 39, 0.95);
   color: #ffffff;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
   text-align: center;
   white-space: pre-line;
@@ -341,7 +341,7 @@ body {
 
 /* 줄바꿈이 많은 안내(예: 텍스트 주문 입력 예시) */
 .ex-floating-tooltip.ex-floating-tooltip--multiline {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.52;
   text-align: left;
 }

@@ -3290,7 +3290,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     style={{ cursor: 'pointer' }}
                     data-ex-tooltip={
                       trialMode
-                        ? '주문정보가 있는 엑셀파일 또는 기타 파일을 첨부하시면 테스트가능합니다 xlsx, xls,jpg,png 업로드가능'
+                        ? '주문정보가 있는 엑셀파일 또는 기타 파일을 첨부하시면 테스트가능합니다\nxlsx, xls,jpg,png 업로드가능'
                         : undefined
                     }
                     className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
@@ -3356,7 +3356,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     type="button"
                     data-ex-tooltip={
                       trialMode
-                        ? '주문정보가 있는 화면스크린샷 / 이미지파일을 첨부하거나 붙여넣으면 미리보기에 구분하여 주문정리를 할수있습니다.'
+                        ? '주문정보가 있는 화면스크린샷 / 이미지파일을 첨부하거나 붙여넣으면\n미리보기에 구분하여 주문정리를 할수있습니다.'
                         : undefined
                     }
                     className={`w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors ${
@@ -3871,7 +3871,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <button
               type="button"
               onClick={handleOpenCourierTemplateModal}
-              data-ex-tooltip={trialMode ? '기존 택배사에 업로드하는 엑셀파일을 등록하세요. 그양식대로 주문정리가 됩니다' : undefined}
+              data-ex-tooltip={trialMode ? '기존 택배사에 업로드하는 엑셀파일을 등록하세요.\n그양식대로 주문정리가 됩니다' : undefined}
               className={`${trialMode ? 'ex-tooltip-target' : ''} h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
@@ -4250,8 +4250,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                 data-ex-tooltip={
                                   trialMode
                                     ? displayTrimmed !== ''
-                                      ? '코드매핑 원본값입니다. 오른쪽에서 변환값을 지정하세요.'
-                                      : '미리보기에서 가져온 값이 없습니다. 변환값만 입력하거나 +행 추가로 원본을 입력하세요.'
+                                      ? '코드매핑 원본값입니다.\n오른쪽에서 변환값을 지정하세요.'
+                                      : '미리보기에서 가져온 값이 없습니다.\n변환값만 입력하거나 +행 추가로 원본을 입력하세요.'
                                     : undefined
                                 }
                                 className={`${trialMode ? 'ex-tooltip-target' : ''} min-h-[28px] px-2 py-1 rounded-md text-xs whitespace-normal break-words bg-zinc-50 dark:bg-zinc-800/60 text-zinc-800 dark:text-zinc-100`}
