@@ -35,7 +35,7 @@ const USER_GUIDE_WORKFLOW_STEPS = [
   },
   {
     label: '택배 업로드 파일 다운로드',
-    tip: '내용이 맞으면 택배사 업로드용 엑셀 파일을 내려받습니다. 아래 ‘택배 업로드 파일 다운로드’에서 저장합니다.',
+    tip: '내용이 맞으면 택배사 업로드용 엑셀 파일을 내려받습니다. 다운로드된 엑셀 파일을 택배프로그램에 업로드하시면 됩니다.',
   },
 ] as const;
 
@@ -44,8 +44,8 @@ export default function UserGuidePage() {
     <div className="pt-1.5 pb-8 bg-zinc-50 dark:bg-black">
       <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50/80 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
-          각 위치에 마우스를 올리시면 기능 설명으로 안내하는 사용가이드입니다. 실제 변환 및 기능은 적용되지
-          않습니다. 사용설명서처럼 활용하세요.
+          각 위치에 마우스를 올리시면 기능 설명을 드리는 사용가이드입니다. 익숙하지 않은 용어 안내도 포함했습니다
+          (실제 변환 및 기능은 적용되지 않습니다).
         </div>
 
         <h2 className="mb-4 text-center text-xl font-bold text-zinc-900 dark:text-zinc-100">택배 주문변환</h2>
@@ -188,7 +188,7 @@ export default function UserGuidePage() {
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
             <button
               type="button"
-              data-ex-tooltip="(필수) 택배사에 올리는 엑셀 양식을 한 번 등록해 두면, 그 열 구조에 맞춰 결과가 나갑니다."
+              data-ex-tooltip="(필수) 택배사에 올리는 엑셀 양식을 한 번 등록합니다. 한 번 등록해 두면, 그 양식에 맞게 주문 정리가 됩니다."
               className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
               onClick={(e) => e.preventDefault()}
             >
@@ -207,7 +207,7 @@ export default function UserGuidePage() {
 
             <button
               type="button"
-              data-ex-tooltip="모든 주문에 같은 보내는 사람 정보가 있을 때만, 미리 넣어 두는 칸입니다. (선택)"
+              data-ex-tooltip="모든 주문에 같은 고정입력이 필요할 때 사용합니다. 보내는 사람 정보, 택배사 등의 고정입력을 설정할 수 있습니다 (선택)"
               className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
               onClick={(e) => e.preventDefault()}
             >
@@ -226,7 +226,7 @@ export default function UserGuidePage() {
 
             <button
               type="button"
-              data-ex-tooltip="미리보기가 맞으면, 택배사에 올릴 엑셀 파일로 저장합니다."
+              data-ex-tooltip="내용이 맞으면 택배사 업로드용 엑셀 파일을 내려받습니다. 다운로드된 엑셀 파일을 택배프로그램에 업로드하시면 됩니다."
               className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
               onClick={(e) => e.preventDefault()}
             >

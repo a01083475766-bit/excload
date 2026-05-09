@@ -26,7 +26,7 @@ const INVOICE_FILE_WORKFLOW_STEPS = [
   },
   {
     label: '송장 업로드 파일 다운로드',
-    tip: '내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀을 내려받습니다. 아래 ‘송장 업로드 파일 다운로드’에서 저장합니다.',
+    tip: '내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀 파일을 내려받습니다. 다운로드된 엑셀 파일을 쇼핑몰에 업로드하시면 됩니다.',
   },
 ] as const;
 
@@ -166,7 +166,7 @@ export function InvoiceFileUserGuideSection() {
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
           <button
             type="button"
-            data-ex-tooltip="(필수) 쇼핑몰에 송장을 넣을 때 쓰는 엑셀 양식을 등록하면, 그 열 구조에 맞춰 결과가 만들어집니다."
+            data-ex-tooltip="(필수) 쇼핑몰 송장 업로드에 쓰는 엑셀 양식을 한 번 등록합니다. 한 번 등록해 두면, 그 양식에 맞게 주문 정리가 됩니다."
             className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             onClick={(e) => e.preventDefault()}
           >
@@ -185,7 +185,7 @@ export function InvoiceFileUserGuideSection() {
 
           <button
             type="button"
-            data-ex-tooltip="택배사, 배송방법 등 모든 주문에 동일하게 쓰는 값을 미리 넣어 두는 기능입니다. (선택)"
+            data-ex-tooltip="모든 주문에 같은 고정입력이 필요할 때 사용합니다. 보내는 사람 정보, 택배사 등의 고정입력을 설정할 수 있습니다 (선택)"
             className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             onClick={(e) => e.preventDefault()}
           >
@@ -204,7 +204,7 @@ export function InvoiceFileUserGuideSection() {
 
           <button
             type="button"
-            data-ex-tooltip="미리보기가 맞으면, 쇼핑몰 송장 일괄 등록용 엑셀 파일로 저장합니다."
+            data-ex-tooltip="내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀 파일을 내려받습니다. 다운로드된 엑셀 파일을 쇼핑몰에 업로드하시면 됩니다."
             className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             onClick={(e) => e.preventDefault()}
           >
