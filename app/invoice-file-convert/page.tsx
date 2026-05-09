@@ -34,6 +34,10 @@ import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
 import { Coins } from 'lucide-react';
+import {
+  RequiresAccountOrderBanner,
+  RequiresAccountOrderModal,
+} from '@/app/components/RequiresAccountOrderInput';
 type PreviewRowWithId = {
   rowId: string;
   data: PreviewRow;
@@ -224,6 +228,7 @@ export default function InvoiceFileConvertPage() {
   /** 택배주문변환과 동일: 연동 몰이 있으면 주문 가져오기 노출 (추후 API로 통합 가능) */
   const connectedMalls = ['coupang'];
   const user = useUserStore((state) => state.user);
+  const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
   
@@ -303,6 +308,7 @@ export default function InvoiceFileConvertPage() {
   /** 주문·송장 드롭존: 파일 새로 붙을 때만 2회 플래시 (globals `.invoice-dropzone-double-flash`) */
   const [orderDropzoneFlashPlaying, setOrderDropzoneFlashPlaying] = useState(false);
   const [courierDropzoneFlashPlaying, setCourierDropzoneFlashPlaying] = useState(false);
+  const [requiresAccountModalOpen, setRequiresAccountModalOpen] = useState(false);
   const orderDropzoneFlashSigRef = useRef<string | null>(null);
   const courierDropzoneFlashSigRef = useRef<string | null>(null);
 
@@ -330,6 +336,15 @@ export default function InvoiceFileConvertPage() {
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  const needsAccount = !user && !isLoading;
+
+  const ensureLoggedInForInvoiceInput = (): boolean => {
+    if (user) return true;
+    if (isLoading) return false;
+    setRequiresAccountModalOpen(true);
+    return false;
+  };
 
   const INVOICE_DROPZONE_FLASH_MS = 1200;
 
@@ -785,6 +800,12 @@ export default function InvoiceFileConvertPage() {
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
+      if (!ensureLoggedInForInvoiceInput()) {
+        if (e.target) {
+          e.target.value = '';
+        }
+        return;
+      }
       files.forEach((file) => {
         const extension = file.name.split('.').pop()?.toLowerCase();
 
@@ -816,6 +837,10 @@ export default function InvoiceFileConvertPage() {
   const handleCourierInvoiceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!ensureLoggedInForInvoiceInput()) {
+      e.target.value = '';
+      return;
+    }
     if (!isValidCourierTemplate(courierUploadTemplate)) {
       setIsNoTemplateModalOpen(true);
       e.target.value = '';
@@ -915,6 +940,10 @@ export default function InvoiceFileConvertPage() {
     e.stopPropagation();
     setIsDraggingOrder(false);
 
+    if (!ensureLoggedInForInvoiceInput()) {
+      return;
+    }
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
@@ -957,6 +986,10 @@ export default function InvoiceFileConvertPage() {
     e.stopPropagation();
     setIsDraggingCourier(false);
 
+    if (!ensureLoggedInForInvoiceInput()) {
+      return;
+    }
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
@@ -974,6 +1007,10 @@ export default function InvoiceFileConvertPage() {
   };
 
   const parseExcelFile = async (file: File) => {
+    if (!ensureLoggedInForInvoiceInput()) {
+      return;
+    }
+
     const bridge = templateBridgeFileRef.current;
     const inv = courierInvoiceFileRef.current;
     const tpl = courierUploadTemplateRef.current;
@@ -1358,6 +1395,11 @@ export default function InvoiceFileConvertPage() {
 
   return (
     <>
+      <RequiresAccountOrderModal
+        open={requiresAccountModalOpen}
+        onClose={() => setRequiresAccountModalOpen(false)}
+      />
+
       {/* 삭제 확인 모달 */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -1465,6 +1507,8 @@ export default function InvoiceFileConvertPage() {
               </div>
             </div>
 
+            <RequiresAccountOrderBanner visible={needsAccount} />
+
             {/* 이중 파일 업로드: 주문 엑셀 + 택배사 송장 엑셀 */}
             <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">
               <div className="flex flex-col lg:flex-row gap-5">
@@ -1480,8 +1524,20 @@ export default function InvoiceFileConvertPage() {
                       주문 엑셀을 선택하거나 이 영역에 끌어다 놓아 주세요
                     </p>
                   </div>
-                  <label
-                    htmlFor="invoice-order-file-input"
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!ensureLoggedInForInvoiceInput()) return;
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    onClick={() => {
+                      if (!ensureLoggedInForInvoiceInput()) return;
+                      fileInputRef.current?.click();
+                    }}
                     style={{ cursor: 'pointer' }}
                     className={`w-full h-[180px] border-2 border-dashed rounded-lg p-4 overflow-hidden flex flex-col ${
                       orderDropzoneFlashPlaying ? '' : 'transition-colors'
@@ -1522,7 +1578,7 @@ export default function InvoiceFileConvertPage() {
                         </div>
                       )}
                     </div>
-                  </label>
+                  </div>
                   <input
                     ref={fileInputRef}
                     id="invoice-order-file-input"
@@ -1548,8 +1604,20 @@ export default function InvoiceFileConvertPage() {
                       송장번호 엑셀을 선택하거나 이 영역에 끌어다 놓아 주세요
                     </p>
                   </div>
-                  <label
-                    htmlFor="invoice-courier-file-input"
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!ensureLoggedInForInvoiceInput()) return;
+                        courierInvoiceFileInputRef.current?.click();
+                      }
+                    }}
+                    onClick={() => {
+                      if (!ensureLoggedInForInvoiceInput()) return;
+                      courierInvoiceFileInputRef.current?.click();
+                    }}
                     style={{ cursor: 'pointer' }}
                     className={`w-full h-[180px] border-2 border-dashed rounded-lg p-4 overflow-hidden flex flex-col ${
                       courierDropzoneFlashPlaying ? '' : 'transition-colors'
@@ -1576,7 +1644,7 @@ export default function InvoiceFileConvertPage() {
                         </p>
                       )}
                     </div>
-                  </label>
+                  </div>
                   <input
                     ref={courierInvoiceFileInputRef}
                     id="invoice-courier-file-input"

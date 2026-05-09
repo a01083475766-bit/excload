@@ -40,6 +40,10 @@ import {
   isLikelyClientNetworkError,
 } from '@/app/components/NormalizeQualityNoticeModal';
 import {
+  RequiresAccountOrderBanner,
+  RequiresAccountOrderModal,
+} from '@/app/components/RequiresAccountOrderInput';
+import {
   applyProductCodeProjection,
   parseProductCodeMapFromMatrix,
   resolveLogisticsProductNameColumn,
@@ -607,6 +611,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     y: 0,
   });
   const user = useUserStore((state) => state.user);
+  const isLoading = useUserStore((state) => state.isLoading);
   const userId = user?.userId ?? null;
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
@@ -685,6 +690,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [showTextConvertModal, setShowTextConvertModal] = useState(false);
   const [dontShowToday, setDontShowToday] = useState(false);
   const [showScreenshotModal, setShowScreenshotModal] = useState(false);
+  const [requiresAccountModalOpen, setRequiresAccountModalOpen] = useState(false);
   const [screenshotStage, setScreenshotStage] = useState<
     'idle' | 'processing' | 'completed'
   >('idle');
@@ -954,6 +960,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const previewScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
   const isCancelledRef = useRef<boolean>(false);
+
+  const needsAccount = !trialMode && !user && !isLoading;
+
+  const ensureLoggedInForOrderInput = useCallback((): boolean => {
+    if (trialMode) return true;
+    if (user) return true;
+    if (isLoading) return false;
+    setRequiresAccountModalOpen(true);
+    return false;
+  }, [trialMode, user, isLoading]);
 
   /** 다운로드 완료 후와 동일 — 미리보기·입력 소스·파일 선택 상태만 정리 (양식/브릿지는 유지) */
   const applyPreviewWorkspaceReset = useCallback(() => {
@@ -2155,6 +2171,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
+      if (!ensureLoggedInForOrderInput()) {
+        if (e.target) {
+          e.target.value = '';
+        }
+        return;
+      }
       files.forEach(file => {
         const extension = file.name.split('.').pop()?.toLowerCase();
         const fileType = file.type;
@@ -2187,6 +2209,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   // 이미지 파일 선택 및 OCR 자동 실행 (이미지 변환)
   const handleImageFileSelect = async (file: File) => {
+    if (!ensureLoggedInForOrderInput()) return;
+
     setSelectedImage(file);
     setInputSourceType('image'); // 이미지 업로드로 입력 방식 기록
     setErrorMessageTextImage(null);
@@ -2520,8 +2544,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       }
     } else {
       if (!user) {
-        alert('로그인이 필요합니다.');
-        router.push('/auth/login');
+        setRequiresAccountModalOpen(true);
         return;
       }
 
@@ -2614,6 +2637,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     e.stopPropagation();
     setIsDragging(false);
 
+    if (!ensureLoggedInForOrderInput()) {
+      return;
+    }
+
     const files = Array.from(e.dataTransfer.files);
     
     if (files.length === 0) {
@@ -2656,6 +2683,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     
     const newOrderSessionId = crypto.randomUUID();
     setOrderFileSessionId(newOrderSessionId);
+
+    if (!trialMode && !user) {
+      setFileProcessingStatus('idle');
+      setRequiresAccountModalOpen(true);
+      return;
+    }
 
     // 중복 검사 로직
     if (uploadedFileMeta.some(
@@ -3269,6 +3302,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               </div>
             </div>
 
+            <RequiresAccountOrderBanner visible={needsAccount} />
+
             {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
             <div className="w-full border-2 border-emerald-500 rounded-xl bg-white p-5">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
@@ -3285,17 +3320,29 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       주문엑셀·이미지 파일을 선택하거나 이 영역에 끌어다 놓아 주세요
                     </p>
                   </div>
-                  <label
-                    htmlFor="unified-file-input"
-                    style={{ cursor: 'pointer' }}
+                  <div
+                    role="button"
+                    tabIndex={0}
                     data-ex-tooltip={
                       trialMode
                         ? '주문정보가 있는 엑셀파일 또는 기타 파일을 첨부하시면 테스트가능합니다\u000axlsx, xls,jpg,png 업로드가능'
                         : undefined
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!ensureLoggedInForOrderInput()) return;
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    onClick={() => {
+                      if (!ensureLoggedInForOrderInput()) return;
+                      fileInputRef.current?.click();
+                    }}
+                    style={{ cursor: 'pointer' }}
                     className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
-                      isDragging 
-                        ? 'border-emerald-500 bg-emerald-50' 
+                      isDragging
+                        ? 'border-emerald-500 bg-emerald-50'
                         : 'border-gray-300 hover:border-emerald-400'
                     } ${trialMode ? 'ex-tooltip-target' : ''}`}
                   >
@@ -3343,7 +3390,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         </div>
                       )}
                     </div>
-                  </label>
+                  </div>
                   <input
                     ref={fileInputRef}
                     id="unified-file-input"
@@ -3362,7 +3409,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     className={`w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors ${
                       trialMode ? 'ex-tooltip-target' : ''
                     }`}
-                    onClick={() => setShowScreenshotModal(true)}
+                    onClick={() => {
+                      if (!ensureLoggedInForOrderInput()) return;
+                      setShowScreenshotModal(true);
+                    }}
                   >
                     {trialMode
                       ? '캡처·스크린샷으로 주문 변환'
@@ -3382,19 +3432,21 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     <textarea
                       ref={textInputRef}
                       data-ex-tooltip={trialMode ? TRIAL_TEXT_ORDER_TOOLTIP : undefined}
-                      className={`min-h-[180px] w-full flex-1 basis-0 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                      className={`min-h-[180px] w-full flex-1 basis-0 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-100 ${
                         trialMode ? 'ex-tooltip-target' : ''
                       }`}
                       placeholder={
-                        trialMode
-                          ? '예) 홍길동 010-1234-5766   무선마우스 2개  상품코드:A-2246\n' +
-                            '서울시 강남구 테헤란로 123  문앞에 놓아주세요\n' +
-                            '\n' +
-                            '※ 상품코드·출고요청일 등 항목은 [ 항목명 : 값 ] 형태가 아닌 경우 반영되지 않습니다. 좋은예) 상품코드:B-1234     나쁜예)   B-1234'
-                          : '예) 홍길동 010-1234-5766   무선마우스 2개  상품코드:A-2246\n' +
-                            '서울시 강남구 테헤란로 123  문앞에 놓아주세요\n' +
-                            '\n' +
-                            '※ 상품코드·출고요청일 등 물류 항목은 [ 항목명 : 값 ] 형태가  아닌경우에는 반영되지 않습니다. 좋은예) 상품코드:B-1234     나쁜예)   B-1234'
+                        needsAccount
+                          ? '로그인 후 주문 내용을 붙여넣을 수 있어요.'
+                          : trialMode
+                            ? '예) 홍길동 010-1234-5766   무선마우스 2개  상품코드:A-2246\n' +
+                              '서울시 강남구 테헤란로 123  문앞에 놓아주세요\n' +
+                              '\n' +
+                              '※ 상품코드·출고요청일 등 항목은 [ 항목명 : 값 ] 형태가 아닌 경우 반영되지 않습니다. 좋은예) 상품코드:B-1234     나쁜예)   B-1234'
+                            : '예) 홍길동 010-1234-5766   무선마우스 2개  상품코드:A-2246\n' +
+                              '서울시 강남구 테헤란로 123  문앞에 놓아주세요\n' +
+                              '\n' +
+                              '※ 상품코드·출고요청일 등 물류 항목은 [ 항목명 : 값 ] 형태가  아닌경우에는 반영되지 않습니다. 좋은예) 상품코드:B-1234     나쁜예)   B-1234'
                       }
                       value={textInput}
                       onChange={(e) => {
@@ -3406,7 +3458,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         }
                         setTextInput(newValue);
                       }}
-                      disabled={isProcessingTextImage}
+                      disabled={needsAccount || isProcessingTextImage}
                     />
                     <button
                       type="button"
@@ -3421,6 +3473,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (!ensureLoggedInForOrderInput()) return;
                         if (!isValidCourierTemplate(courierUploadTemplate)) {
                           setNoTemplateModalType('convert');
                           setIsNoTemplateModalOpen(true);
@@ -3435,7 +3488,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           setShowTextConvertModal(true);
                         }
                       }}
-                      disabled={isProcessingTextImage || !textInput.trim()}
+                      disabled={needsAccount || isProcessingTextImage || !textInput.trim()}
                     >
                       {isProcessingTextImage ? (
                         <>
@@ -5074,6 +5127,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           </div>
         </div>
       )}
+
+      <RequiresAccountOrderModal
+        open={requiresAccountModalOpen}
+        onClose={() => setRequiresAccountModalOpen(false)}
+      />
 
       <NormalizeQualityNoticeModal
         isOpen={qualityNoticeModal !== 'hidden'}

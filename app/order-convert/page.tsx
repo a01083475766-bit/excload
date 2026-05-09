@@ -37,6 +37,10 @@ import {
   isLikelyClientNetworkError,
 } from '@/app/components/NormalizeQualityNoticeModal';
 import {
+  RequiresAccountOrderBanner,
+  RequiresAccountOrderModal,
+} from '@/app/components/RequiresAccountOrderInput';
+import {
   OrderConvertPreviewTableRow,
   type PreviewRowWithId,
 } from '@/app/order-convert/OrderConvertPreviewTableRow';
@@ -225,6 +229,7 @@ export default function OrderConvertPage() {
   const router = useRouter();
   const connectedMalls = ['coupang']; // 테스트용
   const user = useUserStore((state) => state.user);
+  const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
   
@@ -302,14 +307,11 @@ export default function OrderConvertPage() {
   const [showTextConvertModal, setShowTextConvertModal] = useState(false);
   const [dontShowToday, setDontShowToday] = useState(false);
   const [showScreenshotModal, setShowScreenshotModal] = useState(false);
+  const [requiresAccountModalOpen, setRequiresAccountModalOpen] = useState(false);
   const [screenshotStage, setScreenshotStage] = useState<
     'idle' | 'processing' | 'completed'
   >('idle');
 
-  // 사용자 정보 가져오기 (컴포넌트 마운트 시)
-  useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
   const [screenshotImagePreview, setScreenshotImagePreview] = useState<string | null>(null);
   const [showTextProcessingModal, setShowTextProcessingModal] = useState(false);
   const [textProcessingSource, setTextProcessingSource] = useState<'screenshot' | 'imageFile'>('screenshot');
@@ -326,6 +328,11 @@ export default function OrderConvertPage() {
   // 입력 방식 추적: 사용자가 어떤 방식으로 입력했는지 기록
   const [inputSourceType, setInputSourceType] = useState<'excel' | 'image' | 'text' | null>(null);
 
+  // 사용자 정보 가져오기 (컴포넌트 마운트 시)
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
+
   const courierFileInputRef = useRef<HTMLInputElement | null>(null);
   const excelFileInputRef = useRef<HTMLInputElement | null>(null);
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -336,6 +343,15 @@ export default function OrderConvertPage() {
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
   const isCancelledRef = useRef<boolean>(false);
   const previewRowsRef = useRef<PreviewRowWithId[]>([]);
+
+  const needsAccount = !user && !isLoading;
+
+  const ensureLoggedInForOrderInput = useCallback((): boolean => {
+    if (user) return true;
+    if (isLoading) return false;
+    setRequiresAccountModalOpen(true);
+    return false;
+  }, [user, isLoading]);
 
   // 고정 헤더 순서 배열 (courierUploadTemplate.headers 기준)
   const FIXED_HEADER_ORDER = useMemo(() => {
@@ -811,6 +827,12 @@ export default function OrderConvertPage() {
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
+      if (!ensureLoggedInForOrderInput()) {
+        if (e.target) {
+          e.target.value = '';
+        }
+        return;
+      }
       files.forEach(file => {
         const extension = file.name.split('.').pop()?.toLowerCase();
         const fileType = file.type;
@@ -843,6 +865,8 @@ export default function OrderConvertPage() {
 
   // 이미지 파일 선택 및 OCR 자동 실행 (이미지 변환)
   const handleImageFileSelect = async (file: File) => {
+    if (!ensureLoggedInForOrderInput()) return;
+
     setSelectedImage(file);
     setInputSourceType('image'); // 이미지 업로드로 입력 방식 기록
     setErrorMessageTextImage(null);
@@ -1153,8 +1177,7 @@ export default function OrderConvertPage() {
     const textLength = trimmed.length;
 
     if (!user) {
-      alert('로그인이 필요합니다.');
-      router.push('/auth/login');
+      setRequiresAccountModalOpen(true);
       return;
     }
 
@@ -1242,6 +1265,10 @@ export default function OrderConvertPage() {
     e.stopPropagation();
     setIsDragging(false);
 
+    if (!ensureLoggedInForOrderInput()) {
+      return;
+    }
+
     const files = Array.from(e.dataTransfer.files);
     
     if (files.length === 0) {
@@ -1284,6 +1311,12 @@ export default function OrderConvertPage() {
     
     const newOrderSessionId = crypto.randomUUID();
     setOrderFileSessionId(newOrderSessionId);
+
+    if (!user) {
+      setFileProcessingStatus('idle');
+      setRequiresAccountModalOpen(true);
+      return;
+    }
 
     // 중복 검사 로직
     if (uploadedFileMeta.some(
@@ -1817,6 +1850,8 @@ export default function OrderConvertPage() {
               </div>
             </div>
 
+            <RequiresAccountOrderBanner visible={needsAccount} />
+
             {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
             <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
@@ -1833,8 +1868,20 @@ export default function OrderConvertPage() {
                       주문엑셀·이미지 파일을 선택하거나 이 영역에 끌어다 놓아 주세요
                     </p>
                   </div>
-                  <label
-                    htmlFor="unified-file-input"
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!ensureLoggedInForOrderInput()) return;
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    onClick={() => {
+                      if (!ensureLoggedInForOrderInput()) return;
+                      fileInputRef.current?.click();
+                    }}
                     style={{ cursor: 'pointer' }}
                     className={`w-full h-[180px] bg-gray-50 border-2 border-dashed rounded-lg p-4 transition-colors overflow-hidden flex flex-col ${
                       isDragging 
@@ -1886,7 +1933,7 @@ export default function OrderConvertPage() {
                         </div>
                       )}
                     </div>
-                  </label>
+                  </div>
                   <input
                     ref={fileInputRef}
                     id="unified-file-input"
@@ -1898,7 +1945,10 @@ export default function OrderConvertPage() {
                   <button
                     type="button"
                     className="w-full mt-2.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-                    onClick={() => setShowScreenshotModal(true)}
+                    onClick={() => {
+                      if (!ensureLoggedInForOrderInput()) return;
+                      setShowScreenshotModal(true);
+                    }}
                   >
                     캡처화면 주문변환 (스크린샷 주문 변환)
                   </button>
@@ -1915,10 +1965,12 @@ export default function OrderConvertPage() {
                   <div className="flex min-h-0 flex-1 flex-col gap-2.5">
                     <textarea
                       ref={textInputRef}
-                      className="min-h-[180px] w-full flex-1 basis-0 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="min-h-[180px] w-full flex-1 basis-0 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
                       placeholder={
-                        '예) 홍길동 010-1234-5766   무선마우스 2개\n' +
-                        '서울시 강남구 테헤란로 123  문앞에 놓아주세요'
+                        needsAccount
+                          ? '로그인 후 주문 내용을 붙여넣을 수 있어요.'
+                          : '예) 홍길동 010-1234-5766   무선마우스 2개\n' +
+                            '서울시 강남구 테헤란로 123  문앞에 놓아주세요'
                       }
                       value={textInput}
                       onChange={(e) => {
@@ -1930,7 +1982,7 @@ export default function OrderConvertPage() {
                         }
                         setTextInput(newValue);
                       }}
-                      disabled={isProcessingTextImage}
+                      disabled={needsAccount || isProcessingTextImage}
                     />
                     <button
                       type="button"
@@ -1938,6 +1990,7 @@ export default function OrderConvertPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (!ensureLoggedInForOrderInput()) return;
                         if (!isValidCourierTemplate(courierUploadTemplate)) {
                           setNoTemplateModalType('convert');
                           setIsNoTemplateModalOpen(true);
@@ -1952,7 +2005,7 @@ export default function OrderConvertPage() {
                           setShowTextConvertModal(true);
                         }
                       }}
-                      disabled={isProcessingTextImage || !textInput.trim()}
+                      disabled={needsAccount || isProcessingTextImage || !textInput.trim()}
                     >
                       {isProcessingTextImage ? (
                         <>
@@ -2954,6 +3007,11 @@ export default function OrderConvertPage() {
           </div>
         </div>
       )}
+
+      <RequiresAccountOrderModal
+        open={requiresAccountModalOpen}
+        onClose={() => setRequiresAccountModalOpen(false)}
+      />
 
       <NormalizeQualityNoticeModal
         isOpen={qualityNoticeModal !== 'hidden'}
