@@ -97,10 +97,15 @@ function AuthPageContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      router.replace('/order-convert');
+    if (status !== 'authenticated') return;
+
+    const rawCallback = searchParams.get('callbackUrl');
+    if (rawCallback?.startsWith('/') && !rawCallback.startsWith('//')) {
+      router.replace(rawCallback);
+      return;
     }
-  }, [status, router]);
+    router.replace('/order-convert');
+  }, [status, router, searchParams]);
 
   useEffect(() => {
     if (storeUser?.lastLoginProvider === 'GOOGLE') {

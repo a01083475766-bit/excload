@@ -103,7 +103,10 @@ export default function MainNav() {
   const isAdmin = emailForRole && isAdminEmailClient(emailForRole);
 
   const adminMenuItem: MenuItem = { href: '/akman', label: '관리자페이지', icon: Shield };
-  const displayPrimaryItems = isAdmin ? [adminMenuItem, ...primaryMenuItems] : primaryMenuItems;
+  const primaryMenuForUser = primaryMenuItems.filter(
+    (item) => item.href !== '/history' || isLoggedIn,
+  );
+  const displayPrimaryItems = isAdmin ? [adminMenuItem, ...primaryMenuForUser] : primaryMenuForUser;
 
   const isLogoActive = pathname === '/excload' || pathname === '/';
 

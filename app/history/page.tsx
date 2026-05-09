@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Clock, Search, Filter, Calendar, FileText, Download, Trash2, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { Clock, Search, Filter, Calendar, FileText, Download, Trash2, ChevronDown, ChevronUp, X, Loader2 } from 'lucide-react';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { HistorySession } from '@/app/store/historyStore';
 import * as XLSX from 'xlsx';
@@ -17,6 +19,8 @@ interface HistoryItem {
 }
 
 export default function HistoryPage() {
+  const router = useRouter();
+  const { status } = useSession();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'excel' | 'text' | 'image'>('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -28,10 +32,17 @@ export default function HistoryPage() {
   const removeSession = useHistoryStore((state) => state.removeSession);
   const loadSessions = useHistoryStore((state) => state.loadSessions);
 
-  // 컴포넌트 마운트 시 세션 로드
   useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/auth/login?callbackUrl=/history');
+    }
+  }, [status, router]);
+
+  // 로그인된 경우에만 로컬 히스토리 로드 (비로그인 노출 방지)
+  useEffect(() => {
+    if (status !== 'authenticated') return;
     loadSessions();
-  }, [loadSessions]);
+  }, [status, loadSessions]);
 
   // 최근 작업 정렬 고정 (createdAt DESC)
   const sortedSessions = [...sessions].sort((a, b) => {
@@ -291,6 +302,18 @@ export default function HistoryPage() {
       alert('엑셀 파일 생성 중 오류가 발생했습니다.');
     }
   };
+
+  if (status === 'loading' || status === 'unauthenticated') {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 bg-zinc-50 dark:bg-black px-4">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-hidden />
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {status === 'loading' ? '로그인 정보를 확인하는 중입니다…' : '로그인 페이지로 이동합니다…'}
+        </p>
+        <span className="sr-only">변환 내역을 불러오는 중입니다</span>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen">

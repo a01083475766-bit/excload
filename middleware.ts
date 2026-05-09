@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -40,8 +41,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /history 경로는 허용
+  // 변환 내역 — 로컬에 저장된 주문·개인정보가 표시될 수 있어 로그인 필수
   if (pathname.startsWith('/history')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!token) {
+      const loginUrl = new URL('/auth/login', request.url);
+      const callbackPath = pathname + request.nextUrl.search;
+      loginUrl.searchParams.set('callbackUrl', callbackPath);
+      return NextResponse.redirect(loginUrl);
+    }
     return NextResponse.next();
   }
 
