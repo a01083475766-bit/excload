@@ -45,6 +45,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /user-guide 사용가이드 (정적 UI·툴팁 안내 페이지)
+  if (pathname.startsWith('/user-guide')) {
+    return NextResponse.next();
+  }
+
   // /contact 경로는 허용
   if (pathname.startsWith('/contact')) {
     return NextResponse.next();
