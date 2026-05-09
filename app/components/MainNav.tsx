@@ -10,6 +10,7 @@ import {
   Warehouse,
   Package,
   Clock,
+  BookOpen,
   Info,
   User,
   CreditCard,
@@ -46,6 +47,7 @@ const primaryMenuItems: MenuItem[] = [
   { href: '/logistics-convert', label: '물류주문변환', icon: Warehouse },
   { href: '/invoice-file-convert', label: '송장파일변환', icon: Package },
   { href: '/history', label: '변환내역', icon: Clock },
+  { href: '/user-guide', label: '사용가이드', icon: BookOpen },
 ];
 
 /** 2단: 안내·계정 등 보조 메뉴 */
