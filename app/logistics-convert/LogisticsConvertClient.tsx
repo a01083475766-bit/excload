@@ -3161,14 +3161,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end sm:items-center">
               <button
                 type="button"
-                className="sm:order-1 px-4 py-2.5 text-sm rounded-lg text-zinc-500 dark:text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="sm:order-1 w-full sm:w-auto px-4 py-2.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
                 나중에 하기
               </button>
               <Link
                 href="/pricing"
-                className="sm:order-2 px-4 py-2.5 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-center text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="sm:order-2 w-full sm:w-auto px-4 py-2.5 text-sm rounded-lg border border-blue-200 dark:border-blue-700/70 text-center text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
                 요금제 보기
