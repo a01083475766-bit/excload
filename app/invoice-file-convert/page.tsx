@@ -789,7 +789,7 @@ export default function InvoiceFileConvertPage() {
         const extension = file.name.split('.').pop()?.toLowerCase();
 
         if (extension === 'xlsx' || extension === 'xls') {
-          setUploadedExcelFile(file);
+          // 오른쪽 송장 업로드와 동일: 먼저 필수 조건을 확인한 뒤에만 파일 상태 반영
           if (!isValidCourierTemplate(courierUploadTemplate)) {
             setIsNoTemplateModalOpen(true);
             return;
@@ -797,6 +797,7 @@ export default function InvoiceFileConvertPage() {
           if (!templateBridgeFile || !courierInvoiceFile) {
             return;
           }
+          setUploadedExcelFile(file);
           if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
             parseExcelFile(file);
           } else {
@@ -920,7 +921,6 @@ export default function InvoiceFileConvertPage() {
     files.forEach((file) => {
       const extension = file.name.split('.').pop()?.toLowerCase();
       if (extension === 'xlsx' || extension === 'xls') {
-        setUploadedExcelFile(file);
         if (!isValidCourierTemplate(courierUploadTemplate)) {
           setIsNoTemplateModalOpen(true);
           return;
@@ -928,6 +928,7 @@ export default function InvoiceFileConvertPage() {
         if (!templateBridgeFile || !courierInvoiceFile) {
           return;
         }
+        setUploadedExcelFile(file);
         if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
           parseExcelFile(file);
         } else {
