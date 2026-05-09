@@ -108,7 +108,7 @@ function TrialAccessGateLimited({ children }: { children: React.ReactNode }) {
             요금제 보기
           </Link>
           <Link
-            href="/auth/signup"
+            href="/auth?mode=login"
             className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700"
           >
             회원가입
@@ -137,7 +137,7 @@ function TrialAccessGateLimited({ children }: { children: React.ReactNode }) {
             요금제 보기
           </Link>
           <Link
-            href="/auth/signup"
+            href="/auth?mode=login"
             className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700"
           >
             회원가입

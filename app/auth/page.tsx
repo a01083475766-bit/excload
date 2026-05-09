@@ -98,7 +98,7 @@ function AuthPageContent() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.replace('/');
+      router.replace('/order-convert');
     }
   }, [status, router]);
 
@@ -220,8 +220,8 @@ function AuthPageContent() {
       } else {
         // 로그인 성공 시 사용자 정보 가져오기
         await fetchUser();
-        // 홈으로 리다이렉트
-        router.push('/');
+        // 택배 주문변환으로 리다이렉트
+        router.push('/order-convert');
         router.refresh();
       }
     } catch (err) {

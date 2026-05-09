@@ -1055,7 +1055,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     // renderedRowCount 의존성 금지: '추가 조회' 후 effect가 초기 배치(100건)로 리셋되는 것 방지
     setRenderedRowCount((prev) => {
       if (prev >= totalRows) return totalRows;
-      if (prev > 0) return Math.min(prev, totalRows);
+      // 누적 업로드 시 100건 이하 구간은 자동으로 표시 건수를 확장한다.
+      // (예: 5건 이후 10건 추가 -> 15건 표시, 5건 이후 100건 추가 -> 100건 표시)
+      if (prev >= PREVIEW_BATCH_SIZE) return Math.min(prev, totalRows);
       return Math.min(PREVIEW_BATCH_SIZE, totalRows);
     });
   }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
@@ -3098,7 +3100,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               </button>
               <button
                 type="button"
-                className="px-4 py-2 text-sm rounded bg-amber-600 text-white hover:bg-amber-700"
+                className="px-4 py-2 text-sm rounded bg-emerald-600 text-white font-medium hover:bg-emerald-700"
                 onClick={applyFullPreviewWorkspaceReset}
               >
                 초기화
@@ -3172,7 +3174,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 요금제 보기
               </Link>
               <Link
-                href="/auth/signup"
+                href="/auth?mode=login"
                 className="sm:order-3 w-full sm:w-auto px-4 py-2.5 text-sm rounded-lg bg-emerald-600 text-white text-center font-medium hover:bg-emerald-700"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
@@ -3419,6 +3421,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (!isValidCourierTemplate(courierUploadTemplate)) {
+                          setNoTemplateModalType('convert');
+                          setIsNoTemplateModalOpen(true);
+                          return;
+                        }
                         const today = new Date().toDateString();
                         const saved = localStorage.getItem("hideLogisticsTextConvertModal");
 
@@ -3635,7 +3642,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <div
                   ref={previewScrollContainerRef}
                   onScroll={handlePreviewScroll}
-                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar preview-scrollbar-emerald ${
+                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar ${trialMode ? '' : 'preview-scrollbar-emerald'} ${
                       trialMode ? 'select-none' : ''
                     }`}
                   >

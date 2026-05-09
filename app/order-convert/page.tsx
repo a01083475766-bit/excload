@@ -395,7 +395,9 @@ export default function OrderConvertPage() {
     // 같은 effect가 다시 돌며 Math.min(BATCH, total)으로 100으로 되돌아가는 버그가 생긴다.
     setRenderedRowCount((prev) => {
       if (prev >= totalRows) return totalRows;
-      if (prev > 0) return Math.min(prev, totalRows);
+      // 누적 업로드 시 100건 이하 구간은 자동으로 표시 건수를 확장한다.
+      // (예: 5건 이후 10건 추가 -> 15건 표시, 5건 이후 100건 추가 -> 100건 표시)
+      if (prev >= PREVIEW_BATCH_SIZE) return Math.min(prev, totalRows);
       return Math.min(PREVIEW_BATCH_SIZE, totalRows);
     });
   }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
@@ -1936,6 +1938,11 @@ export default function OrderConvertPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (!isValidCourierTemplate(courierUploadTemplate)) {
+                          setNoTemplateModalType('convert');
+                          setIsNoTemplateModalOpen(true);
+                          return;
+                        }
                         const today = new Date().toDateString();
                         const saved = localStorage.getItem("hideTextConvertModal");
 

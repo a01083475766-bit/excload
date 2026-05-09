@@ -24,7 +24,7 @@ function SocialLoadingContent() {
           // ignore localStorage failures
         }
       }
-      router.replace('/');
+      router.replace('/order-convert');
       return;
     }
 

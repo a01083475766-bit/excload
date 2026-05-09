@@ -425,7 +425,9 @@ export default function InvoiceFileConvertPage() {
     // renderedRowCount 의존성 금지: '추가 조회' 후 effect가 초기 배치(100건)로 리셋되는 것 방지
     setRenderedRowCount((prev) => {
       if (prev >= totalRows) return totalRows;
-      if (prev > 0) return Math.min(prev, totalRows);
+      // 누적 업로드 시 100건 이하 구간은 자동으로 표시 건수를 확장한다.
+      // (예: 5건 이후 10건 추가 -> 15건 표시, 5건 이후 100건 추가 -> 100건 표시)
+      if (prev >= PREVIEW_BATCH_SIZE) return Math.min(prev, totalRows);
       return Math.min(PREVIEW_BATCH_SIZE, totalRows);
     });
   }, [previewReady, previewRows.length, courierHeaders.length, isPreviewExpanded]);
@@ -788,11 +790,11 @@ export default function InvoiceFileConvertPage() {
 
         if (extension === 'xlsx' || extension === 'xls') {
           setUploadedExcelFile(file);
-          if (
-            !isValidCourierTemplate(courierUploadTemplate) ||
-            !templateBridgeFile ||
-            !courierInvoiceFile
-          ) {
+          if (!isValidCourierTemplate(courierUploadTemplate)) {
+            setIsNoTemplateModalOpen(true);
+            return;
+          }
+          if (!templateBridgeFile || !courierInvoiceFile) {
             return;
           }
           if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
@@ -813,6 +815,11 @@ export default function InvoiceFileConvertPage() {
   const handleCourierInvoiceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!isValidCourierTemplate(courierUploadTemplate)) {
+      setIsNoTemplateModalOpen(true);
+      e.target.value = '';
+      return;
+    }
     const extension = file.name.split('.').pop()?.toLowerCase();
     if (extension !== 'xlsx' && extension !== 'xls') {
       alert('송장 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
@@ -914,11 +921,11 @@ export default function InvoiceFileConvertPage() {
       const extension = file.name.split('.').pop()?.toLowerCase();
       if (extension === 'xlsx' || extension === 'xls') {
         setUploadedExcelFile(file);
-        if (
-          !isValidCourierTemplate(courierUploadTemplate) ||
-          !templateBridgeFile ||
-          !courierInvoiceFile
-        ) {
+        if (!isValidCourierTemplate(courierUploadTemplate)) {
+          setIsNoTemplateModalOpen(true);
+          return;
+        }
+        if (!templateBridgeFile || !courierInvoiceFile) {
           return;
         }
         if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
@@ -953,6 +960,10 @@ export default function InvoiceFileConvertPage() {
     if (files.length === 0) return;
 
     const file = files[0];
+    if (!isValidCourierTemplate(courierUploadTemplate)) {
+      setIsNoTemplateModalOpen(true);
+      return;
+    }
     const extension = file.name.split('.').pop()?.toLowerCase();
     if (extension !== 'xlsx' && extension !== 'xls') {
       alert('송장 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
