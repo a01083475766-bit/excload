@@ -2372,8 +2372,7 @@ export default function OrderConvertPage() {
                 />
                 <button
                   onClick={handleTemplateFileClick}
-                  data-ex-tooltip="지금 쓰는 택배 업로드 파일을 올리면, 다음부터 같은 형식으로 더 쉽게 변환할 수 있어요."
-                  className="ex-tooltip-target w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-lg font-medium text-sm"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-lg font-medium text-sm"
                 >
                   내 업로드 파일 등록하기
                 </button>
@@ -2388,8 +2387,7 @@ export default function OrderConvertPage() {
                 <div className="space-y-2 mt-4">
                   <button
                     onClick={() => setShowRecentTemplate(!showRecentTemplate)}
-                    data-ex-tooltip="이전에 저장한 양식을 펼쳐서 선택할 수 있어요."
-                    className="ex-tooltip-target w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-left hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                    className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-left hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                   >
                     <span className="text-sm font-bold text-zinc-600 dark:text-zinc-400">
                       등록된 양식
@@ -2424,7 +2422,6 @@ export default function OrderConvertPage() {
                                 name="selectedFormat"
                                 checked={tempSelectedFormatId === format.id}
                                 onChange={() => handleTemplateSelect(format.id)}
-                                title="이 양식을 현재 작업에 사용할 기준으로 선택합니다."
                                 className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 dark:bg-zinc-800"
                               />
                             </div>
@@ -2551,8 +2548,7 @@ export default function OrderConvertPage() {
                 <button
                   type="button"
                   onClick={handleConfirmCourierTemplateModal}
-                  data-ex-tooltip="지금 고른 양식을 적용하고 모달을 닫습니다."
-                  className="ex-tooltip-target px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
                 >
                   확인
                 </button>
@@ -2782,8 +2778,7 @@ export default function OrderConvertPage() {
                               }));
                               setEditingHeaderIndex(null);
                             }}
-                            data-ex-tooltip="입력한 값을 저장하고 이 항목에 적용합니다."
-                            className="ex-tooltip-target px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
                           >
                             확인
                           </button>
@@ -2793,8 +2788,7 @@ export default function OrderConvertPage() {
                               // 취소: 입력 모드 종료, 입력값 복원
                               setEditingHeaderIndex(null);
                             }}
-                            data-ex-tooltip="이번 입력만 취소하고 이전 상태로 돌아갑니다."
-                            className="ex-tooltip-target px-3 py-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-100 rounded text-sm font-medium transition-colors"
+                            className="px-3 py-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-100 rounded text-sm font-medium transition-colors"
                           >
                             취소
                           </button>
@@ -2814,8 +2808,7 @@ export default function OrderConvertPage() {
                                 return newValues;
                               });
                             }}
-                            data-ex-tooltip="이 항목에 저장된 값을 지웁니다."
-                            className="ex-tooltip-target px-3 py-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-100 rounded text-sm font-medium transition-colors"
+                            className="px-3 py-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-100 rounded text-sm font-medium transition-colors"
                           >
                             삭제
                           </button>
@@ -2828,12 +2821,11 @@ export default function OrderConvertPage() {
                       <button
                         key={`${headerName}-${mapIndex}`}
                         type="button"
-                        data-ex-tooltip={`${header.name} 항목에 공통으로 넣을 값을 설정합니다.`}
                         className={`px-6 py-2 rounded-lg font-medium cursor-pointer flex flex-col items-center transition-colors relative ${
                           hasValue
                             ? 'border border-zinc-300 dark:border-zinc-700 bg-blue-50 dark:bg-blue-950/30 text-zinc-900 dark:text-zinc-100 hover:bg-blue-100 dark:hover:bg-blue-950/50'
                             : 'border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-700'
-                        } ex-tooltip-target`}
+                        }`}
                         onClick={() => {
                           // 입력 모드로 전환
                           setEditingHeaderIndex(index);
@@ -2898,8 +2890,7 @@ export default function OrderConvertPage() {
             <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0">
               <button
                 onClick={handleCloseSenderModal}
-                data-ex-tooltip="설정한 내용을 저장하고 작업 화면으로 돌아갑니다."
-                className="ex-tooltip-target w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-lg font-medium"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-lg font-medium"
               >
                 확인
               </button>
