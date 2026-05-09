@@ -1754,7 +1754,7 @@ export default function OrderConvertPage() {
               미리보기 초기화
             </h4>
             <p className="text-sm text-gray-600 dark:text-zinc-400 mb-2 leading-relaxed">
-              미리보기와 이번에 선택한 파일·이미지·텍스트 입력을 초기화합니다.
+              첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.
             </p>
             <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">
               등록한 택배 양식·고정 입력은 그대로 둡니다.

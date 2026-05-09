@@ -10,11 +10,11 @@ import { Fragment } from 'react';
 const INVOICE_FILE_WORKFLOW_STEPS = [
   {
     label: '쇼핑몰 송장 업로드 양식 등록',
-    tip: '(필수) 쇼핑몰에 송장을 일괄 넣을 때 쓰는 엑셀 양식을 먼저 등록합니다. 아래 ‘쇼핑몰 송장 업로드 양식 등록’에서 진행합니다.',
+    tip: '쇼핑몰에 송장을 일괄 넣을 때 쓰는 엑셀 양식을 먼저 등록합니다. 아래 ‘쇼핑몰 송장 업로드 양식 등록’에서 진행합니다.',
   },
   {
     label: '주문 파일·송장 파일 업로드',
-    tip: '(필수) ① 원본 주문 엑셀과 ② 택배사에서 받은 송장번호 엑셀을 각각 올립니다. 두 파일이 모두 있어야 주문과 송장번호를 맞출 수 있습니다.',
+    tip: '① 원본 주문 엑셀과 ② 택배사에서 받은 송장번호 엑셀을 각각 올립니다. 두 파일이 모두 있어야 주문과 송장번호를 맞출 수 있습니다.',
   },
   {
     label: '변환(매핑) 완료',
@@ -26,7 +26,7 @@ const INVOICE_FILE_WORKFLOW_STEPS = [
   },
   {
     label: '송장 업로드 파일 다운로드',
-    tip: '(필수) 내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀을 내려받습니다. 아래 ‘송장 업로드 파일 다운로드’에서 저장합니다.',
+    tip: '내용이 맞으면 쇼핑몰 송장 일괄 등록용 엑셀을 내려받습니다. 아래 ‘송장 업로드 파일 다운로드’에서 저장합니다.',
   },
 ] as const;
 
@@ -35,7 +35,7 @@ export function InvoiceFileUserGuideSection() {
     <div className="mt-12 border-t border-zinc-200 pt-10 dark:border-zinc-800">
       <h2 className="mb-2 text-center text-xl font-bold text-zinc-900 dark:text-zinc-100">송장 파일 변환</h2>
       <p className="mb-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
-        송장파일변환 메뉴와 같은 레이아웃입니다. 실제 변환은 해당 메뉴에서 이용해 주세요.
+        실제 변환은 해당 메뉴에서 이용해 주세요.
       </p>
 
       <section className="relative pt-1 pb-3">
@@ -70,7 +70,7 @@ export function InvoiceFileUserGuideSection() {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
               <div className="flex w-full flex-col lg:w-1/2">
                 <div
-                  data-ex-tooltip="쇼핑몰·자사몰 등에서 받은 (필수) 주문 원본 엑셀입니다. 먼저 올린 뒤 송장 엑셀과 짝을 맞춥니다. (가이드에서는 데모입니다.)"
+                  data-ex-tooltip="쇼핑몰·자사몰 등에서 받은 주문 원본 엑셀입니다. 먼저 올린 뒤 송장 엑셀과 짝을 맞춥니다. (가이드에서는 데모입니다.)"
                   className="ex-tooltip-target cursor-default rounded-lg outline-offset-2"
                 >
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -95,7 +95,7 @@ export function InvoiceFileUserGuideSection() {
 
               <div className="flex w-full flex-col border-l-0 border-gray-200 lg:w-1/2 lg:border-l lg:pl-5">
                 <div
-                  data-ex-tooltip="택배사에서 내려받은 송장번호가 들어 있는 엑셀입니다(필수). 주문 엑셀과 함께 있어야 매핑됩니다. (가이드에서는 데모입니다.)"
+                  data-ex-tooltip="택배사에서 내려받은 송장번호가 들어 있는 엑셀입니다. 주문 엑셀과 함께 있어야 매핑됩니다. (가이드에서는 데모입니다.)"
                   className="ex-tooltip-target cursor-default rounded-lg outline-offset-2"
                 >
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -139,7 +139,7 @@ export function InvoiceFileUserGuideSection() {
                 </button>
                 <button
                   type="button"
-                  data-ex-tooltip="미리보기와 이번에 선택한 주문·송장 파일만 초기화합니다. 등록한 쇼핑몰 송장 양식·고정 입력은 유지됩니다."
+                  data-ex-tooltip="첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다."
                   className="ex-tooltip-target inline-flex h-9 shrink-0 cursor-default items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900"
                   onClick={(e) => e.preventDefault()}
                 >
@@ -204,7 +204,7 @@ export function InvoiceFileUserGuideSection() {
 
           <button
             type="button"
-            data-ex-tooltip="미리보기가 맞으면, 쇼핑몰 송장 일괄 등록용 엑셀 파일로 저장합니다. (필수)"
+            data-ex-tooltip="미리보기가 맞으면, 쇼핑몰 송장 일괄 등록용 엑셀 파일로 저장합니다."
             className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             onClick={(e) => e.preventDefault()}
           >

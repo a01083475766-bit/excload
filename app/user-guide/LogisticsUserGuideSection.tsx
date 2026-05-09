@@ -10,11 +10,11 @@ import { Fragment } from 'react';
 const LOGISTICS_WORKFLOW_STEPS = [
   {
     label: '물류센터 업로드 양식 등록',
-    tip: '(필수) 물류센터(창고)에 업로드할 때 쓰는 엑셀 양식을 먼저 등록합니다. 아래 ‘물류센터 업로드 양식 등록’에서 진행합니다.',
+    tip: '물류센터(창고)에 업로드할 때 쓰는 엑셀 양식을 먼저 등록합니다. 아래 ‘물류센터 업로드 양식 등록’에서 진행합니다.',
   },
   {
     label: '주문 파일 또는 주문 정보(텍스트·이미지) 입력',
-    tip: '주문 엑셀·이미지를 올리거나, 텍스트·카톡·문자 내용을 붙여 넣어 주문을 반영합니다. 실제 서비스에서는 주문 입력이 필요합니다(필수).',
+    tip: '주문 엑셀·이미지를 올리거나, 텍스트·카톡·문자 내용을 붙여 넣어 주문을 반영합니다. 실제 서비스에서는 주문 입력이 필요합니다.',
   },
   {
     label: '변환 완료',
@@ -26,7 +26,7 @@ const LOGISTICS_WORKFLOW_STEPS = [
   },
   {
     label: '물류센터 업로드 파일 다운로드',
-    tip: '(필수) 내용이 맞으면 물류센터 업로드용 엑셀 파일을 내려받습니다. 아래 ‘물류센터 업로드 파일 다운로드’에서 저장합니다.',
+    tip: '내용이 맞으면 물류센터 업로드용 엑셀 파일을 내려받습니다. 아래 ‘물류센터 업로드 파일 다운로드’에서 저장합니다.',
   },
 ] as const;
 
@@ -35,7 +35,7 @@ export function LogisticsUserGuideSection() {
     <div className="mt-12 border-t border-zinc-200 pt-10 dark:border-zinc-800">
       <h2 className="mb-2 text-center text-xl font-bold text-zinc-900 dark:text-zinc-100">물류 주문변환</h2>
       <p className="mb-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
-        물류주문변환 메뉴와 같은 레이아웃입니다. 실제 변환은 해당 메뉴에서 이용해 주세요.
+        실제 변환은 해당 메뉴에서 이용해 주세요.
       </p>
 
       <section className="relative pt-1 pb-3">
@@ -70,7 +70,7 @@ export function LogisticsUserGuideSection() {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
               <div className="flex w-full flex-col lg:w-1/2">
                 <div
-                  data-ex-tooltip="주문 엑셀·이미지를 선택하거나 아래 점선 영역에 끌어다 놓으면 변환이 진행됩니다. (가이드에서는 실제 업로드·변환이 되지 않습니다.) 실제 서비스에서는 주문 데이터 반영(필수) 후 변환이 가능합니다."
+                  data-ex-tooltip="주문 엑셀·이미지를 선택하거나 아래 점선 영역에 끌어다 놓으면 변환이 진행됩니다. (가이드에서는 실제 업로드·변환이 되지 않습니다.) 실제 서비스에서는 주문 데이터를 반영한 뒤 변환이 가능합니다."
                   className="ex-tooltip-target cursor-default rounded-lg outline-offset-2"
                 >
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -100,7 +100,7 @@ export function LogisticsUserGuideSection() {
 
               <div className="flex min-h-0 w-full flex-col border-l-0 border-gray-200 pl-0 lg:w-1/2 lg:border-l lg:pl-5">
                 <div
-                  data-ex-tooltip="카카오톡·문자·주문페이지 등에서 받은 주문 글을 이 칸에 붙여 넣습니다. 아래 버튼으로 등록한 물류센터 업로드 양식(필수)에 맞춰 표로 바꿉니다."
+                  data-ex-tooltip="카카오톡·문자·주문페이지 등에서 받은 주문 글을 이 칸에 붙여 넣습니다. 아래 버튼으로 등록한 물류센터 업로드 양식에 맞춰 표로 바꿉니다."
                   className="ex-tooltip-target flex min-h-0 flex-1 flex-col cursor-default rounded-lg outline-offset-2"
                 >
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -121,7 +121,7 @@ export function LogisticsUserGuideSection() {
                 </div>
                 <button
                   type="button"
-                  data-ex-tooltip="입력한 텍스트를 등록해 둔 물류센터 업로드 양식(필수)에 맞춰 표로 바꿉니다. 미리 양식을 등록해 주세요."
+                  data-ex-tooltip="입력한 텍스트를 등록해 둔 물류센터 업로드 양식에 맞춰 표로 바꿉니다. 미리 양식을 등록해 주세요."
                   className="ex-tooltip-target mt-2.5 flex w-full cursor-default items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white opacity-90"
                   onClick={(e) => e.preventDefault()}
                 >
@@ -149,7 +149,7 @@ export function LogisticsUserGuideSection() {
                 </button>
                 <button
                   type="button"
-                  data-ex-tooltip="표·입력만 지우고, 등록한 양식은 그대로 둡니다."
+                  data-ex-tooltip="첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다."
                   className="ex-tooltip-target inline-flex h-9 shrink-0 cursor-default items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900"
                   onClick={(e) => e.preventDefault()}
                 >
@@ -214,7 +214,7 @@ export function LogisticsUserGuideSection() {
 
           <button
             type="button"
-            data-ex-tooltip="미리보기가 맞으면, 물류센터에 올릴 엑셀 파일로 저장합니다. (필수)"
+            data-ex-tooltip="미리보기가 맞으면, 물류센터에 올릴 엑셀 파일로 저장합니다."
             className="ex-tooltip-target flex h-[120px] cursor-default flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             onClick={(e) => e.preventDefault()}
           >
