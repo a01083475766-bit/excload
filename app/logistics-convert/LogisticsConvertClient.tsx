@@ -3509,7 +3509,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   </div>
 
                   {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                    <div className="min-w-0 flex flex-[1_1_12rem] flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-snug text-blue-600 sm:flex-nowrap sm:leading-tight">
+                    <div className="min-w-0 flex flex-[1_1_12rem] flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-snug text-blue-600 sm:leading-tight">
                       <span className="sm:whitespace-nowrap">
                         총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
                       </span>
