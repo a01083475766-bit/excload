@@ -76,21 +76,49 @@ export async function POST(request: NextRequest) {
       }
 
       const grantAmount = 5000;
+      /** 관리자 사용량 내역·로그 검색용 (PointHistory.reason) */
+      const grantReason = 'FREE플랜_월간사용량자동지급';
 
-      // 이번 달 미지급인 경우에만 1행 갱신 (동시 요청·중복 호출 시 둘째부터 count 0)
-      const updateResult = await prisma.user.updateMany({
-        where: {
-          id: user.id,
-          plan: 'FREE',
-          OR: [{ nextPointDate: null }, { nextPointDate: { lt: startOfMonth } }],
-        },
-        data: {
-          points: { increment: grantAmount },
-          nextPointDate: now,
-        },
+      // 이번 달 미지급인 경우에만 포인트 증가 + 내역 기록 (동시 요청 시 하나만 성공)
+      const txResult = await prisma.$transaction(async (tx) => {
+        const updateResult = await tx.user.updateMany({
+          where: {
+            id: user.id,
+            plan: 'FREE',
+            OR: [{ nextPointDate: null }, { nextPointDate: { lt: startOfMonth } }],
+          },
+          data: {
+            points: { increment: grantAmount },
+            nextPointDate: now,
+          },
+        });
+
+        if (updateResult.count === 0) {
+          return { granted: false as const };
+        }
+
+        await tx.pointHistory.create({
+          data: {
+            userId: user.id,
+            change: grantAmount,
+            reason: grantReason,
+          },
+        });
+
+        const updated = await tx.user.findUnique({
+          where: { id: user.id },
+          select: {
+            id: true,
+            email: true,
+            plan: true,
+            points: true,
+            nextPointDate: true,
+          },
+        });
+        return { granted: true as const, updatedUser: updated };
       });
 
-      if (updateResult.count === 0) {
+      if (!txResult.granted) {
         const fresh = await prisma.user.findUnique({
           where: { id: user.id },
           select: {
@@ -123,17 +151,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const updatedUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: {
-          id: true,
-          email: true,
-          plan: true,
-          points: true,
-          nextPointDate: true,
-        },
-      });
-
+      const { updatedUser } = txResult;
       if (!updatedUser) {
         return NextResponse.json(
           { error: '사용자를 찾을 수 없습니다.' },
