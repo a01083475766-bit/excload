@@ -69,8 +69,8 @@ export default function MyPage() {
     try {
       await signOut({ redirect: false });
       clearUser();
-      // 클라이언트 라우팅보다 전체 이동이 안전(로그아웃 직후 한 틱 렌더·이중 push 방지)
-      window.location.href = '/auth/login';
+      // 홈으로 보내 상단「로그인/회원가입」을 한 번 더 거치게 함(의도적 마찰)
+      window.location.href = '/';
     } catch (error) {
       console.error('[MyPage] 로그아웃 중 오류:', error);
       alert('로그아웃 중 오류가 발생했습니다.');
