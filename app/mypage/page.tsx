@@ -67,13 +67,10 @@ export default function MyPage() {
 
   const handleLogout = async () => {
     try {
-      // NextAuth 세션 종료
       await signOut({ redirect: false });
-      // Zustand store에서 사용자 정보 제거
       clearUser();
-      // 로그인 페이지로 리다이렉트
-      router.push('/auth/login');
-      router.refresh();
+      // 클라이언트 라우팅보다 전체 이동이 안전(로그아웃 직후 한 틱 렌더·이중 push 방지)
+      window.location.href = '/auth/login';
     } catch (error) {
       console.error('[MyPage] 로그아웃 중 오류:', error);
       alert('로그아웃 중 오류가 발생했습니다.');
@@ -353,7 +350,13 @@ export default function MyPage() {
   };
 
   // 사용자 정보가 없으면 로딩 표시
-  if (status === 'loading' || isLoading || (status === 'authenticated' && !user)) {
+  // 로그아웃 직후: 세션은 unauthenticated인데 본문이 한 틱 렌더되면 user가 null이라 크래시 → 동일하게 스피너
+  if (
+    status === 'loading' ||
+    isLoading ||
+    (status === 'authenticated' && !user) ||
+    (status === 'unauthenticated' && !user)
+  ) {
     return (
       <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -364,7 +367,7 @@ export default function MyPage() {
     );
   }
 
-  // 이메일에서 이름 추출 (이메일 앞부분 사용)
+  // 이메일에서 이름 추출 (이메일 앞부분 사용) — 이후 JSX는 user 존재를 전제로 함
   const userName = (user.name || user.email.split('@')[0] || '사용자').trim();
   
   // 가입일은 임시로 현재 날짜 사용 (실제로는 API에서 가져와야 함)
