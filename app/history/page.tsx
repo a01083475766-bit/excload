@@ -20,7 +20,7 @@ interface HistoryItem {
 
 export default function HistoryPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'excel' | 'text' | 'image'>('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -31,6 +31,7 @@ export default function HistoryPage() {
   const removeSessions = useHistoryStore((state) => state.removeSessions);
   const removeSession = useHistoryStore((state) => state.removeSession);
   const loadSessions = useHistoryStore((state) => state.loadSessions);
+  const setHistoryUserId = useHistoryStore((state) => state.setHistoryUserId);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -38,11 +39,11 @@ export default function HistoryPage() {
     }
   }, [status, router]);
 
-  // 로그인된 경우에만 로컬 히스토리 로드 (비로그인 노출 방지)
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    if (status !== 'authenticated' || !session?.user?.id) return;
+    setHistoryUserId(session.user.id);
     loadSessions();
-  }, [status, loadSessions]);
+  }, [status, session?.user?.id, setHistoryUserId, loadSessions]);
 
   // 최근 작업 정렬 고정 (createdAt DESC)
   const sortedSessions = [...sessions].sort((a, b) => {

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getSession } from 'next-auth/react';
 
 export type SourceType = 'excel' | 'kakao' | 'image';
 
@@ -27,76 +28,118 @@ export interface HistorySession {
   resultRows?: any[]; // 변환된 주문 데이터 (히스토리 복원용)
 }
 
+/** 구버전: 계정 미구분 저장 (한 브라우저에 하나) */
+const LEGACY_STORAGE_KEY = 'history-sessions';
+
+function scopedStorageKey(userId: string): string {
+  return `history-sessions:${userId}`;
+}
+
+const RETENTION_MS = 20 * 24 * 60 * 60 * 1000;
+
+function filterByRetention(parsed: HistorySession[]): HistorySession[] {
+  const now = Date.now();
+  return parsed.filter((session) => {
+    if (!session.createdAt) return false;
+    const createdAtMs =
+      typeof session.createdAt === 'string'
+        ? new Date(session.createdAt).getTime()
+        : (session.createdAt as unknown as number);
+    return now - createdAtMs <= RETENTION_MS;
+  });
+}
+
 interface HistoryStoreState {
+  /** 현재 로그인 사용자 DB id — 변환 저장·조회 단위 */
+  historyUserId: string | null;
+  setHistoryUserId: (id: string | null) => void;
+  clearSessionsInMemory: () => void;
+
   sessions: HistorySession[];
   addSession: (session: Omit<HistorySession, 'id' | 'createdAt'>) => void;
   removeSession: (id: string) => void;
-  removeSessions: (ids: string[]) => void; // 여러 세션을 한 번에 삭제
+  removeSessions: (ids: string[]) => void;
   updateSession: (id: string, updates: Partial<Omit<HistorySession, 'id' | 'createdAt'>>) => void;
   getSession: (id: string) => HistorySession | undefined;
   clearAllSessions: () => void;
   getSessionsBySourceType: (sourceType: SourceType) => HistorySession[];
-  loadSessions: () => void; // localStorage에서 세션 로드
+  loadSessions: () => void;
 }
 
-// localStorage에 세션 저장
-const saveSessionsToStorage = (sessions: HistorySession[]) => {
+const saveSessionsToStorage = (userId: string | null, sessions: HistorySession[]) => {
+  if (!userId) return;
   try {
-    localStorage.setItem('history-sessions', JSON.stringify(sessions));
+    localStorage.setItem(scopedStorageKey(userId), JSON.stringify(sessions));
   } catch (error) {
     console.error('Failed to save history sessions to localStorage:', error);
-    // 사용자에게 알림 (히스토리 저장 실패는 치명적이지 않으므로 조용히 처리)
-    // 필요시 alert를 추가할 수 있으나, 자동 저장이므로 사용자 경험을 위해 조용히 처리
   }
 };
 
-// localStorage에서 세션 로드
-// 실행 타이밍: 앱 초기화 시 (StoreInitializer 컴포넌트의 useEffect에서 loadSessions() 호출 시)
-//             또는 히스토리 페이지에서 수동으로 loadSessions() 호출 시
-// 히스토리 정리 로직: 이 함수 내부에서 30일 이상 된 항목을 자동으로 필터링하여 삭제
-const loadSessionsFromStorage = (): HistorySession[] => {
+/**
+ * 레거시 `history-sessions`는 사용자 구분 없이 섞였을 수 있음.
+ * 구버전 키에만 데이터가 있으면 지금 로그인한 계정 키로 한 번 옮긴 뒤 레거시를 삭제합니다(과거 데이터는 계정 구분 없음).
+ */
+const loadSessionsFromStorageForUser = (userId: string): HistorySession[] => {
   try {
-    const savedSessions = localStorage.getItem('history-sessions');
-    if (savedSessions) {
-      const parsed = JSON.parse(savedSessions) as HistorySession[];
-      
-      // 히스토리 정리 로직: 30일 이상 된 항목 자동 삭제
-      // 실행 시점: localStorage에서 세션을 로드할 때마다 실행됨
-      const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000; // 30일을 밀리초로 변환
-      const now = Date.now();
-      
-      const filteredSessions = parsed.filter((session) => {
-        if (!session.createdAt) {
-          return false; // createdAt이 없으면 삭제
-        }
-        
-        // ISO string 또는 timestamp를 밀리초로 변환
-        const createdAtMs = typeof session.createdAt === 'string' 
-          ? new Date(session.createdAt).getTime()
-          : session.createdAt;
-        
-        // 30일 이내인 항목만 유지
-        return (now - createdAtMs) <= thirtyDaysInMs;
-      });
-      
-      // 필터링된 결과가 원본과 다르면 localStorage에 저장 (정리된 결과 반영)
-      if (filteredSessions.length !== parsed.length) {
-        saveSessionsToStorage(filteredSessions);
+    const scopedRaw = localStorage.getItem(scopedStorageKey(userId));
+    let raw = scopedRaw;
+    let fromLegacy = false;
+
+    if (!raw) {
+      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyRaw) {
+        raw = legacyRaw;
+        fromLegacy = true;
       }
-      
-      return filteredSessions;
     }
+
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as HistorySession[];
+    const filtered = filterByRetention(parsed);
+    saveSessionsToStorage(userId, filtered);
+
+    if (fromLegacy) {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+
+    return filtered;
   } catch (error) {
     console.error('Failed to load history sessions from localStorage:', error);
-    // 로드 실패는 조용히 처리 (히스토리가 없으면 빈 배열 반환)
   }
   return [];
 };
 
 export const useHistoryStore = create<HistoryStoreState>()((set, get) => ({
+  historyUserId: null,
+
+  setHistoryUserId: (id) =>
+    set((state) => {
+      if (state.historyUserId === id) return {};
+      return { historyUserId: id, sessions: [] };
+    }),
+
+  clearSessionsInMemory: () => set({ sessions: [] }),
+
   sessions: [],
 
   addSession: (sessionData) => {
+    const userId = get().historyUserId;
+    if (!userId) {
+      // StoreInitializer의 useEffect보다 먼저 저장이 호출되면 id가 비어 있을 수 있음 → 세션에서 보강
+      void getSession().then((session) => {
+        const uid = session?.user?.id;
+        if (!uid) {
+          console.warn('[historyStore] addSession: 세션에 user.id 없음 — 저장 생략');
+          return;
+        }
+        get().setHistoryUserId(uid);
+        get().loadSessions();
+        get().addSession(sessionData);
+      });
+      return;
+    }
+
     const newSession: HistorySession = {
       ...sessionData,
       id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -105,52 +148,45 @@ export const useHistoryStore = create<HistoryStoreState>()((set, get) => ({
 
     set((state) => {
       const updatedSessions = [newSession, ...state.sessions];
-      
-      // 20일 자동 정리: createdAt 기준 20일 초과 세션 자동 삭제
-      const twentyDaysInMs = 20 * 24 * 60 * 60 * 1000; // 20일을 밀리초로 변환
       const now = Date.now();
-      
       const cleanedSessions = updatedSessions.filter((session) => {
-        if (!session.createdAt) {
-          return false; // createdAt이 없으면 삭제
-        }
-        
-        // ISO string을 밀리초로 변환
-        const createdAtMs = typeof session.createdAt === 'string' 
-          ? new Date(session.createdAt).getTime()
-          : session.createdAt;
-        
-        // 20일 이내인 항목만 유지
-        return (now - createdAtMs) <= twentyDaysInMs;
+        if (!session.createdAt) return false;
+        const createdAtMs =
+          typeof session.createdAt === 'string'
+            ? new Date(session.createdAt).getTime()
+            : (session.createdAt as unknown as number);
+        return now - createdAtMs <= RETENTION_MS;
       });
-      
-      saveSessionsToStorage(cleanedSessions);
+      saveSessionsToStorage(userId, cleanedSessions);
       return { sessions: cleanedSessions };
     });
   },
 
   removeSession: (id) => {
+    const userId = get().historyUserId;
     set((state) => {
       const updatedSessions = state.sessions.filter((session) => session.id !== id);
-      saveSessionsToStorage(updatedSessions);
+      if (userId) saveSessionsToStorage(userId, updatedSessions);
       return { sessions: updatedSessions };
     });
   },
 
   removeSessions: (ids) => {
+    const userId = get().historyUserId;
     set((state) => {
       const updatedSessions = state.sessions.filter((session) => !ids.includes(session.id));
-      saveSessionsToStorage(updatedSessions);
+      if (userId) saveSessionsToStorage(userId, updatedSessions);
       return { sessions: updatedSessions };
     });
   },
 
   updateSession: (id, updates) => {
+    const userId = get().historyUserId;
     set((state) => {
       const updatedSessions = state.sessions.map((session) =>
         session.id === id ? { ...session, ...updates } : session
       );
-      saveSessionsToStorage(updatedSessions);
+      if (userId) saveSessionsToStorage(userId, updatedSessions);
       return { sessions: updatedSessions };
     });
   },
@@ -160,8 +196,9 @@ export const useHistoryStore = create<HistoryStoreState>()((set, get) => ({
   },
 
   clearAllSessions: () => {
+    const userId = get().historyUserId;
     set({ sessions: [] });
-    saveSessionsToStorage([]);
+    if (userId) saveSessionsToStorage(userId, []);
   },
 
   getSessionsBySourceType: (sourceType) => {
@@ -169,8 +206,12 @@ export const useHistoryStore = create<HistoryStoreState>()((set, get) => ({
   },
 
   loadSessions: () => {
-    const loadedSessions = loadSessionsFromStorage();
+    const userId = get().historyUserId;
+    if (!userId) {
+      set({ sessions: [] });
+      return;
+    }
+    const loadedSessions = loadSessionsFromStorageForUser(userId);
     set({ sessions: loadedSessions });
   },
 }));
-

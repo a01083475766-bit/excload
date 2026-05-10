@@ -2,11 +2,15 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { useUploadedFilesStore } from '@/app/lib/stores/uploadedFilesStore';
 
 export default function StoreInitializer() {
+  const { status, data: session } = useSession();
+  const setHistoryUserId = useHistoryStore((state) => state.setHistoryUserId);
   const loadSessions = useHistoryStore((state) => state.loadSessions);
+  const clearSessionsInMemory = useHistoryStore((state) => state.clearSessionsInMemory);
   const loadMetadata = useUploadedFilesStore((state) => state.loadMetadata);
   const pathname = usePathname();
   const prevPathnameRef = useRef<string | null>(null);
@@ -22,13 +26,25 @@ export default function StoreInitializer() {
   } | null>(null);
 
   useEffect(() => {
-    // 앱 초기화 시 히스토리 세션과 파일 메타데이터 로드
-    // 실행 타이밍: 앱 최초 마운트 시 (StoreInitializer 컴포넌트가 렌더링될 때)
-    // loadSessions() 호출 시 내부적으로 loadSessionsFromStorage()가 실행되며,
-    // 이때 히스토리 정리 로직(30일 이상 된 항목 자동 삭제)이 함께 실행됨
-    loadSessions();
+    if (status === 'authenticated' && session?.user?.id) {
+      setHistoryUserId(session.user.id);
+      loadSessions();
+    }
+    if (status === 'unauthenticated') {
+      setHistoryUserId(null);
+      clearSessionsInMemory();
+    }
+  }, [
+    status,
+    session?.user?.id,
+    setHistoryUserId,
+    loadSessions,
+    clearSessionsInMemory,
+  ]);
+
+  useEffect(() => {
     loadMetadata();
-  }, [loadSessions, loadMetadata]);
+  }, [loadMetadata]);
 
   // 경로 변경 감지 (pathname만 추적)
   useEffect(() => {
