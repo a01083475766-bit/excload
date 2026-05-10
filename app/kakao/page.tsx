@@ -1,10 +1,19 @@
 'use client';
 
 import { FileSpreadsheet, Truck, Search, ArrowDown, X, FileText } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useUploadedFilesStore } from '@/app/lib/stores/uploadedFilesStore';
 import { useHistoryStore } from '@/app/store/historyStore';
+import { useUserStore } from '@/app/store/userStore';
+import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
+import {
+  ORDER_CONVERT_KEYS,
+  KAKAO_EXTRA_KEYS,
+  readLocalStorageWithLegacyMigrate,
+  writeLocalStorageForUser,
+  removeLocalStorageForUser,
+} from '@/app/lib/scoped-local-storage';
 import { getCourierMapper } from '@/app/lib/courier-mappers';
 import type { EnglishNormalizationRow } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
 import type { CJRow } from '@/app/lib/courier-mappers';
@@ -30,6 +39,12 @@ interface CourierUploadTemplate {
 }
 
 export default function ExcelPage() {
+  const user = useUserStore((state) => state.user);
+  const fetchUser = useUserStore((state) => state.fetchUser);
+  const storageUserId = user?.userId ?? null;
+  const authAssetsReady = useAuthAssetsReady();
+  const prevKakaoAccountBoundaryRef = useRef<string | undefined>(undefined);
+
   const [kakaoOrderText, setKakaoOrderText] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [senderInfo, setSenderInfo] = useState<SenderInfo | null>(null);
@@ -48,39 +63,48 @@ export default function ExcelPage() {
   // 택배사 업로드 파일 템플릿 (헤더 정보 저장)
   const [courierUploadTemplate, setCourierUploadTemplate] = useState<CourierUploadTemplate | null>(null);
   // 선택된 파일 목록 - Zustand 스토어 사용 (kakao만 사용)
-  const { files, metadata, addFiles, removeFile, loadMetadata } = useUploadedFilesStore();
+  const { files, metadata, addFiles, removeFile } = useUploadedFilesStore();
   // 실제 파일이 있으면 사용하고, 없으면 메타데이터 사용 (새로고침 후 복원용)
   const selectedFiles = files.kakao.length > 0 ? files.kakao : 
     metadata.kakao.map(m => new File([], m.name, { type: m.type, lastModified: m.lastModified }));
   const { addSession } = useHistoryStore();
 
-  // localStorage에서 택배 양식 정보(courierUploadTemplate) 로드
   const loadCourierUploadTemplate = (): CourierUploadTemplate | null => {
     try {
-      const stored = localStorage.getItem('onc_courier_template_v1');
+      const stored = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.template, storageUserId);
       if (stored) {
         const parsed = JSON.parse(stored) as CourierUploadTemplate;
         return parsed;
       }
     } catch (error) {
       console.error('localStorage에서 택배 양식 정보를 불러오는 중 오류 발생:', error);
-      // 로드 실패는 조용히 처리 (템플릿이 없으면 새로 설정하면 되므로)
     }
     return null;
   };
 
-  // 페이지 최초 로드 및 전환 시 localStorage에서 보내는사람 정보, 택배사 정보, 파일 메타데이터 복원
   useEffect(() => {
-    // 파일 메타데이터 로드
-    loadMetadata();
-    
-    // localStorage에서 보내는사람 정보 로드
+    fetchUser();
+  }, [fetchUser]);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!authAssetsReady) return;
+
+    const boundaryKey = storageUserId ?? '__guest__';
+    if (
+      prevKakaoAccountBoundaryRef.current !== undefined &&
+      prevKakaoAccountBoundaryRef.current !== boundaryKey
+    ) {
+      setExcelData([]);
+      setKakaoOrderText('');
+    }
+    prevKakaoAccountBoundaryRef.current = boundaryKey;
+
     try {
-      const savedSenderInfo = localStorage.getItem('senderInfo');
+      const savedSenderInfo = readLocalStorageWithLegacyMigrate(KAKAO_EXTRA_KEYS.senderInfo, storageUserId);
       if (savedSenderInfo) {
         try {
-          const parsedInfo = JSON.parse(savedSenderInfo) as SenderInfo;
-          setSenderInfo(parsedInfo);
+          setSenderInfo(JSON.parse(savedSenderInfo) as SenderInfo);
         } catch (error) {
           console.error('localStorage에서 보내는사람 정보를 불러오는 중 오류 발생:', error);
           alert('보내는사람 정보를 불러오는 중 오류가 발생했습니다.');
@@ -93,16 +117,10 @@ export default function ExcelPage() {
       alert('저장된 보내는사람 정보를 불러올 수 없습니다. 브라우저의 저장 공간을 확인해주세요.');
     }
 
-    // localStorage에서 택배사 정보 로드
     try {
-      const savedCourier = localStorage.getItem('selectedCourier');
+      const savedCourier = readLocalStorageWithLegacyMigrate(KAKAO_EXTRA_KEYS.selectedCourier, storageUserId);
       if (savedCourier) {
-        try {
-          setSelectedCourier(savedCourier);
-        } catch (error) {
-          console.error('localStorage에서 택배사 정보를 불러오는 중 오류 발생:', error);
-          alert('택배사 정보를 불러오는 중 오류가 발생했습니다.');
-        }
+        setSelectedCourier(savedCourier);
       } else {
         setSelectedCourier(null);
       }
@@ -111,10 +129,8 @@ export default function ExcelPage() {
       alert('저장된 택배사 정보를 불러올 수 없습니다. 브라우저의 저장 공간을 확인해주세요.');
     }
 
-    // localStorage에서 택배 양식 정보 로드
-    const loadedTemplate = loadCourierUploadTemplate();
-    setCourierUploadTemplate(loadedTemplate);
-  }, [loadMetadata]);
+    setCourierUploadTemplate(loadCourierUploadTemplate());
+  }, [authAssetsReady, storageUserId]);
 
 
   const handleOpenModal = () => {
@@ -133,9 +149,12 @@ export default function ExcelPage() {
 
   const handleConfirmModal = () => {
     setSenderInfo(tempSenderInfo);
-    // localStorage에 저장
     try {
-      localStorage.setItem('senderInfo', JSON.stringify(tempSenderInfo));
+      writeLocalStorageForUser(
+        KAKAO_EXTRA_KEYS.senderInfo,
+        storageUserId,
+        JSON.stringify(tempSenderInfo),
+      );
       setIsModalOpen(false);
       setShowSuccessMessage(true);
       // 3초 후 안내 문구 숨기기
@@ -163,10 +182,11 @@ export default function ExcelPage() {
 
   const handleConfirmCourierModal = () => {
     setSelectedCourier(tempSelectedCourier);
-    // localStorage에 저장
     try {
       if (tempSelectedCourier) {
-        localStorage.setItem('selectedCourier', tempSelectedCourier);
+        writeLocalStorageForUser(KAKAO_EXTRA_KEYS.selectedCourier, storageUserId, tempSelectedCourier);
+      } else {
+        removeLocalStorageForUser(KAKAO_EXTRA_KEYS.selectedCourier, storageUserId);
       }
       setIsCourierModalOpen(false);
     } catch (error) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { FileSpreadsheet, Truck, Search, ArrowDown, X, FileText } from 'lucide-react';
 import { useUploadedFilesStore } from '@/app/lib/stores/uploadedFilesStore';
 
@@ -10,16 +10,10 @@ export default function MessageOrderPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalText, setModalText] = useState('');
   // 선택된 파일 목록 - Zustand 스토어 사용 (kakao만 사용)
-  const { files, metadata, addFiles, removeFile, loadMetadata } = useUploadedFilesStore();
+  const { files, metadata, addFiles, removeFile } = useUploadedFilesStore();
   // 실제 파일이 있으면 사용하고, 없으면 메타데이터 사용 (새로고침 후 복원용)
   const selectedFiles = files.kakao.length > 0 ? files.kakao : 
     metadata.kakao.map(m => new File([], m.name, { type: m.type, lastModified: m.lastModified }));
-
-  // 페이지 최초 로드 및 전환 시 파일 메타데이터 복원
-  useEffect(() => {
-    // 파일 메타데이터 로드
-    loadMetadata();
-  }, [loadMetadata]);
 
   // textarea 값 변경 처리
   const handleKakaoOrderTextChange = (text: string) => {

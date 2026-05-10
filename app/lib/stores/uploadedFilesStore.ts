@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 import type { EnglishNormalizationRow } from '@/app/lib/refinement-engine/hint-engine/e-prime-ai';
+import { useUserStore } from '@/app/store/userStore';
+import {
+  UPLOADED_FILES_KEYS,
+  readLocalStorageWithLegacyMigrate,
+  writeLocalStorageForUser,
+} from '@/app/lib/scoped-local-storage';
 
 export type UploadedFile = File;
 
@@ -62,11 +68,52 @@ interface UploadedFilesState {
   setCurrentFilePreviewData: (data: ExtendedNormalizationResult[]) => void;
   setIsPreviewConfirmed: (confirmed: boolean) => void;
   clearCurrentFilePreviewData: () => void; // 택배업로드파일 다운받기 성공 시에만 호출
+  /** 사용자 식별이 바뀌었을 때 호출 (/api/user/get 반영 후). 메모리·LS 스코프 맞춤 */
+  syncUploadedFilesMetadataScope: () => void;
+  /** 계정별 키로 메타 로드 후 `_uploadScopeMarker` 갱신 */
+  _uploadScopeMarker: string | null;
 }
 
 // File 객체는 직렬화할 수 없으므로, 메타데이터만 localStorage에 저장
 // 실제 File 객체는 메모리에 유지되므로 새로고침 후에는 사라지지만,
 // 메타데이터는 유지되어 목록을 표시할 수 있음
+// 로그인 시 키: uploaded-files-metadata:userId, 비로그인: uploaded-files-metadata (레거시·마이그레이션은 readLocalStorageWithLegacyMigrate)
+
+function resolveUploadMetadataScopeUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  const uid = useUserStore.getState().user?.userId;
+  return typeof uid === 'string' && uid.trim() !== '' ? uid.trim() : null;
+}
+
+function uploadMetadataScopeMarker(userId: string | null): string {
+  return userId ? userId : '__guest__';
+}
+
+function persistAllMetadataToScope(
+  excel: FileMetadata[],
+  kakao: FileMetadata[],
+  scopeUserId: string | null,
+) {
+  const allMetadata = { excel, kakao };
+  writeLocalStorageForUser(
+    UPLOADED_FILES_KEYS.metadata,
+    scopeUserId,
+    JSON.stringify(allMetadata),
+  );
+}
+
+function parseStoredMetadata(savedMetadata: string): { excel: FileMetadata[]; kakao: FileMetadata[] } {
+  const parsed = JSON.parse(savedMetadata) as unknown;
+  if (Array.isArray(parsed)) {
+    const metadata = parsed as FileMetadata[];
+    return { excel: metadata, kakao: [] };
+  }
+  const metadata = parsed as { excel?: FileMetadata[]; kakao?: FileMetadata[] };
+  return {
+    excel: metadata.excel || [],
+    kakao: metadata.kakao || [],
+  };
+}
 
 export const useUploadedFilesStore = create<UploadedFilesState>()((set, get) => ({
   files: {
@@ -77,10 +124,44 @@ export const useUploadedFilesStore = create<UploadedFilesState>()((set, get) => 
     excel: [],
     kakao: [],
   },
+  _uploadScopeMarker: null,
   excelPreviewData: null,
   selectedRowIndex: null,
   currentFilePreviewData: [],
   isPreviewConfirmed: false,
+
+  syncUploadedFilesMetadataScope: () => {
+    if (typeof window === 'undefined') return;
+    const scopeUserId = resolveUploadMetadataScopeUserId();
+    const marker = uploadMetadataScopeMarker(scopeUserId);
+    const prev = get()._uploadScopeMarker;
+    const scopeChanged = prev !== null && prev !== marker;
+
+    if (scopeChanged) {
+      set({
+        files: { excel: [], kakao: [] },
+        metadata: { excel: [], kakao: [] },
+        excelPreviewData: null,
+        selectedRowIndex: null,
+        currentFilePreviewData: [],
+        isPreviewConfirmed: false,
+      });
+    }
+
+    try {
+      const raw = readLocalStorageWithLegacyMigrate(UPLOADED_FILES_KEYS.metadata, scopeUserId);
+      if (raw) {
+        const parsed = parseStoredMetadata(raw);
+        set({ metadata: parsed, _uploadScopeMarker: marker });
+        return;
+      }
+    } catch (e) {
+      console.error('Failed to restore upload metadata from scoped localStorage:', e);
+    }
+
+    set({ metadata: { excel: [], kakao: [] }, _uploadScopeMarker: marker });
+  },
+
   addFiles: (type: FileType, newFiles: UploadedFile[]) => {
     set((state) => {
       // 중복 체크: 이름과 크기가 같은 파일은 제외
@@ -102,13 +183,12 @@ export const useUploadedFilesStore = create<UploadedFilesState>()((set, get) => 
         type: file.type,
       }));
       
-      // localStorage에 메타데이터 저장
+      const scopeUserId = resolveUploadMetadataScopeUserId();
+      const nextExcelMeta = type === 'excel' ? updatedMetadata : state.metadata.excel;
+      const nextKakaoMeta = type === 'kakao' ? updatedMetadata : state.metadata.kakao;
+
       try {
-        const allMetadata = {
-          excel: type === 'excel' ? updatedMetadata : state.metadata.excel,
-          kakao: type === 'kakao' ? updatedMetadata : state.metadata.kakao,
-        };
-        localStorage.setItem('uploaded-files-metadata', JSON.stringify(allMetadata));
+        persistAllMetadataToScope(nextExcelMeta, nextKakaoMeta, scopeUserId);
       } catch (error) {
         console.error('Failed to save file metadata to localStorage:', error);
         alert('파일 메타데이터를 저장하는 중 오류가 발생했습니다. 브라우저의 저장 공간을 확인해주세요.');
@@ -132,6 +212,10 @@ export const useUploadedFilesStore = create<UploadedFilesState>()((set, get) => 
       const fileToRemove = state.files[type][index];
       const updatedFiles = state.files[type].filter((_, i) => i !== index);
       const updatedMetadata = state.metadata[type].filter((_, i) => i !== index);
+
+      const scopeUserIdRm = resolveUploadMetadataScopeUserId();
+      const nextExcelMetaRm = type === 'excel' ? updatedMetadata : state.metadata.excel;
+      const nextKakaoMetaRm = type === 'kakao' ? updatedMetadata : state.metadata.kakao;
       
       // 엑셀 파일인 경우 관련 미리보기 데이터도 제거
       let updatedPreviewData = state.excelPreviewData;
@@ -157,13 +241,9 @@ export const useUploadedFilesStore = create<UploadedFilesState>()((set, get) => 
         }
       }
       
-      // localStorage 업데이트
+      // localStorage 업데이트 (계정 스코프)
       try {
-        const allMetadata = {
-          excel: type === 'excel' ? updatedMetadata : state.metadata.excel,
-          kakao: type === 'kakao' ? updatedMetadata : state.metadata.kakao,
-        };
-        localStorage.setItem('uploaded-files-metadata', JSON.stringify(allMetadata));
+        persistAllMetadataToScope(nextExcelMetaRm, nextKakaoMetaRm, scopeUserIdRm);
       } catch (error) {
         console.error('Failed to save file metadata to localStorage:', error);
         alert('파일 메타데이터를 저장하는 중 오류가 발생했습니다. 브라우저의 저장 공간을 확인해주세요.');
@@ -194,10 +274,13 @@ export const useUploadedFilesStore = create<UploadedFilesState>()((set, get) => 
       const updatedPreviewData = type === 'excel' ? null : state.excelPreviewData;
       // 엑셀 파일인 경우 선택된 행 인덱스도 초기화
       const updatedSelectedRowIndex = type === 'excel' ? null : state.selectedRowIndex;
-      
-      // localStorage 업데이트
+
       try {
-        localStorage.setItem('uploaded-files-metadata', JSON.stringify(newMetadata));
+        persistAllMetadataToScope(
+          newMetadata.excel,
+          newMetadata.kakao,
+          resolveUploadMetadataScopeUserId(),
+        );
       } catch (error) {
         console.error('Failed to clear file metadata from localStorage:', error);
         alert('파일 메타데이터를 초기화하는 중 오류가 발생했습니다. 브라우저의 저장 공간을 확인해주세요.');
@@ -214,41 +297,9 @@ export const useUploadedFilesStore = create<UploadedFilesState>()((set, get) => 
       };
     });
   },
+  /** @deprecated 새 코드는 syncUploadedFilesMetadataScope 사용을 권장 */
   loadMetadata: () => {
-    try {
-      const savedMetadata = localStorage.getItem('uploaded-files-metadata');
-      if (savedMetadata) {
-        try {
-          const parsed = JSON.parse(savedMetadata);
-          // 이전 형식과의 호환성을 위해 체크
-          if (Array.isArray(parsed)) {
-            // 이전 형식: 배열 -> excel에 할당
-            const metadata = parsed as FileMetadata[];
-            set({ 
-              metadata: {
-                excel: metadata,
-                kakao: [],
-              },
-            });
-          } else {
-            // 새 형식: { excel, kakao }
-            const metadata = parsed as { excel: FileMetadata[]; kakao: FileMetadata[] };
-            set({ 
-              metadata: {
-                excel: metadata.excel || [],
-                kakao: metadata.kakao || [],
-              },
-            });
-          }
-        } catch (parseError) {
-          console.error('Failed to parse file metadata from localStorage:', parseError);
-          alert('저장된 파일 메타데이터를 불러오는 중 오류가 발생했습니다.');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load file metadata from localStorage:', error);
-      alert('저장된 파일 메타데이터를 불러올 수 없습니다. 브라우저의 저장 공간을 확인해주세요.');
-    }
+    get().syncUploadedFilesMetadataScope();
   },
   restoreMetadata: (type: FileType, metadata: FileMetadata[]) => {
     set((state) => {
@@ -256,10 +307,13 @@ export const useUploadedFilesStore = create<UploadedFilesState>()((set, get) => 
         excel: type === 'excel' ? metadata : state.metadata.excel,
         kakao: type === 'kakao' ? metadata : state.metadata.kakao,
       };
-      
-      // localStorage에 메타데이터 저장
+
       try {
-        localStorage.setItem('uploaded-files-metadata', JSON.stringify(updatedMetadata));
+        persistAllMetadataToScope(
+          updatedMetadata.excel,
+          updatedMetadata.kakao,
+          resolveUploadMetadataScopeUserId(),
+        );
       } catch (error) {
         console.error('Failed to restore file metadata to localStorage:', error);
         alert('파일 메타데이터를 복원하는 중 오류가 발생했습니다. 브라우저의 저장 공간을 확인해주세요.');

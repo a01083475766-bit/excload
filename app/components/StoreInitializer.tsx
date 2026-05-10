@@ -5,13 +5,17 @@ import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { useUploadedFilesStore } from '@/app/lib/stores/uploadedFilesStore';
+import { useUserStore } from '@/app/store/userStore';
 
 export default function StoreInitializer() {
   const { status, data: session } = useSession();
   const setHistoryUserId = useHistoryStore((state) => state.setHistoryUserId);
   const loadSessions = useHistoryStore((state) => state.loadSessions);
   const clearSessionsInMemory = useHistoryStore((state) => state.clearSessionsInMemory);
-  const loadMetadata = useUploadedFilesStore((state) => state.loadMetadata);
+  const syncUploadedFilesMetadataScope = useUploadedFilesStore((state) => state.syncUploadedFilesMetadataScope);
+  const fetchUser = useUserStore((state) => state.fetchUser);
+  const uploadMetaIsLoading = useUserStore((state) => state.isLoading);
+  const uploadMetaUserId = useUserStore((state) => state.user?.userId ?? null);
   const pathname = usePathname();
   const prevPathnameRef = useRef<string | null>(null);
   
@@ -42,9 +46,17 @@ export default function StoreInitializer() {
     clearSessionsInMemory,
   ]);
 
+  // 세션 해석 후에만 DB 유저와 업로드 스토어 스코프를 맞춘다 (persist user vs session 레이스 완화)
   useEffect(() => {
-    loadMetadata();
-  }, [loadMetadata]);
+    if (status === 'loading') return;
+    void fetchUser();
+  }, [status, fetchUser]);
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (uploadMetaIsLoading) return;
+    syncUploadedFilesMetadataScope();
+  }, [status, uploadMetaIsLoading, uploadMetaUserId, syncUploadedFilesMetadataScope]);
 
   // 경로 변경 감지 (pathname만 추적)
   useEffect(() => {

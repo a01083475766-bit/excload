@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
@@ -34,6 +34,7 @@ import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2'
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
+import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { Coins } from 'lucide-react';
 import {
   NormalizeQualityNoticeModal,
@@ -56,6 +57,12 @@ import {
   classifyLogisticsMappingMatrix,
   type LogisticsStagedColumnMapping,
 } from '@/app/logistics-convert/logistics-column-code-mapping';
+import {
+  LOGISTICS_MAIN_KEYS,
+  readLocalStorageWithLegacyMigrate,
+  writeLocalStorageForUser,
+  removeLocalStorageForUser,
+} from '@/app/lib/scoped-local-storage';
 
 /** 상품코드 매핑 실패 시 안내 배너용 */
 type ProductCodeMappingNotice = {
@@ -449,33 +456,23 @@ const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean
   return nonEmptyHeaders.length > 0;
 };
 
-/** 체험판(/trial)은 별도 키 — 본 서비스 물류 페이지에 등록한 긴 양식과 섞이지 않도록 */
-function logisticsCourierTemplateKey(trialMode: boolean) {
-  return trialMode
-    ? 'trial_logistics_convert_onc_courier_template_v1'
-    : 'logistics_convert_onc_courier_template_v1';
-}
-function logisticsRecentFormatsKey(trialMode: boolean) {
-  return trialMode
-    ? 'trial_logistics_convert_recent_excel_formats_v1'
-    : 'logistics_convert_recent_excel_formats_v1';
-}
-function logisticsActiveBridgeFileKey(trialMode: boolean) {
-  return trialMode ? 'trial_logistics_activeCourierBridgeFile' : 'logistics_activeCourierBridgeFile';
-}
-function logisticsFixedHeaderValuesKey(trialMode: boolean) {
-  return trialMode
-    ? 'trial_logistics_convert_fixed_header_values_v1'
-    : 'logistics_convert_fixed_header_values_v1';
-}
+/** 체험판(/trial): 기존 키 유지 · 본페이지: 로그인 시 계정별(logistics_*:userId) */
+const TRIAL_LOGISTICS_TEMPLATE_KEY = 'trial_logistics_convert_onc_courier_template_v1';
+const TRIAL_LOGISTICS_RECENT_KEY = 'trial_logistics_convert_recent_excel_formats_v1';
+const TRIAL_LOGISTICS_BRIDGE_KEY = 'trial_logistics_activeCourierBridgeFile';
+const TRIAL_LOGISTICS_FIXED_KEY = 'trial_logistics_convert_fixed_header_values_v1';
 
-const loadCourierUploadTemplate = (trialMode = false): CourierUploadTemplate | null => {
+const loadCourierUploadTemplate = (
+  trialMode: boolean,
+  storageUserId: string | null,
+): CourierUploadTemplate | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const stored = localStorage.getItem(logisticsCourierTemplateKey(trialMode));
+    const stored = trialMode
+      ? localStorage.getItem(TRIAL_LOGISTICS_TEMPLATE_KEY)
+      : readLocalStorageWithLegacyMigrate(LOGISTICS_MAIN_KEYS.template, storageUserId);
     if (stored) {
       const parsed = JSON.parse(stored) as CourierUploadTemplate;
-      // headers가 없거나 빈 배열이면 null 반환
       if (!isValidCourierTemplate(parsed)) {
         return null;
       }
@@ -487,24 +484,35 @@ const loadCourierUploadTemplate = (trialMode = false): CourierUploadTemplate | n
   return null;
 };
 
-const saveCourierUploadTemplate = (template: CourierUploadTemplate | null, trialMode = false) => {
+const saveCourierUploadTemplate = (
+  template: CourierUploadTemplate | null,
+  trialMode: boolean,
+  storageUserId: string | null,
+) => {
   if (typeof window === 'undefined') return;
-  const key = logisticsCourierTemplateKey(trialMode);
   try {
-    if (template) {
-      localStorage.setItem(key, JSON.stringify(template));
+    if (trialMode) {
+      if (template) {
+        localStorage.setItem(TRIAL_LOGISTICS_TEMPLATE_KEY, JSON.stringify(template));
+      } else {
+        localStorage.removeItem(TRIAL_LOGISTICS_TEMPLATE_KEY);
+      }
+    } else if (template) {
+      writeLocalStorageForUser(LOGISTICS_MAIN_KEYS.template, storageUserId, JSON.stringify(template));
     } else {
-      localStorage.removeItem(key);
+      removeLocalStorageForUser(LOGISTICS_MAIN_KEYS.template, storageUserId);
     }
   } catch (error) {
     console.error('localStorage에 물류센터 양식 정보를 저장하는 중 오류 발생:', error);
   }
 };
 
-const loadRecentExcelFormats = (trialMode = false): RecentExcelFormat[] => {
+const loadRecentExcelFormats = (trialMode: boolean, storageUserId: string | null): RecentExcelFormat[] => {
   if (typeof window === 'undefined') return [];
   try {
-    const stored = localStorage.getItem(logisticsRecentFormatsKey(trialMode));
+    const stored = trialMode
+      ? localStorage.getItem(TRIAL_LOGISTICS_RECENT_KEY)
+      : readLocalStorageWithLegacyMigrate(LOGISTICS_MAIN_KEYS.recentFormats, storageUserId);
     if (stored) {
       const parsed = JSON.parse(stored) as RecentExcelFormat[];
       return parsed;
@@ -515,16 +523,29 @@ const loadRecentExcelFormats = (trialMode = false): RecentExcelFormat[] => {
   return [];
 };
 
+const persistLogisticsRecentFormats = (
+  trialMode: boolean,
+  storageUserId: string | null,
+  formats: RecentExcelFormat[],
+) => {
+  if (trialMode) {
+    localStorage.setItem(TRIAL_LOGISTICS_RECENT_KEY, JSON.stringify(formats));
+  } else {
+    writeLocalStorageForUser(LOGISTICS_MAIN_KEYS.recentFormats, storageUserId, JSON.stringify(formats));
+  }
+};
+
 const saveRecentExcelFormat = (
   template: CourierUploadTemplate,
   setRecentExcelFormats: (formats: RecentExcelFormat[]) => void,
+  trialMode: boolean,
+  storageUserId: string | null,
   bridgeFile?: TemplateBridgeFile,
   displayName?: string,
   protectedFromDeletion?: boolean,
-  trialMode = false,
 ) => {
   try {
-    const formats = loadRecentExcelFormats(trialMode);
+    const formats = loadRecentExcelFormats(trialMode, trialMode ? null : storageUserId);
     const columnOrder = Array.isArray(template.headers) ? template.headers.map((header) => header.name) : [];
 
     const newFormat: RecentExcelFormat = {
@@ -537,7 +558,7 @@ const saveRecentExcelFormat = (
     };
 
     const updatedFormats = [newFormat, ...formats];
-    localStorage.setItem(logisticsRecentFormatsKey(trialMode), JSON.stringify(updatedFormats));
+    persistLogisticsRecentFormats(trialMode, storageUserId, updatedFormats);
     setRecentExcelFormats(updatedFormats);
     return newFormat.id;
   } catch (error) {
@@ -613,6 +634,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const user = useUserStore((state) => state.user);
   const isLoading = useUserStore((state) => state.isLoading);
   const userId = user?.userId ?? null;
+  const authAssetsReady = useAuthAssetsReady();
+  const logisticsCourierHydratedRef = useRef(false);
+  const prevLogisticsAccountBoundaryRef = useRef<string | undefined>(undefined);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
   
@@ -638,15 +662,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [headerInputValues, setHeaderInputValues] = useState<Record<number, string>>({});
   // 고정 헤더 값: 물류센터 업로드 파일의 헤더명(key)에 고정값(value) 바인딩
   // ※ 데이터 적용 원칙: 주문 데이터에 보내는 사람 정보가 있으면 → 그 값 우선, 고정 입력 값은 fallback 용도, 주문 원본 데이터는 절대 수정하지 않음
-  const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const saved = localStorage.getItem(logisticsFixedHeaderValuesKey(trialMode));
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>({});
   const [currentFilePreviewData, setCurrentFilePreviewData] = useState<any[]>([]);
   const [orderStandardFile, setOrderStandardFile] = useState<any | null>(null);
   const [templateBridgeFile, setTemplateBridgeFile] = useState<TemplateBridgeFile | null>(null);
@@ -1107,54 +1123,160 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }));
   };
 
-  // fixedHeaderValues를 localStorage에 저장
-  useEffect(() => {
+  // 물류 택배 양식·최근 양식·고정값·bridge — 체험은 기존 키, 본페이지는 계정별 (본페이지는 세션·유저 조회 확정 후에만 hydrate)
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
+    if (trialMode) {
+      logisticsCourierHydratedRef.current = false;
+      setCourierUploadTemplate(loadCourierUploadTemplate(true, null));
+      setRecentExcelFormats(loadRecentExcelFormats(true, null));
+      try {
+        const raw = localStorage.getItem(TRIAL_LOGISTICS_FIXED_KEY);
+        setFixedHeaderValues(raw ? JSON.parse(raw) : {});
+      } catch {
+        setFixedHeaderValues({});
+      }
+      try {
+        const saved = localStorage.getItem(TRIAL_LOGISTICS_BRIDGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved) as TemplateBridgeFile;
+          const pcccIndex =
+            parsed?.courierHeaders?.findIndex((h) =>
+              /개인통관번호|PCCC/i.test(String(h ?? '')),
+            ) ?? -1;
+          const pcccMapped =
+            pcccIndex >= 0 ? parsed?.mappedBaseHeaders?.[pcccIndex] : null;
+          const needsPcccMigration = pcccIndex >= 0 && pcccMapped !== '개인통관번호';
+
+          if (needsPcccMigration) {
+            localStorage.removeItem(TRIAL_LOGISTICS_BRIDGE_KEY);
+            setTemplateBridgeFile(null);
+          } else {
+            setTemplateBridgeFile(parsed);
+          }
+        } else {
+          setTemplateBridgeFile(null);
+        }
+      } catch (error) {
+        console.error('localStorage에서 bridgeFile을 불러오는 중 오류 발생:', error);
+      }
+      prevLogisticsAccountBoundaryRef.current = '__trial__';
+      logisticsCourierHydratedRef.current = true;
+      return;
+    }
+
+    if (!authAssetsReady) {
+      logisticsCourierHydratedRef.current = false;
+      return;
+    }
+
+    const boundaryKey = userId ?? '__guest__';
+    if (
+      prevLogisticsAccountBoundaryRef.current !== undefined &&
+      prevLogisticsAccountBoundaryRef.current !== boundaryKey
+    ) {
+      isCancelledRef.current = true;
+      setPreviewRows([]);
+      setCourierHeaders([]);
+      setOrderStandardFile(null);
+      setTemplateBridgeFile(null);
+      setUploadedExcelFile(null);
+      setSelectedFiles([]);
+      setUploadedFileMeta([]);
+      setUserOverrides({});
+      setSelectedRows([]);
+      setNewRows(new Set());
+      setEditingCell(null);
+      setActiveCell(null);
+      setEditingValue('');
+      setSortConfig(null);
+      setUnknownHeadersWarning([]);
+      setFileProcessingStatus('idle');
+      setStage2ChunkLabel(null);
+      setSelectedFileName(null);
+      setDownloadStatus('idle');
+      setDownloadModalFileName(null);
+      setInputSourceType(null);
+      setTemplateFileSessionId(null);
+      setOrderFileSessionId(null);
+      setCurrentFilePreviewData([]);
+      setIsPreviewExpanded(false);
+      setRenderedRowCount(0);
+      setPreviewScrollTop(0);
+      setTextInput('');
+      setSelectedImage(null);
+      setImagePreview(null);
+      setScreenshotImagePreview(null);
+      setErrorMessageTextImage(null);
+      setIsProcessingTextImage(false);
+      setScreenshotStage('idle');
+      setShowTextProcessingModal(false);
+      setShowScreenshotModal(false);
+      setQualityNoticeModal('hidden');
+      setIsDragging(false);
+    }
+    prevLogisticsAccountBoundaryRef.current = boundaryKey;
+
+    logisticsCourierHydratedRef.current = false;
     try {
-      localStorage.setItem(
-        logisticsFixedHeaderValuesKey(trialMode),
+      setCourierUploadTemplate(loadCourierUploadTemplate(false, userId));
+      setRecentExcelFormats(loadRecentExcelFormats(false, userId));
+      try {
+        const rawFixed = readLocalStorageWithLegacyMigrate(LOGISTICS_MAIN_KEYS.fixedHeaders, userId);
+        setFixedHeaderValues(rawFixed ? JSON.parse(rawFixed) : {});
+      } catch {
+        setFixedHeaderValues({});
+      }
+
+      const saved = readLocalStorageWithLegacyMigrate(LOGISTICS_MAIN_KEYS.bridge, userId);
+      if (saved) {
+        const parsed = JSON.parse(saved) as TemplateBridgeFile;
+        const pcccIndex =
+          parsed?.courierHeaders?.findIndex((h) =>
+            /개인통관번호|PCCC/i.test(String(h ?? '')),
+          ) ?? -1;
+        const pcccMapped =
+          pcccIndex >= 0 ? parsed?.mappedBaseHeaders?.[pcccIndex] : null;
+        const needsPcccMigration = pcccIndex >= 0 && pcccMapped !== '개인통관번호';
+
+        if (needsPcccMigration) {
+          removeLocalStorageForUser(LOGISTICS_MAIN_KEYS.bridge, userId);
+          setTemplateBridgeFile(null);
+        } else {
+          setTemplateBridgeFile(parsed);
+        }
+      } else {
+        setTemplateBridgeFile(null);
+      }
+    } catch (error) {
+      console.error('[logistics] 저장소 복원 오류:', error);
+    }
+    isCancelledRef.current = false;
+    logisticsCourierHydratedRef.current = true;
+  }, [trialMode, authAssetsReady, userId]);
+
+  // fixedHeaderValues 저장 (복원 후)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !logisticsCourierHydratedRef.current) return;
+    if (trialMode) {
+      try {
+        localStorage.setItem(TRIAL_LOGISTICS_FIXED_KEY, JSON.stringify(fixedHeaderValues));
+      } catch (error) {
+        console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
+      }
+      return;
+    }
+    if (!authAssetsReady) return;
+    try {
+      writeLocalStorageForUser(
+        LOGISTICS_MAIN_KEYS.fixedHeaders,
+        userId,
         JSON.stringify(fixedHeaderValues),
       );
     } catch (error) {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
-  }, [fixedHeaderValues, trialMode]);
-
-  useEffect(() => {
-    const loadedTemplate = loadCourierUploadTemplate(trialMode);
-    setCourierUploadTemplate(loadedTemplate);
-
-    const formats = loadRecentExcelFormats(trialMode);
-    setRecentExcelFormats(formats);
-
-    // 컴포넌트 마운트 시 bridgeFile 자동 복원
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(logisticsActiveBridgeFileKey(trialMode));
-        if (saved) {
-          const parsed = JSON.parse(saved) as TemplateBridgeFile;
-          // 개인통관번호 기준헤더 추가 이후 구버전 캐시는 mappedBaseHeaders가 null/누락일 수 있음 → 무효화
-          const pcccIndex = parsed?.courierHeaders?.findIndex((h) =>
-            /개인통관번호|PCCC/i.test(String(h ?? '')),
-          ) ?? -1;
-          const pcccMapped =
-            pcccIndex >= 0 ? parsed?.mappedBaseHeaders?.[pcccIndex] : null;
-          // PCCC 열이 템플릿에 없으면 그대로 복원. 있을 때만 구버전 매핑이면 무효화.
-          const needsPcccMigration =
-            pcccIndex >= 0 && pcccMapped !== '개인통관번호';
-
-          if (needsPcccMigration) {
-            localStorage.removeItem(logisticsActiveBridgeFileKey(trialMode));
-            setTemplateBridgeFile(null);
-          } else {
-            setTemplateBridgeFile(parsed);
-          }
-        }
-      } catch (error) {
-        console.error('localStorage에서 bridgeFile을 불러오는 중 오류 발생:', error);
-      }
-    }
-  }, [trialMode]);
+  }, [fixedHeaderValues, trialMode, authAssetsReady, userId]);
 
   // templateBridgeFile 변경 시 기존 Stage2/Stage3 결과 초기화
   useEffect(() => {
@@ -1838,7 +1960,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   }, [isProcessingTextImage]);
 
   const handleOpenCourierTemplateModal = () => {
-    const formats = loadRecentExcelFormats(trialMode);
+    const formats = loadRecentExcelFormats(trialMode, trialMode ? null : userId);
     setRecentExcelFormats(formats);
     setShowRecentTemplate(formats.length > 0);
 
@@ -1903,10 +2025,18 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(
-            logisticsActiveBridgeFileKey(trialMode),
-            JSON.stringify(templateResult.bridgeFile),
-          );
+          if (trialMode) {
+            localStorage.setItem(
+              TRIAL_LOGISTICS_BRIDGE_KEY,
+              JSON.stringify(templateResult.bridgeFile),
+            );
+          } else {
+            writeLocalStorageForUser(
+              LOGISTICS_MAIN_KEYS.bridge,
+              userId,
+              JSON.stringify(templateResult.bridgeFile),
+            );
+          }
         } catch (error) {
           console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
         }
@@ -1929,13 +2059,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       const newFormatId = saveRecentExcelFormat(
         template,
         setRecentExcelFormats,
+        trialMode,
+        userId,
         templateResult.bridgeFile,
         options?.formatDisplayName,
         options?.protectedFromDeletion,
-        trialMode,
       );
       setCourierUploadTemplate(template);
-      saveCourierUploadTemplate(template, trialMode);
+      saveCourierUploadTemplate(template, trialMode, userId);
 
       if (newFormatId) {
         setTempSelectedFormatId(newFormatId);
@@ -1948,14 +2079,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         }, 3500);
       }
     },
-    [trialMode],
+    [trialMode, userId],
   );
 
   /** 체험판: 저장된 양식이 없을 때 public의 기본 xlsx로 자동 등록 (텍스트/주문 테스트만으로 미리보기 가능) */
   useEffect(() => {
     if (!trialMode) return;
 
-    const existing = loadCourierUploadTemplate(trialMode);
+    const existing = loadCourierUploadTemplate(true, null);
     if (isValidCourierTemplate(existing)) {
       return;
     }
@@ -2013,11 +2144,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   const saveFormatDisplayName = (formatId: string, displayName: string) => {
     try {
-      const formats = loadRecentExcelFormats(trialMode);
+      const formats = loadRecentExcelFormats(trialMode, trialMode ? null : userId);
       const updatedFormats = formats.map((format) =>
         format.id === formatId ? { ...format, displayName: displayName.trim() || undefined } : format,
       );
-      localStorage.setItem(logisticsRecentFormatsKey(trialMode), JSON.stringify(updatedFormats));
+      persistLogisticsRecentFormats(trialMode, userId, updatedFormats);
       setRecentExcelFormats(updatedFormats);
       setEditingFormatId(null);
       setEditingDisplayName('');
@@ -2068,7 +2199,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     };
 
     setCourierUploadTemplate(template);
-    saveCourierUploadTemplate(template, trialMode);
+    saveCourierUploadTemplate(template, trialMode, userId);
 
     // 템플릿 변경 시 메타 초기화
     setUploadedFileMeta([]);
@@ -2081,10 +2212,18 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       // localStorage(활성 bridgeFile)도 함께 갱신
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(
-            logisticsActiveBridgeFileKey(trialMode),
-            JSON.stringify(selected.bridgeFile),
-          );
+          if (trialMode) {
+            localStorage.setItem(
+              TRIAL_LOGISTICS_BRIDGE_KEY,
+              JSON.stringify(selected.bridgeFile),
+            );
+          } else {
+            writeLocalStorageForUser(
+              LOGISTICS_MAIN_KEYS.bridge,
+              userId,
+              JSON.stringify(selected.bridgeFile),
+            );
+          }
         } catch (error) {
           console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
         }
@@ -2093,7 +2232,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   };
 
   const handleDeleteFormat = (formatId: string) => {
-    const formats = loadRecentExcelFormats(trialMode);
+    const formats = loadRecentExcelFormats(trialMode, trialMode ? null : userId);
     const formatToDelete = formats.find((format) => format.id === formatId);
     if (isTrialDefaultProtectedFormat(formatToDelete)) {
       alert('체험용으로 제공된 기본 양식은 삭제할 수 없습니다.');
@@ -2114,11 +2253,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             currentHeaders.every((header, index) => header === formatHeaders[index])) {
           // 현재 사용 중인 템플릿이면 초기화
           setCourierUploadTemplate(null);
-          saveCourierUploadTemplate(null, trialMode);
+          saveCourierUploadTemplate(null, trialMode, userId);
           // bridgeFile도 함께 삭제
           if (typeof window !== 'undefined') {
             try {
-              localStorage.removeItem(logisticsActiveBridgeFileKey(trialMode));
+              if (trialMode) {
+                localStorage.removeItem(TRIAL_LOGISTICS_BRIDGE_KEY);
+              } else {
+                removeLocalStorageForUser(LOGISTICS_MAIN_KEYS.bridge, userId);
+              }
               setTemplateBridgeFile(null);
             } catch (error) {
               console.error('localStorage에서 bridgeFile을 삭제하는 중 오류 발생:', error);
@@ -2128,7 +2271,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       }
       
       const updatedFormats = formats.filter((format) => format.id !== formatId);
-      localStorage.setItem(logisticsRecentFormatsKey(trialMode), JSON.stringify(updatedFormats));
+      persistLogisticsRecentFormats(trialMode, userId, updatedFormats);
       setRecentExcelFormats(updatedFormats);
 
       if (tempSelectedFormatId === formatId) {

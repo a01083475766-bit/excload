@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2 } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
@@ -29,6 +29,7 @@ import { runUnifiedInputOrderPipelines } from '@/app/unified-input/adapters/runU
 import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
+import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
 import { Coins } from 'lucide-react';
@@ -44,6 +45,12 @@ import {
   OrderConvertPreviewTableRow,
   type PreviewRowWithId,
 } from '@/app/order-convert/OrderConvertPreviewTableRow';
+import {
+  ORDER_CONVERT_KEYS,
+  readLocalStorageWithLegacyMigrate,
+  writeLocalStorageForUser,
+  removeLocalStorageForUser,
+} from '@/app/lib/scoped-local-storage';
 
 interface CourierUploadHeader {
   name: string;
@@ -154,10 +161,10 @@ const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean
   return nonEmptyHeaders.length > 0;
 };
 
-const loadCourierUploadTemplate = (): CourierUploadTemplate | null => {
+const loadCourierUploadTemplate = (userId: string | null): CourierUploadTemplate | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const stored = localStorage.getItem('onc_courier_template_v1');
+    const stored = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.template, userId);
     if (stored) {
       const parsed = JSON.parse(stored) as CourierUploadTemplate;
       // headers가 없거나 빈 배열이면 null 반환
@@ -172,23 +179,23 @@ const loadCourierUploadTemplate = (): CourierUploadTemplate | null => {
   return null;
 };
 
-const saveCourierUploadTemplate = (template: CourierUploadTemplate | null) => {
+const saveCourierUploadTemplate = (template: CourierUploadTemplate | null, userId: string | null) => {
   if (typeof window === 'undefined') return;
   try {
     if (template) {
-      localStorage.setItem('onc_courier_template_v1', JSON.stringify(template));
+      writeLocalStorageForUser(ORDER_CONVERT_KEYS.template, userId, JSON.stringify(template));
     } else {
-      localStorage.removeItem('onc_courier_template_v1');
+      removeLocalStorageForUser(ORDER_CONVERT_KEYS.template, userId);
     }
   } catch (error) {
     console.error('localStorage에 택배 양식 정보를 저장하는 중 오류 발생:', error);
   }
 };
 
-const loadRecentExcelFormats = (): RecentExcelFormat[] => {
+const loadRecentExcelFormats = (userId: string | null): RecentExcelFormat[] => {
   if (typeof window === 'undefined') return [];
   try {
-    const stored = localStorage.getItem('recent_excel_formats_v1');
+    const stored = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.recentFormats, userId);
     if (stored) {
       const parsed = JSON.parse(stored) as RecentExcelFormat[];
       return parsed;
@@ -202,10 +209,11 @@ const loadRecentExcelFormats = (): RecentExcelFormat[] => {
 const saveRecentExcelFormat = (
   template: CourierUploadTemplate,
   setRecentExcelFormats: (formats: RecentExcelFormat[]) => void,
+  userId: string | null,
   bridgeFile?: TemplateBridgeFile,
 ) => {
   try {
-    const formats = loadRecentExcelFormats();
+    const formats = loadRecentExcelFormats(userId);
     const columnOrder = Array.isArray(template.headers) ? template.headers.map((header) => header.name) : [];
 
     const newFormat: RecentExcelFormat = {
@@ -216,7 +224,7 @@ const saveRecentExcelFormat = (
     };
 
     const updatedFormats = [newFormat, ...formats];
-    localStorage.setItem('recent_excel_formats_v1', JSON.stringify(updatedFormats));
+    writeLocalStorageForUser(ORDER_CONVERT_KEYS.recentFormats, userId, JSON.stringify(updatedFormats));
     setRecentExcelFormats(updatedFormats);
     return newFormat.id;
   } catch (error) {
@@ -232,7 +240,12 @@ export default function OrderConvertPage() {
   const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
-  
+  /** 로그인 시 계정별 localStorage 분리 (/api/user/get 의 id 와 동일) */
+  const storageUserId = user?.userId ?? null;
+  const authAssetsReady = useAuthAssetsReady();
+  const courierStorageHydratedRef = useRef(false);
+  const prevAccountBoundaryRef = useRef<string | undefined>(undefined);
+
   const [courierUploadTemplate, setCourierUploadTemplate] = useState<CourierUploadTemplate | null>(null);
   const [isCourierTemplateModalOpen, setIsCourierTemplateModalOpen] = useState(false);
   const [templateFileSessionId, setTemplateFileSessionId] = useState<string | null>(null);
@@ -255,15 +268,7 @@ export default function OrderConvertPage() {
   const [headerInputValues, setHeaderInputValues] = useState<Record<number, string>>({});
   // 고정 헤더 값: 택배사 업로드 파일의 헤더명(key)에 고정값(value) 바인딩
   // ※ 데이터 적용 원칙: 주문 데이터에 보내는 사람 정보가 있으면 → 그 값 우선, 고정 입력 값은 fallback 용도, 주문 원본 데이터는 절대 수정하지 않음
-  const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const saved = localStorage.getItem('orderConvert_fixed_header_values_v1');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>({});
   const [currentFilePreviewData, setCurrentFilePreviewData] = useState<any[]>([]);
   const [orderStandardFile, setOrderStandardFile] = useState<any | null>(null);
   const [templateBridgeFile, setTemplateBridgeFile] = useState<TemplateBridgeFile | null>(null);
@@ -476,54 +481,111 @@ export default function OrderConvertPage() {
     setActiveCell(null);
   }, []);
 
-  // fixedHeaderValues를 localStorage에 저장
-  useEffect(() => {
+  // NextAuth + /api/user/get 확정 후에만 LS 복원. 실제 계정 경계(A↔B)일 때만 파이프라인(주문·미리보기) 초기화.
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!authAssetsReady) {
+      courierStorageHydratedRef.current = false;
+      return;
+    }
+
+    const boundaryKey = storageUserId ?? '__guest__';
+    if (
+      prevAccountBoundaryRef.current !== undefined &&
+      prevAccountBoundaryRef.current !== boundaryKey
+    ) {
+      isCancelledRef.current = true;
+      setPreviewRows([]);
+      setCourierHeaders([]);
+      setOrderStandardFile(null);
+      setTemplateBridgeFile(null);
+      setUploadedExcelFile(null);
+      setSelectedFiles([]);
+      setUploadedFileMeta([]);
+      setUserOverrides({});
+      setSelectedRows([]);
+      setNewRows(new Set());
+      setEditingCell(null);
+      setActiveCell(null);
+      setEditingValue('');
+      setSortConfig(null);
+      setUnknownHeadersWarning([]);
+      setFileProcessingStatus('idle');
+      setStage2ChunkLabel(null);
+      setSelectedFileName(null);
+      setDownloadStatus('idle');
+      setDownloadModalFileName(null);
+      setInputSourceType(null);
+      setTemplateFileSessionId(null);
+      setOrderFileSessionId(null);
+      setCurrentFilePreviewData([]);
+      setIsPreviewExpanded(false);
+      setRenderedRowCount(0);
+      setPreviewScrollTop(0);
+      setTextInput('');
+      setSelectedImage(null);
+      setImagePreview(null);
+      setScreenshotImagePreview(null);
+      setErrorMessageTextImage(null);
+      setIsProcessingTextImage(false);
+      setScreenshotStage('idle');
+      setShowTextProcessingModal(false);
+      setShowScreenshotModal(false);
+      setQualityNoticeModal('hidden');
+      setIsDragging(false);
+    }
+    prevAccountBoundaryRef.current = boundaryKey;
+
+    courierStorageHydratedRef.current = false;
     try {
-      localStorage.setItem('orderConvert_fixed_header_values_v1', JSON.stringify(fixedHeaderValues));
+      setCourierUploadTemplate(loadCourierUploadTemplate(storageUserId));
+      setRecentExcelFormats(loadRecentExcelFormats(storageUserId));
+      try {
+        const rawFixed = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.fixedHeaders, storageUserId);
+        setFixedHeaderValues(rawFixed ? JSON.parse(rawFixed) : {});
+      } catch {
+        setFixedHeaderValues({});
+      }
+
+      const saved = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.bridge, storageUserId);
+      if (saved) {
+        const parsed = JSON.parse(saved) as TemplateBridgeFile;
+        const pcccIndex =
+          parsed?.courierHeaders?.findIndex((h) => /개인통관번호|PCCC/i.test(String(h ?? ''))) ??
+          -1;
+        const pcccMapped =
+          pcccIndex >= 0 ? parsed?.mappedBaseHeaders?.[pcccIndex] : null;
+        const needsPcccMigration = pcccIndex >= 0 && pcccMapped !== '개인통관번호';
+
+        if (needsPcccMigration) {
+          removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, storageUserId);
+          setTemplateBridgeFile(null);
+        } else {
+          setTemplateBridgeFile(parsed);
+        }
+      } else {
+        setTemplateBridgeFile(null);
+      }
+    } catch (error) {
+      console.error('[order-convert] 택배 저장소 복원 오류:', error);
+    }
+    isCancelledRef.current = false;
+    courierStorageHydratedRef.current = true;
+  }, [authAssetsReady, storageUserId]);
+
+  // fixedHeaderValues를 localStorage에 저장 (복원 후에만 저장해 계정 전환 시 오쓰기 방지)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !courierStorageHydratedRef.current || !authAssetsReady) return;
+    try {
+      writeLocalStorageForUser(
+        ORDER_CONVERT_KEYS.fixedHeaders,
+        storageUserId,
+        JSON.stringify(fixedHeaderValues),
+      );
     } catch (error) {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
-  }, [fixedHeaderValues]);
-
-  useEffect(() => {
-    const loadedTemplate = loadCourierUploadTemplate();
-    setCourierUploadTemplate(loadedTemplate);
-
-    const formats = loadRecentExcelFormats();
-    setRecentExcelFormats(formats);
-
-    // 컴포넌트 마운트 시 bridgeFile 자동 복원
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('activeCourierBridgeFile');
-        if (saved) {
-          const parsed = JSON.parse(saved) as TemplateBridgeFile;
-          // 개인통관번호 기준헤더 추가로 인해, 과거(구버전) 템플릿 캐시의
-          // mappedBaseHeaders가 null/누락 상태일 수 있습니다.
-          // 이 경우 템플릿을 강제로 재생성하도록 캐시 무효화합니다.
-          const pcccIndex = parsed?.courierHeaders?.findIndex((h) =>
-            /개인통관번호|PCCC/i.test(String(h ?? ''))
-          ) ?? -1;
-          const pcccMapped =
-            pcccIndex >= 0 ? parsed?.mappedBaseHeaders?.[pcccIndex] : null;
-
-          // PCCC 열이 템플릿에 없으면(대부분 양식) 그대로 복원. 있을 때만 구버전(null 등) 매핑이면 무효화.
-          const needsPcccMigration =
-            pcccIndex >= 0 && pcccMapped !== '개인통관번호';
-
-          if (needsPcccMigration) {
-            localStorage.removeItem('activeCourierBridgeFile');
-            setTemplateBridgeFile(null);
-          } else {
-            setTemplateBridgeFile(parsed);
-          }
-        }
-      } catch (error) {
-        console.error('localStorage에서 bridgeFile을 불러오는 중 오류 발생:', error);
-      }
-    }
-  }, []);
+  }, [fixedHeaderValues, storageUserId, authAssetsReady]);
 
   // templateBridgeFile 변경 시 기존 Stage2/Stage3 결과 초기화
   useEffect(() => {
@@ -560,7 +622,7 @@ export default function OrderConvertPage() {
   }, [isProcessingTextImage]);
 
   const handleOpenCourierTemplateModal = () => {
-    const formats = loadRecentExcelFormats();
+    const formats = loadRecentExcelFormats(storageUserId);
     setRecentExcelFormats(formats);
     setShowRecentTemplate(formats.length > 0);
 
@@ -621,12 +683,13 @@ export default function OrderConvertPage() {
       setOrderStandardFile(null);
       setTemplateBridgeFile(templateResult.bridgeFile);
 
-      // Stage1 성공 시 bridgeFile을 localStorage에 저장
+      // Stage1 성공 시 bridgeFile을 localStorage에 저장 (계정별)
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(
-            'activeCourierBridgeFile',
-            JSON.stringify(templateResult.bridgeFile)
+          writeLocalStorageForUser(
+            ORDER_CONVERT_KEYS.bridge,
+            storageUserId,
+            JSON.stringify(templateResult.bridgeFile),
           );
         } catch (error) {
           console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
@@ -651,9 +714,14 @@ export default function OrderConvertPage() {
       };
 
       // 파일 업로드 처리 후 바로 저장
-      const newFormatId = saveRecentExcelFormat(template, setRecentExcelFormats, templateResult.bridgeFile);
+      const newFormatId = saveRecentExcelFormat(
+        template,
+        setRecentExcelFormats,
+        storageUserId,
+        templateResult.bridgeFile,
+      );
       setCourierUploadTemplate(template);
-      saveCourierUploadTemplate(template);
+      saveCourierUploadTemplate(template, storageUserId);
 
       if (newFormatId) {
         setTempSelectedFormatId(newFormatId);
@@ -673,11 +741,11 @@ export default function OrderConvertPage() {
 
   const saveFormatDisplayName = (formatId: string, displayName: string) => {
     try {
-      const formats = loadRecentExcelFormats();
+      const formats = loadRecentExcelFormats(storageUserId);
       const updatedFormats = formats.map((format) =>
         format.id === formatId ? { ...format, displayName: displayName.trim() || undefined } : format,
       );
-      localStorage.setItem('recent_excel_formats_v1', JSON.stringify(updatedFormats));
+      writeLocalStorageForUser(ORDER_CONVERT_KEYS.recentFormats, storageUserId, JSON.stringify(updatedFormats));
       setRecentExcelFormats(updatedFormats);
       setEditingFormatId(null);
       setEditingDisplayName('');
@@ -728,7 +796,7 @@ export default function OrderConvertPage() {
     };
 
     setCourierUploadTemplate(template);
-    saveCourierUploadTemplate(template);
+    saveCourierUploadTemplate(template, storageUserId);
 
     // 템플릿 변경 시 메타 초기화
     setUploadedFileMeta([]);
@@ -738,12 +806,13 @@ export default function OrderConvertPage() {
       // setTemplateBridgeFile 실행 - 새 객체로 복사하여 전달 (React 객체 동일성 비교 문제 해결)
       setTemplateBridgeFile(JSON.parse(JSON.stringify(selected.bridgeFile)));
       
-      // localStorage(activeCourierBridgeFile)도 함께 갱신
+      // localStorage(bridge)도 함께 갱신
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(
-            'activeCourierBridgeFile',
-            JSON.stringify(selected.bridgeFile)
+          writeLocalStorageForUser(
+            ORDER_CONVERT_KEYS.bridge,
+            storageUserId,
+            JSON.stringify(selected.bridgeFile),
           );
         } catch (error) {
           console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
@@ -755,7 +824,7 @@ export default function OrderConvertPage() {
   const handleDeleteFormat = (formatId: string) => {
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
-      const formats = loadRecentExcelFormats();
+      const formats = loadRecentExcelFormats(storageUserId);
       const formatToDelete = formats.find((format) => format.id === formatId);
       
       // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
@@ -770,11 +839,11 @@ export default function OrderConvertPage() {
             currentHeaders.every((header, index) => header === formatHeaders[index])) {
           // 현재 사용 중인 템플릿이면 초기화
           setCourierUploadTemplate(null);
-          saveCourierUploadTemplate(null);
+          saveCourierUploadTemplate(null, storageUserId);
           // bridgeFile도 함께 삭제
           if (typeof window !== 'undefined') {
             try {
-              localStorage.removeItem('activeCourierBridgeFile');
+              removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, storageUserId);
               setTemplateBridgeFile(null);
             } catch (error) {
               console.error('localStorage에서 bridgeFile을 삭제하는 중 오류 발생:', error);
@@ -784,7 +853,7 @@ export default function OrderConvertPage() {
       }
       
       const updatedFormats = formats.filter((format) => format.id !== formatId);
-      localStorage.setItem('recent_excel_formats_v1', JSON.stringify(updatedFormats));
+      writeLocalStorageForUser(ORDER_CONVERT_KEYS.recentFormats, storageUserId, JSON.stringify(updatedFormats));
       setRecentExcelFormats(updatedFormats);
 
       if (tempSelectedFormatId === formatId) {
