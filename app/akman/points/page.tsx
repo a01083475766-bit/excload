@@ -6,12 +6,13 @@
  * 
  * 보안 규칙:
  * 1. 로그인된 사용자만 접근 가능
- * 2. session.user.email === process.env.ADMIN_EMAIL 인 경우만 접근 허용
- * 3. 관리자 이메일이 아니면 "/" 로 redirect
+ * 2. isAdminEmail(session) 과 동일 기준 (ADMIN_EMAIL·고정 관리자 계정)
+ * 3. 관리자가 아니면 "/" 로 redirect
  */
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import { isAdminEmail } from '@/app/lib/admin-auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/app/lib/prisma';
 import Link from 'next/link';
@@ -19,27 +20,17 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 export default async function PointLogPage() {
-  // 1. 세션 확인
   const session = await getServerSession(authOptions);
 
-  console.log('[Point Log Page] SESSION EMAIL:', session?.user?.email);
-  console.log('[Point Log Page] ADMIN EMAIL:', process.env.ADMIN_EMAIL);
-  console.log('[Point Log Page] EMAIL MATCH:', session?.user?.email === process.env.ADMIN_EMAIL);
-
   if (!session?.user?.email) {
-    console.log('[Point Log Page] NO SESSION - REDIRECT TO /');
     redirect('/');
   }
 
-  // 2. 관리자 이메일 체크
-  if (session.user.email !== process.env.ADMIN_EMAIL) {
-    console.log('[Point Log Page] NOT ADMIN - REDIRECT TO /');
+  if (!isAdminEmail(session.user.email)) {
     redirect('/');
   }
 
-  console.log('[Point Log Page] ADMIN ACCESS GRANTED');
-
-  // 3. 사용량 로그 조회
+  // 사용량 로그 조회
   const logs = await prisma.pointHistory.findMany({
     include: {
       user: true,

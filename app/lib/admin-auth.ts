@@ -22,6 +22,7 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   return (
     normalized === 'akman@excload.com' ||
     normalized === 'akman' ||
+    normalized === 'a01083475766@gmail.com' ||
     normalized === adminFromEnv
   );
 }
