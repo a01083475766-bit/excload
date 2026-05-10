@@ -19,7 +19,6 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
-import { signOut } from 'next-auth/react';
 
 /**
  * 클라이언트에서 관리자 이메일인지 확인
@@ -89,7 +88,6 @@ export default function MainNav() {
   const { data: session, status } = useSession();
   const user = useUserStore((state) => state.user);
   const fetchUser = useUserStore((state) => state.fetchUser);
-  const clearUser = useUserStore((state) => state.clearUser);
 
   /** Google OAuth 등으로 세션만 있고 Zustand가 비어 있는 경우 스토어를 채움 */
   useEffect(() => {
@@ -232,18 +230,6 @@ export default function MainNav() {
                   <span className="absolute bottom-0 left-1 right-1 h-px bg-blue-600" />
                 )}
               </Link>
-              <button
-                type="button"
-                onClick={async () => {
-                  await signOut({ redirect: false });
-                  clearUser();
-                  window.location.href = '/auth/login';
-                }}
-                className={`${secondaryLinkClass} cursor-pointer border-0 bg-transparent font-normal`}
-              >
-                <LogIn className="size-3 shrink-0 opacity-60" aria-hidden />
-                <span>로그아웃</span>
-              </button>
             </>
           )}
         </div>

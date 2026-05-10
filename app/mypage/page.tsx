@@ -410,6 +410,14 @@ export default function MyPage() {
                 내 주문 연동하기
               </Link>
 
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                <LogOut className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+                로그아웃
+              </button>
             </div>
           </div>
 
