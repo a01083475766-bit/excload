@@ -1,6 +1,10 @@
 node_modules
 .next
 .env
+
+# Google Drive for Desktop 동기화 임시 파일 (커밋 금지)
+.tmp.driveupload/
+.tmp.driveupload*
 logs
 *.log
 
