@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getPublicBaseUrl } from '@/app/lib/public-base-url';
 import {
   isValidKoreanPhoneDigits,
   normalizeKoreanPhoneDigits,
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
       });
 
       // 이메일 인증 링크 생성
-      const verifyUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/verify-email?token=${token}`;
+      const verifyUrl = `${getPublicBaseUrl()}/api/auth/verify-email?token=${token}`;
       
       // 임시: 콘솔에 인증 링크 출력 (나중에 Resend로 실제 이메일 발송)
       console.log('📧 EMAIL VERIFY LINK:', verifyUrl);

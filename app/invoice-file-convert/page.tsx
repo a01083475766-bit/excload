@@ -34,6 +34,8 @@ import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
+import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
+import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
 import {
   RequiresAccountOrderBanner,
@@ -491,6 +493,11 @@ export default function InvoiceFileConvertPage() {
       prevAccountBoundaryRef.current !== undefined &&
       prevAccountBoundaryRef.current !== boundaryKey
     ) {
+      const prevScopeUserId =
+        prevAccountBoundaryRef.current === '__guest__'
+          ? null
+          : prevAccountBoundaryRef.current;
+      clearAllPreviewWorkspacesForScope(prevScopeUserId);
       setPreviewRows([]);
       setCourierHeaders([]);
       setOrderStandardFile(null);
@@ -549,6 +556,20 @@ export default function InvoiceFileConvertPage() {
     }
     invoiceCourierHydratedRef.current = true;
   }, [authAssetsReady, storageUserId]);
+
+  usePreviewWorkspaceSession({
+    pageKey: 'invoice-file-convert',
+    enabled: authAssetsReady,
+    storageUserId,
+    previewRows,
+    userOverrides,
+    courierHeaders,
+    sortConfig,
+    setPreviewRows,
+    setUserOverrides,
+    setCourierHeaders,
+    setSortConfig,
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined' || !invoiceCourierHydratedRef.current || !authAssetsReady) return;

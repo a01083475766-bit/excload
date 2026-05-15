@@ -35,6 +35,8 @@ import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
+import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
+import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
 import {
   NormalizeQualityNoticeModal,
@@ -1175,6 +1177,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       prevLogisticsAccountBoundaryRef.current !== undefined &&
       prevLogisticsAccountBoundaryRef.current !== boundaryKey
     ) {
+      const prevScopeUserId =
+        prevLogisticsAccountBoundaryRef.current === '__guest__' ||
+        prevLogisticsAccountBoundaryRef.current === '__trial__'
+          ? null
+          : prevLogisticsAccountBoundaryRef.current;
+      clearAllPreviewWorkspacesForScope(prevScopeUserId);
       isCancelledRef.current = true;
       setPreviewRows([]);
       setCourierHeaders([]);
@@ -1254,6 +1262,20 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     isCancelledRef.current = false;
     logisticsCourierHydratedRef.current = true;
   }, [trialMode, authAssetsReady, userId]);
+
+  usePreviewWorkspaceSession({
+    pageKey: 'logistics-convert',
+    enabled: authAssetsReady && !trialMode,
+    storageUserId: userId,
+    previewRows,
+    userOverrides,
+    courierHeaders,
+    sortConfig,
+    setPreviewRows,
+    setUserOverrides,
+    setCourierHeaders,
+    setSortConfig,
+  });
 
   // fixedHeaderValues 저장 (복원 후)
   useEffect(() => {

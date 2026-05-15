@@ -30,6 +30,8 @@ import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2'
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
+import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
+import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import { useUserStore } from '@/app/store/userStore';
 import { Coins } from 'lucide-react';
@@ -494,6 +496,11 @@ export default function OrderConvertPage() {
       prevAccountBoundaryRef.current !== undefined &&
       prevAccountBoundaryRef.current !== boundaryKey
     ) {
+      const prevScopeUserId =
+        prevAccountBoundaryRef.current === '__guest__'
+          ? null
+          : prevAccountBoundaryRef.current;
+      clearAllPreviewWorkspacesForScope(prevScopeUserId);
       isCancelledRef.current = true;
       setPreviewRows([]);
       setCourierHeaders([]);
@@ -572,6 +579,20 @@ export default function OrderConvertPage() {
     isCancelledRef.current = false;
     courierStorageHydratedRef.current = true;
   }, [authAssetsReady, storageUserId]);
+
+  usePreviewWorkspaceSession({
+    pageKey: 'order-convert',
+    enabled: authAssetsReady,
+    storageUserId,
+    previewRows,
+    userOverrides,
+    courierHeaders,
+    sortConfig,
+    setPreviewRows,
+    setUserOverrides,
+    setCourierHeaders,
+    setSortConfig,
+  });
 
   // fixedHeaderValues를 localStorage에 저장 (복원 후에만 저장해 계정 전환 시 오쓰기 방지)
   useEffect(() => {

@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getPublicBaseUrl } from '@/app/lib/public-base-url';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import Stripe from 'stripe';
@@ -259,8 +260,8 @@ export async function POST(request: NextRequest) {
           planType: planType === 'monthly' ? 'pro' : 'yearly', // Stripe metadata는 소문자 유지 (webhook에서 변환)
         },
       },
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/payment/cancel`,
+      success_url: `${getPublicBaseUrl()}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${getPublicBaseUrl()}/payment/cancel`,
     });
 
     console.log('[Stripe Checkout] Checkout 세션 생성 성공:', {

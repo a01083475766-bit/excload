@@ -58,6 +58,18 @@ export default function StoreInitializer() {
     syncUploadedFilesMetadataScope();
   }, [status, uploadMetaIsLoading, uploadMetaUserId, syncUploadedFilesMetadataScope]);
 
+  // 다른 탭에서 로그인·로그아웃 시 persist(user-store) 변경 → 동기화
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== 'user-store') return;
+      void fetchUser();
+      syncUploadedFilesMetadataScope();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [fetchUser, syncUploadedFilesMetadataScope]);
+
   // 경로 변경 감지 (pathname만 추적)
   useEffect(() => {
     const prevPathname = prevPathnameRef.current;

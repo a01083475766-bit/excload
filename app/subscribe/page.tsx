@@ -4,6 +4,8 @@
  */
 'use client';
 
+import { useUserStore } from '@/app/store/userStore';
+
 import Link from 'next/link';
 import { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -30,6 +32,7 @@ function isPlanKey(v: string | null): v is PlanKey {
 }
 
 function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
+  const fetchUser = useUserStore((state) => state.fetchUser);
   const [tossLoading, setTossLoading] = useState(false);
   const [tossChargeLoading, setTossChargeLoading] = useState(false);
   const [registeredCardSummary, setRegisteredCardSummary] = useState<string | null>(null);
@@ -151,7 +154,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
         alert(typeof data.error === 'string' ? data.error : '결제 승인에 실패했습니다.');
         return;
       }
-      alert('토스 결제가 완료되었습니다. 마이페이지에서 플랜을 확인해 주세요.');
+      await fetchUser();
       window.location.href = '/mypage';
     } catch (e) {
       console.error(e);
@@ -159,7 +162,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
     } finally {
       setTossChargeLoading(false);
     }
-  }, [planKey, tossAmount, tossOrderName, tossChargeLoading, tossLoading]);
+  }, [planKey, tossAmount, tossOrderName, tossChargeLoading, tossLoading, fetchUser]);
 
   return (
     <div className="max-w-[600px] mx-auto py-20 px-6 text-center">
