@@ -331,6 +331,7 @@ export default function OrderConvertPage() {
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [processingDots, setProcessingDots] = useState("");
   const [textProcessingDots, setTextProcessingDots] = useState("");
+  const [textConvertStatusLabel, setTextConvertStatusLabel] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   // 입력 방식 추적: 사용자가 어떤 방식으로 입력했는지 기록
   const [inputSourceType, setInputSourceType] = useState<'excel' | 'image' | 'text' | null>(null);
@@ -1278,7 +1279,10 @@ export default function OrderConvertPage() {
 
     textConvertInFlightRef.current = true;
     setIsProcessingTextImage(true);
+    setTextConvertStatusLabel(null);
+    setStage2ChunkLabel(null);
     try {
+      setTextConvertStatusLabel('사용량 확인 중…');
       const pointsDeducted = await usePoints(textLength, 'text');
       if (!pointsDeducted) {
         return;
@@ -1288,10 +1292,12 @@ export default function OrderConvertPage() {
         setInputSourceType('text');
       }
 
+      setTextConvertStatusLabel('주문 텍스트 분석 중…');
       const adapterResult = await runTextToCleanInputAdapter(trimmed);
       const { normalizeMeta, ...cleanInputFile } = adapterResult;
       if (cleanInputFile) {
         const fileSessionId = crypto.randomUUID();
+        setTextConvertStatusLabel('택배 양식에 맞추는 중…');
         const pipelineResult = await runUnifiedInputOrderPipelines({
           cleanInputFile: {
             ...cleanInputFile,
@@ -1301,6 +1307,11 @@ export default function OrderConvertPage() {
           templateBridgeFile,
           fixedHeaderValues,
           fileSessionId,
+          onStage2ChunkProgress: (completed, total) => {
+            if (total > 1) {
+              setStage2ChunkLabel(`서버 변환 ${completed}/${total}`);
+            }
+          },
         });
 
         handleUnifiedPipelinesCompleted(pipelineResult);
@@ -1322,6 +1333,8 @@ export default function OrderConvertPage() {
       );
     } finally {
       setIsProcessingTextImage(false);
+      setTextConvertStatusLabel(null);
+      setStage2ChunkLabel(null);
       textConvertInFlightRef.current = false;
     }
   };
@@ -2100,7 +2113,9 @@ export default function OrderConvertPage() {
                       {isProcessingTextImage ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>변환 중{textProcessingDots}</span>
+                          <span>
+                            {textConvertStatusLabel ?? stage2ChunkLabel ?? `변환 중${textProcessingDots}`}
+                          </span>
                         </>
                       ) : (
                         '텍스트 주문 변환'

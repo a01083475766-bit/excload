@@ -25,6 +25,7 @@ import {
   CORE_BASE_HEADER_COUNT,
   buildNormalize29OrdersJsonExample,
 } from '@/app/pipeline/base/base-headers';
+import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
 
 /** 클라이언트가 text 또는 originalText만 보내는 경우 모두 수용 */
 function resolveNormalize29InboundText(body: Record<string, unknown>): string {
@@ -291,24 +292,33 @@ E. 확장 필드 보수 추출 (매우 중요)
 
   const apiUrl = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
   const model = process.env.AI_MODEL || 'gpt-4o-mini';
+  const aiTimeoutMs = Number(process.env.AI_NORMALIZE29_TIMEOUT_MS) || 45_000;
 
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: text }
-        ],
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), aiTimeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: text },
+          ],
+          temperature: 0,
+          response_format: { type: 'json_object' },
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -324,7 +334,9 @@ E. 확장 필드 보수 추출 (매우 중요)
 
     const data = await response.json();
     const aiText = data?.choices?.[0]?.message?.content || '{}';
-    console.log('[AI RAW RESPONSE]', aiText);
+    if (isExcloudPipelineDebugServer()) {
+      console.log('[AI RAW RESPONSE]', aiText);
+    }
 
     let parsed;
     try {
@@ -372,6 +384,19 @@ E. 확장 필드 보수 추출 (매우 중요)
       },
     });
   } catch (error) {
+    const aborted =
+      error instanceof Error &&
+      (error.name === 'AbortError' || /aborted|timeout/i.test(error.message));
+    if (aborted) {
+      console.warn('[AI Gateway] normalize-29 timeout → 휴리스틱 fallback');
+      const orders = [
+        normalizeOrderObject(buildNormalize29HeuristicFallbackRow(text)),
+      ];
+      return NextResponse.json({
+        orders,
+        meta: { usedFallback: true, fallbackReason: 'ai_timeout' },
+      });
+    }
     console.error('[AI Gateway] normalize-29 error:', error);
     return NextResponse.json(
       { error: 'normalize-29 failed' },

@@ -1,6 +1,7 @@
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 import { enrichOrdersWithHeuristicLine } from '@/app/lib/heuristic-korean-order-line';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
+import { tryTextNormalizeWithoutAi } from '@/app/lib/text-normalize-fast-path';
 import type { InternalOrderFormat } from '@/app/lib/export/internalOrderFormat';
 
 export type TextNormalizeMeta = {
@@ -19,6 +20,11 @@ export type TextToCleanInputAdapterResult = {
 export async function runTextToCleanInputAdapter(text: string): Promise<TextToCleanInputAdapterResult> {
   if (!text || text.trim() === '') {
     throw new Error('텍스트가 비어있습니다.');
+  }
+
+  const fast = tryTextNormalizeWithoutAi(text);
+  if (fast) {
+    return fast;
   }
 
   const response = await fetch('/api/ai-gateway', {

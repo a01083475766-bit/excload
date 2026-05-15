@@ -5,6 +5,7 @@
 'use client';
 
 import { useUserStore } from '@/app/store/userStore';
+import { runAfterTossChargeResponse } from '@/app/lib/toss/after-charge-client';
 
 import Link from 'next/link';
 import { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
@@ -142,20 +143,24 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        if (data?.error === 'billingKey 없음') {
-          alert('등록된 결제카드가 없습니다. 먼저 "토스로 카드 등록 (빌링)"을 완료해 주세요.');
-          return;
-        }
-        if (typeof data?.error === 'string' && data.error.includes('이미 이용 중인 구독')) {
-          alert(`${data.error}\n필요하시면 마이페이지에서 해지 예약 또는 환불 신청을 진행하실 수 있습니다.`);
-          return;
-        }
-        alert(typeof data.error === 'string' ? data.error : '결제 승인에 실패했습니다.');
+      const outcome = await runAfterTossChargeResponse(res, data, {
+        fetchUser,
+        onSuccessNavigate: () => {
+          window.location.href = '/mypage';
+        },
+      });
+      if (outcome.kind === 'billing_missing') {
+        alert('등록된 결제카드가 없습니다. 먼저 "토스로 카드 등록 (빌링)"을 완료해 주세요.');
         return;
       }
-      await fetchUser();
-      window.location.href = '/mypage';
+      if (outcome.kind === 'already_subscribed') {
+        alert(`${outcome.message}\n필요하시면 마이페이지에서 해지 예약 또는 환불 신청을 진행하실 수 있습니다.`);
+        return;
+      }
+      if (outcome.kind === 'error') {
+        alert(outcome.message);
+        return;
+      }
     } catch (e) {
       console.error(e);
       alert('결제 요청 중 오류가 발생했습니다.');
