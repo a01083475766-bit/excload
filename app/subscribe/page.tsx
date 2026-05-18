@@ -8,8 +8,36 @@ import { useUserStore } from '@/app/store/userStore';
 import { runAfterTossChargeResponse } from '@/app/lib/toss/after-charge-client';
 
 import Link from 'next/link';
+import { Shield, Lock } from 'lucide-react';
 import { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+
+const CARD_BRAND_LABELS = ['KB', '신한', '삼성', '현대', 'BC', '롯데', 'NH', '하나'] as const;
+
+const EASY_PAY_LABELS = [
+  { name: '토스페이', color: 'bg-blue-500' },
+  { name: '네이버페이', color: 'bg-green-600' },
+  { name: '카카오페이', color: 'bg-yellow-400' },
+] as const;
+
+const PAID_PLAN_OPTIONS = [
+  {
+    planKey: 'monthly' as const,
+    name: '프로',
+    price: 4000,
+    period: '월',
+    badge: null as string | null,
+    description: '매월 400,000 사용량',
+  },
+  {
+    planKey: 'yearly' as const,
+    name: '연간',
+    price: 40000,
+    period: '년',
+    badge: '20% 할인',
+    description: '매월 400,000 사용량',
+  },
+];
 
 function loadTossPaymentsScript(): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
@@ -37,12 +65,11 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   const [tossLoading, setTossLoading] = useState(false);
   const [tossChargeLoading, setTossChargeLoading] = useState(false);
   const [registeredCardSummary, setRegisteredCardSummary] = useState<string | null>(null);
+  const [termsAgreed, setTermsAgreed] = useState(false);
 
-  const paidLabel =
-    planKey === 'monthly'
-      ? 'PRO 플랜 (월 4,000원, VAT 별도)'
-      : '연간 플랜 (년 40,000원, VAT 별도)';
   const billingCycleText = planKey === 'yearly' ? '연 단위' : '월 단위';
+  const selectedPlan = PAID_PLAN_OPTIONS.find((p) => p.planKey === planKey)!;
+  const paymentActionsDisabled = !termsAgreed || tossLoading || tossChargeLoading;
   const tossAmount = planKey === 'yearly' ? 40000 : 4000;
   const tossOrderName = planKey === 'yearly' ? 'EXCLOAD YEARLY 구독' : 'EXCLOAD PRO 구독';
   const tossButtonLabel =
@@ -125,7 +152,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
     } finally {
       setTossLoading(false);
     }
-  }, [tossLoading, tossChargeLoading]);
+  }, [tossLoading, tossChargeLoading, planKey]);
 
   const handleTossCharge = useCallback(async () => {
     if (tossChargeLoading || tossLoading) return;
@@ -170,36 +197,199 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   }, [planKey, tossAmount, tossOrderName, tossChargeLoading, tossLoading, fetchUser]);
 
   return (
-    <div className="max-w-[600px] mx-auto py-20 px-6 text-center">
-      <h1 className="text-2xl font-bold mb-6">결제 진행</h1>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 sm:py-12 px-4">
+      <div className="max-w-[480px] mx-auto">
+        <header className="mb-6 text-center sm:text-left">
+          <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            주문서
+          </h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+            로그인 후 결제를 진행해 주세요. 정기결제 상품이며, 선택한 {billingCycleText} 주기로
+            자동 갱신됩니다. 마이페이지에서 언제든 해지할 수 있습니다.
+          </p>
+        </header>
 
-      <p className="mb-6 text-gray-600">
-        로그인이 필요하며, 미로그인 시 안내에 따라 로그인 후 다시 시도해 주세요.
-      </p>
+        <div className="rounded-[10px] bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200/80 dark:border-zinc-800 overflow-hidden">
+          <section className="p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
+              구독 플랜
+            </h2>
+            <div className="grid grid-cols-2 gap-2.5">
+              {PAID_PLAN_OPTIONS.map((plan) => {
+                const isSelected = plan.planKey === planKey;
+                return (
+                  <Link
+                    key={plan.planKey}
+                    href={`/subscribe?plan=${plan.planKey}`}
+                    className={`relative rounded-[10px] border-2 p-3.5 text-left transition-colors ${
+                      isSelected
+                        ? 'border-[#3182f6] bg-blue-50/50 dark:bg-blue-950/30'
+                        : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                    }`}
+                  >
+                    {plan.badge && (
+                      <span className="absolute -top-2 right-2 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#3182f6] text-white">
+                        {plan.badge}
+                      </span>
+                    )}
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                      {plan.name}
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                      ₩{plan.price.toLocaleString()}
+                      <span className="text-xs font-normal text-zinc-500"> / {plan.period}</span>
+                    </p>
+                    <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      VAT 별도 · {plan.description}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
 
-      <div className="border rounded-lg p-6 border-zinc-200 dark:border-zinc-700">
-        <p className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">선택한 플랜</p>
-        <p className="text-lg mb-4 text-zinc-800 dark:text-zinc-200">{paidLabel}</p>
-
-        <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-600 space-y-3">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300 text-left leading-relaxed">
-              해당 상품은 정기결제 상품입니다.
-              <br />
-              선택한 {billingCycleText} 결제 주기에 따라 반복 결제되며, 언제든지 마이페이지에서 해지할 수 있습니다.
+          <section className="p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+              결제 방법
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+              현재{' '}
+              <strong className="text-zinc-700 dark:text-zinc-300">
+                신용·체크카드 정기결제
+              </strong>
+              만 지원합니다.
             </p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 text-left">
-              결제하실 카드를 등록한 후 결제를 진행해주세요.
-            </p>
+
+            <div
+              className="w-full rounded-[10px] border-2 border-[#3182f6] bg-white dark:bg-zinc-900 px-4 py-3.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-center"
+              aria-current="true"
+            >
+              신용·체크카드
+            </div>
+
+            <div className="mt-2 grid grid-cols-3 gap-2 opacity-40 pointer-events-none select-none">
+              {['계좌이체', '가상계좌', '휴대폰'].map((label) => (
+                <div
+                  key={label}
+                  className="rounded-[10px] border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-2 py-2.5 text-center text-[11px] text-zinc-500"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-3 text-[11px] text-zinc-400 dark:text-zinc-500">간편결제 (미지원)</p>
+            <div className="mt-2 flex gap-2 opacity-40 pointer-events-none select-none">
+              {EASY_PAY_LABELS.map((pay) => (
+                <div
+                  key={pay.name}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-[10px] border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 py-2.5"
+                >
+                  <span className={`w-2 h-2 rounded-full ${pay.color}`} aria-hidden />
+                  <span className="text-[11px] font-medium text-zinc-500">{pay.name}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {CARD_BRAND_LABELS.map((brand) => (
+                <span
+                  key={brand}
+                  className="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-[10px] font-medium text-zinc-600 dark:text-zinc-400"
+                >
+                  {brand}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <section className="p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="flex justify-between items-baseline text-sm">
+              <span className="text-zinc-600 dark:text-zinc-400">결제 예정 금액</span>
+              <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                ₩{selectedPlan.price.toLocaleString()}
+                <span className="text-xs font-normal text-zinc-500 ml-1">(VAT 별도)</span>
+              </span>
+            </div>
             {registeredCardSummary && (
-              <p className="text-xs text-zinc-500 text-left">
-                현재 등록된 결제카드: {registeredCardSummary}
+              <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-3 py-2">
+                등록된 카드:{' '}
+                <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                  {registeredCardSummary}
+                </span>
               </p>
             )}
+            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              카드를 등록한 뒤 결제를 진행해 주세요. 토스페이먼츠를 통해 카드 정보가 안전하게
+              처리됩니다.
+            </p>
+          </section>
+
+          <section className="p-5 border-b border-zinc-100 dark:border-zinc-800">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={termsAgreed}
+                onChange={(e) => setTermsAgreed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-[#3182f6] focus:ring-[#3182f6]"
+              />
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-700">
+                전체 동의
+              </span>
+            </label>
+            <ul className="mt-3 ml-7 space-y-2 text-xs text-zinc-600 dark:text-zinc-400">
+              <li className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                <span>(필수)</span>
+                <Link
+                  href="/terms"
+                  className="underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-200"
+                >
+                  서비스 이용약관
+                </Link>
+                <span>동의</span>
+              </li>
+              <li className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                <span>(필수)</span>
+                <Link
+                  href="/privacy"
+                  className="underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-200"
+                >
+                  개인정보 처리방침
+                </Link>
+                <span>동의</span>
+              </li>
+              <li className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                <span>(필수)</span>
+                <Link
+                  href="/refund"
+                  className="underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-200"
+                >
+                  환불 정책
+                </Link>
+                <span> 및 정기결제 안내 확인</span>
+              </li>
+            </ul>
+            {!termsAgreed && (
+              <p className="mt-3 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-3 py-2">
+                약관에 동의하시면 카드 등록 및 결제를 진행할 수 있습니다.
+              </p>
+            )}
+          </section>
+
+          <section className="p-5 space-y-3">
+            <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <Shield className="w-3.5 h-3.5 shrink-0" aria-hidden />
+              <span>안전결제</span>
+              <span className="text-zinc-300 dark:text-zinc-600">|</span>
+              <Lock className="w-3.5 h-3.5 shrink-0" aria-hidden />
+              <span>SSL 암호화 · 토스페이먼츠 결제</span>
+            </div>
+
             <button
               type="button"
               onClick={handleTossBillingAuth}
-              disabled={tossLoading || tossChargeLoading}
-              className="w-full bg-[#0064FF] text-white py-3 rounded-lg hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed text-[15px] font-medium"
+              disabled={paymentActionsDisabled}
+              className="w-full bg-[#3182f6] text-white py-3.5 rounded-[10px] hover:bg-[#1b64da] disabled:opacity-50 disabled:cursor-not-allowed text-[15px] font-semibold transition-colors"
             >
               {tossLoading
                 ? '토스 연결 중…'
@@ -210,19 +400,23 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
             <button
               type="button"
               onClick={handleTossCharge}
-              disabled={tossChargeLoading}
-              className="w-full border border-[#0064FF] text-[#0064FF] dark:text-blue-400 dark:border-blue-400 py-3 rounded-lg hover:bg-blue-50 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed text-[15px] font-medium"
+              disabled={paymentActionsDisabled || tossChargeLoading}
+              className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3.5 rounded-[10px] hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-[15px] font-semibold transition-colors"
             >
               {tossChargeLoading ? '결제 처리 중…' : tossButtonLabel}
             </button>
+          </section>
         </div>
-      </div>
 
-      <p className="mt-8 text-sm text-gray-500">
-        <Link href="/pricing" className="text-blue-600 underline underline-offset-2">
-          다른 플랜 보기
-        </Link>
-      </p>
+        <p className="mt-6 text-center text-sm text-zinc-500">
+          <Link
+            href="/pricing"
+            className="text-[#3182f6] underline underline-offset-2 hover:text-[#1b64da]"
+          >
+            다른 플랜 보기
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
