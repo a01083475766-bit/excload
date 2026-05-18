@@ -200,8 +200,7 @@ export async function sendContactInquiryEmails(payload: ContactInquiryMailPayloa
           `문의 유형: ${payload.typeLabel}`,
           `제목: ${payload.subject}`,
           '',
-          '영업일 기준 1일 이내 순차적으로 답변드리겠습니다.',
-          '(주말·공휴일 접수 건은 다음 영업일부터 처리됩니다.)',
+          '내용을 확인한 뒤 입력하신 이메일로 연락드리겠습니다.',
           '',
           '감사합니다.',
           '엑클로드 팀',
@@ -214,8 +213,7 @@ export async function sendContactInquiryEmails(payload: ContactInquiryMailPayloa
     <li>문의 유형: ${escapeHtml(payload.typeLabel)}</li>
     <li>제목: ${escapeHtml(payload.subject)}</li>
   </ul>
-  <p style="font-size:14px;">영업일 기준 <strong>1일 이내</strong> 순차적으로 답변드리겠습니다.<br />
-  (주말·공휴일 접수 건은 다음 영업일부터 처리됩니다.)</p>
+  <p style="font-size:14px;">내용을 확인한 뒤 입력하신 이메일로 연락드리겠습니다.</p>
   <p style="font-size:12px; color:#888; margin-top:20px;">본 메일은 발신전용입니다.</p>
 </div>
 `.trim(),
