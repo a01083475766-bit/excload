@@ -12,14 +12,6 @@ import { Shield, Lock } from 'lucide-react';
 import { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-const CARD_BRAND_LABELS = ['KB', '신한', '삼성', '현대', 'BC', '롯데', 'NH', '하나'] as const;
-
-const EASY_PAY_LABELS = [
-  { name: '토스페이', color: 'bg-blue-500' },
-  { name: '네이버페이', color: 'bg-green-600' },
-  { name: '카카오페이', color: 'bg-yellow-400' },
-] as const;
-
 const PAID_PLAN_OPTIONS = [
   {
     planKey: 'monthly' as const,
@@ -265,41 +257,6 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
               aria-current="true"
             >
               신용·체크카드
-            </div>
-
-            <div className="mt-2 grid grid-cols-3 gap-2 opacity-40 pointer-events-none select-none">
-              {['계좌이체', '가상계좌', '휴대폰'].map((label) => (
-                <div
-                  key={label}
-                  className="rounded-[10px] border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-2 py-2.5 text-center text-[11px] text-zinc-500"
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-3 text-[11px] text-zinc-400 dark:text-zinc-500">간편결제 (미지원)</p>
-            <div className="mt-2 flex gap-2 opacity-40 pointer-events-none select-none">
-              {EASY_PAY_LABELS.map((pay) => (
-                <div
-                  key={pay.name}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-[10px] border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 py-2.5"
-                >
-                  <span className={`w-2 h-2 rounded-full ${pay.color}`} aria-hidden />
-                  <span className="text-[11px] font-medium text-zinc-500">{pay.name}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {CARD_BRAND_LABELS.map((brand) => (
-                <span
-                  key={brand}
-                  className="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-[10px] font-medium text-zinc-600 dark:text-zinc-400"
-                >
-                  {brand}
-                </span>
-              ))}
             </div>
           </section>
 
