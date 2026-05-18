@@ -163,7 +163,7 @@ export default function ContactPage() {
             궁금한 점이 있으시면 언제든지 문의해주세요.
           </p>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            접수 후 내용을 확인하여 입력하신 이메일로 연락드립니다.
+            내용을 확인 후 입력하신 이메일로 연락드립니다.
           </p>
           <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-500">
             운영시간: 평일 10:00 ~ 18:00 (주말·공휴일 휴무)

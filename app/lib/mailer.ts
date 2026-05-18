@@ -200,7 +200,7 @@ export async function sendContactInquiryEmails(payload: ContactInquiryMailPayloa
           `문의 유형: ${payload.typeLabel}`,
           `제목: ${payload.subject}`,
           '',
-          '내용을 확인한 뒤 입력하신 이메일로 연락드리겠습니다.',
+          '내용을 확인 후 입력하신 이메일로 연락드리겠습니다.',
           '',
           '감사합니다.',
           '엑클로드 팀',
@@ -213,7 +213,7 @@ export async function sendContactInquiryEmails(payload: ContactInquiryMailPayloa
     <li>문의 유형: ${escapeHtml(payload.typeLabel)}</li>
     <li>제목: ${escapeHtml(payload.subject)}</li>
   </ul>
-  <p style="font-size:14px;">내용을 확인한 뒤 입력하신 이메일로 연락드리겠습니다.</p>
+  <p style="font-size:14px;">내용을 확인 후 입력하신 이메일로 연락드리겠습니다.</p>
   <p style="font-size:12px; color:#888; margin-top:20px;">본 메일은 발신전용입니다.</p>
 </div>
 `.trim(),
