@@ -11,6 +11,11 @@ import {
   resolveEffectivePlanAtRenewal,
   type PaidDbPlan,
 } from '@/app/lib/subscription/plan-change';
+import {
+  applyGraceExpiryIfNeeded,
+  paymentFailureClearData,
+  recordPaymentFailure,
+} from '@/app/lib/subscription/payment-failure';
 
 function basicAuthHeader(secretKey: string) {
   const token = Buffer.from(`${secretKey}:`, 'utf8').toString('base64');
@@ -28,6 +33,8 @@ export async function executeTossBillingCharge(params: {
   planType?: PaidDbPlan;
   isRenewal?: boolean;
 }): Promise<TossBillingChargeResult> {
+  await applyGraceExpiryIfNeeded(params.userId);
+
   const user = await prisma.user.findUnique({
     where: { id: params.userId },
     select: {
@@ -40,6 +47,7 @@ export async function executeTossBillingCharge(params: {
       pendingPlan: true,
       pendingPlanApplyAt: true,
       cancelAtPeriodEnd: true,
+      subscriptionStatus: true,
     },
   });
 
@@ -54,6 +62,14 @@ export async function executeTossBillingCharge(params: {
   if (params.isRenewal) {
     if (!isPaidDbPlan(user.plan)) {
       return { ok: false, error: '갱신 대상이 아닌 플랜입니다.', httpStatus: 400 };
+    }
+    if (user.subscriptionStatus === 'canceled') {
+      return {
+        ok: false,
+        error: '구독이 종료되었습니다. 새로 구독해 주세요.',
+        code: 'SUBSCRIPTION_CANCELED',
+        httpStatus: 400,
+      };
     }
     if (user.cancelAtPeriodEnd) {
       return { ok: false, error: '해지 예약된 구독입니다.', code: 'CANCEL_SCHEDULED', httpStatus: 400 };
@@ -125,18 +141,26 @@ export async function executeTossBillingCharge(params: {
   };
 
   if (!res.ok) {
+    const failMessage = data.message || '결제 승인에 실패했습니다.';
+    if (params.isRenewal) {
+      await recordPaymentFailure(user.id, failMessage, data.code);
+    }
     return {
       ok: false,
-      error: data.message || '결제 승인에 실패했습니다.',
+      error: failMessage,
       code: data.code,
       httpStatus: res.status,
     };
   }
 
   if (data.status !== 'DONE' || !data.paymentKey) {
+    const failMessage = '결제 상태를 확인할 수 없습니다.';
+    if (params.isRenewal) {
+      await recordPaymentFailure(user.id, failMessage, data.code);
+    }
     return {
       ok: false,
-      error: '결제 상태를 확인할 수 없습니다.',
+      error: failMessage,
       code: data.code,
       httpStatus: 502,
     };
@@ -167,6 +191,7 @@ export async function executeTossBillingCharge(params: {
         points: pointsTarget,
         nextPointDate,
         tossChargeCooldownUntil: null,
+        ...paymentFailureClearData(),
         ...(clearPending
           ? { pendingPlan: null, pendingPlanApplyAt: null }
           : {}),

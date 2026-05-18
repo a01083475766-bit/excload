@@ -86,6 +86,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { prisma } = await import('@/app/lib/prisma');
+    const { clearPaymentFailureOnCardUpdate } = await import(
+      '@/app/lib/subscription/payment-failure'
+    );
     const cardCompany = data.cardCompany ?? null;
     const maskedCardNumber = data.cardNumber ?? data.card?.number ?? null;
     await prisma.user.update({
@@ -96,6 +99,7 @@ export async function POST(request: NextRequest) {
         tossCardNumberMask: maskedCardNumber,
       },
     });
+    await clearPaymentFailureOnCardUpdate(session.user.id);
 
     return NextResponse.json({
       ok: true,

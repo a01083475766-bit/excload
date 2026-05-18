@@ -8,6 +8,7 @@ import {
   getPlanDisplayName,
   isPaidDbPlan,
 } from '@/app/lib/subscription/plan-change';
+import { applyGraceExpiryIfNeeded } from '@/app/lib/subscription/payment-failure';
 
 export async function GET() {
   try {
@@ -15,6 +16,16 @@ export async function GET() {
     if (!session?.user?.email) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
+
+    const userRow = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    if (!userRow) {
+      return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    await applyGraceExpiryIfNeeded(userRow.id);
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -25,6 +36,11 @@ export async function GET() {
         nextPointDate: true,
         pendingPlan: true,
         pendingPlanApplyAt: true,
+        subscriptionStatus: true,
+        paymentFailedAt: true,
+        paymentFailureReason: true,
+        paymentRetryCount: true,
+        gracePeriodUntil: true,
       },
     });
 
@@ -72,6 +88,17 @@ export async function GET() {
               : getPlanDisplayName(user.plan),
           }
         : null,
+      paymentFailure: {
+        subscriptionStatus: user.subscriptionStatus,
+        isPastDue: user.subscriptionStatus === 'past_due',
+        paymentFailedAt: user.paymentFailedAt?.toISOString() ?? null,
+        paymentFailureReason: user.paymentFailureReason,
+        paymentRetryCount: user.paymentRetryCount,
+        gracePeriodUntil: user.gracePeriodUntil?.toISOString() ?? null,
+        gracePeriodUntilLabel: user.gracePeriodUntil
+          ? user.gracePeriodUntil.toLocaleDateString('ko-KR')
+          : null,
+      },
     });
   } catch (error) {
     console.error('[Subscription Status API] error:', error);

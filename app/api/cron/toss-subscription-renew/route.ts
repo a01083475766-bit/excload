@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
 import { executeTossBillingCharge } from '@/app/lib/toss/execute-billing-charge';
 import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
+import { applyGraceExpiryIfNeeded } from '@/app/lib/subscription/payment-failure';
 
 function authorizeCron(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -25,6 +26,18 @@ export async function POST(request: NextRequest) {
   }
 
   const now = new Date();
+
+  const graceExpired = await prisma.user.findMany({
+    where: {
+      subscriptionStatus: 'past_due',
+      gracePeriodUntil: { lte: now },
+    },
+    select: { id: true },
+    take: 100,
+  });
+  for (const row of graceExpired) {
+    await applyGraceExpiryIfNeeded(row.id);
+  }
 
   const candidates = await prisma.user.findMany({
     where: {

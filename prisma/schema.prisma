@@ -61,6 +61,13 @@ model User {
   /// 토스 결제 API 동시 호출 방지(만료 시각까지 재진입 차단). 처리 종료 시 null 로 해제.
   tossChargeCooldownUntil DateTime?
 
+  /// 정기결제 상태: active | past_due(유예) | canceled
+  subscriptionStatus     String    @default("active")
+  paymentFailedAt        DateTime?
+  paymentFailureReason   String?
+  paymentRetryCount      Int       @default(0)
+  gracePeriodUntil       DateTime?
+
   pointHistory     PointHistory[]
   subscriptions   Subscription[]
 }

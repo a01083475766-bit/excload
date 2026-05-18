@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { User, Calendar, CreditCard, Bell, Shield, LogOut } from 'lucide-react';
+import { User, Calendar, CreditCard, Bell, Shield, LogOut, AlertTriangle } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 import { formatPhoneDisplay, formatPhoneForInput } from '@/app/utils/format-phone';
 
@@ -26,9 +26,23 @@ interface TossCardState {
   cardSummary: string | null;
 }
 
+interface PaymentFailureState {
+  isPastDue: boolean;
+  gracePeriodUntilLabel: string | null;
+}
+
 interface RefundState {
   hasPendingRefund: boolean;
   createdAt: string | null;
+}
+
+interface PaymentHistoryItem {
+  id: string;
+  planLabel: string;
+  amount: number;
+  currency: string;
+  paymentProviderLabel: string;
+  paidAtLabel: string;
 }
 
 export default function MyPage() {
@@ -47,6 +61,13 @@ export default function MyPage() {
     hasBillingKey: false,
     cardSummary: null,
   });
+  const [paymentFailure, setPaymentFailure] = useState<PaymentFailureState>({
+    isPastDue: false,
+    gracePeriodUntilLabel: null,
+  });
+  const [isRetryingPayment, setIsRetryingPayment] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
+  const [isLoadingPaymentHistory, setIsLoadingPaymentHistory] = useState(false);
   const [pendingPlanChange, setPendingPlanChange] = useState<PendingPlanChangeState | null>(null);
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const [isCancellingPlanChange, setIsCancellingPlanChange] = useState(false);
@@ -117,6 +138,12 @@ export default function MyPage() {
             currentPeriodEnd: data.subscription.currentPeriodEnd,
           });
           setPendingPlanChange(data?.pendingPlanChange ?? null);
+          const pf = data?.paymentFailure;
+          setPaymentFailure({
+            isPastDue: !!pf?.isPastDue,
+            gracePeriodUntilLabel:
+              typeof pf?.gracePeriodUntilLabel === 'string' ? pf.gracePeriodUntilLabel : null,
+          });
         }
       } catch (error) {
         console.error('[MyPage] 구독 상태 조회 실패:', error);
@@ -143,6 +170,41 @@ export default function MyPage() {
       }
     };
     loadRefundState();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadPaymentHistory = async () => {
+      try {
+        setIsLoadingPaymentHistory(true);
+        const response = await fetch('/api/user/payment-history', {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          setPaymentHistory([]);
+          return;
+        }
+        const data = await response.json();
+        const items = Array.isArray(data?.payments) ? data.payments : [];
+        setPaymentHistory(
+          items.map((p: Record<string, unknown>) => ({
+            id: String(p.id ?? ''),
+            planLabel: typeof p.planLabel === 'string' ? p.planLabel : '구독',
+            amount: typeof p.amount === 'number' ? p.amount : 0,
+            currency: typeof p.currency === 'string' ? p.currency : 'KRW',
+            paymentProviderLabel:
+              typeof p.paymentProviderLabel === 'string' ? p.paymentProviderLabel : '-',
+            paidAtLabel: typeof p.paidAtLabel === 'string' ? p.paidAtLabel : '',
+          }))
+        );
+      } catch (error) {
+        console.error('[MyPage] 결제 내역 조회 실패:', error);
+        setPaymentHistory([]);
+      } finally {
+        setIsLoadingPaymentHistory(false);
+      }
+    };
+    loadPaymentHistory();
   }, [user]);
 
   useEffect(() => {
@@ -187,6 +249,46 @@ export default function MyPage() {
     : null;
 
   const hasPaidPlan = !!user && (user.plan === 'PRO' || user.plan === 'YEARLY');
+
+  const handleRetryPayment = async () => {
+    try {
+      setIsRetryingPayment(true);
+      const res = await fetch('/api/toss/retry-payment', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data?.error || '결제에 실패했습니다. 카드 정보를 확인해 주세요.');
+        return;
+      }
+      alert('결제가 완료되었습니다.');
+      setPaymentFailure({ isPastDue: false, gracePeriodUntilLabel: null });
+      await fetchUser();
+      const statusRes = await fetch('/api/user/subscription-status', { credentials: 'include' });
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        if (statusData?.subscription) {
+          setSubscriptionState({
+            status: statusData.subscription.status,
+            cancelAtPeriodEnd: !!statusData.subscription.cancelAtPeriodEnd,
+            currentPeriodEnd: statusData.subscription.currentPeriodEnd,
+          });
+        }
+        const pf = statusData?.paymentFailure;
+        setPaymentFailure({
+          isPastDue: !!pf?.isPastDue,
+          gracePeriodUntilLabel:
+            typeof pf?.gracePeriodUntilLabel === 'string' ? pf.gracePeriodUntilLabel : null,
+        });
+      }
+    } catch (error) {
+      console.error('[MyPage] 결제 재시도 실패:', error);
+      alert('결제 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsRetryingPayment(false);
+    }
+  };
 
   const handleCancelPlanChange = async () => {
     if (!pendingPlanChange) return;
@@ -420,6 +522,50 @@ export default function MyPage() {
             계정 정보와 설정을 관리할 수 있습니다.
           </p>
         </div>
+
+        {paymentFailure.isPastDue && hasPaidPlan && (
+          <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
+            <div className="flex gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-amber-900 dark:text-amber-100">
+                  정기결제에 실패했습니다.
+                </p>
+                <p className="mt-1 text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
+                  카드 유효기간 만료·한도초과 등의 사유일 수 있습니다.
+                  {paymentFailure.gracePeriodUntilLabel && (
+                    <>
+                      {' '}
+                      <strong>{paymentFailure.gracePeriodUntilLabel}</strong>까지는 현재 플랜을
+                      유지할 수 있습니다.
+                    </>
+                  )}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/subscribe?plan=${user.plan === 'YEARLY' ? 'yearly' : 'monthly'}`
+                      )
+                    }
+                    className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition-colors"
+                  >
+                    결제카드 변경
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRetryPayment()}
+                    disabled={isRetryingPayment}
+                    className="px-4 py-2 rounded-lg border border-amber-400 text-amber-900 dark:text-amber-100 text-sm font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors disabled:opacity-60"
+                  >
+                    {isRetryingPayment ? '결제 처리 중…' : '다시 결제하기'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
           {/* 사이드바 */}
@@ -683,8 +829,20 @@ export default function MyPage() {
                           </p>
                         )}
                       </div>
-                      <span className="px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-sm font-medium">
-                        {subscriptionState.cancelAtPeriodEnd ? '해지예약' : '활성'}
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          paymentFailure.isPastDue
+                            ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
+                            : subscriptionState.cancelAtPeriodEnd
+                              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                              : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                        }`}
+                      >
+                        {paymentFailure.isPastDue
+                          ? '결제실패'
+                          : subscriptionState.cancelAtPeriodEnd
+                            ? '해지예약'
+                            : '활성'}
                       </span>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -708,6 +866,49 @@ export default function MyPage() {
                         >
                           {isCancellingPlanChange ? '취소 중…' : '플랜 변경 예약 취소'}
                         </button>
+                      )}
+                    </div>
+
+                    <div className="mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-700">
+                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
+                        결제 내역
+                      </p>
+                      {isLoadingPaymentHistory ? (
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">불러오는 중…</p>
+                      ) : paymentHistory.length === 0 ? (
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          결제 내역이 없습니다.
+                        </p>
+                      ) : (
+                        <ul className="space-y-2 max-h-64 overflow-y-auto">
+                          {paymentHistory.map((item) => (
+                            <li
+                              key={item.id}
+                              className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2.5 text-sm"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                  {item.planLabel}
+                                </p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                  {item.paidAtLabel}
+                                  {item.paymentProviderLabel !== '-' && (
+                                    <> · {item.paymentProviderLabel}</>
+                                  )}
+                                </p>
+                              </div>
+                              <p className="shrink-0 font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                                {item.amount.toLocaleString()}
+                                {item.currency === 'KRW' ? '원' : ` ${item.currency}`}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {paymentHistory.length > 0 && (
+                        <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+                          최근 {paymentHistory.length}건 표시
+                        </p>
                       )}
                     </div>
                   </div>
