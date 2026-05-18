@@ -34,6 +34,9 @@ model User {
   updatedAt        DateTime  @updatedAt
   
   plan             String    @default("FREE")
+  /// 다음 결제일부터 적용할 예약 플랜 (PRO | YEARLY)
+  pendingPlan          String?
+  pendingPlanApplyAt   DateTime?
   points           Int       @default(5000)
   nextPointDate    DateTime?
 

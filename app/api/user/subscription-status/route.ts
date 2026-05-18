@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
+import {
+  dbPlanToIntervalKey,
+  formatPlanChangeDate,
+  getPlanDisplayName,
+  isPaidDbPlan,
+} from '@/app/lib/subscription/plan-change';
 
 export async function GET() {
   try {
@@ -17,6 +23,8 @@ export async function GET() {
         plan: true,
         cancelAtPeriodEnd: true,
         nextPointDate: true,
+        pendingPlan: true,
+        pendingPlanApplyAt: true,
       },
     });
 
@@ -34,20 +42,36 @@ export async function GET() {
         status: true,
         cancelAtPeriodEnd: true,
         currentPeriodEnd: true,
+        paymentProvider: true,
       },
     });
 
+    const currentPeriodEnd =
+      subscription?.currentPeriodEnd?.toISOString() ??
+      user.nextPointDate?.toISOString() ??
+      null;
+
     return NextResponse.json({
       success: true,
+      plan: user.plan,
+      currentPlanKey: dbPlanToIntervalKey(user.plan),
       subscription: {
         status: subscription?.status ?? null,
         cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? user.cancelAtPeriodEnd ?? false,
-        // Stripe 구독이 없더라도(예: 토스 빌링) 다음 결제 예정일을 표시할 수 있도록 보완
-        currentPeriodEnd:
-          subscription?.currentPeriodEnd?.toISOString() ??
-          user.nextPointDate?.toISOString() ??
-          null,
+        currentPeriodEnd,
+        paymentProvider: subscription?.paymentProvider ?? null,
       },
+      pendingPlanChange: user.pendingPlan
+        ? {
+            pendingPlan: user.pendingPlan,
+            pendingPlanLabel: getPlanDisplayName(user.pendingPlan),
+            pendingPlanApplyAt: user.pendingPlanApplyAt?.toISOString() ?? null,
+            pendingPlanApplyAtLabel: formatPlanChangeDate(user.pendingPlanApplyAt),
+            currentPlanLabel: isPaidDbPlan(user.plan)
+              ? getPlanDisplayName(user.plan)
+              : getPlanDisplayName(user.plan),
+          }
+        : null,
     });
   } catch (error) {
     console.error('[Subscription Status API] error:', error);

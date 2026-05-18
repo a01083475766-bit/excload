@@ -6,6 +6,7 @@
 
 import { useUserStore } from '@/app/store/userStore';
 import { runAfterTossChargeResponse } from '@/app/lib/toss/after-charge-client';
+import { dbPlanToIntervalKey, getPlanDisplayName } from '@/app/lib/subscription/plan-change';
 
 import Link from 'next/link';
 import { Shield, Lock } from 'lucide-react';
@@ -53,20 +54,40 @@ function isPlanKey(v: string | null): v is PlanKey {
   return v !== null && (VALID_PLANS as readonly string[]).includes(v);
 }
 
+type PendingPlanChangeInfo = {
+  pendingPlan: string;
+  pendingPlanLabel: string;
+  pendingPlanApplyAtLabel: string | null;
+  currentPlanLabel: string;
+};
+
 function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   const { status: authStatus } = useSession();
+  const user = useUserStore((state) => state.user);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const [tossLoading, setTossLoading] = useState(false);
   const [tossChargeLoading, setTossChargeLoading] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
   const [registeredCardSummary, setRegisteredCardSummary] = useState<string | null>(null);
   const [termsAgreed, setTermsAgreed] = useState(false);
+  const [pendingPlanChange, setPendingPlanChange] = useState<PendingPlanChangeInfo | null>(null);
+  const [nextBillingLabel, setNextBillingLabel] = useState<string | null>(null);
 
   const billingCycleText = planKey === 'yearly' ? '연 단위' : '월 단위';
   const selectedPlan = PAID_PLAN_OPTIONS.find((p) => p.planKey === planKey)!;
-  const paymentActionsDisabled = !termsAgreed || tossLoading || tossChargeLoading;
+  const paymentActionsDisabled =
+    !termsAgreed || tossLoading || tossChargeLoading || scheduleLoading;
   const tossAmount = planKey === 'yearly' ? 40000 : 4000;
   const tossOrderName = planKey === 'yearly' ? 'EXCLOAD YEARLY 구독' : 'EXCLOAD PRO 구독';
   const subscribeButtonLabel = '구독 시작하기';
+
+  const currentPlanKey = user?.plan ? dbPlanToIntervalKey(user.plan) : null;
+  const hasPaidPlan = user?.plan === 'PRO' || user?.plan === 'YEARLY';
+  const isPlanChangeTarget =
+    hasPaidPlan && currentPlanKey !== null && currentPlanKey !== planKey;
+  const targetPlanLabel = planKey === 'yearly' ? '연간' : '프로(월간)';
+  const scheduleButtonLabel =
+    planKey === 'yearly' ? '연간 플랜으로 변경 예약' : '월간 플랜으로 변경 예약';
 
   const recurringNotice = useMemo(
     () =>
@@ -102,6 +123,99 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (authStatus !== 'authenticated') {
+      setPendingPlanChange(null);
+      setNextBillingLabel(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/user/subscription-status', { credentials: 'include' });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setPendingPlanChange(data?.pendingPlanChange ?? null);
+        const endLabel = data?.pendingPlanChange?.pendingPlanApplyAtLabel;
+        if (endLabel) {
+          setNextBillingLabel(endLabel);
+        } else if (data?.subscription?.currentPeriodEnd) {
+          setNextBillingLabel(
+            new Date(data.subscription.currentPeriodEnd).toLocaleDateString('ko-KR', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })
+          );
+        } else {
+          setNextBillingLabel(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setPendingPlanChange(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, user?.plan]);
+
+  const handleSchedulePlanChange = useCallback(async () => {
+    if (scheduleLoading || !termsAgreed) return;
+    const currentName = user?.plan ? getPlanDisplayName(user.plan) : '현재 플랜';
+    const applyHint = nextBillingLabel
+      ? `${nextBillingLabel}부터`
+      : '다음 결제일부터';
+    const ok = window.confirm(
+      `현재 ${currentName} 플랜을 이용 중입니다.\n\n${targetPlanLabel} 플랜으로 변경하면 ${applyHint} ${targetPlanLabel} 요금이 적용됩니다.\n\n변경을 예약하시겠습니까?`
+    );
+    if (!ok) return;
+
+    try {
+      setScheduleLoading(true);
+      const res = await fetch('/api/user/schedule-plan-change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ targetPlan: planKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data?.error || '플랜 변경 예약에 실패했습니다.');
+        return;
+      }
+      if (data?.alreadyOnPlan) {
+        alert(data.message || '이미 선택한 플랜을 이용 중입니다.');
+        return;
+      }
+      alert(data?.message || '플랜 변경이 예약되었습니다.');
+      await fetchUser();
+      const statusRes = await fetch('/api/user/subscription-status', { credentials: 'include' });
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setPendingPlanChange(statusData?.pendingPlanChange ?? null);
+        if (statusData?.pendingPlanChange?.pendingPlanApplyAtLabel) {
+          setNextBillingLabel(statusData.pendingPlanChange.pendingPlanApplyAtLabel);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      alert('플랜 변경 예약 중 오류가 발생했습니다.');
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [
+    scheduleLoading,
+    termsAgreed,
+    user?.plan,
+    planKey,
+    targetPlanLabel,
+    nextBillingLabel,
+    fetchUser,
+  ]);
 
   const handleTossBillingAuth = useCallback(async () => {
     if (tossLoading || tossChargeLoading) return;
@@ -179,8 +293,10 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
         alert('등록된 결제카드가 없습니다. 먼저 "결제카드 등록"을 완료해 주세요.');
         return;
       }
-      if (outcome.kind === 'already_subscribed') {
-        alert(`${outcome.message}\n필요하시면 마이페이지에서 해지 예약 또는 환불 신청을 진행하실 수 있습니다.`);
+      if (outcome.kind === 'plan_change_available' || outcome.kind === 'already_subscribed') {
+        alert(
+          `${outcome.message}\n\n다른 결제 주기를 원하시면 아래 「${scheduleButtonLabel}」 버튼을 이용해 주세요.`
+        );
         return;
       }
       if (outcome.kind === 'error') {
@@ -193,7 +309,15 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
     } finally {
       setTossChargeLoading(false);
     }
-  }, [planKey, tossAmount, tossOrderName, tossChargeLoading, tossLoading, fetchUser]);
+  }, [
+    planKey,
+    tossAmount,
+    tossOrderName,
+    tossChargeLoading,
+    tossLoading,
+    fetchUser,
+    scheduleButtonLabel,
+  ]);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 sm:py-12 px-4">
@@ -206,7 +330,11 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">불러오는 중…</p>
           ) : authStatus === 'authenticated' ? (
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              결제카드를 등록한 뒤 구독을 시작해 주세요. {recurringNotice}
+              {hasPaidPlan
+                ? isPlanChangeTarget
+                  ? `현재 ${getPlanDisplayName(user!.plan)} 플랜을 이용 중입니다. 다른 주기로 변경하려면 변경 예약을 이용해 주세요.`
+                  : `현재 ${getPlanDisplayName(user!.plan)} 플랜을 이용 중입니다. ${recurringNotice}`
+                : `결제카드를 등록한 뒤 구독을 시작해 주세요. ${recurringNotice}`}
             </p>
           ) : (
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
@@ -275,12 +403,30 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
 
           <section className="p-5 border-b border-zinc-100 dark:border-zinc-800">
             <div className="flex justify-between items-baseline text-sm">
-              <span className="text-zinc-600 dark:text-zinc-400">결제 예정 금액</span>
+              <span className="text-zinc-600 dark:text-zinc-400">
+                {isPlanChangeTarget ? '변경 예정 플랜 요금' : '결제 예정 금액'}
+              </span>
               <span className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
                 ₩{selectedPlan.price.toLocaleString()}
                 <span className="text-xs font-normal text-zinc-500 ml-1">(VAT 별도)</span>
               </span>
             </div>
+            {isPlanChangeTarget && nextBillingLabel && (
+              <p className="mt-2 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-lg px-3 py-2">
+                다음 결제일({nextBillingLabel})부터 {targetPlanLabel} 요금이 적용됩니다. 오늘 추가
+                결제는 없습니다.
+              </p>
+            )}
+            {pendingPlanChange && (
+              <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg px-3 py-2">
+                예약됨: {pendingPlanChange.pendingPlanApplyAtLabel ?? '다음 결제일'}부터{' '}
+                <strong>{pendingPlanChange.pendingPlanLabel}</strong> 플랜 적용 예정
+                {pendingPlanChange.currentPlanLabel
+                  ? ` (현재 ${pendingPlanChange.currentPlanLabel})`
+                  : ''}
+                . 자세한 내용은 마이페이지에서 확인할 수 있습니다.
+              </p>
+            )}
             {registeredCardSummary && (
               <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-400 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-3 py-2">
                 등록된 카드:{' '}
@@ -290,8 +436,9 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
               </p>
             )}
             <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              카드를 등록한 뒤 결제를 진행해 주세요. 토스페이먼츠를 통해 카드 정보가 안전하게
-              처리됩니다.
+              {isPlanChangeTarget
+                ? '플랜 변경은 다음 결제일에 반영되며, 오늘 추가 결제는 진행되지 않습니다.'
+                : '카드를 등록한 뒤 결제를 진행해 주세요. 토스페이먼츠를 통해 카드 정보가 안전하게 처리됩니다.'}
             </p>
           </section>
 
@@ -367,14 +514,29 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
                   ? '결제카드 변경'
                   : '결제카드 등록'}
             </button>
-            <button
-              type="button"
-              onClick={handleTossCharge}
-              disabled={paymentActionsDisabled || tossChargeLoading}
-              className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3.5 rounded-[10px] hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-[15px] font-semibold transition-colors"
-            >
-              {tossChargeLoading ? '처리 중…' : subscribeButtonLabel}
-            </button>
+            {isPlanChangeTarget ? (
+              <button
+                type="button"
+                onClick={handleSchedulePlanChange}
+                disabled={paymentActionsDisabled}
+                className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3.5 rounded-[10px] hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-[15px] font-semibold transition-colors"
+              >
+                {scheduleLoading ? '예약 중…' : scheduleButtonLabel}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleTossCharge}
+                disabled={paymentActionsDisabled || tossChargeLoading || hasPaidPlan}
+                className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3.5 rounded-[10px] hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-[15px] font-semibold transition-colors"
+              >
+                {tossChargeLoading
+                  ? '처리 중…'
+                  : hasPaidPlan
+                    ? '이용 중인 플랜'
+                    : subscribeButtonLabel}
+              </button>
+            )}
           </section>
         </div>
 

@@ -14,6 +14,13 @@ interface SubscriptionState {
   currentPeriodEnd: string | null;
 }
 
+interface PendingPlanChangeState {
+  pendingPlan: string;
+  pendingPlanLabel: string;
+  pendingPlanApplyAtLabel: string | null;
+  currentPlanLabel: string;
+}
+
 interface TossCardState {
   hasBillingKey: boolean;
   cardSummary: string | null;
@@ -40,7 +47,9 @@ export default function MyPage() {
     hasBillingKey: false,
     cardSummary: null,
   });
+  const [pendingPlanChange, setPendingPlanChange] = useState<PendingPlanChangeState | null>(null);
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
+  const [isCancellingPlanChange, setIsCancellingPlanChange] = useState(false);
   const [isRequestingRefund, setIsRequestingRefund] = useState(false);
   const [refundState, setRefundState] = useState<RefundState>({
     hasPendingRefund: false,
@@ -107,6 +116,7 @@ export default function MyPage() {
             cancelAtPeriodEnd: !!data.subscription.cancelAtPeriodEnd,
             currentPeriodEnd: data.subscription.currentPeriodEnd,
           });
+          setPendingPlanChange(data?.pendingPlanChange ?? null);
         }
       } catch (error) {
         console.error('[MyPage] 구독 상태 조회 실패:', error);
@@ -177,6 +187,31 @@ export default function MyPage() {
     : null;
 
   const hasPaidPlan = !!user && (user.plan === 'PRO' || user.plan === 'YEARLY');
+
+  const handleCancelPlanChange = async () => {
+    if (!pendingPlanChange) return;
+    const ok = window.confirm('예약된 플랜 변경을 취소하시겠습니까?');
+    if (!ok) return;
+    try {
+      setIsCancellingPlanChange(true);
+      const res = await fetch('/api/user/cancel-plan-change', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data?.error || '플랜 변경 예약 취소에 실패했습니다.');
+        return;
+      }
+      setPendingPlanChange(null);
+      alert(data?.message || '플랜 변경 예약이 취소되었습니다.');
+    } catch (error) {
+      console.error('[MyPage] 플랜 변경 예약 취소 실패:', error);
+      alert('플랜 변경 예약 취소 중 오류가 발생했습니다.');
+    } finally {
+      setIsCancellingPlanChange(false);
+    }
+  };
 
   const handleSubscriptionToggle = async () => {
     if (!hasPaidPlan) return;
@@ -634,9 +669,17 @@ export default function MyPage() {
                       <div>
                         <p className="font-semibold text-zinc-900 dark:text-zinc-100">현재 플랜</p>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">{getPlanName(user.plan)}</p>
-                        {hasPaidPlan && (
+                        {hasPaidPlan && currentPeriodEndText && (
                           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                            프로필 탭에서 해지 예약/취소를 관리할 수 있습니다.
+                            다음 결제 예정일: {currentPeriodEndText}
+                          </p>
+                        )}
+                        {pendingPlanChange && (
+                          <p className="mt-2 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/30 rounded-lg px-3 py-2 leading-relaxed">
+                            <strong>{pendingPlanChange.pendingPlanApplyAtLabel ?? '다음 결제일'}</strong>
+                            부터{' '}
+                            <strong>{pendingPlanChange.pendingPlanLabel}</strong> 플랜으로 변경
+                            예정입니다. (현재 {pendingPlanChange.currentPlanLabel})
                           </p>
                         )}
                       </div>
@@ -644,12 +687,29 @@ export default function MyPage() {
                         {subscriptionState.cancelAtPeriodEnd ? '해지예약' : '활성'}
                       </span>
                     </div>
-                    <button 
-                      onClick={() => router.push('/pricing')}
-                      className="w-full px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
-                    >
-                      플랜 변경하기
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(
+                            `/subscribe?plan=${user.plan === 'YEARLY' ? 'monthly' : 'yearly'}`
+                          )
+                        }
+                        className="w-full px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
+                      >
+                        다른 주기 플랜으로 변경
+                      </button>
+                      {pendingPlanChange && (
+                        <button
+                          type="button"
+                          onClick={handleCancelPlanChange}
+                          disabled={isCancellingPlanChange}
+                          className="w-full px-4 py-2 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors text-sm font-medium disabled:opacity-50"
+                        >
+                          {isCancellingPlanChange ? '취소 중…' : '플랜 변경 예약 취소'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
