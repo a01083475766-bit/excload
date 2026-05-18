@@ -64,8 +64,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   const paymentActionsDisabled = !termsAgreed || tossLoading || tossChargeLoading;
   const tossAmount = planKey === 'yearly' ? 40000 : 4000;
   const tossOrderName = planKey === 'yearly' ? 'EXCLOAD YEARLY 구독' : 'EXCLOAD PRO 구독';
-  const tossButtonLabel =
-    planKey === 'yearly' ? '토스로 YEARLY 결제 실행 (40,000원)' : '토스로 PRO 결제 실행 (4,000원)';
+  const subscribeButtonLabel = '구독 시작하기';
 
   useEffect(() => {
     let cancelled = false;
@@ -169,7 +168,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
         },
       });
       if (outcome.kind === 'billing_missing') {
-        alert('등록된 결제카드가 없습니다. 먼저 "토스로 카드 등록 (빌링)"을 완료해 주세요.');
+        alert('등록된 결제카드가 없습니다. 먼저 "결제카드 등록"을 완료해 주세요.');
         return;
       }
       if (outcome.kind === 'already_subscribed') {
@@ -349,10 +348,10 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
               className="w-full bg-[#3182f6] text-white py-3.5 rounded-[10px] hover:bg-[#1b64da] disabled:opacity-50 disabled:cursor-not-allowed text-[15px] font-semibold transition-colors"
             >
               {tossLoading
-                ? '토스 연결 중…'
+                ? '연결 중…'
                 : registeredCardSummary
-                  ? '등록 카드 변경하기'
-                  : '토스로 카드 등록 (빌링)'}
+                  ? '결제카드 변경'
+                  : '결제카드 등록'}
             </button>
             <button
               type="button"
@@ -360,7 +359,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
               disabled={paymentActionsDisabled || tossChargeLoading}
               className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3.5 rounded-[10px] hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-[15px] font-semibold transition-colors"
             >
-              {tossChargeLoading ? '결제 처리 중…' : tossButtonLabel}
+              {tossChargeLoading ? '처리 중…' : subscribeButtonLabel}
             </button>
           </section>
         </div>
