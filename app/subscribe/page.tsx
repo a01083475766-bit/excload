@@ -9,6 +9,7 @@ import { runAfterTossChargeResponse } from '@/app/lib/toss/after-charge-client';
 
 import Link from 'next/link';
 import { Shield, Lock } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -53,6 +54,7 @@ function isPlanKey(v: string | null): v is PlanKey {
 }
 
 function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
+  const { status: authStatus } = useSession();
   const fetchUser = useUserStore((state) => state.fetchUser);
   const [tossLoading, setTossLoading] = useState(false);
   const [tossChargeLoading, setTossChargeLoading] = useState(false);
@@ -65,6 +67,12 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   const tossAmount = planKey === 'yearly' ? 40000 : 4000;
   const tossOrderName = planKey === 'yearly' ? 'EXCLOAD YEARLY 구독' : 'EXCLOAD PRO 구독';
   const subscribeButtonLabel = '구독 시작하기';
+
+  const recurringNotice = useMemo(
+    () =>
+      `정기결제 상품이며, 선택한 ${billingCycleText} 주기로 자동 갱신됩니다. 마이페이지에서 언제든 해지할 수 있습니다.`,
+    [billingCycleText]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -192,12 +200,25 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
       <div className="max-w-[480px] mx-auto">
         <header className="mb-6 text-center sm:text-left">
           <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            주문서
+            구독결제
           </h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            로그인 후 결제를 진행해 주세요. 정기결제 상품이며, 선택한 {billingCycleText} 주기로
-            자동 갱신됩니다. 마이페이지에서 언제든 해지할 수 있습니다.
-          </p>
+          {authStatus === 'loading' ? (
+            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">불러오는 중…</p>
+          ) : authStatus === 'authenticated' ? (
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              결제카드를 등록한 뒤 구독을 시작해 주세요. {recurringNotice}
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              로그인 후 결제를 진행해 주세요. {recurringNotice}{' '}
+              <Link
+                href={`/auth/login?callbackUrl=${encodeURIComponent(`/subscribe?plan=${planKey}`)}`}
+                className="font-medium text-[#3182f6] underline underline-offset-2 hover:text-[#1b64da]"
+              >
+                로그인하기
+              </Link>
+            </p>
+          )}
         </header>
 
         <div className="rounded-[10px] bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200/80 dark:border-zinc-800 overflow-hidden">
@@ -243,20 +264,13 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
               결제 방법
             </h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               현재{' '}
               <strong className="text-zinc-700 dark:text-zinc-300">
                 신용·체크카드 정기결제
               </strong>
               만 지원합니다.
             </p>
-
-            <div
-              className="w-full rounded-[10px] border-2 border-[#3182f6] bg-white dark:bg-zinc-900 px-4 py-3.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-center"
-              aria-current="true"
-            >
-              신용·체크카드
-            </div>
           </section>
 
           <section className="p-5 border-b border-zinc-100 dark:border-zinc-800">
