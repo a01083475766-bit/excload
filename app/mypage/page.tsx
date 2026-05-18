@@ -4,7 +4,16 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { User, Calendar, CreditCard, Bell, Shield, LogOut, AlertTriangle } from 'lucide-react';
+import {
+  User,
+  Calendar,
+  CreditCard,
+  Bell,
+  Shield,
+  LogOut,
+  AlertTriangle,
+  ChevronDown,
+} from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 import { formatPhoneDisplay, formatPhoneForInput } from '@/app/utils/format-phone';
 
@@ -68,6 +77,7 @@ export default function MyPage() {
   const [isRetryingPayment, setIsRetryingPayment] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
   const [isLoadingPaymentHistory, setIsLoadingPaymentHistory] = useState(false);
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
   const [pendingPlanChange, setPendingPlanChange] = useState<PendingPlanChangeState | null>(null);
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const [isCancellingPlanChange, setIsCancellingPlanChange] = useState(false);
@@ -870,45 +880,68 @@ export default function MyPage() {
                     </div>
 
                     <div className="mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-700">
-                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-                        결제 내역
-                      </p>
-                      {isLoadingPaymentHistory ? (
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">불러오는 중…</p>
-                      ) : paymentHistory.length === 0 ? (
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          결제 내역이 없습니다.
-                        </p>
-                      ) : (
-                        <ul className="space-y-2 max-h-64 overflow-y-auto">
-                          {paymentHistory.map((item) => (
-                            <li
-                              key={item.id}
-                              className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2.5 text-sm"
-                            >
-                              <div className="min-w-0">
-                                <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                                  {item.planLabel}
-                                </p>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                  {item.paidAtLabel}
-                                  {item.paymentProviderLabel !== '-' && (
-                                    <> · {item.paymentProviderLabel}</>
-                                  )}
-                                </p>
-                              </div>
-                              <p className="shrink-0 font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
-                                {item.amount.toLocaleString()}
-                                {item.currency === 'KRW' ? '원' : ` ${item.currency}`}
+                      <button
+                        type="button"
+                        onClick={() => setIsPaymentHistoryOpen((open) => !open)}
+                        className="flex w-full items-center justify-between gap-2 text-left rounded-lg py-1 -mx-1 px-1 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                        aria-expanded={isPaymentHistoryOpen}
+                      >
+                        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                          결제 내역
+                          {!isLoadingPaymentHistory && paymentHistory.length > 0 && (
+                            <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
+                              ({paymentHistory.length}건)
+                            </span>
+                          )}
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 ${
+                            isPaymentHistoryOpen ? 'rotate-180' : ''
+                          }`}
+                          aria-hidden
+                        />
+                      </button>
+
+                      {isPaymentHistoryOpen && (
+                        <div className="mt-3">
+                          {isLoadingPaymentHistory ? (
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">불러오는 중…</p>
+                          ) : paymentHistory.length === 0 ? (
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                              결제 내역이 없습니다.
+                            </p>
+                          ) : (
+                            <>
+                              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                                {paymentHistory.map((item) => (
+                                  <li
+                                    key={item.id}
+                                    className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2.5 text-sm"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                        {item.planLabel}
+                                      </p>
+                                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                        {item.paidAtLabel}
+                                        {item.paymentProviderLabel !== '-' && (
+                                          <> · {item.paymentProviderLabel}</>
+                                        )}
+                                      </p>
+                                    </div>
+                                    <p className="shrink-0 font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                                      {item.amount.toLocaleString()}
+                                      {item.currency === 'KRW' ? '원' : ` ${item.currency}`}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ul>
+                              <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+                                최근 {paymentHistory.length}건 표시
                               </p>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {paymentHistory.length > 0 && (
-                        <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
-                          최근 {paymentHistory.length}건 표시
-                        </p>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
