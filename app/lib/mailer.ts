@@ -192,29 +192,34 @@ export async function sendContactInquiryEmails(payload: ContactInquiryMailPayloa
       await resend.emails.send({
         from,
         to: payload.email,
-        subject: '[엑클로드] 문의가 접수되었습니다',
+        subject: '[엑클로드] 문의 접수 안내',
         text: [
           `${payload.name}님, 안녕하세요.`,
           '',
           '엑클로드 고객문의가 정상적으로 접수되었습니다.',
-          `문의 유형: ${payload.typeLabel}`,
-          `제목: ${payload.subject}`,
           '',
           '내용을 확인 후 입력하신 이메일로 연락드리겠습니다.',
           '',
           '감사합니다.',
           '엑클로드 팀',
+          '',
+          '──────── 접수 내역 ────────',
+          `문의 유형: ${payload.typeLabel}`,
+          `제목: ${payload.subject}`,
+          '',
+          '본 메일은 발신전용입니다.',
         ].join('\n'),
         html: `
-<div style="font-family: Arial, sans-serif; line-height:1.6; color:#333;">
-  <p>${escapeHtml(payload.name)}님, 안녕하세요.</p>
-  <p>엑클로드 고객문의가 <strong>정상적으로 접수</strong>되었습니다.</p>
-  <ul style="font-size:14px; color:#444;">
-    <li>문의 유형: ${escapeHtml(payload.typeLabel)}</li>
-    <li>제목: ${escapeHtml(payload.subject)}</li>
-  </ul>
-  <p style="font-size:14px;">내용을 확인 후 입력하신 이메일로 연락드리겠습니다.</p>
-  <p style="font-size:12px; color:#888; margin-top:20px;">본 메일은 발신전용입니다.</p>
+<div style="font-family: Arial, sans-serif; line-height:1.6; color:#333; max-width:560px;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+    고객문의가 접수되었습니다. 확인 후 연락드리겠습니다.
+  </div>
+  <p style="margin:0 0 12px;">${escapeHtml(payload.name)}님, 안녕하세요.</p>
+  <p style="margin:0 0 16px; font-size:15px;">엑클로드 고객문의가 <strong>정상적으로 접수</strong>되었습니다.</p>
+  <p style="margin:0 0 20px; font-size:14px; color:#444;">내용을 확인 후 입력하신 이메일로 연락드리겠습니다.</p>
+  <p style="margin:0 0 8px; font-size:12px; color:#888;">접수 내역</p>
+  <p style="margin:0; font-size:13px; color:#666;">문의 유형: ${escapeHtml(payload.typeLabel)}<br />제목: ${escapeHtml(payload.subject)}</p>
+  <p style="font-size:11px; color:#aaa; margin-top:24px;">본 메일은 발신전용입니다.</p>
 </div>
 `.trim(),
       });
