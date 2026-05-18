@@ -55,7 +55,12 @@ export default function ContactPage() {
       }
 
       const res = await fetch('/api/contact', { method: 'POST', body });
-      const data = await res.json();
+      let data: Record<string, unknown> = {};
+      try {
+        data = (await res.json()) as Record<string, unknown>;
+      } catch {
+        throw new Error('서버 응답을 읽을 수 없습니다.');
+      }
 
       if (!res.ok) {
         if (data?.inquiryId) {
@@ -65,14 +70,15 @@ export default function ContactPage() {
           setSubmitFeedback({
             type: 'success',
             message:
-              data?.error ||
+              (typeof data.error === 'string' ? data.error : null) ||
               '문의는 접수되었습니다. 확인 메일 발송에 실패했을 수 있으니 잠시만 기다려 주세요.',
           });
           return;
         }
         setSubmitFeedback({
           type: 'error',
-          message: data?.error || '문의 전송에 실패했습니다.',
+          message:
+            (typeof data.error === 'string' ? data.error : null) || '문의 전송에 실패했습니다.',
         });
         return;
       }
@@ -86,10 +92,13 @@ export default function ContactPage() {
           data?.message ||
           '문의가 접수되었습니다. 입력하신 이메일로 접수 확인 메일을 보내드렸습니다.',
       });
-    } catch {
+    } catch (err) {
       setSubmitFeedback({
         type: 'error',
-        message: '문의 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+        message:
+          err instanceof Error
+            ? err.message
+            : '문의 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
       });
     } finally {
       setIsSubmitting(false);

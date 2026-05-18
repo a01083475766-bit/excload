@@ -38,11 +38,23 @@ export function isAllowedContactAttachment(file: File): boolean {
     lower.endsWith('.xlsx') ||
     lower.endsWith('.xls') ||
     lower.endsWith('.csv') ||
+    lower.endsWith('.txt') ||
     lower.endsWith('.png') ||
     lower.endsWith('.jpg') ||
     lower.endsWith('.jpeg') ||
     lower.endsWith('.pdf')
   );
+}
+
+/** Resend 첨부용 ASCII 안전 파일명 */
+export function safeAttachmentFilename(name: string): string {
+  const trimmed = name.trim().slice(0, 200);
+  const dot = trimmed.lastIndexOf('.');
+  const ext = dot > 0 ? trimmed.slice(dot).replace(/[^a-zA-Z0-9.]/g, '') : '';
+  const base =
+    (dot > 0 ? trimmed.slice(0, dot) : trimmed).replace(/[^\w.-]/g, '_').replace(/_+/g, '_') ||
+    'attachment';
+  return `${base.slice(0, 150)}${ext || '.bin'}`.slice(0, 200);
 }
 
 export function getContactAdminEmail(): string {
