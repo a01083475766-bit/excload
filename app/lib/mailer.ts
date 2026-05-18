@@ -108,6 +108,124 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
   }
 }
 
+export interface ContactInquiryMailPayload {
+  type: string;
+  typeLabel: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  company?: string;
+  phone?: string;
+  attachment?: { filename: string; contentBase64: string };
+}
+
+export async function sendContactInquiryEmails(payload: ContactInquiryMailPayload) {
+  const resend = getResendClient();
+  const from = getEmailFromAddress();
+  const adminTo =
+    process.env.CONTACT_ADMIN_EMAIL?.trim() || 'sacom5766@naver.com';
+
+  if (!resend || !from) {
+    console.warn('[Contact Inquiry Mail] skipped: missing RESEND_API_KEY or EMAIL_FROM');
+    return { sent: false, reason: 'MAIL_CONFIG_MISSING' as const };
+  }
+
+  const extraLines: string[] = [];
+  if (payload.company?.trim()) extraLines.push(`회사명: ${payload.company.trim()}`);
+  if (payload.phone?.trim()) extraLines.push(`연락처: ${payload.phone.trim()}`);
+
+  const bodyText = [
+    `문의 유형: ${payload.typeLabel}`,
+    `이름: ${payload.name}`,
+    `이메일: ${payload.email}`,
+    ...extraLines,
+    '',
+    '--- 문의 내용 ---',
+    payload.message,
+  ].join('\n');
+
+  const bodyHtml = `
+<div style="font-family: Arial, sans-serif; line-height:1.6; color:#333;">
+  <h2 style="margin-bottom:12px;">엑클로드 고객문의</h2>
+  <table style="border-collapse:collapse; font-size:14px;">
+    <tr><td style="padding:4px 12px 4px 0; color:#666;">유형</td><td><strong>${escapeHtml(payload.typeLabel)}</strong></td></tr>
+    <tr><td style="padding:4px 12px 4px 0; color:#666;">이름</td><td>${escapeHtml(payload.name)}</td></tr>
+    <tr><td style="padding:4px 12px 4px 0; color:#666;">이메일</td><td><a href="mailto:${escapeHtml(payload.email)}">${escapeHtml(payload.email)}</a></td></tr>
+    ${payload.company?.trim() ? `<tr><td style="padding:4px 12px 4px 0; color:#666;">회사명</td><td>${escapeHtml(payload.company.trim())}</td></tr>` : ''}
+    ${payload.phone?.trim() ? `<tr><td style="padding:4px 12px 4px 0; color:#666;">연락처</td><td>${escapeHtml(payload.phone.trim())}</td></tr>` : ''}
+    <tr><td style="padding:4px 12px 4px 0; color:#666;">제목</td><td>${escapeHtml(payload.subject)}</td></tr>
+  </table>
+  <hr style="margin:20px 0; border:none; border-top:1px solid #eee;" />
+  <p style="font-size:14px; white-space:pre-wrap;">${escapeHtml(payload.message)}</p>
+  ${payload.attachment ? `<p style="font-size:12px; color:#666; margin-top:16px;">첨부: ${escapeHtml(payload.attachment.filename)}</p>` : ''}
+</div>
+`.trim();
+
+  const attachments = payload.attachment
+    ? [{ filename: payload.attachment.filename, content: payload.attachment.contentBase64 }]
+    : undefined;
+
+  const adminSubject = `[엑클로드 문의] ${payload.typeLabel} — ${payload.subject}`;
+
+  try {
+    await resend.emails.send({
+      from,
+      to: adminTo,
+      replyTo: payload.email,
+      subject: adminSubject,
+      text: `${adminSubject}\n\n${bodyText}`,
+      html: bodyHtml,
+      attachments,
+    });
+
+    await resend.emails.send({
+      from,
+      to: payload.email,
+      subject: '[엑클로드] 문의가 접수되었습니다',
+      text: [
+        `${payload.name}님, 안녕하세요.`,
+        '',
+        '엑클로드 고객문의가 정상적으로 접수되었습니다.',
+        `문의 유형: ${payload.typeLabel}`,
+        `제목: ${payload.subject}`,
+        '',
+        '영업일 기준 1일 이내 순차적으로 답변드리겠습니다.',
+        '(주말·공휴일 접수 건은 다음 영업일부터 처리됩니다.)',
+        '',
+        '감사합니다.',
+        '엑클로드 팀',
+      ].join('\n'),
+      html: `
+<div style="font-family: Arial, sans-serif; line-height:1.6; color:#333;">
+  <p>${escapeHtml(payload.name)}님, 안녕하세요.</p>
+  <p>엑클로드 고객문의가 <strong>정상적으로 접수</strong>되었습니다.</p>
+  <ul style="font-size:14px; color:#444;">
+    <li>문의 유형: ${escapeHtml(payload.typeLabel)}</li>
+    <li>제목: ${escapeHtml(payload.subject)}</li>
+  </ul>
+  <p style="font-size:14px;">영업일 기준 <strong>1일 이내</strong> 순차적으로 답변드리겠습니다.<br />
+  (주말·공휴일 접수 건은 다음 영업일부터 처리됩니다.)</p>
+  <p style="font-size:12px; color:#888; margin-top:20px;">본 메일은 발신전용입니다.</p>
+</div>
+`.trim(),
+    });
+
+    return { sent: true as const };
+  } catch (error) {
+    console.error('[Contact Inquiry Mail] send failed:', error);
+    return { sent: false, reason: 'MAIL_SEND_FAILED' as const };
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export async function sendSignupVerificationCodeEmail(payload: SignupVerificationMailPayload) {
   const resend = getResendClient();
   const from = getEmailFromAddress();

@@ -272,6 +272,7 @@ export default function AkmanClient() {
 
   const menuItems: { href: string; title: string; desc: string }[] = [
     { href: '/akman/payments', title: '결제 내역', desc: '결제·플랜 기록 조회' },
+    { href: '/akman/contact-inquiries', title: '고객문의', desc: '문의 접수·답변 상태 관리' },
     { href: '/akman/refunds', title: '환불 신청', desc: '환불 접수/승인/반려 관리' },
     { href: '/akman/points', title: '사용량 로그', desc: '사용량 제공·차감 이력' },
     { href: '/akman/ai-mapping', title: 'AI 매핑', desc: '매핑 규칙 관리' },

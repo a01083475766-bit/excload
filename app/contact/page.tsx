@@ -1,27 +1,99 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, MessageCircle, HelpCircle, Send, Phone, MapPin, Paperclip } from 'lucide-react';
+import { Mail, MessageCircle, HelpCircle, Send, Phone, Paperclip } from 'lucide-react';
+
+const initialFormData = {
+  name: '',
+  email: '',
+  subject: '',
+  type: 'general',
+  message: '',
+  company: '',
+  phone: '',
+};
 
 export default function ContactPage() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    type: 'general',
-    message: '',
-  });
+  const [formData, setFormData] = useState(initialFormData);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentName, setAttachmentName] = useState<string | null>(null);
+  const [submitFeedback, setSubmitFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // UI만 구현하므로 실제 제출 로직 없음
+    setSubmitFeedback(null);
+
+    const name = formData.name.trim();
+    const email = formData.email.trim();
+    const subject = formData.subject.trim();
+    const message = formData.message.trim();
+
+    if (!name || !email || !subject || !message) {
+      setSubmitFeedback({ type: 'error', message: '필수 항목을 모두 입력해 주세요.' });
+      return;
+    }
+
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const body = new FormData();
+      body.set('type', formData.type);
+      body.set('name', name);
+      body.set('email', email);
+      body.set('subject', subject);
+      body.set('message', message);
+      if (formData.type === 'business') {
+        body.set('company', formData.company.trim());
+        body.set('phone', formData.phone.trim());
+      }
+      if (attachmentFile) {
+        body.set('attachment', attachmentFile);
+      }
+
+      const res = await fetch('/api/contact', { method: 'POST', body });
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data?.inquiryId) {
+          setFormData(initialFormData);
+          setAttachmentFile(null);
+          setAttachmentName(null);
+          setSubmitFeedback({
+            type: 'success',
+            message:
+              data?.error ||
+              '문의는 접수되었습니다. 확인 메일 발송에 실패했을 수 있으니 잠시만 기다려 주세요.',
+          });
+          return;
+        }
+        setSubmitFeedback({
+          type: 'error',
+          message: data?.error || '문의 전송에 실패했습니다.',
+        });
+        return;
+      }
+
+      setFormData(initialFormData);
+      setAttachmentFile(null);
+      setAttachmentName(null);
+      setSubmitFeedback({
+        type: 'success',
+        message:
+          data?.message ||
+          '문의가 접수되었습니다. 입력하신 이메일로 접수 확인 메일을 보내드렸습니다.',
+      });
+    } catch {
+      setSubmitFeedback({
+        type: 'error',
+        message: '문의 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   const faqs = [
@@ -131,6 +203,7 @@ export default function ContactPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="이름을 입력해주세요"
+                    required
                   />
                 </div>
                 
@@ -144,6 +217,7 @@ export default function ContactPage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="이메일을 입력해주세요"
+                    required
                   />
                 </div>
                 
@@ -157,6 +231,7 @@ export default function ContactPage() {
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="문의 제목을 입력해주세요"
+                    required
                   />
                 </div>
                 
@@ -169,6 +244,8 @@ export default function ContactPage() {
                       </label>
                       <input
                         type="text"
+                        value={formData.company}
+                        onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                         className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="회사명을 입력해주세요"
                       />
@@ -179,6 +256,8 @@ export default function ContactPage() {
                       </label>
                       <input
                         type="text"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="연락 가능한 전화번호를 입력해주세요"
                       />
@@ -200,6 +279,7 @@ export default function ContactPage() {
                         ? '협업 또는 제안 내용을 자세히 작성해주세요'
                         : '문의 내용을 입력해주세요'
                     }
+                    required
                   />
                   {/* 첨부파일 */}
                   <div>
@@ -227,13 +307,27 @@ export default function ContactPage() {
                         type="file"
                         className="hidden"
                         onChange={(e) => {
-                          const file = e.target.files?.[0];
+                          const file = e.target.files?.[0] ?? null;
+                          setAttachmentFile(file);
                           setAttachmentName(file ? file.name : null);
                         }}
                       />
                     </label>
                   </div>
                 </div>
+
+                {submitFeedback && (
+                  <p
+                    className={`text-sm rounded-lg px-4 py-3 ${
+                      submitFeedback.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                        : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200'
+                    }`}
+                    role="alert"
+                  >
+                    {submitFeedback.message}
+                  </p>
+                )}
                 
                 <button
                   type="submit"
