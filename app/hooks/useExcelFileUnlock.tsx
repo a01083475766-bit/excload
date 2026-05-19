@@ -146,10 +146,6 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
     [modal, openUnsupportedModal, rejectPending, resolvePending],
   );
 
-  const handlePasswordCancel = useCallback(() => {
-    rejectPending(new ExcelUnlockCancelledError());
-  }, [rejectPending]);
-
   const handleUnsupportedClose = useCallback(() => {
     rejectPending(new ExcelUnlockCancelledError());
   }, [rejectPending]);
@@ -213,7 +209,6 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
         attemptCount={modal.attemptCount}
         isSubmitting={modal.isSubmitting}
         onSubmit={(pw) => void handlePasswordSubmit(pw)}
-        onCancel={handlePasswordCancel}
         onUploadCancel={cancelUploadAndUnlock}
       />
     );

@@ -13,7 +13,6 @@ type PasswordModalProps = {
   attemptCount: number;
   isSubmitting: boolean;
   onSubmit: (password: string) => void;
-  onCancel: () => void;
   onUploadCancel: () => void;
 };
 
@@ -82,7 +81,6 @@ function PasswordModalContent({
   attemptCount,
   isSubmitting,
   onSubmit,
-  onCancel,
   onUploadCancel,
 }: Omit<PasswordModalProps, 'mode'>) {
   const [password, setPassword] = useState('');
@@ -156,10 +154,10 @@ function PasswordModalContent({
           <button
             type="button"
             className="flex-1 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            onClick={onCancel}
+            onClick={onUploadCancel}
             disabled={isSubmitting}
           >
-            취소
+            업로드 취소
           </button>
           <button
             type="button"
@@ -170,14 +168,6 @@ function PasswordModalContent({
             {isSubmitting ? '확인 중…' : '확인'}
           </button>
         </div>
-        <button
-          type="button"
-          className="mt-3 w-full py-2 text-sm font-medium text-gray-600 transition hover:text-red-600 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-red-400"
-          onClick={onUploadCancel}
-          disabled={isSubmitting}
-        >
-          업로드 취소
-        </button>
       </div>
     </div>
   );
