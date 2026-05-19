@@ -375,14 +375,12 @@ export default function OrderConvertPage() {
 
   const needsAccount = !user && !isLoading;
 
-  const parseExcelFileForUnlockRef = useRef<(file: File) => void>(() => {});
   const clearUploadedExcelForUnlock = useCallback(() => {
     setUploadedExcelFile(null);
     setFileProcessingStatus('idle');
     setStage2ChunkLabel(null);
   }, []);
-  const { unlockExcelFile, excelUnlockUi, excelUnlockFileActions } = useExcelFileUnlock({
-    onPasswordRetry: (file) => parseExcelFileForUnlockRef.current(file),
+  const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock({
     onUploadCancel: clearUploadedExcelForUnlock,
   });
 
@@ -1637,10 +1635,6 @@ export default function OrderConvertPage() {
     }
   };
 
-  parseExcelFileForUnlockRef.current = (file) => {
-    void parseExcelFile(file);
-  };
-  
   const handleUnifiedPipelinesCompleted = (result: UnifiedInputPipelineResult) => {
     if (!result.mergeResult) {
       return;
@@ -2050,9 +2044,8 @@ export default function OrderConvertPage() {
                         </p>
                       </div>
                       {uploadedExcelFile && (
-                        <div className="mt-2 flex w-full flex-col items-center gap-0.5 text-sm text-gray-600">
-                          <div className="flex items-center justify-center gap-3">
-                            <span>
+                        <div className="flex items-center justify-center gap-3 mt-2 text-sm text-gray-600">
+                          <span>
                               📄 선택된 파일: {uploadedExcelFile.name}
                               {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
                             </span>
@@ -2077,9 +2070,7 @@ export default function OrderConvertPage() {
                                   ✔ 완료
                                 </span>
                               )}
-                            </span>
-                          </div>
-                          {fileProcessingStatus === 'idle' && excelUnlockFileActions}
+                          </span>
                         </div>
                       )}
                     </div>

@@ -2,7 +2,6 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { ExcelProtectedFileModal } from '@/app/components/ExcelProtectedFileModal';
-import { ExcelUnlockFileActions } from '@/app/components/ExcelUnlockFileActions';
 import {
   ExcelUnlockCancelledError,
   ExcelUnsupportedProtectedError,
@@ -37,15 +36,12 @@ type PendingResolve = {
 };
 
 export type UseExcelFileUnlockOptions = {
-  /** 비밀번호 모달을 취소한 뒤 「다시 입력」 시 호출 (예: parseExcelFile 재실행) */
-  onPasswordRetry?: (file: File) => void;
   /** 업로드 취소 — 선택 파일 제거 등 페이지 상태 초기화 */
   onUploadCancel?: () => void;
 };
 
 export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
   const [modal, setModal] = useState<PasswordModalState | UnsupportedModalState | null>(null);
-  const [passwordRetryFile, setPasswordRetryFile] = useState<File | null>(null);
   const pendingRef = useRef<PendingResolve | null>(null);
   const passwordFlowRef = useRef<{
     file: File;
@@ -72,7 +68,6 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
     (buffer: ArrayBuffer) => {
       pendingRef.current?.resolve(buffer);
       pendingRef.current = null;
-      setPasswordRetryFile(null);
       closeModal();
     },
     [closeModal],
@@ -80,7 +75,6 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
 
   const openPasswordModal = useCallback(
     (file: File, kind: ProtectedFileKind, buffer: ArrayBuffer) => {
-      setPasswordRetryFile(null);
       passwordFlowRef.current = { file, kind, buffer, attemptCount: 0 };
       setModal({
         mode: 'password',
@@ -153,23 +147,14 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
   );
 
   const handlePasswordCancel = useCallback(() => {
-    const file = passwordFlowRef.current?.file;
-    if (file) {
-      setPasswordRetryFile(file);
-    }
     rejectPending(new ExcelUnlockCancelledError());
   }, [rejectPending]);
 
   const handleUnsupportedClose = useCallback(() => {
-    const file = passwordFlowRef.current?.file;
-    if (file) {
-      setPasswordRetryFile(file);
-    }
     rejectPending(new ExcelUnlockCancelledError());
   }, [rejectPending]);
 
   const cancelUploadAndUnlock = useCallback(() => {
-    setPasswordRetryFile(null);
     if (pendingRef.current) {
       pendingRef.current.reject(new ExcelUnlockCancelledError());
       pendingRef.current = null;
@@ -211,13 +196,6 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
     [openPasswordModal, openUnsupportedModal, rejectPending, resolvePending],
   );
 
-  const handlePasswordRetryClick = useCallback(() => {
-    if (!passwordRetryFile) return;
-    const file = passwordRetryFile;
-    setPasswordRetryFile(null);
-    options?.onPasswordRetry?.(file);
-  }, [options, passwordRetryFile]);
-
   const excelProtectedFileModal =
     modal == null ? null : modal.mode === 'unsupported' ? (
       <ExcelProtectedFileModal
@@ -240,20 +218,9 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
       />
     );
 
-  const excelUnlockFileActions =
-    options?.onUploadCancel != null ? (
-      <ExcelUnlockFileActions
-        showRetry={Boolean(passwordRetryFile && options.onPasswordRetry)}
-        onRetry={handlePasswordRetryClick}
-        onUploadCancel={cancelUploadAndUnlock}
-      />
-    ) : null;
-
   return {
     unlockExcelFile,
     excelProtectedFileModal,
     excelUnlockUi: excelProtectedFileModal,
-    excelUnlockFileActions,
-    hasPasswordRetryPending: Boolean(passwordRetryFile),
   };
 }
