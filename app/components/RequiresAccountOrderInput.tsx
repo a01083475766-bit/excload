@@ -2,40 +2,8 @@
 
 import Link from 'next/link';
 
-/** 택배·물류·송장 변환 등 본페이지 비로그인 안내에 공통 사용 */
+/** 택배·물류·송장 변환 등 본페이지 비로그인 모달 안내에 공통 사용 */
 export const REQUIRES_ACCOUNT_ORDER_REASON = '로그인 후 이용 가능합니다.';
-
-type BannerProps = {
-  visible: boolean;
-  className?: string;
-};
-
-export function RequiresAccountOrderBanner({ visible, className = '' }: BannerProps) {
-  if (!visible) return null;
-
-  return (
-    <div
-      className={`mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-100 ${className}`}
-      role="status"
-    >
-      <p className="mb-3 font-medium leading-snug">{REQUIRES_ACCOUNT_ORDER_REASON}</p>
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href="/auth/login"
-          className="inline-flex min-h-9 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          로그인
-        </Link>
-        <Link
-          href="/auth/login"
-          className="inline-flex min-h-9 items-center justify-center rounded-lg border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-950 transition hover:bg-amber-100 dark:border-amber-700 dark:bg-zinc-900 dark:text-amber-50 dark:hover:bg-zinc-800"
-        >
-          회원가입
-        </Link>
-      </div>
-    </div>
-  );
-}
 
 type ModalProps = {
   open: boolean;

@@ -39,10 +39,7 @@ import {
   NormalizeQualityNoticeModal,
   isLikelyClientNetworkError,
 } from '@/app/components/NormalizeQualityNoticeModal';
-import {
-  RequiresAccountOrderBanner,
-  RequiresAccountOrderModal,
-} from '@/app/components/RequiresAccountOrderInput';
+import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
 import {
   OrderConvertPreviewTableRow,
   type PreviewRowWithId,
@@ -1952,8 +1949,6 @@ export default function OrderConvertPage() {
                 ) : null}
               </div>
             </div>
-
-            <RequiresAccountOrderBanner visible={needsAccount} />
 
             {/* 통합 입력 카드 - 하나의 파란색 테두리 카드에서 파일선택(왼쪽) + 텍스트입력(오른쪽) */}
             <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">

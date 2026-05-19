@@ -37,10 +37,7 @@ import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
-import {
-  RequiresAccountOrderBanner,
-  RequiresAccountOrderModal,
-} from '@/app/components/RequiresAccountOrderInput';
+import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
 import {
   INVOICE_FILE_CONVERT_KEYS,
   readLocalStorageWithLegacyMigrate,
@@ -1595,8 +1592,6 @@ export default function InvoiceFileConvertPage() {
                 ) : null}
               </div>
             </div>
-
-            <RequiresAccountOrderBanner visible={needsAccount} />
 
             {/* 이중 파일 업로드: 주문 엑셀 + 택배사 송장 엑셀 */}
             <div className="w-full border-2 border-blue-500 rounded-xl bg-white p-5">
