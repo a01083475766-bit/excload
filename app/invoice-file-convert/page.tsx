@@ -45,6 +45,8 @@ import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSessi
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
+import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
+import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
 import {
   INVOICE_FILE_CONVERT_KEYS,
   readLocalStorageWithLegacyMigrate,
@@ -360,6 +362,8 @@ export default function InvoiceFileConvertPage() {
   }, [fetchUser]);
 
   const needsAccount = !user && !isLoading;
+
+  const { unlockExcelFile, excelProtectedFileModal } = useExcelFileUnlock();
 
   const ensureLoggedInForInvoiceInput = (): boolean => {
     if (user) return true;
@@ -915,7 +919,7 @@ export default function InvoiceFileConvertPage() {
       files.forEach((file) => {
         const extension = file.name.split('.').pop()?.toLowerCase();
 
-        if (extension === 'xlsx' || extension === 'xls') {
+        if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
           if (!isValidCourierTemplate(courierUploadTemplate)) {
             setIsNoTemplateModalOpen(true);
             return;
@@ -930,7 +934,7 @@ export default function InvoiceFileConvertPage() {
             void parseExcelFile(file);
           }
         } else {
-          alert('주문 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
+          alert('주문 파일은 엑셀(.xlsx, .xls, .zip)만 등록할 수 있습니다.');
         }
       });
     }
@@ -1055,22 +1059,22 @@ export default function InvoiceFileConvertPage() {
 
     files.forEach((file) => {
       const extension = file.name.split('.').pop()?.toLowerCase();
-      if (extension === 'xlsx' || extension === 'xls') {
-        if (!isValidCourierTemplate(courierUploadTemplate)) {
-          setIsNoTemplateModalOpen(true);
-          return;
+        if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
+          if (!isValidCourierTemplate(courierUploadTemplate)) {
+            setIsNoTemplateModalOpen(true);
+            return;
+          }
+          if (uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
+            alert('이미 업로드된 파일입니다.');
+            return;
+          }
+          setUploadedExcelFile(file);
+          if (templateBridgeFile && courierInvoiceFile) {
+            void parseExcelFile(file);
+          }
+        } else {
+          alert('주문 파일은 엑셀(.xlsx, .xls, .zip)만 등록할 수 있습니다.');
         }
-        if (uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
-          alert('이미 업로드된 파일입니다.');
-          return;
-        }
-        setUploadedExcelFile(file);
-        if (templateBridgeFile && courierInvoiceFile) {
-          void parseExcelFile(file);
-        }
-      } else {
-        alert('주문 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
-      }
     });
   };
 
@@ -1153,7 +1157,20 @@ export default function InvoiceFileConvertPage() {
         throw new Error('송장 엑셀 파일이 없습니다.');
       }
 
-      const buffer = await file.arrayBuffer();
+      let buffer: ArrayBuffer;
+      let invBuffer: ArrayBuffer;
+      try {
+        buffer = await unlockExcelFile(file);
+        invBuffer = await unlockExcelFile(invoiceFileForMerge);
+      } catch (unlockError) {
+        if (unlockError instanceof ExcelUnlockCancelledError) {
+          setFileProcessingStatus('idle');
+          setConversionProgress(0);
+          return;
+        }
+        throw unlockError;
+      }
+
       const rawData = readFirstSheetMatrixFromArrayBuffer(buffer);
 
       const filteredRows = filterNonEmptyRows(rawData);
@@ -1163,7 +1180,6 @@ export default function InvoiceFileConvertPage() {
       const preprocessOrder = new ExcelPreprocessPipeline();
       const orderCleanInput = preprocessOrder.run(alignedRawData);
 
-      const invBuffer = await invoiceFileForMerge.arrayBuffer();
       const invRaw = readFirstSheetMatrixFromArrayBuffer(invBuffer);
       const invFiltered = filterNonEmptyRows(invRaw);
       const invHeaderIndex = detectHeaderRowIndex(invFiltered);
@@ -1505,6 +1521,8 @@ export default function InvoiceFileConvertPage() {
 
   return (
     <>
+      {excelProtectedFileModal}
+
       <RequiresAccountOrderModal
         open={requiresAccountModalOpen}
         onClose={() => setRequiresAccountModalOpen(false)}

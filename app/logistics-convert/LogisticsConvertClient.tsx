@@ -50,6 +50,8 @@ import {
   isLikelyClientNetworkError,
 } from '@/app/components/NormalizeQualityNoticeModal';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
+import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
+import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
 import {
   applyProductCodeProjection,
   parseProductCodeMapFromMatrix,
@@ -999,6 +1001,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const isCancelledRef = useRef<boolean>(false);
 
   const needsAccount = !trialMode && !user && !isLoading;
+
+  const { unlockExcelFile, excelProtectedFileModal } = useExcelFileUnlock();
 
   const ensureLoggedInForOrderInput = useCallback((): boolean => {
     if (trialMode) return true;
@@ -2365,8 +2369,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         const extension = file.name.split('.').pop()?.toLowerCase();
         const fileType = file.type;
         
-      // 엑셀 파일 처리
-      if (extension === 'xlsx' || extension === 'xls') {
+      // 엑셀·암호 ZIP 파일 처리
+      if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
         // 물류센터 업로드 양식이 없는 경우 안내 모달 표시
         if (!isValidCourierTemplate(courierUploadTemplate)) {
           setNoTemplateModalType('convert');
@@ -2836,8 +2840,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       const extension = file.name.split('.').pop()?.toLowerCase();
       const fileType = file.type;
       
-      // 엑셀 파일 처리
-      if (extension === 'xlsx' || extension === 'xls') {
+      // 엑셀·암호 ZIP 파일 처리
+      if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
         // 물류센터 업로드 양식이 없는 경우 안내 모달 표시
         if (!isValidCourierTemplate(courierUploadTemplate)) {
           setNoTemplateModalType('convert');
@@ -2884,7 +2888,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }
 
     try {
-    const buffer = await file.arrayBuffer();
+    let buffer: ArrayBuffer;
+    try {
+      buffer = await unlockExcelFile(file);
+    } catch (unlockError) {
+      if (unlockError instanceof ExcelUnlockCancelledError) {
+        setFileProcessingStatus('idle');
+        return;
+      }
+      throw unlockError;
+    }
     const rawData = readFirstSheetMatrixFromArrayBuffer(buffer);
 
     const filteredRows = filterNonEmptyRows(rawData);
@@ -5309,6 +5322,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           </div>
         </div>
       )}
+
+      {excelProtectedFileModal}
 
       <RequiresAccountOrderModal
         open={requiresAccountModalOpen}
