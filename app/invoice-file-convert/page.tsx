@@ -916,19 +916,18 @@ export default function InvoiceFileConvertPage() {
         const extension = file.name.split('.').pop()?.toLowerCase();
 
         if (extension === 'xlsx' || extension === 'xls') {
-          // 오른쪽 송장 업로드와 동일: 먼저 필수 조건을 확인한 뒤에만 파일 상태 반영
           if (!isValidCourierTemplate(courierUploadTemplate)) {
             setIsNoTemplateModalOpen(true);
             return;
           }
-          if (!templateBridgeFile || !courierInvoiceFile) {
+          if (uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
+            alert('이미 업로드된 파일입니다.');
             return;
           }
           setUploadedExcelFile(file);
-          if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
-            parseExcelFile(file);
-          } else {
-            alert('이미 업로드된 파일입니다.');
+          // 송장·양식이 준비되면 즉시 변환, 아니면 선택만 유지(송장 등록 시 useEffect에서 변환)
+          if (templateBridgeFile && courierInvoiceFile) {
+            void parseExcelFile(file);
           }
         } else {
           alert('주문 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
@@ -1061,14 +1060,13 @@ export default function InvoiceFileConvertPage() {
           setIsNoTemplateModalOpen(true);
           return;
         }
-        if (!templateBridgeFile || !courierInvoiceFile) {
+        if (uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
+          alert('이미 업로드된 파일입니다.');
           return;
         }
         setUploadedExcelFile(file);
-        if (!uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
-          parseExcelFile(file);
-        } else {
-          alert('이미 업로드된 파일입니다.');
+        if (templateBridgeFile && courierInvoiceFile) {
+          void parseExcelFile(file);
         }
       } else {
         alert('주문 파일은 엑셀(.xlsx, .xls)만 등록할 수 있습니다.');
