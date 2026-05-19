@@ -350,6 +350,10 @@ export default function InvoiceFileConvertPage() {
   /** parseExcelFile·useEffect에서 최신 파일/양식 참조 (비동기 시점 클로저 오류 방지) */
   const uploadedExcelFileRef = useRef<File | null>(null);
   const courierInvoiceFileRef = useRef<File | null>(null);
+  /** 암호 해제 완료 버퍼 (파일 선택 직후 선해제) */
+  const unlockedOrderBufferRef = useRef<ArrayBuffer | null>(null);
+  const unlockedInvoiceBufferRef = useRef<ArrayBuffer | null>(null);
+  const unlockTargetRef = useRef<'order' | 'invoice' | null>(null);
   const templateBridgeFileRef = useRef<TemplateBridgeFile | null>(null);
   const courierUploadTemplateRef = useRef<CourierUploadTemplate | null>(null);
   uploadedExcelFileRef.current = uploadedExcelFile;
@@ -363,15 +367,93 @@ export default function InvoiceFileConvertPage() {
 
   const needsAccount = !user && !isLoading;
 
-  const clearUploadedExcelForUnlock = useCallback(() => {
-    setUploadedExcelFile(null);
+  const clearUnlockUpload = useCallback(() => {
+    if (unlockTargetRef.current === 'invoice') {
+      setCourierInvoiceFile(null);
+      unlockedInvoiceBufferRef.current = null;
+    } else {
+      setUploadedExcelFile(null);
+      unlockedOrderBufferRef.current = null;
+    }
     setFileProcessingStatus('idle');
     setConversionProgress(0);
     setPreviewReady(false);
   }, []);
+
   const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock({
-    onUploadCancel: clearUploadedExcelForUnlock,
+    onUploadCancel: clearUnlockUpload,
   });
+
+  const unlockSlotFile = useCallback(
+    async (slot: 'order' | 'invoice', file: File): Promise<ArrayBuffer> => {
+      unlockTargetRef.current = slot;
+      try {
+        const buffer = await unlockExcelFile(file);
+        if (slot === 'order') {
+          unlockedOrderBufferRef.current = buffer;
+        } else {
+          unlockedInvoiceBufferRef.current = buffer;
+        }
+        return buffer;
+      } finally {
+        unlockTargetRef.current = null;
+      }
+    },
+    [unlockExcelFile],
+  );
+
+  /** 주문·송장 중 암호 파일이면 선택 직후 비밀번호 모달 (변환 시작 전) */
+  const ensureBothFilesUnlocked = useCallback(
+    async (orderFile: File, invoiceFile: File): Promise<{ order: ArrayBuffer; invoice: ArrayBuffer } | null> => {
+      try {
+        let orderBuf = unlockedOrderBufferRef.current;
+        if (!orderBuf) {
+          orderBuf = await unlockSlotFile('order', orderFile);
+        }
+        let invoiceBuf = unlockedInvoiceBufferRef.current;
+        if (!invoiceBuf) {
+          invoiceBuf = await unlockSlotFile('invoice', invoiceFile);
+        }
+        return { order: orderBuf, invoice: invoiceBuf };
+      } catch (error) {
+        if (error instanceof ExcelUnlockCancelledError) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    [unlockSlotFile],
+  );
+
+  const tryEagerUnlockOrderFile = useCallback(
+    async (file: File) => {
+      unlockedOrderBufferRef.current = null;
+      try {
+        await unlockSlotFile('order', file);
+      } catch (error) {
+        if (error instanceof ExcelUnlockCancelledError) {
+          return;
+        }
+        throw error;
+      }
+    },
+    [unlockSlotFile],
+  );
+
+  const tryEagerUnlockInvoiceFile = useCallback(
+    async (file: File) => {
+      unlockedInvoiceBufferRef.current = null;
+      try {
+        await unlockSlotFile('invoice', file);
+      } catch (error) {
+        if (error instanceof ExcelUnlockCancelledError) {
+          return;
+        }
+        throw error;
+      }
+    },
+    [unlockSlotFile],
+  );
 
   const ensureLoggedInForInvoiceInput = (): boolean => {
     if (user) return true;
@@ -533,6 +615,8 @@ export default function InvoiceFileConvertPage() {
       setTemplateBridgeFile(null);
       setUploadedExcelFile(null);
       setCourierInvoiceFile(null);
+      unlockedOrderBufferRef.current = null;
+      unlockedInvoiceBufferRef.current = null;
       setSelectedFiles([]);
       setUploadedFileMeta([]);
       setUserOverrides({});
@@ -937,10 +1021,22 @@ export default function InvoiceFileConvertPage() {
             return;
           }
           setUploadedExcelFile(file);
-          // 송장·양식이 준비되면 즉시 변환, 아니면 선택만 유지(송장 등록 시 useEffect에서 변환)
-          if (templateBridgeFile && courierInvoiceFile) {
-            void parseExcelFile(file);
-          }
+          void (async () => {
+            await tryEagerUnlockOrderFile(file);
+            if (!uploadedExcelFileRef.current) return;
+            const inv = courierInvoiceFileRef.current;
+            const bridge = templateBridgeFileRef.current;
+            if (!inv || !bridge || !isValidCourierTemplate(courierUploadTemplateRef.current)) {
+              return;
+            }
+            if (uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
+              return;
+            }
+            const unlocked = await ensureBothFilesUnlocked(file, inv);
+            if (unlocked) {
+              void parseExcelFile(file, unlocked);
+            }
+          })();
         } else {
           alert('주문 파일은 엑셀(.xlsx, .xls, .zip)만 등록할 수 있습니다.');
         }
@@ -971,6 +1067,7 @@ export default function InvoiceFileConvertPage() {
     }
     setCourierInvoiceFile(file);
     recordWorkspaceInput('excel');
+    void tryEagerUnlockInvoiceFile(file);
     if (e.target) e.target.value = '';
   };
 
@@ -1077,9 +1174,22 @@ export default function InvoiceFileConvertPage() {
             return;
           }
           setUploadedExcelFile(file);
-          if (templateBridgeFile && courierInvoiceFile) {
-            void parseExcelFile(file);
-          }
+          void (async () => {
+            await tryEagerUnlockOrderFile(file);
+            if (!uploadedExcelFileRef.current) return;
+            const inv = courierInvoiceFileRef.current;
+            const bridge = templateBridgeFileRef.current;
+            if (!inv || !bridge || !isValidCourierTemplate(courierUploadTemplateRef.current)) {
+              return;
+            }
+            if (uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
+              return;
+            }
+            const unlocked = await ensureBothFilesUnlocked(file, inv);
+            if (unlocked) {
+              void parseExcelFile(file, unlocked);
+            }
+          })();
         } else {
           alert('주문 파일은 엑셀(.xlsx, .xls, .zip)만 등록할 수 있습니다.');
         }
@@ -1121,9 +1231,14 @@ export default function InvoiceFileConvertPage() {
       return;
     }
     setCourierInvoiceFile(file);
+    recordWorkspaceInput('excel');
+    void tryEagerUnlockInvoiceFile(file);
   };
 
-  const parseExcelFile = async (file: File) => {
+  const parseExcelFile = async (
+    file: File,
+    preUnlocked?: { order: ArrayBuffer; invoice: ArrayBuffer },
+  ) => {
     if (!ensureLoggedInForInvoiceInput()) {
       return;
     }
@@ -1139,6 +1254,25 @@ export default function InvoiceFileConvertPage() {
     if (uploadedFileMeta.some((f) => f.name === file.name && f.size === file.size)) {
       alert('이미 업로드된 파일입니다.');
       return;
+    }
+
+    const invoiceFileForMerge = courierInvoiceFileRef.current;
+    if (!invoiceFileForMerge) {
+      return;
+    }
+
+    let buffer: ArrayBuffer;
+    let invBuffer: ArrayBuffer;
+    if (preUnlocked) {
+      buffer = preUnlocked.order;
+      invBuffer = preUnlocked.invoice;
+    } else {
+      const unlocked = await ensureBothFilesUnlocked(file, invoiceFileForMerge);
+      if (!unlocked) {
+        return;
+      }
+      buffer = unlocked.order;
+      invBuffer = unlocked.invoice;
     }
 
     setFileProcessingStatus('processing');
@@ -1160,25 +1294,6 @@ export default function InvoiceFileConvertPage() {
     setOrderFileSessionId(newOrderSessionId);
 
     try {
-      const invoiceFileForMerge = courierInvoiceFileRef.current;
-      if (!invoiceFileForMerge) {
-        throw new Error('송장 엑셀 파일이 없습니다.');
-      }
-
-      let buffer: ArrayBuffer;
-      let invBuffer: ArrayBuffer;
-      try {
-        buffer = await unlockExcelFile(file);
-        invBuffer = await unlockExcelFile(invoiceFileForMerge);
-      } catch (unlockError) {
-        if (unlockError instanceof ExcelUnlockCancelledError) {
-          setFileProcessingStatus('idle');
-          setConversionProgress(0);
-          return;
-        }
-        throw unlockError;
-      }
-
       const rawData = readFirstSheetMatrixFromArrayBuffer(buffer);
 
       const filteredRows = filterNonEmptyRows(rawData);
@@ -1305,9 +1420,16 @@ export default function InvoiceFileConvertPage() {
     setUploadedFileMeta((prev) =>
       prev.filter((m) => !(m.name === orderFile.name && m.size === orderFile.size)),
     );
-    void parseExcelFile(orderFile);
+    void (async () => {
+      const inv = courierInvoiceFileRef.current;
+      if (!inv) return;
+      const unlocked = await ensureBothFilesUnlocked(orderFile, inv);
+      if (unlocked) {
+        void parseExcelFile(orderFile, unlocked);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- parseExcelFile은 의도적으로 최신 ref만 사용
-  }, [courierInvoiceFile, templateBridgeFile]);
+  }, [courierInvoiceFile, templateBridgeFile, ensureBothFilesUnlocked]);
 
   const handleDownloadPreview = async () => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !templateBridgeFile) {
@@ -1486,6 +1608,8 @@ export default function InvoiceFileConvertPage() {
           setUploadedFileMeta([]);
           clearWorkspaceInputTracking();
           setCourierInvoiceFile(null);
+          unlockedOrderBufferRef.current = null;
+          unlockedInvoiceBufferRef.current = null;
         }, 3000);
 
       } catch (error) {
@@ -1509,6 +1633,8 @@ export default function InvoiceFileConvertPage() {
     setCurrentFilePreviewData([]);
     setUploadedExcelFile(null);
     setCourierInvoiceFile(null);
+    unlockedOrderBufferRef.current = null;
+    unlockedInvoiceBufferRef.current = null;
     setUploadedFileMeta([]);
     setSelectedFiles([]);
     clearWorkspaceInputTracking();
