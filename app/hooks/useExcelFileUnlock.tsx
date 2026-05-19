@@ -236,7 +236,7 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
         isSubmitting={modal.isSubmitting}
         onSubmit={(pw) => void handlePasswordSubmit(pw)}
         onCancel={handlePasswordCancel}
-        onUploadCancel={options?.onUploadCancel ? cancelUploadAndUnlock : () => {}}
+        onUploadCancel={cancelUploadAndUnlock}
       />
     );
 
