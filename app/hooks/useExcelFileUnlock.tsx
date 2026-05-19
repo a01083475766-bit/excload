@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { ExcelProtectedFileModal } from '@/app/components/ExcelProtectedFileModal';
+import { ExcelUnlockFileActions } from '@/app/components/ExcelUnlockFileActions';
 import {
   ExcelUnlockCancelledError,
   ExcelUnsupportedProtectedError,
@@ -38,6 +39,8 @@ type PendingResolve = {
 export type UseExcelFileUnlockOptions = {
   /** 비밀번호 모달을 취소한 뒤 「다시 입력」 시 호출 (예: parseExcelFile 재실행) */
   onPasswordRetry?: (file: File) => void;
+  /** 업로드 취소 — 선택 파일 제거 등 페이지 상태 초기화 */
+  onUploadCancel?: () => void;
 };
 
 export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
@@ -158,8 +161,22 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
   }, [rejectPending]);
 
   const handleUnsupportedClose = useCallback(() => {
+    const file = passwordFlowRef.current?.file;
+    if (file) {
+      setPasswordRetryFile(file);
+    }
     rejectPending(new ExcelUnlockCancelledError());
   }, [rejectPending]);
+
+  const cancelUploadAndUnlock = useCallback(() => {
+    setPasswordRetryFile(null);
+    if (pendingRef.current) {
+      pendingRef.current.reject(new ExcelUnlockCancelledError());
+      pendingRef.current = null;
+    }
+    closeModal();
+    options?.onUploadCancel?.();
+  }, [closeModal, options]);
 
   const unlockExcelFile = useCallback(
     (file: File): Promise<ArrayBuffer> => {
@@ -219,42 +236,24 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
         isSubmitting={modal.isSubmitting}
         onSubmit={(pw) => void handlePasswordSubmit(pw)}
         onCancel={handlePasswordCancel}
+        onUploadCancel={options?.onUploadCancel ? cancelUploadAndUnlock : () => {}}
       />
     );
 
-  const excelUnlockUi = (
-    <>
-      {passwordRetryFile && options?.onPasswordRetry ? (
-        <div
-          className="fixed bottom-6 left-1/2 z-[10001] flex max-w-[min(100vw-2rem,420px)] -translate-x-1/2 items-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-3 shadow-lg dark:border-blue-900 dark:bg-zinc-900"
-          role="status"
-        >
-          <p className="min-w-0 flex-1 text-sm text-gray-700 dark:text-zinc-300">
-            <span className="font-medium">비밀번호 입력이 중단되었습니다.</span>
-            <span className="mt-0.5 block truncate text-xs text-gray-500 dark:text-zinc-500">
-              {passwordRetryFile.name}
-            </span>
-          </p>
-          <button
-            type="button"
-            className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
-            onClick={handlePasswordRetryClick}
-          >
-            다시 입력
-          </button>
-          <button
-            type="button"
-            className="shrink-0 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:border-zinc-600 dark:text-zinc-400"
-            onClick={() => setPasswordRetryFile(null)}
-            aria-label="안내 닫기"
-          >
-            ✕
-          </button>
-        </div>
-      ) : null}
-      {excelProtectedFileModal}
-    </>
-  );
+  const excelUnlockFileActions =
+    options?.onUploadCancel != null ? (
+      <ExcelUnlockFileActions
+        showRetry={Boolean(passwordRetryFile && options.onPasswordRetry)}
+        onRetry={handlePasswordRetryClick}
+        onUploadCancel={cancelUploadAndUnlock}
+      />
+    ) : null;
 
-  return { unlockExcelFile, excelProtectedFileModal, excelUnlockUi };
+  return {
+    unlockExcelFile,
+    excelProtectedFileModal,
+    excelUnlockUi: excelProtectedFileModal,
+    excelUnlockFileActions,
+    hasPasswordRetryPending: Boolean(passwordRetryFile),
+  };
 }

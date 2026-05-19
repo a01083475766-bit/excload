@@ -376,8 +376,14 @@ export default function OrderConvertPage() {
   const needsAccount = !user && !isLoading;
 
   const parseExcelFileForUnlockRef = useRef<(file: File) => void>(() => {});
-  const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock({
+  const clearUploadedExcelForUnlock = useCallback(() => {
+    setUploadedExcelFile(null);
+    setFileProcessingStatus('idle');
+    setStage2ChunkLabel(null);
+  }, []);
+  const { unlockExcelFile, excelUnlockUi, excelUnlockFileActions } = useExcelFileUnlock({
     onPasswordRetry: (file) => parseExcelFileForUnlockRef.current(file),
+    onUploadCancel: clearUploadedExcelForUnlock,
   });
 
   const ensureLoggedInForOrderInput = useCallback((): boolean => {
@@ -2044,33 +2050,36 @@ export default function OrderConvertPage() {
                         </p>
                       </div>
                       {uploadedExcelFile && (
-                        <div className="flex items-center justify-center gap-3 mt-2 text-sm text-gray-600">
-                          <span>
-                            📄 선택된 파일: {uploadedExcelFile.name}
-                            {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
-                          </span>
+                        <div className="mt-2 flex w-full flex-col items-center gap-0.5 text-sm text-gray-600">
+                          <div className="flex items-center justify-center gap-3">
+                            <span>
+                              📄 선택된 파일: {uploadedExcelFile.name}
+                              {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
+                            </span>
 
-                          <span className="w-[110px] text-right inline-block">
-                            {fileProcessingStatus === "processing" && (
-                              <span className="inline-flex flex-col items-end gap-0.5 text-blue-600 font-medium">
-                                <span className="inline-flex items-center justify-end gap-2">
-                                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                                  <span>변환 중{processingDots}</span>
-                                </span>
-                                {stage2ChunkLabel ? (
-                                  <span className="text-[11px] font-normal text-blue-500/90">
-                                    {stage2ChunkLabel}
+                            <span className="w-[110px] text-right inline-block">
+                              {fileProcessingStatus === "processing" && (
+                                <span className="inline-flex flex-col items-end gap-0.5 text-blue-600 font-medium">
+                                  <span className="inline-flex items-center justify-end gap-2">
+                                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                    <span>변환 중{processingDots}</span>
                                   </span>
-                                ) : null}
-                              </span>
-                            )}
+                                  {stage2ChunkLabel ? (
+                                    <span className="text-[11px] font-normal text-blue-500/90">
+                                      {stage2ChunkLabel}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              )}
 
-                            {fileProcessingStatus === "done" && (
-                              <span className="text-green-600 font-medium">
-                                ✔ 완료
-                              </span>
-                            )}
-                          </span>
+                              {fileProcessingStatus === "done" && (
+                                <span className="text-green-600 font-medium">
+                                  ✔ 완료
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          {fileProcessingStatus === 'idle' && excelUnlockFileActions}
                         </div>
                       )}
                     </div>

@@ -14,6 +14,7 @@ type PasswordModalProps = {
   isSubmitting: boolean;
   onSubmit: (password: string) => void;
   onCancel: () => void;
+  onUploadCancel: () => void;
 };
 
 type UnsupportedModalProps = {
@@ -82,6 +83,7 @@ function PasswordModalContent({
   isSubmitting,
   onSubmit,
   onCancel,
+  onUploadCancel,
 }: Omit<PasswordModalProps, 'mode'>) {
   const [password, setPassword] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -150,10 +152,6 @@ function PasswordModalContent({
           />
         </label>
 
-        <p className="mb-3 text-xs text-gray-500 dark:text-zinc-500">
-          바깥 영역을 클릭해도 닫히지 않습니다. 닫으려면 취소를 눌러 주세요.
-        </p>
-
         <div className="flex gap-2">
           <button
             type="button"
@@ -172,6 +170,14 @@ function PasswordModalContent({
             {isSubmitting ? '확인 중…' : '확인'}
           </button>
         </div>
+        <button
+          type="button"
+          className="mt-3 w-full py-2 text-sm font-medium text-gray-600 transition hover:text-red-600 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-red-400"
+          onClick={onUploadCancel}
+          disabled={isSubmitting}
+        >
+          업로드 취소
+        </button>
       </div>
     </div>
   );

@@ -1003,8 +1003,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const needsAccount = !trialMode && !user && !isLoading;
 
   const parseExcelFileForUnlockRef = useRef<(file: File) => void>(() => {});
-  const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock({
+  const clearUploadedExcelForUnlock = useCallback(() => {
+    setUploadedExcelFile(null);
+    setFileProcessingStatus('idle');
+    setStage2ChunkLabel(null);
+  }, []);
+  const { unlockExcelFile, excelUnlockUi, excelUnlockFileActions } = useExcelFileUnlock({
     onPasswordRetry: (file) => parseExcelFileForUnlockRef.current(file),
+    onUploadCancel: clearUploadedExcelForUnlock,
   });
 
   const ensureLoggedInForOrderInput = useCallback((): boolean => {
