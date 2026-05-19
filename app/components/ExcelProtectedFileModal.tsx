@@ -130,25 +130,42 @@ function PasswordModalContent({
           </p>
         )}
 
-        <label className="mb-4 block">
-          <span className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">
+        <form
+          className="mb-4 block"
+          autoComplete="off"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (password.trim() && !isSubmitting) {
+              onSubmit(password);
+            }
+          }}
+        >
+          <label htmlFor="excload-excel-file-unlock-password" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">
             비밀번호
-          </span>
+          </label>
           <input
             ref={inputRef}
+            id="excload-excel-file-unlock-password"
+            name="excload-excel-file-unlock"
             type="password"
-            autoComplete="off"
+            autoComplete="new-password"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-form-type="other"
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-bwignore="true"
+            aria-describedby="excload-excel-file-password-hint"
             className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && password.trim() && !isSubmitting) {
-                onSubmit(password);
-              }
-            }}
             disabled={isSubmitting}
           />
-        </label>
+          <span id="excload-excel-file-password-hint" className="sr-only">
+            엑셀·ZIP 파일 열기용 비밀번호이며, 로그인 비밀번호가 아닙니다.
+          </span>
+        </form>
 
         <div className="flex gap-2">
           <button
