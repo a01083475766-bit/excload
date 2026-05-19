@@ -32,6 +32,13 @@ import { formatPhoneDisplay } from '@/app/utils/format-phone';
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
+import {
+  emptyInputSourceCounts,
+  incrementInputSource,
+  normalizeInputSourcesForSession,
+  primarySourceTypeFromCounts,
+  type InputSourceCounts,
+} from '@/app/lib/history-input-sources';
 import { useUserStore } from '@/app/store/userStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
@@ -307,6 +314,19 @@ export default function InvoiceFileConvertPage() {
   const [processingDots, setProcessingDots] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [inputSourceType, setInputSourceType] = useState<'excel' | null>(null);
+  const [sessionInputCounts, setSessionInputCounts] = useState<InputSourceCounts>(
+    emptyInputSourceCounts
+  );
+
+  const recordWorkspaceInput = useCallback((kind: 'excel') => {
+    setSessionInputCounts((prev) => incrementInputSource(prev, kind));
+    setInputSourceType(kind);
+  }, []);
+
+  const clearWorkspaceInputTracking = useCallback(() => {
+    setSessionInputCounts(emptyInputSourceCounts());
+    setInputSourceType(null);
+  }, []);
   /** 주문·송장 드롭존: 파일 새로 붙을 때만 2회 플래시 (globals `.invoice-dropzone-double-flash`) */
   const [orderDropzoneFlashPlaying, setOrderDropzoneFlashPlaying] = useState(false);
   const [courierDropzoneFlashPlaying, setCourierDropzoneFlashPlaying] = useState(false);
@@ -517,7 +537,7 @@ export default function InvoiceFileConvertPage() {
       setSelectedFileName(null);
       setDownloadStatus('idle');
       setDownloadModalFileName(null);
-      setInputSourceType(null);
+      clearWorkspaceInputTracking();
       setTemplateFileSessionId(null);
       setOrderFileSessionId(null);
       setCurrentFilePreviewData([]);
@@ -939,6 +959,7 @@ export default function InvoiceFileConvertPage() {
       return;
     }
     setCourierInvoiceFile(file);
+    recordWorkspaceInput('excel');
     if (e.target) e.target.value = '';
   };
 
@@ -1123,7 +1144,7 @@ export default function InvoiceFileConvertPage() {
       window.clearTimeout(previewRevealTimeoutRef.current);
       previewRevealTimeoutRef.current = null;
     }
-    setInputSourceType('excel');
+    recordWorkspaceInput('excel');
 
     const newOrderSessionId = crypto.randomUUID();
     setOrderFileSessionId(newOrderSessionId);
@@ -1353,7 +1374,11 @@ export default function InvoiceFileConvertPage() {
         try {
           const { addSession } = useHistoryStore.getState();
           
-          const sourceType: SourceType = inputSourceType === 'excel' ? 'excel' : 'kakao';
+          const inputSources = normalizeInputSourcesForSession(
+            sessionInputCounts,
+            inputSourceType ?? 'excel'
+          );
+          const sourceType: SourceType = primarySourceTypeFromCounts(inputSources);
 
           const excelType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
           let files: FileMetadata[] = uploadedFileMeta.map((meta) => ({
@@ -1399,6 +1424,7 @@ export default function InvoiceFileConvertPage() {
           
           addSession({
             sourceType,
+            inputSources,
             files,
             courier,
             downloadedFileName: fileName,
@@ -1436,7 +1462,7 @@ export default function InvoiceFileConvertPage() {
           setSelectedFiles([]);
           setUploadedExcelFile(null);
           setUploadedFileMeta([]);
-          setInputSourceType(null);
+          clearWorkspaceInputTracking();
           setCourierInvoiceFile(null);
         }, 3000);
 
@@ -1463,7 +1489,7 @@ export default function InvoiceFileConvertPage() {
     setCourierInvoiceFile(null);
     setUploadedFileMeta([]);
     setSelectedFiles([]);
-    setInputSourceType(null);
+    clearWorkspaceInputTracking();
     setSelectedFileName(null);
     setPreviewReady(false);
     setConversionProgress(0);

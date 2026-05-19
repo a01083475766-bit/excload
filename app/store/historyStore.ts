@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { getSession } from 'next-auth/react';
+import type { InputSourceCounts } from '@/app/lib/history-input-sources';
 
 export type SourceType = 'excel' | 'kakao' | 'image';
+
+export type { InputSourceCounts, HistoryInputKind } from '@/app/lib/history-input-sources';
 
 export interface FileMetadata {
   name: string;
@@ -20,6 +23,8 @@ export interface HistorySession {
   id: string;
   createdAt: string; // ISO string for serialization
   sourceType: SourceType;
+  /** 작업 중 사용한 입력 종류별 누적 횟수 (다운로드 1건 기준) */
+  inputSources?: InputSourceCounts;
   files: FileMetadata[];
   senderInfo: SenderInfo | null;
   courier: string | null;

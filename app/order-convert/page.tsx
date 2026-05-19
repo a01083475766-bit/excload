@@ -33,6 +33,13 @@ import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
+import {
+  emptyInputSourceCounts,
+  incrementInputSource,
+  normalizeInputSourcesForSession,
+  primarySourceTypeFromCounts,
+  type InputSourceCounts,
+} from '@/app/lib/history-input-sources';
 import { useUserStore } from '@/app/store/userStore';
 import { Coins } from 'lucide-react';
 import {
@@ -332,6 +339,19 @@ export default function OrderConvertPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   // 입력 방식 추적: 사용자가 어떤 방식으로 입력했는지 기록
   const [inputSourceType, setInputSourceType] = useState<'excel' | 'image' | 'text' | null>(null);
+  const [sessionInputCounts, setSessionInputCounts] = useState<InputSourceCounts>(
+    emptyInputSourceCounts
+  );
+
+  const recordWorkspaceInput = useCallback((kind: 'excel' | 'text' | 'image') => {
+    setSessionInputCounts((prev) => incrementInputSource(prev, kind));
+    setInputSourceType(kind);
+  }, []);
+
+  const clearWorkspaceInputTracking = useCallback(() => {
+    setSessionInputCounts(emptyInputSourceCounts());
+    setInputSourceType(null);
+  }, []);
 
   // 사용자 정보 가져오기 (컴포넌트 마운트 시)
   useEffect(() => {
@@ -520,7 +540,7 @@ export default function OrderConvertPage() {
       setSelectedFileName(null);
       setDownloadStatus('idle');
       setDownloadModalFileName(null);
-      setInputSourceType(null);
+      clearWorkspaceInputTracking();
       setTemplateFileSessionId(null);
       setOrderFileSessionId(null);
       setCurrentFilePreviewData([]);
@@ -956,7 +976,7 @@ export default function OrderConvertPage() {
     if (!ensureLoggedInForOrderInput()) return;
 
     setSelectedImage(file);
-    setInputSourceType('image'); // 이미지 업로드로 입력 방식 기록
+    recordWorkspaceInput('image');
     setErrorMessageTextImage(null);
 
     // 텍스트 정리 중 모달 열기 (이미지 파일로 표시)
@@ -1066,7 +1086,7 @@ export default function OrderConvertPage() {
     setTextProcessingSource('screenshot');
     setShowTextProcessingModal(true);
     setScreenshotStage('processing');
-    setInputSourceType('image'); // 스크린샷 주문변환으로 입력 방식 기록
+    recordWorkspaceInput('image');
     setErrorMessageTextImage(null);
 
     try {
@@ -1286,7 +1306,7 @@ export default function OrderConvertPage() {
       }
 
       if (!selectedImage) {
-        setInputSourceType('text');
+        recordWorkspaceInput('text');
       }
 
       setTextConvertStatusLabel('주문 텍스트 분석 중…');
@@ -1407,7 +1427,7 @@ export default function OrderConvertPage() {
   const parseExcelFile = async (file: File) => {
     setFileProcessingStatus("processing");
     setStage2ChunkLabel(null);
-    setInputSourceType('excel'); // 엑셀 업로드로 입력 방식 기록
+    recordWorkspaceInput('excel');
     
     const newOrderSessionId = crypto.randomUUID();
     setOrderFileSessionId(newOrderSessionId);
@@ -1709,13 +1729,11 @@ export default function OrderConvertPage() {
         try {
           const { addSession } = useHistoryStore.getState();
           
-          // sourceType 결정: 사용자 입력 방식 기준
-          const sourceType: SourceType =
-            inputSourceType === 'excel'
-              ? 'excel'
-              : inputSourceType === 'image'
-              ? 'image'
-              : 'kakao'; // 'text' 또는 null인 경우 'kakao' (텍스트 입력)
+          const inputSources = normalizeInputSourcesForSession(
+            sessionInputCounts,
+            inputSourceType
+          );
+          const sourceType: SourceType = primarySourceTypeFromCounts(inputSources);
           
           // files: 입력 방식에 따라 파일 메타데이터 생성
           let files: FileMetadata[] = [];
@@ -1765,6 +1783,7 @@ export default function OrderConvertPage() {
           
           addSession({
             sourceType,
+            inputSources,
             files,
             courier,
             downloadedFileName: fileName,
@@ -1799,7 +1818,7 @@ export default function OrderConvertPage() {
           setSelectedFiles([]);
           setUploadedExcelFile(null);
           setUploadedFileMeta([]);
-          setInputSourceType(null); // 입력 방식 초기화
+          clearWorkspaceInputTracking();
           setSelectedImage(null); // 이미지 초기화
         }, 3000);
 
@@ -1831,7 +1850,7 @@ export default function OrderConvertPage() {
     setSelectedFiles([]);
     setUploadedExcelFile(null);
     setUploadedFileMeta([]);
-    setInputSourceType(null);
+    clearWorkspaceInputTracking();
     setSelectedImage(null);
     setStage2ChunkLabel(null);
     setFileProcessingStatus('idle');

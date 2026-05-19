@@ -6,14 +6,24 @@ import { useSession } from 'next-auth/react';
 import { Clock, Search, Filter, Calendar, FileText, Download, Trash2, ChevronDown, ChevronUp, X, Loader2 } from 'lucide-react';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { HistorySession } from '@/app/store/historyStore';
+import {
+  countInputKindsInSession,
+  formatInputCompositionSummary,
+  formatInputSourcesDetail,
+  getInputKindsFromSession,
+  sessionIncludesInputKind,
+  sessionMatchesInputKindSearch,
+  type HistoryInputKind,
+} from '@/app/lib/history-input-sources';
 import * as XLSX from 'xlsx';
 
 interface HistoryItem {
   id: string;
   title: string;
-  type: 'excel' | 'text' | 'image';
+  inputKinds: HistoryInputKind[];
+  inputKindCount: number;
+  compositionSummary: string;
   createdAt: string;
-  fileCount: number;
   orderCount: number;
   status: 'completed' | 'processing' | 'failed';
 }
@@ -54,26 +64,21 @@ export default function HistoryPage() {
 
   // HistorySession을 HistoryItem 형태로 변환 (세션 정보도 함께 저장)
   const historyItemsWithSessions = sortedSessions.map((session: HistorySession) => {
-    // sourceType을 type으로 매핑 (excel -> excel, image -> image, kakao -> text)
-    const type: 'excel' | 'text' | 'image' = 
-      session.sourceType === 'excel' ? 'excel' 
-      : session.sourceType === 'image' ? 'image'
-      : 'text'; // 'kakao' 또는 기타 경우 'text'로 매핑
-    
-    // 파일명에서 제목 추출 (다운로드 파일명이 있으면 사용, 없으면 첫 번째 파일명 사용)
-    const title = session.downloadedFileName 
+    const inputKinds = getInputKindsFromSession(session);
+    const title = session.downloadedFileName
       ? session.downloadedFileName.replace('.xlsx', '').replace('.xls', '')
       : session.files[0]?.name || '주문 변환';
-    
+
     return {
       id: session.id,
       title,
-      type,
+      inputKinds,
+      inputKindCount: countInputKindsInSession(session),
+      compositionSummary: formatInputCompositionSummary(session),
       createdAt: session.createdAt,
-      fileCount: session.files.length,
-      orderCount: session.orderCount || 0, // 주문 건수 (없으면 0)
+      orderCount: session.orderCount || 0,
       status: 'completed' as const,
-      session, // 원본 세션 정보 저장 (resultRows 접근용)
+      session,
     };
   });
 
@@ -134,19 +139,23 @@ export default function HistoryPage() {
   };
 
   const filteredItemsWithSessions = historyItemsWithSessions.filter((item) => {
-    // 필터 조건 확인
-    const matchesFilter = selectedFilter === 'all' || item.type === selectedFilter;
+    const session = item.session;
+    const matchesFilter =
+      selectedFilter === 'all' ||
+      (session != null && sessionIncludesInputKind(session, selectedFilter));
     if (!matchesFilter) {
       return false;
     }
 
-    // 검색어가 없으면 필터만 적용
     if (!searchQuery.trim()) {
       return true;
     }
 
     const searchTerm = searchQuery.toLowerCase();
-    const session = item.session;
+
+    if (session && sessionMatchesInputKindSearch(session, searchTerm)) {
+      return true;
+    }
 
     // 1. session id에서 검색
     if (session?.id?.toLowerCase().includes(searchTerm)) {
@@ -163,12 +172,7 @@ export default function HistoryPage() {
       return true;
     }
 
-    // 4. sourceType에서 검색
-    if (session?.sourceType?.toLowerCase().includes(searchTerm)) {
-      return true;
-    }
-
-    // 5. courier에서 검색
+    // 4. courier에서 검색
     if (session?.courier?.toLowerCase().includes(searchTerm)) {
       return true;
     }
@@ -436,13 +440,18 @@ export default function HistoryPage() {
 
                       {/* 항목 정보 */}
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
                           <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                             {item.title}
                           </h3>
-                          <span className={`px-2 py-1 rounded-md text-xs font-medium ${getTypeColor(item.type)}`}>
-                            {getTypeLabel(item.type)}
-                          </span>
+                          {item.inputKinds.map((kind) => (
+                            <span
+                              key={kind}
+                              className={`px-2 py-1 rounded-md text-xs font-medium ${getTypeColor(kind)}`}
+                            >
+                              {getTypeLabel(kind)}
+                            </span>
+                          ))}
                           {/* 펼침/닫힘 아이콘 */}
                           {isExpanded ? (
                             <ChevronUp className="w-5 h-5 text-zinc-400 ml-auto" />
@@ -458,7 +467,7 @@ export default function HistoryPage() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <FileText className="w-4 h-4" />
-                            <span>파일 {item.fileCount}개 · 주문 {item.orderCount}건</span>
+                            <span>{item.compositionSummary}</span>
                           </div>
                         </div>
                       </div>
@@ -471,9 +480,14 @@ export default function HistoryPage() {
                       {/* 결과 테이블 */}
                       <div className="p-4 lg:p-6">
                         <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                          <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
                             변환 결과
                           </h4>
+                          {formatInputSourcesDetail(session) ? (
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
+                              입력 구성: {formatInputSourcesDetail(session)}
+                            </p>
+                          ) : null}
                           <div 
                             className="overflow-x-auto overflow-y-auto"
                             style={{ maxHeight: '400px' }}

@@ -33,6 +33,13 @@ import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
+import {
+  emptyInputSourceCounts,
+  incrementInputSource,
+  normalizeInputSourcesForSession,
+  primarySourceTypeFromCounts,
+  type InputSourceCounts,
+} from '@/app/lib/history-input-sources';
 import { useUserStore } from '@/app/store/userStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
@@ -809,6 +816,19 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   // 입력 방식 추적: 사용자가 어떤 방식으로 입력했는지 기록
   const [inputSourceType, setInputSourceType] = useState<'excel' | 'image' | 'text' | null>(null);
+  const [sessionInputCounts, setSessionInputCounts] = useState<InputSourceCounts>(
+    emptyInputSourceCounts
+  );
+
+  const recordWorkspaceInput = useCallback((kind: 'excel' | 'text' | 'image') => {
+    setSessionInputCounts((prev) => incrementInputSource(prev, kind));
+    setInputSourceType(kind);
+  }, []);
+
+  const clearWorkspaceInputTracking = useCallback(() => {
+    setSessionInputCounts(emptyInputSourceCounts());
+    setInputSourceType(null);
+  }, []);
 
   /** 매핑 맵 — 자동 투영 없음, 사용자가 「상품명→상품코드 변환」 시에만 적용 */
   const [productCodeMap, setProductCodeMap] = useState<ProductCodeMap>({});
@@ -1009,9 +1029,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setSelectedFiles([]);
     setUploadedExcelFile(null);
     setUploadedFileMeta([]);
-    setInputSourceType(null);
+    clearWorkspaceInputTracking();
     setSelectedImage(null);
-  }, [resetProductCodeColumnToggle]);
+  }, [resetProductCodeColumnToggle, clearWorkspaceInputTracking]);
 
   /** 미리보기·입력 소스·변환 결과 비우기 (양식·브릿지·고정값은 유지). 확인 모달 후 실행 */
   const applyFullPreviewWorkspaceReset = useCallback(() => {
@@ -1201,7 +1221,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       setSelectedFileName(null);
       setDownloadStatus('idle');
       setDownloadModalFileName(null);
-      setInputSourceType(null);
+      clearWorkspaceInputTracking();
       setTemplateFileSessionId(null);
       setOrderFileSessionId(null);
       setCurrentFilePreviewData([]);
@@ -2374,7 +2394,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     if (!ensureLoggedInForOrderInput()) return;
 
     setSelectedImage(file);
-    setInputSourceType('image'); // 이미지 업로드로 입력 방식 기록
+    recordWorkspaceInput('image');
     setErrorMessageTextImage(null);
 
     // 텍스트 정리 중 모달 열기 (이미지 파일로 표시)
@@ -2484,7 +2504,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setTextProcessingSource('screenshot');
     setShowTextProcessingModal(true);
     setScreenshotStage('processing');
-    setInputSourceType('image'); // 스크린샷 물류 주문 변환으로 입력 방식 기록
+    recordWorkspaceInput('image');
     setErrorMessageTextImage(null);
 
     try {
@@ -2725,7 +2745,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       }
 
       if (!selectedImage) {
-        setInputSourceType('text');
+        recordWorkspaceInput('text');
       }
 
       const adapterResult = await runTextToCleanInputAdapter(trimmed);
@@ -2841,7 +2861,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const parseExcelFile = async (file: File) => {
     setFileProcessingStatus("processing");
     setStage2ChunkLabel(null);
-    setInputSourceType('excel'); // 엑셀 업로드로 입력 방식 기록
+    recordWorkspaceInput('excel');
     
     const newOrderSessionId = crypto.randomUUID();
     setOrderFileSessionId(newOrderSessionId);
@@ -3150,13 +3170,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         try {
           const { addSession } = useHistoryStore.getState();
           
-          // sourceType 결정: 사용자 입력 방식 기준
-          const sourceType: SourceType =
-            inputSourceType === 'excel'
-              ? 'excel'
-              : inputSourceType === 'image'
-              ? 'image'
-              : 'kakao'; // 'text' 또는 null인 경우 'kakao' (텍스트 입력)
+          const inputSources = normalizeInputSourcesForSession(
+            sessionInputCounts,
+            inputSourceType
+          );
+          const sourceType: SourceType = primarySourceTypeFromCounts(inputSources);
           
           // files: 입력 방식에 따라 파일 메타데이터 생성
           let files: FileMetadata[] = [];
@@ -3206,6 +3224,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           
           addSession({
             sourceType,
+            inputSources,
             files,
             courier,
             downloadedFileName: fileName,
