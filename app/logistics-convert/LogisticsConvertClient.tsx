@@ -991,6 +991,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   /** 텍스트 변환 중복 클릭·사용량 차감 이중 호출 방지 */
   const textConvertInFlightRef = useRef(false);
+  /** 이미지 OCR 직후 같은 텍스트로 변환 시 텍스트 입력 중복 집계 방지 (수동 편집 시 해제) */
+  const pendingImageOcrTextConvertRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
@@ -2407,10 +2409,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       const ocrText = await extractTextFromImage(file);
 
-      // 기존 텍스트 입력 state 이름에 맞게 수정
       setTextInput(ocrText);
+      pendingImageOcrTextConvertRef.current = true;
 
-      // 처리 완료 상태로 변경
       setScreenshotStage('completed');
 
     } catch (error) {
@@ -2529,10 +2530,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           return;
         }
 
-        // 텍스트 주문입력 textarea에 결과 입력
         setTextInput(extractedText);
-        
-        // 처리 완료 상태로 변경
+        pendingImageOcrTextConvertRef.current = true;
+
         setScreenshotStage('completed');
         // 모달은 완료 상태로 유지 (사용자가 확인 버튼을 눌러야 닫힘)
       } else {
@@ -2744,7 +2744,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         return;
       }
 
-      if (!selectedImage) {
+      if (pendingImageOcrTextConvertRef.current) {
+        pendingImageOcrTextConvertRef.current = false;
+      } else {
         recordWorkspaceInput('text');
       }
 
@@ -3630,6 +3632,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       value={textInput}
                       onChange={(e) => {
                         const newValue = e.target.value;
+                        pendingImageOcrTextConvertRef.current = false;
                         // 무료 회원 텍스트 입력 제한 (10000자)
                         if (user?.plan === 'FREE' && newValue.length > 10000) {
                           alert('무료 회원은 최대 10,000자까지 입력할 수 있습니다.');
