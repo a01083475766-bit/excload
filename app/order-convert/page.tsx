@@ -375,7 +375,10 @@ export default function OrderConvertPage() {
 
   const needsAccount = !user && !isLoading;
 
-  const { unlockExcelFile, excelProtectedFileModal } = useExcelFileUnlock();
+  const parseExcelFileForUnlockRef = useRef<(file: File) => void>(() => {});
+  const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock({
+    onPasswordRetry: (file) => parseExcelFileForUnlockRef.current(file),
+  });
 
   const ensureLoggedInForOrderInput = useCallback((): boolean => {
     if (user) return true;
@@ -1626,6 +1629,10 @@ export default function OrderConvertPage() {
           : '엑셀 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
       );
     }
+  };
+
+  parseExcelFileForUnlockRef.current = (file) => {
+    void parseExcelFile(file);
   };
   
   const handleUnifiedPipelinesCompleted = (result: UnifiedInputPipelineResult) => {
@@ -3145,7 +3152,7 @@ export default function OrderConvertPage() {
         </div>
       )}
 
-      {excelProtectedFileModal}
+      {excelUnlockUi}
 
       <RequiresAccountOrderModal
         open={requiresAccountModalOpen}

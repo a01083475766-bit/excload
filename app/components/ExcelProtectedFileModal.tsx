@@ -96,14 +96,12 @@ function PasswordModalContent({
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4"
       role="presentation"
-      onClick={onCancel}
     >
       <div
         className="w-full max-w-[440px] rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-700"
         role="dialog"
         aria-modal="true"
         aria-labelledby="excel-protected-password-title"
-        onClick={(e) => e.stopPropagation()}
       >
         <h3
           id="excel-protected-password-title"
@@ -151,6 +149,10 @@ function PasswordModalContent({
             disabled={isSubmitting}
           />
         </label>
+
+        <p className="mb-3 text-xs text-gray-500 dark:text-zinc-500">
+          바깥 영역을 클릭해도 닫히지 않습니다. 닫으려면 취소를 눌러 주세요.
+        </p>
 
         <div className="flex gap-2">
           <button

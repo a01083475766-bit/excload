@@ -35,8 +35,14 @@ type PendingResolve = {
   reject: (error: Error) => void;
 };
 
-export function useExcelFileUnlock() {
+export type UseExcelFileUnlockOptions = {
+  /** 비밀번호 모달을 취소한 뒤 「다시 입력」 시 호출 (예: parseExcelFile 재실행) */
+  onPasswordRetry?: (file: File) => void;
+};
+
+export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
   const [modal, setModal] = useState<PasswordModalState | UnsupportedModalState | null>(null);
+  const [passwordRetryFile, setPasswordRetryFile] = useState<File | null>(null);
   const pendingRef = useRef<PendingResolve | null>(null);
   const passwordFlowRef = useRef<{
     file: File;
@@ -63,6 +69,7 @@ export function useExcelFileUnlock() {
     (buffer: ArrayBuffer) => {
       pendingRef.current?.resolve(buffer);
       pendingRef.current = null;
+      setPasswordRetryFile(null);
       closeModal();
     },
     [closeModal],
@@ -70,6 +77,7 @@ export function useExcelFileUnlock() {
 
   const openPasswordModal = useCallback(
     (file: File, kind: ProtectedFileKind, buffer: ArrayBuffer) => {
+      setPasswordRetryFile(null);
       passwordFlowRef.current = { file, kind, buffer, attemptCount: 0 };
       setModal({
         mode: 'password',
@@ -142,6 +150,10 @@ export function useExcelFileUnlock() {
   );
 
   const handlePasswordCancel = useCallback(() => {
+    const file = passwordFlowRef.current?.file;
+    if (file) {
+      setPasswordRetryFile(file);
+    }
     rejectPending(new ExcelUnlockCancelledError());
   }, [rejectPending]);
 
@@ -182,6 +194,13 @@ export function useExcelFileUnlock() {
     [openPasswordModal, openUnsupportedModal, rejectPending, resolvePending],
   );
 
+  const handlePasswordRetryClick = useCallback(() => {
+    if (!passwordRetryFile) return;
+    const file = passwordRetryFile;
+    setPasswordRetryFile(null);
+    options?.onPasswordRetry?.(file);
+  }, [options, passwordRetryFile]);
+
   const excelProtectedFileModal =
     modal == null ? null : modal.mode === 'unsupported' ? (
       <ExcelProtectedFileModal
@@ -203,5 +222,39 @@ export function useExcelFileUnlock() {
       />
     );
 
-  return { unlockExcelFile, excelProtectedFileModal };
+  const excelUnlockUi = (
+    <>
+      {passwordRetryFile && options?.onPasswordRetry ? (
+        <div
+          className="fixed bottom-6 left-1/2 z-[10001] flex max-w-[min(100vw-2rem,420px)] -translate-x-1/2 items-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-3 shadow-lg dark:border-blue-900 dark:bg-zinc-900"
+          role="status"
+        >
+          <p className="min-w-0 flex-1 text-sm text-gray-700 dark:text-zinc-300">
+            <span className="font-medium">비밀번호 입력이 중단되었습니다.</span>
+            <span className="mt-0.5 block truncate text-xs text-gray-500 dark:text-zinc-500">
+              {passwordRetryFile.name}
+            </span>
+          </p>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
+            onClick={handlePasswordRetryClick}
+          >
+            다시 입력
+          </button>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:border-zinc-600 dark:text-zinc-400"
+            onClick={() => setPasswordRetryFile(null)}
+            aria-label="안내 닫기"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+      {excelProtectedFileModal}
+    </>
+  );
+
+  return { unlockExcelFile, excelProtectedFileModal, excelUnlockUi };
 }

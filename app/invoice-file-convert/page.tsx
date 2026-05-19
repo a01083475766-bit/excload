@@ -363,7 +363,10 @@ export default function InvoiceFileConvertPage() {
 
   const needsAccount = !user && !isLoading;
 
-  const { unlockExcelFile, excelProtectedFileModal } = useExcelFileUnlock();
+  const parseExcelFileForUnlockRef = useRef<(file: File) => void>(() => {});
+  const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock({
+    onPasswordRetry: (file) => parseExcelFileForUnlockRef.current(file),
+  });
 
   const ensureLoggedInForInvoiceInput = (): boolean => {
     if (user) return true;
@@ -1287,6 +1290,10 @@ export default function InvoiceFileConvertPage() {
     }
   };
 
+  parseExcelFileForUnlockRef.current = (file) => {
+    void parseExcelFile(file);
+  };
+
   // 송장 엑셀 또는 쇼핑몰 양식(bridge) 변경 시, 이미 선택된 주문 엑셀로 미리보기 재실행
   useEffect(() => {
     if (!templateBridgeFile || !courierInvoiceFile) return;
@@ -1521,7 +1528,7 @@ export default function InvoiceFileConvertPage() {
 
   return (
     <>
-      {excelProtectedFileModal}
+      {excelUnlockUi}
 
       <RequiresAccountOrderModal
         open={requiresAccountModalOpen}

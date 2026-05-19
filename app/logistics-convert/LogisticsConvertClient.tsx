@@ -1002,7 +1002,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   const needsAccount = !trialMode && !user && !isLoading;
 
-  const { unlockExcelFile, excelProtectedFileModal } = useExcelFileUnlock();
+  const parseExcelFileForUnlockRef = useRef<(file: File) => void>(() => {});
+  const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock({
+    onPasswordRetry: (file) => parseExcelFileForUnlockRef.current(file),
+  });
 
   const ensureLoggedInForOrderInput = useCallback((): boolean => {
     if (trialMode) return true;
@@ -3053,6 +3056,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           : '엑셀 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
       );
     }
+  };
+
+  parseExcelFileForUnlockRef.current = (file) => {
+    void parseExcelFile(file);
   };
   
   const handleUnifiedPipelinesCompleted = (result: UnifiedInputPipelineResult) => {
@@ -5323,7 +5330,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         </div>
       )}
 
-      {excelProtectedFileModal}
+      {excelUnlockUi}
 
       <RequiresAccountOrderModal
         open={requiresAccountModalOpen}
