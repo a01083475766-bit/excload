@@ -56,7 +56,7 @@ export function ExcelProtectedFileModal(props: ExcelProtectedFileModalProps) {
             <li>
               Excel에서 <span className="font-medium">다른 이름으로 저장</span> → 일반 .xlsx
             </li>
-            <li>보안 프로그램·전용 뷰어 전용 파일은 먼저 해제 후 업로드</li>
+            <li>회사 보안·DRM·전용 뷰어 파일은 Excel에서 일반 파일로 저장한 뒤 업로드</li>
             <li>ZIP은 압축을 푼 뒤 엑셀만 올려 주세요</li>
           </ul>
           <button

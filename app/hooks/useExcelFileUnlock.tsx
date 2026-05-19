@@ -2,7 +2,11 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { ExcelProtectedFileModal } from '@/app/components/ExcelProtectedFileModal';
-import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
+import {
+  ExcelUnlockCancelledError,
+  ExcelUnsupportedProtectedError,
+  ExcelWrongPasswordError,
+} from '@/app/lib/excel/protected-file-types';
 import {
   decryptUploadedExcelFile,
   probeExcelUploadFile,
@@ -105,12 +109,7 @@ export function useExcelFileUnlock() {
         );
         resolvePending(decrypted);
       } catch (error) {
-        const isWrongPassword =
-          error instanceof Error &&
-          (error.name === 'ExcelWrongPasswordError' ||
-            error.message.includes('비밀번호'));
-
-        if (isWrongPassword) {
+        if (error instanceof ExcelWrongPasswordError) {
           const nextAttempt = flow.attemptCount + 1;
           passwordFlowRef.current = { ...flow, attemptCount: nextAttempt };
           setModal((prev) =>
@@ -126,6 +125,12 @@ export function useExcelFileUnlock() {
           return;
         }
 
+        if (error instanceof ExcelUnsupportedProtectedError) {
+          passwordFlowRef.current = null;
+          openUnsupportedModal(flow.file.name, error.message);
+          return;
+        }
+
         rejectPending(
           error instanceof Error
             ? error
@@ -133,7 +138,7 @@ export function useExcelFileUnlock() {
         );
       }
     },
-    [modal, rejectPending, resolvePending],
+    [modal, openUnsupportedModal, rejectPending, resolvePending],
   );
 
   const handlePasswordCancel = useCallback(() => {

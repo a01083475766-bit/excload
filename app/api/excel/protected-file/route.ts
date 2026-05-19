@@ -91,13 +91,11 @@ export async function POST(request: Request) {
         );
       }
 
-      const innerName = excelEntry.entryName.split('/').pop() ?? 'order.xlsx';
       return new NextResponse(data, {
         status: 200,
         headers: {
           'Content-Type':
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'X-Inner-File-Name': innerName,
         },
       });
     }

@@ -1,5 +1,7 @@
 import * as XLSX from 'xlsx';
 import {
+  EXCEL_DECRYPT_FAILED_MESSAGE,
+  EXCEL_SECURITY_DOCUMENT_MESSAGE,
   ExcelUnsupportedProtectedError,
   ExcelWrongPasswordError,
   type ProtectedFileKind,
@@ -68,7 +70,7 @@ export async function decryptOfficeFileInBrowser(
       throw new ExcelWrongPasswordError();
     }
     if (error instanceof DecryptionError) {
-      throw new ExcelWrongPasswordError();
+      throw new ExcelUnsupportedProtectedError(EXCEL_DECRYPT_FAILED_MESSAGE);
     }
     throw error;
   }
@@ -79,7 +81,7 @@ export type ZipInspectResult =
   | { status: 'error'; message: string };
 
 export type ZipDecryptResult =
-  | { status: 'ok'; buffer: ArrayBuffer; innerFileName: string }
+  | { status: 'ok'; buffer: ArrayBuffer }
   | { status: 'wrong_password' }
   | { status: 'error'; message: string };
 
@@ -127,9 +129,8 @@ export async function decryptZipFile(
       message: data.message ?? 'ZIP 파일을 열 수 없습니다.',
     };
   }
-  const innerFileName = res.headers.get('X-Inner-File-Name') ?? 'order.xlsx';
   const buffer = await res.arrayBuffer();
-  return { status: 'ok', buffer, innerFileName };
+  return { status: 'ok', buffer };
 }
 
 export type ExcelUnlockProbe =
@@ -188,7 +189,7 @@ export async function probeExcelUploadFile(file: File): Promise<ExcelUnlockProbe
   } catch {
     return {
       action: 'unsupported',
-      message: new ExcelUnsupportedProtectedError().message,
+      message: EXCEL_SECURITY_DOCUMENT_MESSAGE,
     };
   }
 
@@ -198,7 +199,7 @@ export async function probeExcelUploadFile(file: File): Promise<ExcelUnlockProbe
 
   return {
     action: 'unsupported',
-    message: new ExcelUnsupportedProtectedError().message,
+    message: EXCEL_SECURITY_DOCUMENT_MESSAGE,
   };
 }
 
@@ -229,7 +230,7 @@ export async function decryptUploadedExcelFile(
 
   const decrypted = await decryptOfficeFileInBrowser(buffer, password);
   if (!canReadExcelWithSheetJs(decrypted)) {
-    throw new ExcelUnsupportedProtectedError();
+    throw new ExcelUnsupportedProtectedError(EXCEL_SECURITY_DOCUMENT_MESSAGE);
   }
   return decrypted;
 }
