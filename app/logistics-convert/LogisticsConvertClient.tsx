@@ -82,6 +82,13 @@ import {
   writeLocalStorageForUser,
   removeLocalStorageForUser,
 } from '@/app/lib/scoped-local-storage';
+import {
+  TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
+  TRIAL_EXTRA_SAMPLE_FORMATS,
+  TRIAL_SEED_FORMAT_IDS,
+  buildTrialBridgeFile,
+  isTrialSeedFormatId,
+} from '@/app/logistics-convert/trial-sample-formats';
 
 /** 상품코드 매핑 실패 시 안내 배너용 */
 type ProductCodeMappingNotice = {
@@ -119,12 +126,10 @@ interface RecentExcelFormat {
   protectedFromDeletion?: boolean;
 }
 
-/** 서비스가 넣은 체험 기본 양식(삭제·이름 변경 시 식별용) */
-const TRIAL_DEFAULT_FORMAT_DISPLAY_NAME = '체험 기본 양식 (예시)';
-
 function isTrialDefaultProtectedFormat(f: RecentExcelFormat | undefined): boolean {
   if (!f) return false;
   if (f.protectedFromDeletion) return true;
+  if (isTrialSeedFormatId(f.id)) return true;
   return f.displayName === TRIAL_DEFAULT_FORMAT_DISPLAY_NAME;
 }
 
@@ -792,13 +797,18 @@ const saveRecentExcelFormat = (
   bridgeFile?: TemplateBridgeFile,
   displayName?: string,
   protectedFromDeletion?: boolean,
+  formatId?: string,
 ) => {
   try {
-    const formats = loadRecentExcelFormats(trialMode, trialMode ? null : storageUserId);
+    let formats = loadRecentExcelFormats(trialMode, trialMode ? null : storageUserId);
     const columnOrder = Array.isArray(template.headers) ? template.headers.map((header) => header.name) : [];
 
+    if (formatId) {
+      formats = formats.filter((format) => format.id !== formatId);
+    }
+
     const newFormat: RecentExcelFormat = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: formatId ?? `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date().toISOString(),
       columnOrder,
       bridgeFile,
@@ -2596,6 +2606,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         formatDisplayName?: string;
         /** 체험 기본 양식 등 — 목록에서 삭제 불가 */
         protectedFromDeletion?: boolean;
+        /** 체험 예시 양식 고정 id (중복 등록 방지) */
+        formatId?: string;
       },
     ) => {
       const newTemplateSessionId = crypto.randomUUID();
@@ -2651,6 +2663,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         templateResult.bridgeFile,
         options?.formatDisplayName,
         options?.protectedFromDeletion,
+        options?.formatId,
       );
       setCourierUploadTemplate(template);
       saveCourierUploadTemplate(template, trialMode, userId);
@@ -2669,12 +2682,49 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     [trialMode, userId],
   );
 
+  /** 체험판: 택배사명 없는 예시 양식 3종 + 기본 xlsx 양식 목록 보강 */
+  const mergeTrialExtraSampleFormats = useCallback(() => {
+    if (!trialMode || typeof window === 'undefined') return;
+
+    let formats = loadRecentExcelFormats(true, null);
+    let changed = false;
+
+    for (const spec of TRIAL_EXTRA_SAMPLE_FORMATS) {
+      if (formats.some((format) => format.id === spec.id)) {
+        continue;
+      }
+      formats.push({
+        id: spec.id,
+        createdAt: new Date().toISOString(),
+        columnOrder: spec.headers,
+        displayName: spec.displayName,
+        bridgeFile: buildTrialBridgeFile(spec.headers),
+        protectedFromDeletion: true,
+      });
+      changed = true;
+    }
+
+    if (changed) {
+      persistLogisticsRecentFormats(true, null, formats);
+      setRecentExcelFormats(formats);
+    }
+  }, [trialMode]);
+
   /** 체험판: 저장된 양식이 없을 때 public의 기본 xlsx로 자동 등록 (텍스트/주문 테스트만으로 미리보기 가능) */
   useEffect(() => {
     if (!trialMode) return;
 
+    mergeTrialExtraSampleFormats();
+
     const existing = loadCourierUploadTemplate(true, null);
-    if (isValidCourierTemplate(existing)) {
+    const recent = loadRecentExcelFormats(true, null);
+    const hasDefaultSeed = recent.some(
+      (format) =>
+        format.id === TRIAL_SEED_FORMAT_IDS.logistics ||
+        format.displayName === TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
+    );
+
+    if (isValidCourierTemplate(existing) && hasDefaultSeed) {
       return;
     }
 
@@ -2701,7 +2751,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           silent: true,
           formatDisplayName: TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
           protectedFromDeletion: true,
+          formatId: TRIAL_SEED_FORMAT_IDS.logistics,
         });
+        if (!cancelled) {
+          mergeTrialExtraSampleFormats();
+        }
       } catch (err) {
         console.error('[체험 기본 양식] 자동 적용 실패:', err);
       }
@@ -2710,7 +2764,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     return () => {
       cancelled = true;
     };
-  }, [trialMode, applyTemplateFromFile]);
+  }, [trialMode, applyTemplateFromFile, mergeTrialExtraSampleFormats]);
 
   const handleTemplateFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2822,12 +2876,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     const formats = loadRecentExcelFormats(trialMode, trialMode ? null : userId);
     const formatToDelete = formats.find((format) => format.id === formatId);
     if (isTrialDefaultProtectedFormat(formatToDelete)) {
-      alert('체험용으로 제공된 기본 양식은 삭제할 수 없습니다.');
+      alert('체험용 예시 양식은 삭제할 수 없습니다.');
       return;
     }
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
-      
       // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
       if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
         const currentHeaders = courierUploadTemplate.headers
@@ -5410,7 +5463,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                         disabled={isTrialDefaultProtectedFormat(format)}
                                         data-ex-tooltip={
                                           trialMode && isTrialDefaultProtectedFormat(format)
-                                            ? '체험 기본 양식 이름은 변경할 수 없습니다.'
+                                            ? '체험용 예시 양식 이름은 변경할 수 없습니다.'
                                             : undefined
                                         }
                                         className={`${trialMode && isTrialDefaultProtectedFormat(format) ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
@@ -5423,7 +5476,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                       </button>
                                       {isTrialDefaultProtectedFormat(format) ? (
                                         <span
-                                          data-ex-tooltip={trialMode ? '체험 기본 양식은 삭제할 수 없습니다.' : undefined}
+                                          data-ex-tooltip={trialMode ? '체험용 예시 양식은 삭제할 수 없습니다.' : undefined}
                                           className={`${trialMode ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs text-zinc-400 cursor-default`}
                                         >
                                           삭제 불가
