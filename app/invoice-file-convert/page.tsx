@@ -2372,14 +2372,14 @@ export default function InvoiceFileConvertPage() {
             <div className="space-y-2 mb-6 overflow-y-auto flex-1 min-h-0">
               <div className="w-full px-4 py-4 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800">
                 <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-2">
-                  이미 사용 중인 택배사 업로드 파일이 있으신가요?
+                  이미 사용 중인 쇼핑몰 송장 업로드 파일이 있으신가요?
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-                  지금 택배사에 올리고 있는
-                  <br />
-                  업로드 엑셀을 한 번만 등록하면,
+                  지금 쇼핑몰에 올리는 송장 업로드 엑셀을 등록하면,
                   <br />
                   그 양식 그대로 자동 설정됩니다.
+                  <br />
+                  쇼핑몰·양식이 여러 개면 추가로 등록해 목록에서 관리·선택할 수 있습니다.
                 </p>
                 <input
                   ref={courierFileInputRef}

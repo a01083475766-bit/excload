@@ -4695,19 +4695,19 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
                   {trialMode ? (
                     <>
-                      실제 업로드에 쓰는
-                      <br />
-                      엑셀을 한 번만 등록하면,
+                      실제 업로드에 쓰는 엑셀을 등록하면,
                       <br />
                       그 열 구성 그대로 맞춰 집니다.
+                      <br />
+                      양식이 여러 개면 추가로 등록해 목록에서 관리·선택할 수 있습니다.
                     </>
                   ) : (
                     <>
-                      지금 물류센터에 올리고 있는
-                      <br />
-                      업로드 엑셀을 한 번만 등록하면,
+                      지금 물류센터에 올리는 업로드 엑셀을 등록하면,
                       <br />
                       그 양식 그대로 자동 설정됩니다.
+                      <br />
+                      물류센터·양식이 여러 개면 추가로 등록해 목록에서 관리·선택할 수 있습니다.
                     </>
                   )}
                 </p>

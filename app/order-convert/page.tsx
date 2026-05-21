@@ -2554,11 +2554,11 @@ export default function OrderConvertPage() {
                   이미 사용 중인 택배사 업로드 파일이 있으신가요?
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-                  지금 택배사에 올리고 있는
-                  <br />
-                  업로드 엑셀을 한 번만 등록하면,
+                  지금 택배사에 올리는 업로드 엑셀을 등록하면,
                   <br />
                   그 양식 그대로 자동 설정됩니다.
+                  <br />
+                  택배사·양식이 여러 개면 추가로 등록해 목록에서 관리·선택할 수 있습니다.
                 </p>
                 <input
                   ref={courierFileInputRef}
