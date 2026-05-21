@@ -3,6 +3,52 @@
  */
 
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
+import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
+import { ALIAS_DICTIONARY } from '@/app/pipeline/base/alias-dictionary';
+import { refineMappedBaseHeadersCouriers } from '@/app/pipeline/template/refine-mapped-base-headers';
+
+function normalizeCourierHeader(header: string): string {
+  return header
+    .replace(/\s/g, '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/[.·]/g, '')
+    .replace(/[^가-힣0-9]/g, '')
+    .trim();
+}
+
+/** 체험 예시 양식용 — alias 사전만으로 bridge 생성 (AI·DB 없음) */
+function mapTrialHeadersToBridge(courierHeaders: string[]): Pick<
+  TemplateBridgeFile,
+  'mappedBaseHeaders' | 'unknownHeaders'
+> {
+  const mappedBaseHeaders: (string | null)[] = [];
+  const unknownHeaders: string[] = [];
+
+  for (let i = 0; i < courierHeaders.length; i++) {
+    const courierHeader = courierHeaders[i];
+    const normalizedHeader = normalizeCourierHeader(courierHeader);
+
+    if ((BASE_HEADERS as readonly string[]).includes(normalizedHeader)) {
+      mappedBaseHeaders[i] = normalizedHeader;
+      continue;
+    }
+
+    const baseHeaderKey =
+      ALIAS_DICTIONARY[courierHeader] || ALIAS_DICTIONARY[normalizedHeader];
+
+    if (baseHeaderKey) {
+      mappedBaseHeaders[i] = baseHeaderKey;
+    } else {
+      mappedBaseHeaders[i] = null;
+      unknownHeaders.push(courierHeader);
+    }
+  }
+
+  return {
+    mappedBaseHeaders: refineMappedBaseHeadersCouriers(courierHeaders, mappedBaseHeaders),
+    unknownHeaders,
+  };
+}
 
 interface TrialCourierUploadHeader {
   name: string;
@@ -119,12 +165,24 @@ export function isTrialSeedFormatId(id: string | undefined): boolean {
 
 export function buildTrialBridgeFile(headers: string[]): TemplateBridgeFile {
   const courierHeaders = headers.filter((h) => h && h.trim() !== '');
+  const { mappedBaseHeaders, unknownHeaders } = mapTrialHeadersToBridge(courierHeaders);
   return {
-    baseHeaders: [],
+    baseHeaders: [...BASE_HEADERS],
     courierHeaders,
-    mappedBaseHeaders: courierHeaders.map(() => null),
-    unknownHeaders: [...courierHeaders],
+    mappedBaseHeaders,
+    unknownHeaders,
   };
+}
+
+/** 예전에 저장된 bridge(baseHeaders 빈 배열) 보정 */
+export function repairTrialBridgeFileIfNeeded(
+  columnOrder: string[],
+  bridgeFile: TemplateBridgeFile | undefined,
+): TemplateBridgeFile {
+  if (bridgeFile?.baseHeaders?.length) {
+    return bridgeFile;
+  }
+  return buildTrialBridgeFile(columnOrder);
 }
 
 export function buildCourierTemplateFromHeaders(headers: string[]): TrialCourierUploadTemplate {

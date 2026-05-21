@@ -88,6 +88,7 @@ import {
   TRIAL_SEED_FORMAT_IDS,
   buildTrialBridgeFile,
   isTrialSeedFormatId,
+  repairTrialBridgeFileIfNeeded,
 } from '@/app/logistics-convert/trial-sample-formats';
 
 /** 상품코드 매핑 실패 시 안내 배너용 */
@@ -1495,6 +1496,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           if (needsPcccMigration) {
             localStorage.removeItem(TRIAL_LOGISTICS_BRIDGE_KEY);
             setTemplateBridgeFile(null);
+          } else if (!parsed.baseHeaders?.length) {
+            const activeTemplate = loadCourierUploadTemplate(true, null);
+            const columnOrder = activeTemplate?.headers
+              ?.filter((h) => h.name?.trim())
+              .map((h) => h.name) ?? parsed.courierHeaders ?? [];
+            const repaired = repairTrialBridgeFileIfNeeded(columnOrder, parsed);
+            setTemplateBridgeFile(repaired);
+            localStorage.setItem(TRIAL_LOGISTICS_BRIDGE_KEY, JSON.stringify(repaired));
           } else {
             setTemplateBridgeFile(parsed);
           }
@@ -2690,15 +2699,30 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     let changed = false;
 
     for (const spec of TRIAL_EXTRA_SAMPLE_FORMATS) {
-      if (formats.some((format) => format.id === spec.id)) {
+      const bridgeFile = buildTrialBridgeFile(spec.headers);
+      const existingIndex = formats.findIndex((format) => format.id === spec.id);
+
+      if (existingIndex >= 0) {
+        const existing = formats[existingIndex];
+        if (!existing.bridgeFile?.baseHeaders?.length) {
+          formats[existingIndex] = {
+            ...existing,
+            columnOrder: spec.headers,
+            displayName: spec.displayName,
+            bridgeFile,
+            protectedFromDeletion: true,
+          };
+          changed = true;
+        }
         continue;
       }
+
       formats.push({
         id: spec.id,
         createdAt: new Date().toISOString(),
         columnOrder: spec.headers,
         displayName: spec.displayName,
-        bridgeFile: buildTrialBridgeFile(spec.headers),
+        bridgeFile,
         protectedFromDeletion: true,
       });
       changed = true;
@@ -2846,9 +2870,13 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setUploadedFileMeta([]);
 
     // 3. 선택된 템플릿의 bridgeFile 적용
-    if (selected.bridgeFile) {
+    const bridgeToApply = repairTrialBridgeFileIfNeeded(
+      selected.columnOrder ?? [],
+      selected.bridgeFile,
+    );
+    if (bridgeToApply) {
       // setTemplateBridgeFile 실행 - 새 객체로 복사하여 전달 (React 객체 동일성 비교 문제 해결)
-      setTemplateBridgeFile(JSON.parse(JSON.stringify(selected.bridgeFile)));
+      setTemplateBridgeFile(JSON.parse(JSON.stringify(bridgeToApply)));
       
       // localStorage(활성 bridgeFile)도 함께 갱신
       if (typeof window !== 'undefined') {
@@ -2856,13 +2884,13 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           if (trialMode) {
             localStorage.setItem(
               TRIAL_LOGISTICS_BRIDGE_KEY,
-              JSON.stringify(selected.bridgeFile),
+              JSON.stringify(bridgeToApply),
             );
           } else {
             writeLocalStorageForUser(
               LOGISTICS_MAIN_KEYS.bridge,
               userId,
-              JSON.stringify(selected.bridgeFile),
+              JSON.stringify(bridgeToApply),
             );
           }
         } catch (error) {
