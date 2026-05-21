@@ -30,6 +30,7 @@ import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2'
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
+import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
@@ -251,6 +252,8 @@ export default function OrderConvertPage() {
   /** 로그인 시 계정별 localStorage 분리 (/api/user/get 의 id 와 동일) */
   const storageUserId = user?.userId ?? null;
   const authAssetsReady = useAuthAssetsReady();
+  const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
+  const isFormStatusChecking = !authAssetsReady || !workspaceStorageHydrated;
   const courierStorageHydratedRef = useRef(false);
   const prevAccountBoundaryRef = useRef<string | undefined>(undefined);
 
@@ -518,6 +521,7 @@ export default function OrderConvertPage() {
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     if (!authAssetsReady) {
+      setWorkspaceStorageHydrated(false);
       courierStorageHydratedRef.current = false;
       return;
     }
@@ -609,7 +613,17 @@ export default function OrderConvertPage() {
     }
     isCancelledRef.current = false;
     courierStorageHydratedRef.current = true;
+    setWorkspaceStorageHydrated(true);
   }, [authAssetsReady, storageUserId]);
+
+  const activeTemplateHeaderNames = useMemo(() => {
+    if (!isValidCourierTemplate(courierUploadTemplate) || !courierUploadTemplate) {
+      return null;
+    }
+    return courierUploadTemplate.headers
+      .filter((header) => !header.isEmpty && header.name.trim() !== '')
+      .map((header) => header.name);
+  }, [courierUploadTemplate]);
 
   usePreviewWorkspaceSession({
     pageKey: 'order-convert',
@@ -2501,28 +2515,13 @@ export default function OrderConvertPage() {
             </button>
           </div>
 
-          {/* 사용중 양식 표시 */}
-          {isValidCourierTemplate(courierUploadTemplate) && courierUploadTemplate && (
-            <div className="w-full mt-4">
-              <p className="text-xs text-blue-600 w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-blue-50 text-blue-600">사용 중인 양식 :</span>{' '}
-                {courierUploadTemplate.headers
-                  .filter((header) => !header.isEmpty && header.name.trim() !== '')
-                  .map((header) => header.name)
-                  .join(' · ')}
-              </p>
-              {/* 고정 입력 정보 표시 */}
-              {FIXED_HEADER_ORDER.some(headerName => fixedHeaderValues[headerName] && fixedHeaderValues[headerName].trim() !== '') && (
-                <p className="text-xs text-blue-500 w-full whitespace-nowrap overflow-hidden text-ellipsis mt-1">
-                  <span className="inline-block py-0.5 px-2 rounded-md text-xs font-medium bg-blue-50 text-blue-600">고정 입력 정보 :</span>{' '}
-                  {FIXED_HEADER_ORDER
-                    .filter(headerName => fixedHeaderValues[headerName] && fixedHeaderValues[headerName].trim() !== '')
-                    .map(headerName => `${headerName} ${fixedHeaderValues[headerName]}`)
-                    .join(' · ')}
-                </p>
-              )}
-            </div>
-          )}
+          <WorkspaceFormStatusBanner
+            isChecking={isFormStatusChecking}
+            templateHeaderNames={activeTemplateHeaderNames}
+            fixedHeaderOrder={FIXED_HEADER_ORDER}
+            fixedHeaderValues={fixedHeaderValues}
+            variant="blue"
+          />
         </section>
 
       </main>

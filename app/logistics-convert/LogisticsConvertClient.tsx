@@ -51,6 +51,7 @@ import {
 } from '@/app/lib/history-input-sources';
 import { useUserStore } from '@/app/store/userStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
+import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
@@ -883,6 +884,10 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const isLoading = useUserStore((state) => state.isLoading);
   const userId = user?.userId ?? null;
   const authAssetsReady = useAuthAssetsReady();
+  const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
+  const isFormStatusChecking = trialMode
+    ? !workspaceStorageHydrated
+    : !authAssetsReady || !workspaceStorageHydrated;
   const logisticsCourierHydratedRef = useRef(false);
   const prevLogisticsAccountBoundaryRef = useRef<string | undefined>(undefined);
   const fetchUser = useUserStore((state) => state.fetchUser);
@@ -1455,6 +1460,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     if (trialMode) {
+      setWorkspaceStorageHydrated(false);
       logisticsCourierHydratedRef.current = false;
       setCourierUploadTemplate(loadCourierUploadTemplate(true, null));
       setRecentExcelFormats(loadRecentExcelFormats(true, null));
@@ -1490,10 +1496,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       }
       prevLogisticsAccountBoundaryRef.current = '__trial__';
       logisticsCourierHydratedRef.current = true;
+      setWorkspaceStorageHydrated(true);
       return;
     }
 
     if (!authAssetsReady) {
+      setWorkspaceStorageHydrated(false);
       logisticsCourierHydratedRef.current = false;
       return;
     }
@@ -1587,7 +1595,17 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }
     isCancelledRef.current = false;
     logisticsCourierHydratedRef.current = true;
+    setWorkspaceStorageHydrated(true);
   }, [trialMode, authAssetsReady, userId]);
+
+  const activeTemplateHeaderNames = useMemo(() => {
+    if (!isValidCourierTemplate(courierUploadTemplate) || !courierUploadTemplate) {
+      return null;
+    }
+    return courierUploadTemplate.headers
+      .filter((header) => !header.isEmpty && header.name.trim() !== '')
+      .map((header) => header.name);
+  }, [courierUploadTemplate]);
 
   usePreviewWorkspaceSession({
     pageKey: 'logistics-convert',
@@ -4739,28 +4757,13 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             </button>
           </div>
 
-          {/* 사용중 양식 표시 */}
-          {isValidCourierTemplate(courierUploadTemplate) && courierUploadTemplate && (
-            <div className="w-full mt-4">
-              <p className="text-xs text-emerald-600 w-full whitespace-nowrap overflow-hidden text-ellipsis">
-                <span className="trial-soft-chip inline-block py-0.5 px-2 rounded-md text-xs font-medium">사용 중인 양식 :</span>{' '}
-                {courierUploadTemplate.headers
-                  .filter((header) => !header.isEmpty && header.name.trim() !== '')
-                  .map((header) => header.name)
-                  .join(' · ')}
-              </p>
-              {/* 고정 입력 정보 표시 */}
-              {FIXED_HEADER_ORDER.some(headerName => fixedHeaderValues[headerName] && fixedHeaderValues[headerName].trim() !== '') && (
-                <p className="text-xs text-emerald-500 w-full whitespace-nowrap overflow-hidden text-ellipsis mt-1">
-                  <span className="trial-soft-chip inline-block py-0.5 px-2 rounded-md text-xs font-medium">고정 입력 정보 :</span>{' '}
-                  {FIXED_HEADER_ORDER
-                    .filter(headerName => fixedHeaderValues[headerName] && fixedHeaderValues[headerName].trim() !== '')
-                    .map(headerName => `${headerName} ${fixedHeaderValues[headerName]}`)
-                    .join(' · ')}
-                </p>
-              )}
-            </div>
-          )}
+          <WorkspaceFormStatusBanner
+            isChecking={isFormStatusChecking}
+            templateHeaderNames={activeTemplateHeaderNames}
+            fixedHeaderOrder={FIXED_HEADER_ORDER}
+            fixedHeaderValues={fixedHeaderValues}
+            variant="emerald"
+          />
           {selectedMappingSummary && (
             <div className="w-full mt-4">
               <p className="text-xs text-emerald-500 w-full whitespace-nowrap overflow-hidden text-ellipsis">
