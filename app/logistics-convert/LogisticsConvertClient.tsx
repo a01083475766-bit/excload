@@ -4597,7 +4597,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                                           ? '헤더 체크박스로 코드매핑 설정을 열 수 있습니다.'
                                           : undefined
                                       }
-                                      className={`${trialMode ? 'ex-tooltip-target' : ''} h-6 w-6 shrink-0 cursor-pointer accent-purple-600`}
+                                      className={`${trialMode ? 'ex-tooltip-target' : ''} ex-preview-header-mapping-checkbox`}
                                       checked={
                                         Boolean(columnCodeMappingSnapshots[header]) ||
                                         columnMappingActiveHeader === header

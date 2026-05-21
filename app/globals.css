@@ -206,6 +206,34 @@ body {
   background: #10b981; /* emerald-500 */
 }
 
+/* 물류·체험 미리보기: 헤더 코드매핑 체크박스 (보라 테두리, 안내 문구와 시각 연계) */
+.ex-preview-header-mapping-checkbox {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 2px solid #9333ea; /* purple-600 */
+  border-radius: 0.125rem;
+  background-color: #ffffff;
+  vertical-align: middle;
+}
+
+.ex-preview-header-mapping-checkbox:checked {
+  border-color: #9333ea;
+  background-color: #9333ea;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.875rem;
+}
+
+.ex-preview-header-mapping-checkbox:focus-visible {
+  outline: 2px solid #c084fc; /* purple-400 */
+  outline-offset: 2px;
+}
+
 /* 다크모드 스크롤바 스타일 */
 @media (prefers-color-scheme: dark) {
   .preview-scrollbar::-webkit-scrollbar-track {
@@ -242,6 +270,16 @@ body {
 
   .preview-scrollbar-emerald::-webkit-scrollbar-thumb:hover {
     background: #10b981; /* emerald-500 */
+  }
+
+  .ex-preview-header-mapping-checkbox {
+    background-color: #27272a; /* zinc-800 */
+    border-color: #a855f7; /* purple-500 */
+  }
+
+  .ex-preview-header-mapping-checkbox:checked {
+    border-color: #9333ea;
+    background-color: #9333ea;
   }
 }
 
