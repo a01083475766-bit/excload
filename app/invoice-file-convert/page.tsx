@@ -2718,7 +2718,7 @@ export default function InvoiceFileConvertPage() {
             {/* 통합 안내 문구 */}
             <div className="mb-6 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                모든 주문에 동일하게 적용할 보내는 사람 정보를 설정합니다.
+                모든 주문에 동일하게 적용할 택배사, 배송방법 등 고정 입력할 항목을 설정합니다.
                 <br />
                 고정 입력은 선택 기능이며, 모든 주문에 동일한 정보가 있을 때만 설정하면 됩니다.
               </p>
