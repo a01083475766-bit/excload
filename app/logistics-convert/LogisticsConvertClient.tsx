@@ -1789,11 +1789,6 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setShowColumnCodeMappingModal(true);
   }, [courierHeaders.length, previewRows.length]);
 
-  const handleColumnCodeMappingModalCancel = useCallback(() => {
-    closeColumnCodeMappingModal();
-    setColumnMappingStaging({});
-  }, [closeColumnCodeMappingModal]);
-
   const handleClearColumnCodeMappingForHeader = useCallback(
     (header: string) => {
       const snap = columnCodeMappingSnapshots[header];
@@ -1828,6 +1823,26 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     [columnCodeMappingSnapshots],
   );
 
+  /** 모달만 닫기 — 미리보기에 이미 반영된 매핑은 유지 */
+  const handleCloseColumnCodeMappingModal = useCallback(() => {
+    closeColumnCodeMappingModal();
+  }, [closeColumnCodeMappingModal]);
+
+  /** 적용 취소 — 이 열에 반영된 코드매핑이 있으면 미리보기에서 되돌린 뒤 닫기 */
+  const handleCancelColumnCodeMappingModal = useCallback(() => {
+    const header = columnMappingActiveHeader;
+    if (header && columnCodeMappingSnapshots[header]) {
+      handleClearColumnCodeMappingForHeader(header);
+    }
+    closeColumnCodeMappingModal();
+    setColumnMappingStaging({});
+  }, [
+    columnMappingActiveHeader,
+    columnCodeMappingSnapshots,
+    handleClearColumnCodeMappingForHeader,
+    closeColumnCodeMappingModal,
+  ]);
+
   /**
    * 미리보기 테이블 헤더 체크박스 동작
    * - 체크: 해당 열을 active로 두고 코드매핑 설정 모달을 즉시 오픈
@@ -1843,7 +1858,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           showColumnCodeMappingModal &&
           columnMappingActiveHeader === header
         ) {
-          handleColumnCodeMappingModalCancel();
+          handleCloseColumnCodeMappingModal();
           if (hasSnap) handleClearColumnCodeMappingForHeader(header);
           return;
         }
@@ -2019,7 +2034,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       productCodeMap,
       productCodeFileName,
       columnCodeMappingSnapshots,
-      handleColumnCodeMappingModalCancel,
+      handleCloseColumnCodeMappingModal,
       handleClearColumnCodeMappingForHeader,
       userId,
     ],
@@ -4765,7 +4780,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       {showColumnCodeMappingModal && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
-          onClick={handleColumnCodeMappingModalCancel}
+          onClick={handleCloseColumnCodeMappingModal}
         >
           <div
             className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[920px] max-h-[90vh] flex flex-col p-6"
@@ -4777,8 +4792,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               </h2>
               <button
                 type="button"
-                onClick={handleColumnCodeMappingModalCancel}
+                onClick={handleCloseColumnCodeMappingModal}
                 className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                aria-label="닫기"
               >
                 <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
               </button>
@@ -5155,57 +5171,68 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       {columnCodeMappingSavedMessage}
                     </div>
                   ) : null}
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                       type="button"
-                      onClick={handleColumnCodeMappingModalCancel}
-                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
+                      onClick={handleSaveColumnCodeMappingForReuse}
+                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                    >
+                      변환값 저장
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleEnableColumnAutoApply}
+                      className="px-4 py-2.5 rounded-lg border border-emerald-600 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950/40 text-sm whitespace-nowrap"
+                    >
+                      다음부터 자동 적용
+                    </button>
+                    {isActiveHeaderAutoApplyEnabled ? (
+                      <button
+                        type="button"
+                        onClick={handleCancelColumnAutoApply}
+                        className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                      >
+                        자동 적용 취소
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={handleApplyColumnCodeMappingFromEditor}
+                      className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 text-sm whitespace-nowrap"
+                    >
+                      미리보기에 적용
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelColumnCodeMappingModal}
+                      className="px-4 py-2.5 rounded-lg border border-rose-300 text-rose-800 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 text-sm whitespace-nowrap"
                     >
                       취소
                     </button>
-
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={handleSaveColumnCodeMappingForReuse}
-                        className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
-                      >
-                        변환값 저장
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleApplyColumnCodeMappingFromEditor}
-                        className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 text-sm whitespace-nowrap"
-                      >
-                        미리보기에 적용
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleEnableColumnAutoApply}
-                        className="px-4 py-2.5 rounded-lg border border-emerald-600 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950/40 text-sm whitespace-nowrap"
-                      >
-                        다음부터 자동 적용
-                      </button>
-                      {isActiveHeaderAutoApplyEnabled ? (
-                        <button
-                          type="button"
-                          onClick={handleCancelColumnAutoApply}
-                          className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
-                        >
-                          자동 적용 취소
-                        </button>
-                      ) : null}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCloseColumnCodeMappingModal}
+                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                    >
+                      닫기
+                    </button>
                   </div>
                 </>
               ) : (
-                <div className="flex justify-start">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={handleColumnCodeMappingModalCancel}
-                    className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
+                    onClick={handleCancelColumnCodeMappingModal}
+                    className="px-4 py-2.5 rounded-lg border border-rose-300 text-rose-800 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 text-sm"
                   >
                     취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseColumnCodeMappingModal}
+                    className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
+                  >
+                    닫기
                   </button>
                 </div>
               )}
