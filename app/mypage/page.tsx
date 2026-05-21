@@ -251,6 +251,18 @@ export default function MyPage() {
     }
   };
 
+  const getUsageHint = (plan: string) => {
+    switch (plan) {
+      case 'FREE':
+        return '무료 플랜은 매월 지급된 사용량이 잔여에 합산되어 표시됩니다.';
+      case 'PRO':
+      case 'YEARLY':
+        return '유료 플랜은 결제·갱신 주기에 맞춰 제공된 사용량이 잔여로 표시됩니다.';
+      default:
+        return '주문·송장 변환 및 다운로드 시 잔여 사용량에서 차감됩니다.';
+    }
+  };
+
   const currentPeriodEndText = subscriptionState.currentPeriodEnd
     ? new Date(subscriptionState.currentPeriodEnd).toLocaleDateString('ko-KR')
     : null;
@@ -697,10 +709,6 @@ export default function MyPage() {
                       <span>플랜: {getPlanName(user.plan)}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                      <span>잔여 사용량: {user.points.toLocaleString()}</span>
-                    </div>
-                    
                     {hasPaidPlan ? (
                       <div className="space-y-2">
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -746,26 +754,32 @@ export default function MyPage() {
                   </div>
                 </div>
 
-                {/* 사용량 통계 */}
+                {/* 사용량 */}
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-8">
-                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">
-                    사용량 통계
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+                    사용량
                   </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-6 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">잔여 사용량</p>
-                      <p className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6">
+                    변환·다운로드 시 아래 잔여에서 차감됩니다.
+                  </p>
+
+                  <div className="rounded-xl border border-blue-200/80 dark:border-blue-800/60 overflow-hidden">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 py-8 bg-blue-50 dark:bg-blue-950/30">
+                      <div>
+                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                          잔여 사용량
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+                          {getPlanName(user.plan)} 플랜 · 현재 이용 가능
+                        </p>
+                      </div>
+                      <p className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-right">
                         {user.points.toLocaleString()}
                       </p>
                     </div>
-                    
-                    <div className="p-6 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">월간 제공 사용량</p>
-                      <p className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-                        {user.monthlyPoints?.toLocaleString() || '0'}
-                      </p>
-                    </div>
+                    <p className="px-6 py-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 border-t border-blue-200/60 dark:border-blue-800/40">
+                      {getUsageHint(user.plan)}
+                    </p>
                   </div>
                 </div>
               </div>
