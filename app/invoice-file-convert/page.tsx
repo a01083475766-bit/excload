@@ -42,6 +42,7 @@ import {
 import { useUserStore } from '@/app/store/userStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
+import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
@@ -268,6 +269,9 @@ export default function InvoiceFileConvertPage() {
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
+  const [isTemplateChangeReuploadModalOpen, setIsTemplateChangeReuploadModalOpen] = useState(false);
+  const templateModalBaselineFormatIdRef = useRef<string | null>(null);
+  const hadOrderWorkBeforeTemplateModalRef = useRef(false);
   const [uploadedExcelFile, setUploadedExcelFile] = useState<File | null>(null);
   // 고정 입력 정보 설정 모달: 입력 모드 상태 (버튼 인덱스)
   const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(null);
@@ -737,6 +741,17 @@ export default function InvoiceFileConvertPage() {
     return () => clearInterval(interval);
   }, [fileProcessingStatus]);
 
+  const clearOrderInputForTemplateChange = useCallback(() => {
+    setUploadedExcelFile(null);
+    setCourierInvoiceFile(null);
+    setOrderStandardFile(null);
+    setUploadedFileMeta([]);
+    setPreviewReady(false);
+    unlockedOrderBufferRef.current = null;
+    unlockedInvoiceBufferRef.current = null;
+    clearWorkspaceInputTracking();
+  }, [clearWorkspaceInputTracking]);
+
   const handleOpenCourierTemplateModal = () => {
     const formats = loadRecentExcelFormats(storageUserId);
     setRecentExcelFormats(formats);
@@ -759,6 +774,14 @@ export default function InvoiceFileConvertPage() {
       }
     }
 
+    templateModalBaselineFormatIdRef.current = matchedFormatId;
+    hadOrderWorkBeforeTemplateModalRef.current =
+      Boolean(uploadedExcelFile) ||
+      Boolean(courierInvoiceFile) ||
+      previewRows.length > 0 ||
+      Boolean(orderStandardFile) ||
+      uploadedFileMeta.length > 0;
+
     setTempSelectedFormatId(matchedFormatId);
     setIsCourierTemplateModalOpen(true);
   };
@@ -768,8 +791,15 @@ export default function InvoiceFileConvertPage() {
   };
 
   const handleConfirmCourierTemplateModal = () => {
-    // 라디오 버튼 선택 시 이미 모든 설정이 완료되므로, 모달 닫기만 수행
+    const formatChanged = tempSelectedFormatId !== templateModalBaselineFormatIdRef.current;
+    const shouldNotifyReupload = formatChanged && hadOrderWorkBeforeTemplateModalRef.current;
+
     setIsCourierTemplateModalOpen(false);
+
+    if (shouldNotifyReupload) {
+      clearOrderInputForTemplateChange();
+      setIsTemplateChangeReuploadModalOpen(true);
+    }
   };
 
   const handleTemplateFileClick = () => {
@@ -892,6 +922,10 @@ export default function InvoiceFileConvertPage() {
 
     if (!selected) {
       return;
+    }
+
+    if (formatId !== tempSelectedFormatId) {
+      clearOrderInputForTemplateChange();
     }
 
     // 1. setSelectedTemplateId 실행 (tempSelectedFormatId로 관리)
@@ -2574,6 +2608,12 @@ export default function InvoiceFileConvertPage() {
           </div>
         </div>
       )}
+
+      <UploadTemplateChangeReuploadModal
+        open={isTemplateChangeReuploadModalOpen}
+        onClose={() => setIsTemplateChangeReuploadModalOpen(false)}
+        message="새 양식에 맞게 변환하려면 주문 파일과 택배 송장 파일을 다시 업로드·첨부해 주세요."
+      />
 
       {/* 더미 없음 안내 모달 */}
       {isEmptyDataModalOpen && (

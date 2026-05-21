@@ -31,6 +31,7 @@ import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
+import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
@@ -272,6 +273,9 @@ export default function OrderConvertPage() {
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
   const [noTemplateModalType, setNoTemplateModalType] = useState<'fixed-input' | 'convert'>('fixed-input');
+  const [isTemplateChangeReuploadModalOpen, setIsTemplateChangeReuploadModalOpen] = useState(false);
+  const templateModalBaselineFormatIdRef = useRef<string | null>(null);
+  const hadOrderWorkBeforeTemplateModalRef = useRef(false);
   const [uploadedExcelFile, setUploadedExcelFile] = useState<File | null>(null);
   // 고정 입력 정보 설정 모달: 입력 모드 상태 (버튼 인덱스)
   const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(null);
@@ -687,6 +691,18 @@ export default function OrderConvertPage() {
     return () => clearInterval(interval);
   }, [isProcessingTextImage]);
 
+  const clearOrderInputForTemplateChange = useCallback(() => {
+    setUploadedExcelFile(null);
+    setOrderStandardFile(null);
+    setUploadedFileMeta([]);
+    setSelectedFiles([]);
+    setSelectedFileName(null);
+    setFileProcessingStatus('idle');
+    setStage2ChunkLabel(null);
+    setTextInput('');
+    clearWorkspaceInputTracking();
+  }, [clearWorkspaceInputTracking]);
+
   const handleOpenCourierTemplateModal = () => {
     const formats = loadRecentExcelFormats(storageUserId);
     setRecentExcelFormats(formats);
@@ -709,6 +725,14 @@ export default function OrderConvertPage() {
       }
     }
 
+    templateModalBaselineFormatIdRef.current = matchedFormatId;
+    hadOrderWorkBeforeTemplateModalRef.current =
+      Boolean(uploadedExcelFile) ||
+      previewRows.length > 0 ||
+      Boolean(orderStandardFile) ||
+      textInput.trim().length > 0 ||
+      uploadedFileMeta.length > 0;
+
     setTempSelectedFormatId(matchedFormatId);
     setIsCourierTemplateModalOpen(true);
   };
@@ -718,8 +742,15 @@ export default function OrderConvertPage() {
   };
 
   const handleConfirmCourierTemplateModal = () => {
-    // 라디오 버튼 선택 시 이미 모든 설정이 완료되므로, 모달 닫기만 수행
+    const formatChanged = tempSelectedFormatId !== templateModalBaselineFormatIdRef.current;
+    const shouldNotifyReupload = formatChanged && hadOrderWorkBeforeTemplateModalRef.current;
+
     setIsCourierTemplateModalOpen(false);
+
+    if (shouldNotifyReupload) {
+      clearOrderInputForTemplateChange();
+      setIsTemplateChangeReuploadModalOpen(true);
+    }
   };
 
   const handleTemplateFileClick = () => {
@@ -839,6 +870,10 @@ export default function OrderConvertPage() {
 
     if (!selected) {
       return;
+    }
+
+    if (formatId !== tempSelectedFormatId) {
+      clearOrderInputForTemplateChange();
     }
 
     // 1. setSelectedTemplateId 실행 (tempSelectedFormatId로 관리)
@@ -2753,6 +2788,12 @@ export default function OrderConvertPage() {
           </div>
         </div>
       )}
+
+      <UploadTemplateChangeReuploadModal
+        open={isTemplateChangeReuploadModalOpen}
+        onClose={() => setIsTemplateChangeReuploadModalOpen(false)}
+        bodyExtra="텍스트·이미지로 넣으신 주문이 있었다면, 해당 입력도 다시 진행해 주세요."
+      />
 
       {/* 더미 없음 안내 모달 */}
       {isEmptyDataModalOpen && (
