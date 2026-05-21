@@ -129,6 +129,15 @@ const LOGISTICS_MAPPING_STORAGE_KEY = 'logistics_recent_mapping_formats_v1';
 const LOGISTICS_MAPPING_SELECTED_KEY = 'logistics_selected_mapping_id_v1';
 /** simple 코드매핑(열 헤더명 → 원본→변환 맵) — productCodeMap과 별도 */
 const LOGISTICS_SIMPLE_COLUMN_MAPS_KEY = 'logistics_simple_column_code_maps_v1';
+/** product 코드매핑(열 헤더명 → 상품명|옵션 → 코드 맵) — 자동 적용용 */
+const LOGISTICS_PRODUCT_COLUMN_MAPS_KEY = 'logistics_product_column_code_maps_v1';
+/** 열 헤더별 업로드 시 자동 코드매핑 여부 */
+const LOGISTICS_COLUMN_AUTO_APPLY_KEY = 'logistics_column_auto_apply_v1';
+
+type ColumnAutoApplyEntry = {
+  enabled: boolean;
+  kind: 'simple' | 'product';
+};
 
 function loadSimpleColumnMapsByUser(
   userId: string | null | undefined,
@@ -170,6 +179,131 @@ function buildSimpleMapFromEditorRows(
   return m;
 }
 
+function loadProductColumnMapsByUser(
+  userId: string | null | undefined,
+): Record<string, ProductCodeMap> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const key = getLogisticsScopedKey(LOGISTICS_PRODUCT_COLUMN_MAPS_KEY, userId);
+    const raw = localStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+      return {};
+    return parsed as Record<string, ProductCodeMap>;
+  } catch {
+    return {};
+  }
+}
+
+function saveProductColumnMapForHeader(
+  userId: string | null | undefined,
+  header: string,
+  map: ProductCodeMap,
+): void {
+  const all = loadProductColumnMapsByUser(userId);
+  all[header] = map;
+  const key = getLogisticsScopedKey(LOGISTICS_PRODUCT_COLUMN_MAPS_KEY, userId);
+  localStorage.setItem(key, JSON.stringify(all));
+}
+
+function loadColumnAutoApplyByUser(
+  userId: string | null | undefined,
+): Record<string, ColumnAutoApplyEntry> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const key = getLogisticsScopedKey(LOGISTICS_COLUMN_AUTO_APPLY_KEY, userId);
+    const raw = localStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+      return {};
+    return parsed as Record<string, ColumnAutoApplyEntry>;
+  } catch {
+    return {};
+  }
+}
+
+function saveColumnAutoApplyForHeader(
+  userId: string | null | undefined,
+  header: string,
+  entry: ColumnAutoApplyEntry | null,
+): void {
+  const all = loadColumnAutoApplyByUser(userId);
+  if (entry === null) {
+    delete all[header];
+  } else {
+    all[header] = entry;
+  }
+  const key = getLogisticsScopedKey(LOGISTICS_COLUMN_AUTO_APPLY_KEY, userId);
+  localStorage.setItem(key, JSON.stringify(all));
+}
+
+function computeAutoColumnMappingApply(
+  rows: PreviewRowWithId[],
+  headers: string[],
+  userId: string | null | undefined,
+): {
+  rows: PreviewRowWithId[];
+  newSnapshots: Record<string, Record<string, string>>;
+} {
+  const autoAll = loadColumnAutoApplyByUser(userId);
+  const simpleMaps = loadSimpleColumnMapsByUser(userId);
+  const productMaps = loadProductColumnMapsByUser(userId);
+  const staged: LogisticsStagedColumnMapping[] = [];
+
+  for (const [header, cfg] of Object.entries(autoAll)) {
+    if (!cfg?.enabled) continue;
+    if (!headers.includes(header)) continue;
+    if (cfg.kind === 'simple') {
+      const sm = simpleMaps[header];
+      if (sm && Object.keys(sm).length > 0) {
+        staged.push({
+          targetHeader: header,
+          kind: 'simple',
+          fileName: '자동적용',
+          simpleMap: sm,
+        });
+      }
+    } else {
+      const pm = productMaps[header];
+      if (pm && Object.keys(pm).length > 0) {
+        staged.push({
+          targetHeader: header,
+          kind: 'product',
+          fileName: '자동적용',
+          productMap: pm,
+        });
+      }
+    }
+  }
+
+  if (!staged.length) {
+    return { rows, newSnapshots: {} };
+  }
+
+  const baseline = rows.map((r) => r.data);
+  const merged = applyLogisticsStagedColumnMappings(baseline, headers, staged);
+  const newSnapshots: Record<string, Record<string, string>> = {};
+
+  for (const spec of staged) {
+    const h = spec.targetHeader;
+    const rowSnap: Record<string, string> = {};
+    for (let i = 0; i < rows.length; i++) {
+      rowSnap[rows[i]!.rowId] = String(baseline[i]?.[h] ?? '');
+    }
+    newSnapshots[h] = rowSnap;
+  }
+
+  return {
+    rows: merged.map((data, i) => ({
+      rowId: rows[i]!.rowId,
+      data,
+    })),
+    newSnapshots,
+  };
+}
+
 function getLogisticsScopedKey(baseKey: string, userId: string | null | undefined): string {
   const suffix = userId && userId.trim() !== '' ? userId : 'guest';
   return `${baseKey}_${suffix}`;
@@ -195,6 +329,15 @@ function clearLogisticsMappingLocalStorage(userId: string | null | undefined): v
 
   // 관련 단순 매핑 레거시도 함께 정리
   localStorage.removeItem(LOGISTICS_SIMPLE_COLUMN_MAPS_KEY);
+  localStorage.removeItem(LOGISTICS_PRODUCT_COLUMN_MAPS_KEY);
+  localStorage.removeItem(LOGISTICS_COLUMN_AUTO_APPLY_KEY);
+  const productMapsKey = getLogisticsScopedKey(
+    LOGISTICS_PRODUCT_COLUMN_MAPS_KEY,
+    userId,
+  );
+  const autoApplyKey = getLogisticsScopedKey(LOGISTICS_COLUMN_AUTO_APPLY_KEY, userId);
+  localStorage.removeItem(productMapsKey);
+  localStorage.removeItem(autoApplyKey);
 }
 
 function parseExcelRowsForMapping(file: File): Promise<string[][]> {
@@ -958,6 +1101,58 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   } | null>(null);
 
   const [columnCodeMappingSavedMessage, setColumnCodeMappingSavedMessage] = useState<string | null>(null);
+  const [columnAutoApplyByHeader, setColumnAutoApplyByHeader] = useState<
+    Record<string, ColumnAutoApplyEntry>
+  >({});
+
+  useEffect(() => {
+    setColumnAutoApplyByHeader(loadColumnAutoApplyByUser(userId));
+  }, [userId]);
+
+  const closeColumnCodeMappingModal = useCallback(() => {
+    setShowColumnCodeMappingModal(false);
+    setColumnMappingActiveHeader(null);
+    setColumnMappingStaging({});
+    setColumnCodeMappingEditorRows([]);
+    setColumnCodeMappingEditorMap({});
+    setColumnCodeMappingEditorSimpleMap({});
+    setColumnCodeMappingEditorMode('product');
+    setColumnCodeMappingDuplicatePopup(null);
+    setColumnCodeMappingSavedMessage(null);
+    columnMappingPendingHeaderRef.current = null;
+  }, []);
+
+  const isActiveHeaderAutoApplyEnabled = Boolean(
+    columnMappingActiveHeader &&
+      columnAutoApplyByHeader[columnMappingActiveHeader]?.enabled,
+  );
+
+  const prependPreviewRowsWithAutoMapping = useCallback(
+    (
+      newRows: PreviewRowWithId[],
+      headers: string[],
+      existing: PreviewRowWithId[],
+    ): PreviewRowWithId[] => {
+      const combined = [...newRows, ...existing];
+      const { rows, newSnapshots } = computeAutoColumnMappingApply(
+        combined,
+        headers,
+        userId,
+      );
+      if (Object.keys(newSnapshots).length > 0) {
+        setColumnCodeMappingSnapshots((prevSnap) => {
+          const next = { ...prevSnap };
+          for (const [h, snap] of Object.entries(newSnapshots)) {
+            if (next[h]) continue;
+            next[h] = snap;
+          }
+          return next;
+        });
+      }
+      return rows;
+    },
+    [userId],
+  );
 
   // 혹시 모달 진입 시 editorRows가 비어있는 케이스가 생기면,
   // 항상 최소 10칸을 보여주도록 안전장치 추가합니다.
@@ -1493,17 +1688,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   }, [courierHeaders.length, previewRows.length]);
 
   const handleColumnCodeMappingModalCancel = useCallback(() => {
-    setShowColumnCodeMappingModal(false);
+    closeColumnCodeMappingModal();
     setColumnMappingStaging({});
-    setColumnMappingActiveHeader(null);
-    setColumnCodeMappingEditorRows([]);
-    setColumnCodeMappingEditorMap({});
-    setColumnCodeMappingEditorSimpleMap({});
-    setColumnCodeMappingEditorMode('product');
-    setColumnCodeMappingDuplicatePopup(null);
-    setColumnCodeMappingSavedMessage(null);
-    columnMappingPendingHeaderRef.current = null;
-  }, []);
+  }, [closeColumnCodeMappingModal]);
 
   const handleClearColumnCodeMappingForHeader = useCallback(
     (header: string) => {
@@ -1627,12 +1814,19 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           }
         }
 
+        const savedProductByHeader = loadProductColumnMapsByUser(userId);
+        const headerProductMap = savedProductByHeader[header];
+        const effectiveProductMap: ProductCodeMap =
+          headerProductMap && Object.keys(headerProductMap).length > 0
+            ? headerProductMap
+            : (productCodeMap ?? {});
+
         let nextRows = Array.from(keyDisplayMap.values()).map(
           ({ key, displayKey }) => ({
             id: makeColumnCodeMappingEditorRowId(),
             key,
             displayKey,
-            value: productCodeMap?.[key] ?? '',
+            value: effectiveProductMap[key] ?? '',
             manualRow: false,
           }),
         );
@@ -1640,9 +1834,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         // 미리보기에서 뽑힌 원본값이 0개면: 기본 10칸을 열어서 직접 입력 가능하게
         if (nextRows.length === 0) {
           const fromSaved =
-            productCodeMap && Object.keys(productCodeMap).length > 0
+            Object.keys(effectiveProductMap).length > 0
               ? createRowsFromProductCodeMap(
-                  productCodeMap,
+                  effectiveProductMap,
                   DEFAULT_COLUMN_CODE_MAPPING_ROWS_COUNT,
                 )
               : [];
@@ -1650,7 +1844,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             fromSaved.length > 0 ? fromSaved : createEmptyEditorRows(DEFAULT_COLUMN_CODE_MAPPING_ROWS_COUNT);
         }
 
-        setColumnCodeMappingEditorMap({ ...productCodeMap });
+        setColumnCodeMappingEditorMap({ ...effectiveProductMap });
         setColumnCodeMappingEditorSimpleMap({});
         setColumnCodeMappingEditorRows(nextRows);
       } else {
@@ -1728,15 +1922,20 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     ],
   );
 
-  // (헤더별) 고정 2열 편집기에서 만든 매핑을 미리보기로 즉시 적용
-  const handleApplyColumnCodeMappingFromEditor = useCallback(() => {
-    if (!columnMappingActiveHeader) return;
+  const commitColumnMappingFromEditorToPreview = useCallback((): boolean => {
+    if (!columnMappingActiveHeader) return false;
 
     const header = columnMappingActiveHeader;
     const productMap = columnCodeMappingEditorMap;
-    const simpleMap = columnCodeMappingEditorSimpleMap;
+    const simpleMap = buildSimpleMapFromEditorRows(columnCodeMappingEditorRows);
+    const kind = columnCodeMappingEditorMode;
 
-    // 스냅샷은 "처음 적용"할 때만 저장 (이후 재적용 후에도 되돌리기 유지)
+    const hasContent =
+      kind === 'product'
+        ? Object.values(productMap).some((v) => String(v ?? '').trim() !== '')
+        : Object.keys(simpleMap).length > 0;
+    if (!hasContent) return false;
+
     const snap: Record<string, string> = {};
     for (const row of previewRows) {
       snap[row.rowId] = String(row.data[header] ?? '');
@@ -1752,7 +1951,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       baseline,
       courierHeaders,
       [
-        columnCodeMappingEditorMode === 'product'
+        kind === 'product'
           ? {
               targetHeader: header,
               kind: 'product',
@@ -1775,7 +1974,6 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       })),
     );
 
-    // 적용한 헤더에 대한 수동 수정 오버라이드는 제거
     setUserOverrides((prev) => {
       const next = { ...prev };
       for (const row of previewRows) {
@@ -1789,25 +1987,119 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       return next;
     });
 
-    // 모달 닫기 + 편집기 초기화
-    setShowColumnCodeMappingModal(false);
-    setColumnMappingActiveHeader(null);
-    setColumnMappingStaging({});
-    setColumnCodeMappingEditorRows([]);
-    setColumnCodeMappingEditorMap({});
-    setColumnCodeMappingEditorSimpleMap({});
-    setColumnCodeMappingEditorMode('product');
-    setColumnCodeMappingDuplicatePopup(null);
-    setColumnCodeMappingSavedMessage(null);
-    columnMappingPendingHeaderRef.current = null;
+    return true;
   }, [
     columnMappingActiveHeader,
     columnCodeMappingEditorMap,
-    columnCodeMappingEditorSimpleMap,
+    columnCodeMappingEditorRows,
     columnCodeMappingEditorMode,
     previewRows,
     courierHeaders,
   ]);
+
+  const handleApplyColumnCodeMappingFromEditor = useCallback(() => {
+    if (!commitColumnMappingFromEditorToPreview()) {
+      setColumnCodeMappingSavedMessage('적용할 변환값이 없습니다.');
+      setTimeout(() => setColumnCodeMappingSavedMessage(null), 2000);
+      return;
+    }
+    setColumnCodeMappingSavedMessage('미리보기에 반영되었습니다.');
+    setTimeout(() => {
+      closeColumnCodeMappingModal();
+      setColumnMappingStaging({});
+    }, 900);
+  }, [commitColumnMappingFromEditorToPreview, closeColumnCodeMappingModal]);
+
+  const handleEnableColumnAutoApply = useCallback(() => {
+    if (!columnMappingActiveHeader) return;
+    const header = columnMappingActiveHeader;
+    const kind = columnCodeMappingEditorMode;
+
+    if (kind === 'simple') {
+      const sm = buildSimpleMapFromEditorRows(columnCodeMappingEditorRows);
+      if (Object.keys(sm).length === 0) {
+        setColumnCodeMappingSavedMessage('저장할 변환값이 없습니다.');
+        setTimeout(() => setColumnCodeMappingSavedMessage(null), 2000);
+        return;
+      }
+      try {
+        saveSimpleColumnMapForHeader(userId, header, sm);
+        setColumnCodeMappingEditorSimpleMap(sm);
+      } catch (e) {
+        console.error('[물류] simple 매핑 저장 오류:', e);
+        setColumnCodeMappingSavedMessage('저장 중 오류가 발생했습니다.');
+        setTimeout(() => setColumnCodeMappingSavedMessage(null), 2500);
+        return;
+      }
+    } else {
+      const pm = columnCodeMappingEditorMap;
+      if (
+        !pm ||
+        !Object.values(pm).some((v) => String(v ?? '').trim() !== '')
+      ) {
+        setColumnCodeMappingSavedMessage('저장할 변환값이 없습니다.');
+        setTimeout(() => setColumnCodeMappingSavedMessage(null), 2000);
+        return;
+      }
+      try {
+        saveProductColumnMapForHeader(userId, header, { ...pm });
+      } catch (e) {
+        console.error('[물류] product 매핑 저장 오류:', e);
+        setColumnCodeMappingSavedMessage('저장 중 오류가 발생했습니다.');
+        setTimeout(() => setColumnCodeMappingSavedMessage(null), 2500);
+        return;
+      }
+    }
+
+    try {
+      saveColumnAutoApplyForHeader(userId, header, { enabled: true, kind });
+      setColumnAutoApplyByHeader((prev) => ({
+        ...prev,
+        [header]: { enabled: true, kind },
+      }));
+    } catch (e) {
+      console.error('[물류] 자동 적용 설정 오류:', e);
+      setColumnCodeMappingSavedMessage('저장 중 오류가 발생했습니다.');
+      setTimeout(() => setColumnCodeMappingSavedMessage(null), 2500);
+      return;
+    }
+
+    if (!commitColumnMappingFromEditorToPreview()) {
+      setColumnCodeMappingSavedMessage('적용할 변환값이 없습니다.');
+      setTimeout(() => setColumnCodeMappingSavedMessage(null), 2000);
+      return;
+    }
+
+    setColumnCodeMappingSavedMessage('다음 업로드부터 자동 적용됩니다.');
+    setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
+  }, [
+    columnMappingActiveHeader,
+    columnCodeMappingEditorMode,
+    columnCodeMappingEditorRows,
+    columnCodeMappingEditorMap,
+    userId,
+    commitColumnMappingFromEditorToPreview,
+  ]);
+
+  const handleCancelColumnAutoApply = useCallback(() => {
+    if (!columnMappingActiveHeader) return;
+    const header = columnMappingActiveHeader;
+    try {
+      saveColumnAutoApplyForHeader(userId, header, null);
+      setColumnAutoApplyByHeader((prev) => {
+        const next = { ...prev };
+        delete next[header];
+        return next;
+      });
+    } catch (e) {
+      console.error('[물류] 자동 적용 해제 오류:', e);
+      setColumnCodeMappingSavedMessage('해제 중 오류가 발생했습니다.');
+      setTimeout(() => setColumnCodeMappingSavedMessage(null), 2500);
+      return;
+    }
+    setColumnCodeMappingSavedMessage('자동 적용이 해제되었습니다.');
+    setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
+  }, [columnMappingActiveHeader, userId]);
 
   // 편집 테이블에 사용자가 추가 행을 직접 만들 수 있도록 지원
   const handleAddColumnCodeMappingEditorRow = useCallback(() => {
@@ -1842,9 +2134,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         setTimeout(() => setColumnCodeMappingSavedMessage(null), 2500);
         return;
       }
-      setColumnCodeMappingSavedMessage(
-        '저장되었습니다. 다음에도 자동으로 불러옵니다.',
-      );
+      setColumnCodeMappingSavedMessage('변환값이 저장되었습니다.');
       setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
       return;
     }
@@ -1888,7 +2178,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setProductCodeMap({ ...productMap });
     setProductCodeFileName(displayName);
 
-    setColumnCodeMappingSavedMessage('저장되었습니다. 다음에도 자동으로 불러옵니다.');
+    setColumnCodeMappingSavedMessage('변환값이 저장되었습니다.');
     setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
   }, [
     columnCodeMappingEditorMode,
@@ -3011,13 +3301,17 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       // previewRows 상단 prepend 구조 적용
       const newRowIds = projectedPreviewRows.map(() => crypto.randomUUID());
-      setPreviewRows(prev => [
-        ...projectedPreviewRows.map((row, index) => ({
-          rowId: newRowIds[index],
-          data: row
-        })),
-        ...prev
-      ]);
+      const newPreviewChunk = projectedPreviewRows.map((row, index) => ({
+        rowId: newRowIds[index]!,
+        data: row,
+      }));
+      setPreviewRows((prev) =>
+        prependPreviewRowsWithAutoMapping(
+          newPreviewChunk,
+          stage3Result.courierHeaders,
+          prev,
+        ),
+      );
       
       // 새로 생성된 행을 newRows에 추가
       setNewRows(prev => {
@@ -3084,13 +3378,17 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
     // Stage3 결과를 현재 미리보기 상단에 추가
     const newRowIds = projectedPreviewRows.map(() => crypto.randomUUID());
-    setPreviewRows(prev => [
-      ...projectedPreviewRows.map((row, index) => ({
-        rowId: newRowIds[index],
-        data: row,
-      })),
-      ...prev,
-    ]);
+    const newPreviewChunk = projectedPreviewRows.map((row, index) => ({
+      rowId: newRowIds[index]!,
+      data: row,
+    }));
+    setPreviewRows((prev) =>
+      prependPreviewRowsWithAutoMapping(
+        newPreviewChunk,
+        mergedCourierHeaders,
+        prev,
+      ),
+    );
     
     // 새로 생성된 행을 newRows에 추가
     setNewRows(prev => {
@@ -4626,38 +4924,53 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex-shrink-0">
-              <button
-                type="button"
-                onClick={handleColumnCodeMappingModalCancel}
-                className="px-5 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              >
-                취소
-              </button>
-
-              <div className="flex-1 text-center">
-                {columnCodeMappingSavedMessage ? (
-                  <div className="text-xs text-emerald-700 dark:text-emerald-300">
-                    {columnCodeMappingSavedMessage}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex-shrink-0">
+              {columnCodeMappingSavedMessage ? (
+                <div className="text-xs text-center text-emerald-700 dark:text-emerald-300">
+                  {columnCodeMappingSavedMessage}
+                </div>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={handleSaveColumnCodeMappingForReuse}
-                  className="px-5 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  onClick={handleColumnCodeMappingModalCancel}
+                  className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
                 >
-                  다음에도 사용하기
+                  취소
                 </button>
-                <button
-                  type="button"
-                  onClick={handleApplyColumnCodeMappingFromEditor}
-                  className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700"
-                >
-                  미리보기로 적용
-                </button>
+
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveColumnCodeMappingForReuse}
+                    className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                  >
+                    변환값 저장
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyColumnCodeMappingFromEditor}
+                    className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 text-sm whitespace-nowrap"
+                  >
+                    미리보기에 적용
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEnableColumnAutoApply}
+                    className="px-4 py-2.5 rounded-lg border border-emerald-600 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950/40 text-sm whitespace-nowrap"
+                  >
+                    다음부터 자동 적용
+                  </button>
+                  {isActiveHeaderAutoApplyEnabled ? (
+                    <button
+                      type="button"
+                      onClick={handleCancelColumnAutoApply}
+                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                    >
+                      자동 적용 취소
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
