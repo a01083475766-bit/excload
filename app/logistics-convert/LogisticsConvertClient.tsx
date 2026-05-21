@@ -7,7 +7,16 @@
 
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+  type ChangeEvent,
+  type UIEvent,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
@@ -303,6 +312,29 @@ function computeAutoColumnMappingApply(
     newSnapshots,
   };
 }
+
+/** 매핑 엑셀 안내 화면 예시 (과일) */
+const MAPPING_EXCEL_SIMPLE_FRUIT_EXAMPLES: Array<{
+  original: string;
+  converted: string;
+}> = [
+  { original: '사과', converted: '124546' },
+  { original: '빨간사과', converted: '245465' },
+  { original: '파란사과', converted: '454344' },
+  { original: '배', converted: '456455' },
+  { original: '포도', converted: 'aa11245' },
+];
+
+const MAPPING_EXCEL_PRODUCT_FRUIT_EXAMPLES: Array<{
+  name: string;
+  option: string;
+  code: string;
+}> = [
+  { name: '사과', option: '', code: '124546' },
+  { name: '사과', option: '빨간', code: '245465' },
+  { name: '배', option: '', code: '456455' },
+  { name: '포도', option: '', code: 'aa11245' },
+];
 
 function getLogisticsScopedKey(baseKey: string, userId: string | null | undefined): string {
   const suffix = userId && userId.trim() !== '' ? userId : 'guest';
@@ -1101,6 +1133,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   } | null>(null);
 
   const [columnCodeMappingSavedMessage, setColumnCodeMappingSavedMessage] = useState<string | null>(null);
+  const [columnCodeMappingModalView, setColumnCodeMappingModalView] = useState<
+    'editor' | 'excelGuide'
+  >('editor');
   const [columnAutoApplyByHeader, setColumnAutoApplyByHeader] = useState<
     Record<string, ColumnAutoApplyEntry>
   >({});
@@ -1111,6 +1146,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   const closeColumnCodeMappingModal = useCallback(() => {
     setShowColumnCodeMappingModal(false);
+    setColumnCodeMappingModalView('editor');
     setColumnMappingActiveHeader(null);
     setColumnMappingStaging({});
     setColumnCodeMappingEditorRows([]);
@@ -1684,6 +1720,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }
     setColumnMappingStaging({});
     setColumnMappingActiveHeader(null);
+    setColumnCodeMappingModalView('editor');
     setShowColumnCodeMappingModal(true);
   }, [courierHeaders.length, previewRows.length]);
 
@@ -1906,6 +1943,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       setColumnMappingActiveHeader(header);
       setColumnCodeMappingDuplicatePopup(null);
       setColumnCodeMappingSavedMessage(null);
+      setColumnCodeMappingModalView('editor');
       setShowColumnCodeMappingModal(true);
     },
     [
@@ -2100,6 +2138,111 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setColumnCodeMappingSavedMessage('자동 적용이 해제되었습니다.');
     setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
   }, [columnMappingActiveHeader, userId]);
+
+  const handleColumnMappingExcelFileChange = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0];
+      e.target.value = '';
+      if (!f) return;
+
+      try {
+        if (columnCodeMappingEditorMode === 'product') {
+          const parsed = await parseTwoColumnKeyValueMapFromFile(f);
+
+          const toDisplayKey = (internalKey: string) => {
+            const idx = internalKey.indexOf('|');
+            if (idx < 0) return internalKey;
+            const name = internalKey.slice(0, idx);
+            const option = internalKey.slice(idx + 1);
+            return option ? `${name} / ${option}` : name;
+          };
+
+          if (parsed.duplicates.length > 0) {
+            const showItems = parsed.duplicates
+              .slice(0, 5)
+              .map((d) => ({
+                key: d.key,
+                displayKey: toDisplayKey(d.key),
+                count: d.count,
+                lastValue: d.lastValue,
+              }));
+            const moreCount = Math.max(0, parsed.duplicates.length - 5);
+            setColumnCodeMappingDuplicatePopup({
+              items: showItems,
+              moreCount,
+            });
+          } else {
+            setColumnCodeMappingDuplicatePopup(null);
+          }
+
+          setColumnCodeMappingEditorMap((prev) => {
+            const next: ProductCodeMap = { ...prev };
+            for (const [k, v] of Object.entries(parsed.map)) {
+              const trimmed = String(v ?? '').trim();
+              if (!trimmed) delete next[k];
+              else next[k] = trimmed;
+            }
+            return next;
+          });
+          setColumnCodeMappingEditorSimpleMap({});
+
+          setColumnCodeMappingEditorRows((prevRows) =>
+            prevRows.map((r) => {
+              if (!Object.prototype.hasOwnProperty.call(parsed.map, r.key))
+                return r;
+              const nv = String(parsed.map[r.key] ?? '').trim();
+              return { ...r, value: nv };
+            }),
+          );
+        } else {
+          const parsed = await parseTwoColumnSimpleKeyValueMapFromFile(f);
+
+          if (parsed.duplicates.length > 0) {
+            const showItems = parsed.duplicates.slice(0, 5).map((d) => ({
+              key: d.key,
+              displayKey: d.key,
+              count: d.count,
+              lastValue: d.lastValue,
+            }));
+            const moreCount = Math.max(0, parsed.duplicates.length - 5);
+            setColumnCodeMappingDuplicatePopup({
+              items: showItems,
+              moreCount,
+            });
+          } else {
+            setColumnCodeMappingDuplicatePopup(null);
+          }
+
+          setColumnCodeMappingEditorSimpleMap((prev) => {
+            const next = { ...prev };
+            for (const [k, v] of Object.entries(parsed.map)) {
+              const trimmed = String(v ?? '').trim();
+              if (!trimmed) delete next[k];
+              else next[k] = trimmed;
+            }
+            return next;
+          });
+          setColumnCodeMappingEditorMap({});
+
+          setColumnCodeMappingEditorRows((prevRows) =>
+            prevRows.map((r) => {
+              if (!Object.prototype.hasOwnProperty.call(parsed.map, r.key))
+                return r;
+              const nv = String(parsed.map[r.key] ?? '').trim();
+              return { ...r, value: nv };
+            }),
+          );
+        }
+
+        setColumnCodeMappingSavedMessage(null);
+        setColumnCodeMappingModalView('editor');
+      } catch (err) {
+        console.error('[물류 코드매핑] 엑셀 파싱 오류:', err);
+        alert('엑셀을 읽는 중 오류가 발생했습니다.');
+      }
+    },
+    [columnCodeMappingEditorMode],
+  );
 
   // 편집 테이블에 사용자가 추가 행을 직접 만들 수 있도록 지원
   const handleAddColumnCodeMappingEditorRow = useCallback(() => {
@@ -4582,139 +4725,148 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               type="file"
               accept=".xlsx,.xls"
               className="hidden"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                e.target.value = '';
-                if (!f) return;
-
-                try {
-                  if (columnCodeMappingEditorMode === 'product') {
-                    const parsed = await parseTwoColumnKeyValueMapFromFile(f);
-
-                    const toDisplayKey = (internalKey: string) => {
-                      const idx = internalKey.indexOf('|');
-                      if (idx < 0) return internalKey;
-                      const name = internalKey.slice(0, idx);
-                      const option = internalKey.slice(idx + 1);
-                      return option ? `${name} / ${option}` : name;
-                    };
-
-                    // 중복 경고 팝업(최대 5개만 표시)
-                    if (parsed.duplicates.length > 0) {
-                      const showItems = parsed.duplicates
-                        .slice(0, 5)
-                        .map((d) => ({
-                          key: d.key,
-                          displayKey: toDisplayKey(d.key),
-                          count: d.count,
-                          lastValue: d.lastValue,
-                        }));
-                      const moreCount = Math.max(
-                        0,
-                        parsed.duplicates.length - 5,
-                      );
-                      setColumnCodeMappingDuplicatePopup({
-                        items: showItems,
-                        moreCount,
-                      });
-                    } else {
-                      setColumnCodeMappingDuplicatePopup(null);
-                    }
-
-                    // editorMap / rows 동기화
-                    setColumnCodeMappingEditorMap((prev) => {
-                      const next: ProductCodeMap = { ...prev };
-                      for (const [k, v] of Object.entries(parsed.map)) {
-                        const trimmed = String(v ?? '').trim();
-                        if (!trimmed) delete next[k];
-                        else next[k] = trimmed;
-                      }
-                      return next;
-                    });
-                    setColumnCodeMappingEditorSimpleMap({});
-
-                    setColumnCodeMappingEditorRows((prevRows) =>
-                      prevRows.map((r) => {
-                        if (!Object.prototype.hasOwnProperty.call(parsed.map, r.key))
-                          return r;
-                        const nv = String(parsed.map[r.key] ?? '').trim();
-                        return { ...r, value: nv };
-                      }),
-                    );
-                  } else {
-                    const parsed = await parseTwoColumnSimpleKeyValueMapFromFile(
-                      f,
-                    );
-
-                    // 중복 경고 팝업(최대 5개만 표시)
-                    if (parsed.duplicates.length > 0) {
-                      const showItems = parsed.duplicates.slice(0, 5).map((d) => ({
-                        key: d.key,
-                        displayKey: d.key,
-                        count: d.count,
-                        lastValue: d.lastValue,
-                      }));
-                      const moreCount = Math.max(
-                        0,
-                        parsed.duplicates.length - 5,
-                      );
-                      setColumnCodeMappingDuplicatePopup({
-                        items: showItems,
-                        moreCount,
-                      });
-                    } else {
-                      setColumnCodeMappingDuplicatePopup(null);
-                    }
-
-                    setColumnCodeMappingEditorSimpleMap((prev) => {
-                      const next = { ...prev };
-                      for (const [k, v] of Object.entries(parsed.map)) {
-                        const trimmed = String(v ?? '').trim();
-                        if (!trimmed) delete next[k];
-                        else next[k] = trimmed;
-                      }
-                      return next;
-                    });
-                    setColumnCodeMappingEditorMap({});
-
-                    setColumnCodeMappingEditorRows((prevRows) =>
-                      prevRows.map((r) => {
-                        if (
-                          !Object.prototype.hasOwnProperty.call(
-                            parsed.map,
-                            r.key,
-                          )
-                        )
-                          return r;
-                        const nv = String(parsed.map[r.key] ?? '').trim();
-                        return { ...r, value: nv };
-                      }),
-                    );
-                  }
-
-                  setColumnCodeMappingSavedMessage(null);
-                } catch (err) {
-                  console.error('[물류 코드매핑] 엑셀 파싱 오류:', err);
-                  alert('엑셀을 읽는 중 오류가 발생했습니다.');
-                }
-              }}
+              onChange={handleColumnMappingExcelFileChange}
             />
 
             <div className="relative overflow-y-auto flex-1 min-h-0 pr-1">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                  선택된 헤더: <span className="font-semibold">{columnMappingActiveHeader ?? '-'}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => columnMappingModalFileRef.current?.click()}
-                  className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
-                >
-                  매핑 엑셀 추가
-                </button>
+              <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
+                선택된 헤더:{' '}
+                <span className="font-semibold">
+                  {columnMappingActiveHeader ?? '-'}
+                </span>
               </div>
 
-              <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+              {columnCodeMappingModalView === 'excelGuide' ? (
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40 p-4 sm:p-5">
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed mb-4">
+                    {columnCodeMappingEditorMode === 'product' ? (
+                      <>
+                        아래 예시처럼 <strong>상품명·옵션명·상품코드</strong> 열로
+                        엑셀을 만든 뒤 첨부하면, 변환값(상품코드) 칸에 채워집니다.
+                      </>
+                    ) : (
+                      <>
+                        아래 예시처럼 <strong>원본값</strong>과{' '}
+                        <strong>변환값</strong> 두 열로 엑셀을 만든 뒤 첨부하면,
+                        오른쪽 변환값 목록에 채워집니다.
+                      </>
+                    )}
+                  </p>
+
+                  <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-900 mb-4">
+                    <table className="w-full border-collapse text-sm">
+                      <thead className="bg-gray-50 dark:bg-zinc-800">
+                        <tr>
+                          {columnCodeMappingEditorMode === 'product' ? (
+                            <>
+                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700">
+                                상품명
+                              </th>
+                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700">
+                                옵션명
+                              </th>
+                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700">
+                                상품코드
+                              </th>
+                            </>
+                          ) : (
+                            <>
+                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700 w-1/2">
+                                원본값
+                              </th>
+                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700 w-1/2">
+                                변환값
+                              </th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {columnCodeMappingEditorMode === 'product'
+                          ? MAPPING_EXCEL_PRODUCT_FRUIT_EXAMPLES.map((row) => (
+                              <tr
+                                key={`${row.name}-${row.option}-${row.code}`}
+                                className="border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                              >
+                                <td className="p-2 text-xs text-zinc-800 dark:text-zinc-100">
+                                  {row.name}
+                                </td>
+                                <td className="p-2 text-xs text-zinc-600 dark:text-zinc-400">
+                                  {row.option || '—'}
+                                </td>
+                                <td className="p-2 text-xs text-zinc-800 dark:text-zinc-100">
+                                  {row.code}
+                                </td>
+                              </tr>
+                            ))
+                          : MAPPING_EXCEL_SIMPLE_FRUIT_EXAMPLES.map((row) => (
+                              <tr
+                                key={row.original}
+                                className="border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                              >
+                                <td className="p-2 text-xs text-zinc-800 dark:text-zinc-100">
+                                  {row.original}
+                                </td>
+                                <td className="p-2 text-xs text-zinc-800 dark:text-zinc-100">
+                                  {row.converted}
+                                </td>
+                              </tr>
+                            ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1 mb-5 list-disc pl-4 leading-relaxed">
+                    {columnCodeMappingEditorMode === 'product' ? (
+                      <>
+                        <li>첫 줄에 상품명·옵션명·상품코드(또는 코드) 헤더를 넣어 주세요.</li>
+                        <li>미리보기의 상품명·옵션과 엑셀 원본이 같아야 매핑됩니다.</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>첫 줄에 원본값·변환값(또는 원본·코드) 헤더를 넣어 주세요.</li>
+                        <li>
+                          선택한 열(
+                          <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                            {columnMappingActiveHeader ?? '-'}
+                          </span>
+                          )의 셀 내용과 원본값이 같아야 매핑됩니다.
+                        </li>
+                      </>
+                    )}
+                    <li>헤더가 없어도 앞쪽 2~3열 순서로 읽을 수 있습니다.</li>
+                  </ul>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setColumnCodeMappingModalView('editor')}
+                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
+                    >
+                      편집으로 돌아가기
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => columnMappingModalFileRef.current?.click()}
+                      className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 text-sm"
+                    >
+                      파일 첨부하기
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center justify-end gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setColumnCodeMappingModalView('excelGuide')}
+                      className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+                    >
+                      매핑 엑셀 추가
+                    </button>
+                  </div>
+
+                  <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
                 <table className="w-full border-collapse text-sm">
                   <thead className="bg-gray-50">
                     <tr>
@@ -4922,56 +5074,72 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   </div>
                 </div>
               )}
+                </>
+              )}
             </div>
 
             <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex-shrink-0">
-              {columnCodeMappingSavedMessage ? (
-                <div className="text-xs text-center text-emerald-700 dark:text-emerald-300">
-                  {columnCodeMappingSavedMessage}
-                </div>
-              ) : null}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={handleColumnCodeMappingModalCancel}
-                  className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
-                >
-                  취소
-                </button>
-
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSaveColumnCodeMappingForReuse}
-                    className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
-                  >
-                    변환값 저장
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleApplyColumnCodeMappingFromEditor}
-                    className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 text-sm whitespace-nowrap"
-                  >
-                    미리보기에 적용
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleEnableColumnAutoApply}
-                    className="px-4 py-2.5 rounded-lg border border-emerald-600 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950/40 text-sm whitespace-nowrap"
-                  >
-                    다음부터 자동 적용
-                  </button>
-                  {isActiveHeaderAutoApplyEnabled ? (
+              {columnCodeMappingModalView === 'editor' ? (
+                <>
+                  {columnCodeMappingSavedMessage ? (
+                    <div className="text-xs text-center text-emerald-700 dark:text-emerald-300">
+                      {columnCodeMappingSavedMessage}
+                    </div>
+                  ) : null}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <button
                       type="button"
-                      onClick={handleCancelColumnAutoApply}
-                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                      onClick={handleColumnCodeMappingModalCancel}
+                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
                     >
-                      자동 적용 취소
+                      취소
                     </button>
-                  ) : null}
+
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveColumnCodeMappingForReuse}
+                        className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                      >
+                        변환값 저장
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyColumnCodeMappingFromEditor}
+                        className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 text-sm whitespace-nowrap"
+                      >
+                        미리보기에 적용
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleEnableColumnAutoApply}
+                        className="px-4 py-2.5 rounded-lg border border-emerald-600 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950/40 text-sm whitespace-nowrap"
+                      >
+                        다음부터 자동 적용
+                      </button>
+                      {isActiveHeaderAutoApplyEnabled ? (
+                        <button
+                          type="button"
+                          onClick={handleCancelColumnAutoApply}
+                          className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                        >
+                          자동 적용 취소
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-start">
+                  <button
+                    type="button"
+                    onClick={handleColumnCodeMappingModalCancel}
+                    className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
+                  >
+                    취소
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
