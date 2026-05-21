@@ -67,6 +67,7 @@ import {
   resolveLogisticsProductNameColumn,
   resolveLogisticsProductOptionColumn,
   resolveProductCodeColumnHeader,
+  resolveProductCodeFromMap,
   type ProductCodeMap,
 } from '@/app/logistics-convert/product-code-projection';
 import {
@@ -415,6 +416,70 @@ function normalizeInternalCompositeKey(rawKey: string): string {
   if (!s.includes('|')) s = `${s}|`;
 
   return s;
+}
+
+/** 엑셀 매핑 맵 → 모달 편집 행 변환값 (미리보기 적용과 동일한 조회 규칙) */
+function lookupProductCodeForEditorRow(
+  row: { key: string; displayKey: string },
+  map: ProductCodeMap,
+): string {
+  const tryResolve = (name: string, option: string): string => {
+    const code = resolveProductCodeFromMap(map, name, option);
+    return code !== undefined && String(code).trim() !== ''
+      ? String(code).trim()
+      : '';
+  };
+
+  const idx = row.key.indexOf('|');
+  let v = tryResolve(
+    idx >= 0 ? row.key.slice(0, idx) : row.key,
+    idx >= 0 ? row.key.slice(idx + 1) : '',
+  );
+  if (v) return v;
+
+  const displayTrimmed = String(row.displayKey ?? '').trim();
+  if (displayTrimmed.includes(' / ')) {
+    const parts = displayTrimmed.split(' / ').map((p) => p.trim());
+    v = tryResolve(parts[0] ?? '', parts[1] ?? '');
+    if (v) return v;
+    v = tryResolve(parts[0] ?? '', '');
+    if (v) return v;
+  }
+
+  const strippedName = displayTrimmed.replace(/\s*\/\s*-\s*$/i, '').trim();
+  if (strippedName && strippedName !== displayTrimmed) {
+    v = tryResolve(strippedName, '');
+    if (v) return v;
+  }
+
+  const nk = normalizeInternalCompositeKey(displayTrimmed);
+  if (map[nk] !== undefined && String(map[nk]).trim() !== '') {
+    return String(map[nk]).trim();
+  }
+  if (map[row.key] !== undefined && String(map[row.key]).trim() !== '') {
+    return String(map[row.key]).trim();
+  }
+
+  return tryResolve(strippedName || displayTrimmed, '');
+}
+
+function lookupSimpleCodeForEditorRow(
+  row: { key: string; displayKey: string },
+  map: Record<string, string>,
+): string {
+  const rawKey = String(row.key ?? '').trim();
+  if (map[rawKey] !== undefined && String(map[rawKey]).trim() !== '') {
+    return String(map[rawKey]).trim();
+  }
+  const display = String(row.displayKey ?? '').trim();
+  if (map[display] !== undefined && String(map[display]).trim() !== '') {
+    return String(map[display]).trim();
+  }
+  const normalized = display.replace(/\s+/g, ' ');
+  if (map[normalized] !== undefined && String(map[normalized]).trim() !== '') {
+    return String(map[normalized]).trim();
+  }
+  return '';
 }
 
 async function parseTwoColumnKeyValueMapFromFile(
@@ -2175,25 +2240,28 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             setColumnCodeMappingDuplicatePopup(null);
           }
 
-          setColumnCodeMappingEditorMap((prev) => {
-            const next: ProductCodeMap = { ...prev };
-            for (const [k, v] of Object.entries(parsed.map)) {
-              const trimmed = String(v ?? '').trim();
-              if (!trimmed) delete next[k];
-              else next[k] = trimmed;
-            }
-            return next;
-          });
           setColumnCodeMappingEditorSimpleMap({});
 
-          setColumnCodeMappingEditorRows((prevRows) =>
-            prevRows.map((r) => {
-              if (!Object.prototype.hasOwnProperty.call(parsed.map, r.key))
-                return r;
-              const nv = String(parsed.map[r.key] ?? '').trim();
-              return { ...r, value: nv };
-            }),
-          );
+          setColumnCodeMappingEditorRows((prevRows) => {
+            const updated = prevRows.map((r) => {
+              const nv = lookupProductCodeForEditorRow(r, parsed.map);
+              return nv ? { ...r, value: nv } : r;
+            });
+            setColumnCodeMappingEditorMap((prev) => {
+              const next: ProductCodeMap = { ...prev };
+              for (const [k, v] of Object.entries(parsed.map)) {
+                const trimmed = String(v ?? '').trim();
+                if (!trimmed) delete next[k];
+                else next[k] = trimmed;
+              }
+              for (const r of updated) {
+                const v = String(r.value ?? '').trim();
+                if (v && r.key) next[r.key] = v;
+              }
+              return next;
+            });
+            return updated;
+          });
         } else {
           const parsed = await parseTwoColumnSimpleKeyValueMapFromFile(f);
 
@@ -2226,15 +2294,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
           setColumnCodeMappingEditorRows((prevRows) =>
             prevRows.map((r) => {
-              if (!Object.prototype.hasOwnProperty.call(parsed.map, r.key))
-                return r;
-              const nv = String(parsed.map[r.key] ?? '').trim();
-              return { ...r, value: nv };
+              const nv = lookupSimpleCodeForEditorRow(r, parsed.map);
+              return nv ? { ...r, value: nv } : r;
             }),
           );
         }
 
-        setColumnCodeMappingSavedMessage(null);
+        setColumnCodeMappingSavedMessage(
+          '엑셀 매핑을 불러왔습니다. 변환값 칸을 확인해 주세요.',
+        );
+        setTimeout(() => setColumnCodeMappingSavedMessage(null), 3000);
         setColumnCodeMappingModalView('editor');
       } catch (err) {
         console.error('[물류 코드매핑] 엑셀 파싱 오류:', err);
