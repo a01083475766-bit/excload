@@ -4547,10 +4547,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
                 }`}>
                   <div className="px-3 py-2 border-b bg-gray-50 flex-shrink-0 flex items-center gap-2">
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-purple-700">
+                      <span className="font-medium">헤더 체크박스</span>를 선택하면 원하는 값을 설정할 수 있습니다.{' '}
                       {trialMode
-                        ? '헤더 체크박스를 선택하면 원하는 값을 설정할 수 있습니다. 체험판에서는 미리보기로만 확인할 수 있습니다.'
-                        : '헤더 체크박스를 선택하면 원하는 값을 설정할 수 있습니다. 미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.'}
+                        ? '체험판에서는 미리보기로만 확인할 수 있습니다.'
+                        : '미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.'}
                     </p>
                   </div>
                   <div
@@ -4584,66 +4585,75 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           {courierHeaders.map((header) => (
                             <th
                               key={header}
-                              data-ex-tooltip={trialMode ? '클릭하면 오름차순/내림차순으로 정렬됩니다.' : undefined}
-                              className={`${trialMode ? 'ex-tooltip-target' : ''} border border-gray-300 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap cursor-pointer select-none`}
-                              onClick={() => {
-                                setSortConfig(prev => {
-                                  if (!prev || prev.header !== header) {
-                                    return { header, direction: 'asc' };
-                                  }
-                                  if (prev.direction === 'asc') {
-                                    return { header, direction: 'desc' };
-                                  }
-                                  return null;
-                                });
-                              }}
+                              className="border border-gray-300 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap"
                             >
                               <div className="flex flex-col gap-0.5">
                                 <div className="flex items-center gap-1">
-                                  <input
-                                    type="checkbox"
+                                  <div className="flex shrink-0 items-center justify-center p-1 -m-1">
+                                    <input
+                                      type="checkbox"
+                                      data-ex-tooltip={
+                                        trialMode
+                                          ? '헤더 체크박스로 코드매핑 설정을 열 수 있습니다.'
+                                          : undefined
+                                      }
+                                      className={`${trialMode ? 'ex-tooltip-target' : ''} h-6 w-6 shrink-0 cursor-pointer accent-purple-600`}
+                                      checked={
+                                        Boolean(columnCodeMappingSnapshots[header]) ||
+                                        columnMappingActiveHeader === header
+                                      }
+                                      onChange={(e) => {
+                                        handleHeaderCodeMappingCheckboxChange(
+                                          header,
+                                          e.target.checked,
+                                        );
+                                      }}
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
                                     data-ex-tooltip={
                                       trialMode
-                                        ? '헤더 체크박스로 코드매핑 설정을 열 수 있습니다.'
+                                        ? '클릭하면 오름차순/내림차순으로 정렬됩니다.'
                                         : undefined
                                     }
-                                    className={`${trialMode ? 'ex-tooltip-target' : ''} w-3 h-3`}
-                                    checked={
-                                      Boolean(columnCodeMappingSnapshots[header]) ||
-                                      columnMappingActiveHeader === header
-                                    }
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => {
-                                      e.stopPropagation();
-                                      handleHeaderCodeMappingCheckboxChange(
-                                        header,
-                                        e.target.checked,
-                                      );
+                                    className={`${trialMode ? 'ex-tooltip-target' : ''} m-0 inline-flex min-w-0 items-center gap-1 border-0 bg-transparent p-0 cursor-pointer select-none text-left font-semibold`}
+                                    onClick={() => {
+                                      setSortConfig((prev) => {
+                                        if (!prev || prev.header !== header) {
+                                          return { header, direction: 'asc' };
+                                        }
+                                        if (prev.direction === 'asc') {
+                                          return { header, direction: 'desc' };
+                                        }
+                                        return null;
+                                      });
                                     }}
-                                  />
-                                  <span
-                                    className={
-                                      sortConfig?.header === header
-                                        ? sortConfig.direction === 'asc'
-                                          ? 'text-emerald-600 font-semibold'
-                                          : 'text-red-600 font-semibold'
-                                        : ''
-                                    }
                                   >
-                                    {header}
-                                  </span>
-
-                                  {sortConfig?.header === header && (
                                     <span
                                       className={
-                                        sortConfig.direction === 'asc'
-                                          ? 'text-emerald-600 text-xs'
-                                          : 'text-red-600 text-xs'
+                                        sortConfig?.header === header
+                                          ? sortConfig.direction === 'asc'
+                                            ? 'text-emerald-600 font-semibold'
+                                            : 'text-red-600 font-semibold'
+                                          : ''
                                       }
                                     >
-                                      {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                                      {header}
                                     </span>
-                                  )}
+
+                                    {sortConfig?.header === header && (
+                                      <span
+                                        className={
+                                          sortConfig.direction === 'asc'
+                                            ? 'text-emerald-600 text-xs'
+                                            : 'text-red-600 text-xs'
+                                        }
+                                      >
+                                        {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                                      </span>
+                                    )}
+                                  </button>
                                 </div>
                               </div>
                             </th>
