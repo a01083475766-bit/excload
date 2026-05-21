@@ -8,8 +8,6 @@ import {
   User,
   Calendar,
   CreditCard,
-  Bell,
-  Shield,
   LogOut,
   AlertTriangle,
   ChevronDown,
@@ -96,7 +94,6 @@ export default function MyPage() {
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [nicknameInput, setNicknameInput] = useState('');
   const [isSavingNickname, setIsSavingNickname] = useState(false);
-  const showTwoFactorSection = false;
   
   // 세션이 확인된 뒤 사용자 정보 동기화
   useEffect(() => {
@@ -594,7 +591,7 @@ export default function MyPage() {
               </div>
 
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-                프로필 화면에서 계정 정보, 결제 정보, 설정을 한 번에 확인할 수 있습니다.
+                프로필 화면에서 계정 정보와 결제 정보를 한 번에 확인할 수 있습니다.
               </div>
 
               <Link
@@ -770,47 +767,6 @@ export default function MyPage() {
                       </p>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-8">
-                <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">
-                  설정
-                </h2>
-                
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                    <div className="flex items-center gap-3">
-                      <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                      <div>
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">알림 설정</p>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">이메일 알림을 받습니다</p>
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
-                  
-                  {showTwoFactorSection && (
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                      <div className="flex items-center gap-3">
-                        <Shield className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                        <div>
-                          <p className="font-medium text-zinc-900 dark:text-zinc-100">2단계 인증</p>
-                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                            계정에 추가 인증(예: 휴대폰 OTP)을 붙여 로그인 보안을 강화합니다.
-                            현재는 UI 안내 단계입니다.
-                          </p>
-                        </div>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" />
-                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-                  )}
                 </div>
               </div>
 

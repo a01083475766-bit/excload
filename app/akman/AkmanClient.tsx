@@ -197,6 +197,27 @@ export default function AkmanClient() {
     await loadUsers(plan, date, search);
   };
 
+  const downloadMemberEmailsExcel = async () => {
+    try {
+      const res = await fetch('/api/akman/users/export-emails');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || '이메일 목록 다운로드에 실패했습니다.');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `excload-member-emails-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '이메일 목록 다운로드에 실패했습니다.');
+    }
+  };
+
   const downloadUsersExcel = async () => {
     try {
       const params = new URLSearchParams();
@@ -323,6 +344,37 @@ export default function AkmanClient() {
           </div>
         </div>
       )}
+
+      <div
+        style={{
+          border: '1px solid #cfe8ff',
+          borderRadius: '8px',
+          padding: '16px 20px',
+          marginBottom: '24px',
+          background: '#f0f7ff',
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: '6px' }}>회원 이메일 목록 (관리자 전용)</div>
+        <p style={{ fontSize: '14px', color: '#555', marginBottom: '12px', lineHeight: 1.5 }}>
+          전체 회원 이메일·이름·플랜을 엑셀로 받을 수 있습니다. 사이트 내 일괄 발송 기능은 없으며,
+          다운로드한 목록으로 별도 메일 도구에서 안내하시면 됩니다.
+        </p>
+        <button
+          type="button"
+          onClick={() => void downloadMemberEmailsExcel()}
+          style={{
+            padding: '10px 16px',
+            border: '1px solid #175cd3',
+            background: '#175cd3',
+            color: '#fff',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          회원 이메일 엑셀 다운로드
+        </button>
+      </div>
 
       <h2 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>바로가기</h2>
       <div style={cardGrid}>
