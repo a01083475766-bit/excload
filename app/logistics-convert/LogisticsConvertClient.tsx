@@ -4930,8 +4930,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
             </div>
 
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-              이 모달에서 <strong>원본값(왼쪽)</strong>과 <strong>변환값(오른쪽)</strong>을
-              만들어 미리보기에 변환값으로 적용합니다.
+              <strong>원본값(왼쪽)</strong>과 <strong>변환값(오른쪽)</strong>을 입력해, 미리보기에
+              변환값으로 적용합니다.
             </p>
 
             <input
