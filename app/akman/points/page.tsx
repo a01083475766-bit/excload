@@ -1,45 +1,56 @@
 /**
- * EXCLOAD 관리자 사용량 로그 페이지
- * 
- * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
- * 관리자 시스템은 파이프라인 구조와 독립적으로 동작합니다.
- * 
- * 보안 규칙:
- * 1. 로그인된 사용자만 접근 가능
- * 2. isAdminEmail(session) 과 동일 기준 (ADMIN_EMAIL·고정 관리자 계정)
- * 3. 관리자가 아니면 "/" 로 redirect
+ * EXCLOAD 관리자 — 사용량 제공·차감 이력
+ * (다른 /akman 하위 페이지와 동일하게 클라이언트 + API 조회)
  */
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
-import { isAdminEmail } from '@/app/lib/admin-auth';
-import { redirect } from 'next/navigation';
-import { prisma } from '@/app/lib/prisma';
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
+interface PointLogRow {
+  id: string;
+  email: string | null;
+  change: number;
+  reason: string;
+  createdAt: string;
+}
 
-export default async function PointLogPage() {
-  const session = await getServerSession(authOptions);
+export default function PointLogPage() {
+  const router = useRouter();
+  const [logs, setLogs] = useState<PointLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!session?.user?.email) {
-    redirect('/');
-  }
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/akman/point-history?limit=100');
+      const data = await res.json().catch(() => ({}));
 
-  if (!isAdminEmail(session.user.email)) {
-    redirect('/');
-  }
+      if (res.status === 401 || res.status === 403) {
+        router.push('/');
+        return;
+      }
 
-  // 사용량 로그 조회
-  const logs = await prisma.pointHistory.findMany({
-    include: {
-      user: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take: 100,
-  });
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || '사용량 이력을 불러오지 못했습니다.');
+      }
+
+      setLogs(Array.isArray(data.logs) ? data.logs : []);
+    } catch (e) {
+      setLogs([]);
+      setError(e instanceof Error ? e.message : '사용량 이력을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    void fetchLogs();
+  }, [fetchLogs]);
 
   return (
     <div style={{ padding: '40px', fontFamily: 'system-ui, sans-serif' }}>
@@ -54,88 +65,142 @@ export default async function PointLogPage() {
         >
           ← 관리자 페이지로 돌아가기
         </Link>
+        <Link
+          href="/akman/payments"
+          style={{
+            color: '#0066cc',
+            textDecoration: 'none',
+          }}
+        >
+          결제 내역 →
+        </Link>
       </div>
 
-      <h1 style={{ marginBottom: '20px' }}>Usage History</h1>
-      <p style={{ color: '#666', marginBottom: '30px' }}>
-        총 {logs.length}개의 사용량 로그 (최근 100개)
-      </p>
+      <h1 style={{ marginBottom: '20px' }}>사용량 제공·차감 이력</h1>
 
-      <table
-        style={{
-          marginTop: '20px',
-          borderCollapse: 'collapse',
-          width: '100%',
-          border: '1px solid #ccc',
-        }}
-      >
-        <thead>
-          <tr style={{ backgroundColor: '#f5f5f5' }}>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
-              User Email
-            </th>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'right' }}>
-              Change
-            </th>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
-              Reason
-            </th>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
-              Date
-            </th>
-          </tr>
-        </thead>
+      {loading ? (
+        <p style={{ color: '#666', marginBottom: '30px' }}>불러오는 중…</p>
+      ) : error ? (
+        <div
+          style={{
+            marginBottom: '24px',
+            padding: '16px',
+            borderRadius: '8px',
+            background: '#fff5f5',
+            border: '1px solid #fecaca',
+            color: '#b91c1c',
+          }}
+        >
+          <p style={{ margin: '0 0 12px' }}>{error}</p>
+          <button
+            type="button"
+            onClick={() => void fetchLogs()}
+            style={{
+              padding: '8px 14px',
+              border: '1px solid #b91c1c',
+              borderRadius: '6px',
+              background: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : (
+        <p style={{ color: '#666', marginBottom: '30px' }}>
+          총 {logs.length}건 (최근 100건)
+        </p>
+      )}
 
-        <tbody>
-          {logs.length === 0 ? (
-            <tr>
-              <td
-                colSpan={4}
-                style={{
-                  border: '1px solid #ccc',
-                  padding: '20px',
-                  textAlign: 'center',
-                  color: '#999',
-                }}
-              >
-                사용량 로그가 없습니다.
-              </td>
+      {!error && (
+        <table
+          style={{
+            marginTop: '20px',
+            borderCollapse: 'collapse',
+            width: '100%',
+            border: '1px solid #ccc',
+          }}
+        >
+          <thead>
+            <tr style={{ backgroundColor: '#f5f5f5' }}>
+              <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
+                이메일
+              </th>
+              <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'right' }}>
+                변동
+              </th>
+              <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
+                사유
+              </th>
+              <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
+                일시
+              </th>
             </tr>
-          ) : (
-            logs.map((log) => (
-              <tr key={log.id}>
-                <td style={{ border: '1px solid #ccc', padding: '12px' }}>
-                  {log.user?.email || '알 수 없음'}
-                </td>
+          </thead>
+
+          <tbody>
+            {loading ? (
+              <tr>
                 <td
+                  colSpan={4}
                   style={{
                     border: '1px solid #ccc',
-                    padding: '12px',
-                    textAlign: 'right',
-                    color: log.change >= 0 ? 'green' : 'red',
-                    fontWeight: 'bold',
+                    padding: '20px',
+                    textAlign: 'center',
+                    color: '#999',
                   }}
                 >
-                  {log.change >= 0 ? '+' : ''}
-                  {log.change.toLocaleString()}
-                </td>
-                <td style={{ border: '1px solid #ccc', padding: '12px' }}>
-                  {log.reason}
-                </td>
-                <td style={{ border: '1px solid #ccc', padding: '12px' }}>
-                  {new Date(log.createdAt).toLocaleString('ko-KR', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  불러오는 중…
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : logs.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  style={{
+                    border: '1px solid #ccc',
+                    padding: '20px',
+                    textAlign: 'center',
+                    color: '#999',
+                  }}
+                >
+                  사용량 로그가 없습니다.
+                </td>
+              </tr>
+            ) : (
+              logs.map((log) => (
+                <tr key={log.id}>
+                  <td style={{ border: '1px solid #ccc', padding: '12px' }}>
+                    {log.email || '알 수 없음'}
+                  </td>
+                  <td
+                    style={{
+                      border: '1px solid #ccc',
+                      padding: '12px',
+                      textAlign: 'right',
+                      color: log.change >= 0 ? 'green' : 'red',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {log.change >= 0 ? '+' : ''}
+                    {log.change.toLocaleString()}
+                  </td>
+                  <td style={{ border: '1px solid #ccc', padding: '12px' }}>{log.reason}</td>
+                  <td style={{ border: '1px solid #ccc', padding: '12px' }}>
+                    {new Date(log.createdAt).toLocaleString('ko-KR', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
