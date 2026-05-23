@@ -1,15 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   OrderConvertPreviewTableRow,
   type PreviewRowWithId,
 } from '@/app/order-convert/OrderConvertPreviewTableRow';
 import type { BundleShippingGroup } from '@/app/order-convert/bundle-shipping-utils';
 
+/** 그룹별 1차 결정 상태 */
+export type BundleGroupDecision = 'undecided' | 'individual' | 'bundle_editing' | 'bundle_done';
+
 export type BundleShippingApplyPayload = {
   deletedRowIds: string[];
   overrides: Record<string, Record<string, string>>;
+  /** 개별배송으로 결정한 그룹 — 이후 후보 알림에서 제외 */
+  ignoredGroupKeys: string[];
 };
 
 type BundleShippingModalProps = {
@@ -27,6 +32,13 @@ type GroupDraft = {
   rowIds: string[];
 };
 
+const DECISION_LABEL: Record<BundleGroupDecision, string> = {
+  undecided: '미결정',
+  individual: '개별배송',
+  bundle_editing: '묶음 정리 중',
+  bundle_done: '묶음 정리 완료',
+};
+
 function cloneOverridesForRows(
   rowIds: string[],
   source: Record<string, Record<string, string>>,
@@ -38,6 +50,25 @@ function cloneOverridesForRows(
   return out;
 }
 
+function countModifiedRows(
+  rowIds: string[],
+  draftOverrides: Record<string, Record<string, string>>,
+  userOverrides: Record<string, Record<string, string>>,
+): number {
+  let n = 0;
+  for (const rowId of rowIds) {
+    const draft = draftOverrides[rowId];
+    if (!draft) continue;
+    const orig = userOverrides[rowId];
+    if (!orig && Object.keys(draft).length > 0) {
+      n++;
+      continue;
+    }
+    if (orig && JSON.stringify(orig) !== JSON.stringify(draft)) n++;
+  }
+  return n;
+}
+
 export function BundleShippingModal({
   open,
   groups,
@@ -47,12 +78,15 @@ export function BundleShippingModal({
   onClose,
   onApply,
 }: BundleShippingModalProps) {
+  const originalGroupsRef = useRef<BundleShippingGroup[]>([]);
   const [groupDrafts, setGroupDrafts] = useState<GroupDraft[]>([]);
+  const [groupDecisions, setGroupDecisions] = useState<Record<string, BundleGroupDecision>>({});
   const [draftOverrides, setDraftOverrides] = useState<Record<string, Record<string, string>>>({});
   const [removedRowIds, setRemovedRowIds] = useState<Set<string>>(() => new Set());
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [confirmApplyOpen, setConfirmApplyOpen] = useState(false);
+  const [confirmExitOpen, setConfirmExitOpen] = useState(false);
 
   const [editingCell, setEditingCell] = useState<{ rowId: string; header: string } | null>(null);
   const [activeCell, setActiveCell] = useState<{ rowId: string; header: string } | null>(null);
@@ -64,22 +98,32 @@ export function BundleShippingModal({
     return m;
   }, [previewRows]);
 
-  useEffect(() => {
-    if (!open) return;
-
+  const initModalState = useCallback(() => {
+    originalGroupsRef.current = groups;
     const allRowIds = groups.flatMap((g) => g.rowIds);
     setGroupDrafts(groups.map((g) => ({ groupId: g.groupId, rowIds: [...g.rowIds] })));
+    setGroupDecisions(Object.fromEntries(groups.map((g) => [g.groupId, 'undecided' as const])));
     setDraftOverrides(cloneOverridesForRows(allRowIds, userOverrides));
     setRemovedRowIds(new Set());
     setActiveGroupId(groups[0]?.groupId ?? null);
     setSelectedRowIds([]);
     setConfirmApplyOpen(false);
+    setConfirmExitOpen(false);
     setEditingCell(null);
     setActiveCell(null);
     setEditingValue('');
-  }, [open, groups, userOverrides]);
+  }, [groups, userOverrides]);
+
+  useEffect(() => {
+    if (!open) return;
+    initModalState();
+  }, [open, initModalState]);
 
   const activeDraft = groupDrafts.find((g) => g.groupId === activeGroupId) ?? null;
+  const activeDecision: BundleGroupDecision = activeGroupId
+    ? (groupDecisions[activeGroupId] ?? 'undecided')
+    : 'undecided';
+  const canEditTable = activeDecision === 'bundle_editing';
 
   const activeRows = useMemo(() => {
     if (!activeDraft) return [];
@@ -89,28 +133,95 @@ export function BundleShippingModal({
   }, [activeDraft, previewRowMap]);
 
   const selectedRowSet = useMemo(() => new Set(selectedRowIds), [selectedRowIds]);
-
   const activeGroupMeta = groups.find((g) => g.groupId === activeGroupId);
 
-  const commitCellEdit = useCallback((rowId: string, header: string, value: string) => {
-    setDraftOverrides((prev) => {
-      const row = previewRowMap.get(rowId);
-      const base = String(row?.data[header] ?? '');
-      const currentOverride = prev[rowId]?.[header];
-      const effective = currentOverride !== undefined ? String(currentOverride) : base;
-      if (value === effective) return prev;
-      return {
-        ...prev,
-        [rowId]: {
-          ...(prev[rowId] ?? {}),
-          [header]: value,
-        },
-      };
-    });
-  }, [previewRowMap]);
+  const decidedCount = useMemo(
+    () =>
+      groupDrafts.filter((g) => {
+        const d = groupDecisions[g.groupId];
+        return d === 'individual' || d === 'bundle_done';
+      }).length,
+    [groupDrafts, groupDecisions],
+  );
+
+  const allGroupsDecided = decidedCount === groupDrafts.length && groupDrafts.length > 0;
+
+  const individualGroupCount = useMemo(
+    () => groupDrafts.filter((g) => groupDecisions[g.groupId] === 'individual').length,
+    [groupDrafts, groupDecisions],
+  );
+
+  const deletedCount = removedRowIds.size;
+
+  const modifiedOverrideCount = useMemo(
+    () =>
+      countModifiedRows(
+        groupDrafts
+          .filter((g) => groupDecisions[g.groupId] === 'bundle_done')
+          .flatMap((g) => g.rowIds),
+        draftOverrides,
+        userOverrides,
+      ),
+    [groupDrafts, groupDecisions, draftOverrides, userOverrides],
+  );
+
+  const hasUnsavedDraft = useMemo(() => {
+    if (deletedCount > 0 || modifiedOverrideCount > 0) return true;
+    return groupDrafts.some((g) => groupDecisions[g.groupId] === 'bundle_editing');
+  }, [deletedCount, modifiedOverrideCount, groupDrafts, groupDecisions]);
+
+  const resetGroupToOriginal = useCallback(
+    (groupId: string) => {
+      const orig = originalGroupsRef.current.find((g) => g.groupId === groupId);
+      if (!orig) return;
+
+      setGroupDrafts((prev) =>
+        prev.map((g) => (g.groupId === groupId ? { ...g, rowIds: [...orig.rowIds] } : g)),
+      );
+      setRemovedRowIds((prev) => {
+        const next = new Set(prev);
+        for (const id of orig.rowIds) next.delete(id);
+        return next;
+      });
+      setDraftOverrides((prev) => {
+        const next = { ...prev };
+        for (const id of orig.rowIds) {
+          if (userOverrides[id]) next[id] = { ...userOverrides[id] };
+          else delete next[id];
+        }
+        return next;
+      });
+      setGroupDecisions((prev) => ({ ...prev, [groupId]: 'undecided' }));
+      setSelectedRowIds([]);
+      setEditingCell(null);
+      setActiveCell(null);
+    },
+    [userOverrides],
+  );
+
+  const commitCellEdit = useCallback(
+    (rowId: string, header: string, value: string) => {
+      if (!canEditTable) return;
+      setDraftOverrides((prev) => {
+        const row = previewRowMap.get(rowId);
+        const base = String(row?.data[header] ?? '');
+        const currentOverride = prev[rowId]?.[header];
+        const effective = currentOverride !== undefined ? String(currentOverride) : base;
+        if (value === effective) return prev;
+        return {
+          ...prev,
+          [rowId]: {
+            ...(prev[rowId] ?? {}),
+            [header]: value,
+          },
+        };
+      });
+    },
+    [canEditTable, previewRowMap],
+  );
 
   const handleDeleteSelected = () => {
-    if (selectedRowIds.length === 0 || !activeDraft) return;
+    if (!canEditTable || selectedRowIds.length === 0 || !activeDraft) return;
     const toRemove = new Set(selectedRowIds);
     setRemovedRowIds((prev) => {
       const next = new Set(prev);
@@ -127,34 +238,67 @@ export function BundleShippingModal({
     setSelectedRowIds([]);
   };
 
-  const handleRequestApply = () => {
-    setConfirmApplyOpen(true);
+  const handleSetIndividual = () => {
+    if (!activeGroupId) return;
+    setGroupDecisions((prev) => ({ ...prev, [activeGroupId]: 'individual' }));
+    setSelectedRowIds([]);
+    setEditingCell(null);
+    setActiveCell(null);
+  };
+
+  const handleStartBundleEdit = () => {
+    if (!activeGroupId) return;
+    setGroupDecisions((prev) => ({ ...prev, [activeGroupId]: 'bundle_editing' }));
+  };
+
+  const handleCompleteBundleEdit = () => {
+    if (!activeGroupId) return;
+    setGroupDecisions((prev) => ({ ...prev, [activeGroupId]: 'bundle_done' }));
+    setSelectedRowIds([]);
+    setEditingCell(null);
+    setActiveCell(null);
+  };
+
+  const handleRequestExit = () => {
+    if (hasUnsavedDraft) {
+      setConfirmExitOpen(true);
+      return;
+    }
+    onClose();
   };
 
   const handleConfirmApply = () => {
+    const ignoredGroupKeys = groupDrafts
+      .filter((g) => groupDecisions[g.groupId] === 'individual')
+      .map((g) => g.groupId);
+
+    const bundleRowIds = new Set(
+      groupDrafts
+        .filter((g) => groupDecisions[g.groupId] === 'bundle_done')
+        .flatMap((g) => g.rowIds),
+    );
+
+    const overrides: Record<string, Record<string, string>> = {};
+    for (const rowId of bundleRowIds) {
+      if (removedRowIds.has(rowId)) continue;
+      if (draftOverrides[rowId]) overrides[rowId] = { ...draftOverrides[rowId] };
+    }
+
     onApply({
       deletedRowIds: [...removedRowIds],
-      overrides: draftOverrides,
+      overrides,
+      ignoredGroupKeys,
     });
     setConfirmApplyOpen(false);
     onClose();
   };
 
-  const deletedCount = removedRowIds.size;
-  const modifiedOverrideCount = useMemo(() => {
-    let n = 0;
-    for (const [rowId, cols] of Object.entries(draftOverrides)) {
-      const orig = userOverrides[rowId];
-      if (!orig && Object.keys(cols).length > 0) {
-        n++;
-        continue;
-      }
-      if (orig && JSON.stringify(orig) !== JSON.stringify(cols)) n++;
-    }
-    return n;
-  }, [draftOverrides, userOverrides]);
-
-  const remainingGroupCount = groupDrafts.filter((g) => g.rowIds.length >= 2).length;
+  const getGroupDeletedCount = (groupId: string) => {
+    const orig = originalGroupsRef.current.find((g) => g.groupId === groupId);
+    const draft = groupDrafts.find((g) => g.groupId === groupId);
+    if (!orig || !draft) return 0;
+    return orig.rowIds.length - draft.rowIds.length;
+  };
 
   if (!open) return null;
 
@@ -163,12 +307,18 @@ export function BundleShippingModal({
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
         <div className="flex max-h-[min(92vh,900px)] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
           <div className="border-b px-5 py-4">
-            <h4 className="text-lg font-semibold text-gray-900">묶음배송 가능 건 정리</h4>
+            <h4 className="text-lg font-semibold text-gray-900">동일 수령인 주문 검수</h4>
             <p className="mt-2 text-sm leading-relaxed text-gray-600">
-              이름·전화번호·주소가 동일한 주문끼리 묶었습니다. 한 건으로 남기려면 불필요한 행을
-              삭제하고 수량·상품 등을 수정한 뒤{' '}
-              <span className="font-medium text-gray-900">미리보기에 적용</span>을 눌러 주세요.
-              적용 전까지 본 미리보기에는 반영되지 않습니다.
+              이름·전화·주소가 같은 주문을 후보 그룹으로 보여 드립니다. 각 그룹마다{' '}
+              <span className="font-medium">개별배송</span> 또는{' '}
+              <span className="font-medium">묶음 정리</span>를 먼저 선택해 주세요. 자동으로
+              합치지 않으며, 묶음 정리 시에만 행 삭제·셀 수정이 가능합니다.
+            </p>
+            <p className="mt-2 rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800">
+              후보 그룹 {groupDrafts.length}개 중 결정 완료 {decidedCount}개
+              {groupDrafts.length - decidedCount > 0 && (
+                <span className="text-amber-700"> · 미결정 {groupDrafts.length - decidedCount}개</span>
+              )}
             </p>
             <p className="mt-1 text-xs text-gray-500">
               판단 기준: 수령인 이름 · 연락처 · 배송지 주소 (등록 양식 매핑 열 기준)
@@ -176,12 +326,19 @@ export function BundleShippingModal({
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-0 border-b md:flex-row">
-            <aside className="w-full shrink-0 border-b bg-gray-50 md:w-56 md:border-b-0 md:border-r">
-              <p className="px-3 py-2 text-xs font-semibold text-gray-500">후보 그룹 ({groupDrafts.length})</p>
+            <aside className="w-full shrink-0 border-b bg-gray-50 md:w-60 md:border-b-0 md:border-r">
+              <p className="px-3 py-2 text-xs font-semibold text-gray-500">후보 그룹</p>
               <ul className="max-h-40 overflow-y-auto md:max-h-none md:flex-1">
                 {groupDrafts.map((g) => {
                   const meta = groups.find((x) => x.groupId === g.groupId);
+                  const decision = groupDecisions[g.groupId] ?? 'undecided';
                   const isActive = g.groupId === activeGroupId;
+                  const del = getGroupDeletedCount(g.groupId);
+                  const edits =
+                    decision === 'bundle_done' || decision === 'bundle_editing'
+                      ? countModifiedRows(g.rowIds, draftOverrides, userOverrides)
+                      : 0;
+
                   return (
                     <li key={g.groupId}>
                       <button
@@ -198,9 +355,28 @@ export function BundleShippingModal({
                           setActiveCell(null);
                         }}
                       >
-                        <div className="line-clamp-1">{meta?.displayName || '—'}</div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="line-clamp-1">{meta?.displayName || '—'}</span>
+                          <span
+                            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                              decision === 'undecided'
+                                ? 'bg-amber-100 text-amber-800'
+                                : decision === 'individual'
+                                  ? 'bg-gray-200 text-gray-700'
+                                  : decision === 'bundle_editing'
+                                    ? 'bg-violet-100 text-violet-800'
+                                    : 'bg-green-100 text-green-800'
+                            }`}
+                          >
+                            {DECISION_LABEL[decision]}
+                          </span>
+                        </div>
                         <div className="text-xs text-gray-500 line-clamp-1">{meta?.displayPhone}</div>
-                        <div className="mt-0.5 text-xs font-medium text-amber-700">{g.rowIds.length}건</div>
+                        <div className="mt-0.5 text-xs text-gray-600">
+                          총 {g.rowIds.length}건
+                          {del > 0 && <span className="text-red-600"> · 삭제 예정 {del}</span>}
+                          {edits > 0 && <span className="text-blue-600"> · 수정 {edits}</span>}
+                        </div>
                       </button>
                     </li>
                   );
@@ -219,35 +395,111 @@ export function BundleShippingModal({
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
-                {selectedRowIds.length > 0 && (
-                  <button
-                    type="button"
-                    className="inline-flex h-8 items-center rounded-md bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700"
-                    onClick={handleDeleteSelected}
-                  >
-                    선택 삭제 ({selectedRowIds.length})
-                  </button>
+              <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+                {activeDecision === 'undecided' && (
+                  <>
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center rounded-md border border-gray-400 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                      onClick={handleSetIndividual}
+                    >
+                      개별배송하기
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center rounded-md border border-violet-500 bg-violet-50 px-4 text-sm font-medium text-violet-900 hover:bg-violet-100"
+                      onClick={handleStartBundleEdit}
+                    >
+                      묶음 정리하기
+                    </button>
+                    <p className="text-xs text-gray-500">
+                      먼저 배송 방식을 선택해 주세요. 선택 전에는 삭제·수정할 수 없습니다.
+                    </p>
+                  </>
                 )}
-                {activeRows.length < 2 && activeRows.length > 0 && (
-                  <span className="text-xs text-green-700">
-                    이 그룹은 1건만 남았습니다. 적용 시 미리보기에 반영됩니다.
-                  </span>
+
+                {activeDecision === 'individual' && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-800">
+                      이 그룹은 <strong>개별배송</strong>으로 결정되었습니다. 주문 내용은 수정·삭제하지
+                      않고 미리보기에 그대로 둡니다.
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs text-gray-600 underline hover:text-gray-900"
+                      onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
+                    >
+                      결정 취소
+                    </button>
+                  </div>
+                )}
+
+                {activeDecision === 'bundle_editing' && (
+                  <>
+                    {selectedRowIds.length > 0 && (
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center rounded-md bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700"
+                        onClick={handleDeleteSelected}
+                      >
+                        선택 삭제 ({selectedRowIds.length})
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
+                      onClick={handleCompleteBundleEdit}
+                    >
+                      묶음 정리 완료
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-gray-600 underline hover:text-gray-900"
+                      onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
+                    >
+                      결정 취소
+                    </button>
+                    <p className="w-full text-xs text-gray-500">
+                      불필요한 행을 삭제하고 수량·상품 등을 수정한 뒤 「묶음 정리 완료」를 눌러
+                      주세요. 여러 행을 남기면 업로드 파일에도 그대로 N건입니다.
+                    </p>
+                  </>
+                )}
+
+                {activeDecision === 'bundle_done' && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-900">
+                      이 그룹의 묶음 정리가 완료되었습니다. 하단 「선택한 정리 내용 적용」으로
+                      미리보기에 반영할 수 있습니다.
+                    </p>
+                    <button
+                      type="button"
+                      className="inline-flex h-8 items-center rounded border px-3 text-xs hover:bg-gray-50"
+                      onClick={() =>
+                        activeGroupId &&
+                        setGroupDecisions((prev) => ({ ...prev, [activeGroupId]: 'bundle_editing' }))
+                      }
+                    >
+                      다시 정리
+                    </button>
+                  </div>
                 )}
               </div>
 
               <div className="min-h-0 flex-1 overflow-auto p-4">
                 {activeRows.length === 0 ? (
-                  <p className="text-center text-sm text-gray-400 py-8">이 그룹에 남은 행이 없습니다.</p>
+                  <p className="py-8 text-center text-sm text-gray-400">이 그룹에 남은 행이 없습니다.</p>
                 ) : (
                   <div className="overflow-auto rounded-lg border border-gray-300 bg-white">
-                    <table className="min-w-max text-sm border-collapse">
+                    <table className="min-w-max border-collapse text-sm">
                       <thead className="sticky top-0 z-10 bg-gray-50">
                         <tr>
                           <th className="border border-gray-300 px-2 py-1 text-left">
                             <input
                               type="checkbox"
+                              disabled={!canEditTable}
                               checked={
+                                canEditTable &&
                                 activeRows.length > 0 &&
                                 activeRows.every((r) => selectedRowSet.has(r.rowId))
                               }
@@ -263,7 +515,7 @@ export function BundleShippingModal({
                           {courierHeaders.map((header) => (
                             <th
                               key={header}
-                              className="border border-gray-300 px-2 py-1 text-left font-semibold whitespace-nowrap"
+                              className="whitespace-nowrap border border-gray-300 px-2 py-1 text-left font-semibold"
                             >
                               {header}
                             </th>
@@ -279,6 +531,7 @@ export function BundleShippingModal({
                             overridesForRow={draftOverrides[row.rowId]}
                             isSelected={selectedRowSet.has(row.rowId)}
                             isNewRow={false}
+                            interactionEnabled={canEditTable}
                             localEditingHeader={
                               editingCell?.rowId === row.rowId ? editingCell.header : null
                             }
@@ -320,45 +573,83 @@ export function BundleShippingModal({
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4">
             <p className="text-xs text-gray-500">
-              삭제 예정 {deletedCount}건 · 수정 반영 {modifiedOverrideCount}건 · 묶음 후보 그룹{' '}
-              {remainingGroupCount}개
+              삭제 예정 {deletedCount}건 · 수정 반영 {modifiedOverrideCount}건 · 개별배송{' '}
+              {individualGroupCount}그룹
+              {!allGroupsDecided && (
+                <span className="text-amber-700"> · 모든 그룹 결정 후 적용 가능</span>
+              )}
             </p>
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 className="rounded border px-4 py-2 text-sm hover:bg-gray-50"
-                onClick={onClose}
+                onClick={handleRequestExit}
               >
-                닫기 (적용 안 함)
+                나가기
               </button>
-              <button
-                type="button"
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                onClick={handleRequestApply}
-              >
-                미리보기에 적용
-              </button>
+              {allGroupsDecided && (
+                <button
+                  type="button"
+                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  onClick={() => setConfirmApplyOpen(true)}
+                >
+                  선택한 정리 내용 적용
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
+      {confirmExitOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h5 className="text-lg font-semibold text-gray-900">나가시겠습니까?</h5>
+            <p className="mt-3 text-sm leading-relaxed text-gray-600">
+              아직 반영하지 않은 정리 내용이 있습니다. 나가면 미리보기는 변경되지 않습니다.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border px-4 py-2 text-sm hover:bg-gray-50"
+                onClick={() => setConfirmExitOpen(false)}
+              >
+                계속 검수
+              </button>
+              <button
+                type="button"
+                className="rounded bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900"
+                onClick={() => {
+                  setConfirmExitOpen(false);
+                  onClose();
+                }}
+              >
+                나가기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmApplyOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h5 className="text-lg font-semibold text-gray-900">미리보기에 적용할까요?</h5>
+            <h5 className="text-lg font-semibold text-gray-900">정리 내용을 적용할까요?</h5>
             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-              모달에서 정리한 내용이 택배 미리보기에 반영됩니다.
+              선택한 내용만 택배 미리보기에 반영됩니다. 자동 합치기는 하지 않습니다.
             </p>
             <ul className="mt-3 space-y-1 text-sm text-gray-700">
-              {deletedCount > 0 && <li>· 삭제할 행: {deletedCount}건</li>}
+              {individualGroupCount > 0 && (
+                <li>· 개별배송 {individualGroupCount}그룹: 미리보기 변경 없음 (후보 알림 제외)</li>
+              )}
+              {deletedCount > 0 && <li>· 미리보기에서 삭제: {deletedCount}건</li>}
               {modifiedOverrideCount > 0 && <li>· 셀 수정 반영: {modifiedOverrideCount}건</li>}
-              {deletedCount === 0 && modifiedOverrideCount === 0 && (
-                <li>· 변경 사항이 없습니다. 그대로 닫으려면 취소를 눌러 주세요.</li>
+              {deletedCount === 0 && modifiedOverrideCount === 0 && individualGroupCount === 0 && (
+                <li>· 미리보기에 반영할 삭제·수정이 없습니다.</li>
               )}
             </ul>
             <p className="mt-3 text-xs text-gray-500">
-              다운로드 파일에도 적용된 미리보기 기준으로 생성됩니다.
+              다운로드 파일은 미리보기와 동일한 데이터로 생성됩니다.
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <button

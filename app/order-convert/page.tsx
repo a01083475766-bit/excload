@@ -516,6 +516,12 @@ export default function OrderConvertPage() {
       return next;
     });
     setSelectedRows((prev) => prev.filter((id) => !deletedSet.has(id)));
+    if (payload.ignoredGroupKeys.length > 0) {
+      setDismissedBundleGroupKeys((prev) => {
+        const merged = new Set([...prev, ...payload.ignoredGroupKeys]);
+        return [...merged];
+      });
+    }
   }, []);
 
   const resetBundleShippingUi = useCallback(() => {
@@ -2347,7 +2353,7 @@ export default function OrderConvertPage() {
                           setIsBundleShippingModalOpen(true);
                         }}
                       >
-                        묶음배송가능건 ({bundleShippingGroupCount}그룹 · {bundleShippingRowCount}건)
+                        동일 수령인 검수 ({bundleShippingGroupCount}그룹 · {bundleShippingRowCount}건)
                       </button>
                     )}
                 </div>

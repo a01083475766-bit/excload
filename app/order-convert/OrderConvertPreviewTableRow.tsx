@@ -23,6 +23,8 @@ export type OrderConvertPreviewTableRowProps = {
   onEditingInputChange: (value: string) => void;
   onCommitEdit: (rowId: string, header: string, value: string) => void;
   onFinishEditUi: () => void;
+  /** false면 체크·셀 수정 비활성 (묶음 후보 검수 모달 등) */
+  interactionEnabled?: boolean;
 };
 
 function OrderConvertPreviewTableRowInner({
@@ -39,11 +41,12 @@ function OrderConvertPreviewTableRowInner({
   onEditingInputChange,
   onCommitEdit,
   onFinishEditUi,
+  interactionEnabled = true,
 }: OrderConvertPreviewTableRowProps) {
   return (
     <tr
       className={`transition-colors
-        ${isSelected ? 'bg-blue-100' : isNewRow ? 'bg-green-100 animate-pulse' : 'hover:bg-gray-50'}
+        ${isSelected ? 'bg-blue-100' : isNewRow ? 'bg-green-100 animate-pulse' : interactionEnabled ? 'hover:bg-gray-50' : ''}
       `}
     >
       <td
@@ -54,6 +57,7 @@ function OrderConvertPreviewTableRowInner({
         <input
           type="checkbox"
           checked={isSelected}
+          disabled={!interactionEnabled}
           onChange={(e) => onToggleSelect(row.rowId, e.target.checked)}
         />
       </td>
@@ -95,10 +99,12 @@ function OrderConvertPreviewTableRowInner({
         return (
           <td
             key={header}
-            className={`border border-gray-300 px-2 py-1 border-b whitespace-nowrap cursor-pointer ${
-              isActiveCell ? 'bg-yellow-100' : ''
-            }`}
-            onClick={() => onCellClickStartEdit(row.rowId, header, displayValue)}
+            className={`border border-gray-300 px-2 py-1 border-b whitespace-nowrap ${
+              interactionEnabled ? 'cursor-pointer' : ''
+            } ${isActiveCell ? 'bg-yellow-100' : ''}`}
+            onClick={() => {
+              if (interactionEnabled) onCellClickStartEdit(row.rowId, header, displayValue);
+            }}
           >
             {isPhoneField ? formatPhoneDisplay(displayValue) : displayValue}
           </td>
@@ -122,5 +128,6 @@ export const OrderConvertPreviewTableRow = memo(OrderConvertPreviewTableRowInner
   if (prev.onEditingInputChange !== next.onEditingInputChange) return false;
   if (prev.onCommitEdit !== next.onCommitEdit) return false;
   if (prev.onFinishEditUi !== next.onFinishEditUi) return false;
+  if (prev.interactionEnabled !== next.interactionEnabled) return false;
   return true;
 });
