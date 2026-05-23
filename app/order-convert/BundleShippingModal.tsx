@@ -167,10 +167,12 @@ export function BundleShippingModal({
     [groupDrafts, groupDecisions, draftOverrides, userOverrides],
   );
 
+  /** 모달에서 결정·삭제·수정했으나 미리보기에 아직 적용하지 않은 경우 */
   const hasUnsavedDraft = useMemo(() => {
+    if (decidedCount > 0) return true;
     if (deletedCount > 0 || modifiedOverrideCount > 0) return true;
     return groupDrafts.some((g) => groupDecisions[g.groupId] === 'bundle_editing');
-  }, [deletedCount, modifiedOverrideCount, groupDrafts, groupDecisions]);
+  }, [decidedCount, deletedCount, modifiedOverrideCount, groupDrafts, groupDecisions]);
 
   const resetGroupToOriginal = useCallback(
     (groupId: string) => {
