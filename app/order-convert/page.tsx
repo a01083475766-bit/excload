@@ -2357,11 +2357,6 @@ export default function OrderConvertPage() {
                 <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
                   isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
                 }`}>
-                  <div className="flex flex-shrink-0 items-center gap-2 border-b bg-gray-50 px-3 py-2">
-                    <p className="text-xs text-gray-600">
-                      헤더 체크박스를 선택하면 원하는 값을 설정할 수 있습니다. 미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.
-                    </p>
-                  </div>
                   <div
                     ref={previewScrollContainerRef}
                     onScroll={handlePreviewScroll}
