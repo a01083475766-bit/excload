@@ -56,6 +56,14 @@ import {
   type PreviewRowWithId,
 } from '@/app/order-convert/OrderConvertPreviewTableRow';
 import {
+  BundleShippingModal,
+  type BundleShippingApplyPayload,
+} from '@/app/order-convert/BundleShippingModal';
+import {
+  countBundleShippingDuplicateRows,
+  detectBundleShippingGroups,
+} from '@/app/order-convert/bundle-shipping-utils';
+import {
   ORDER_CONVERT_KEYS,
   readLocalStorageWithLegacyMigrate,
   writeLocalStorageForUser,
@@ -291,6 +299,9 @@ export default function OrderConvertPage() {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isPreviewResetModalOpen, setIsPreviewResetModalOpen] = useState(false);
+  const [isBundleShippingModalOpen, setIsBundleShippingModalOpen] = useState(false);
+  const [dismissedBundleGroupKeys, setDismissedBundleGroupKeys] = useState<string[]>([]);
+  const [bundleShippingButtonAcked, setBundleShippingButtonAcked] = useState(false);
   const [courierHeaders, setCourierHeaders] = useState<string[]>([]);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
@@ -465,6 +476,54 @@ export default function OrderConvertPage() {
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
 
+  const bundleShippingDetection = useMemo(
+    () => detectBundleShippingGroups(previewRows, courierHeaders, templateBridgeFile, userOverrides),
+    [previewRows, courierHeaders, templateBridgeFile, userOverrides],
+  );
+
+  const activeBundleShippingGroups = useMemo(
+    () =>
+      bundleShippingDetection.groups.filter((g) => !dismissedBundleGroupKeys.includes(g.key)),
+    [bundleShippingDetection.groups, dismissedBundleGroupKeys],
+  );
+
+  const bundleShippingGroupCount = activeBundleShippingGroups.length;
+  const bundleShippingRowCount = countBundleShippingDuplicateRows(activeBundleShippingGroups);
+
+  const activeBundleGroupKeysSig = useMemo(
+    () => activeBundleShippingGroups.map((g) => g.key).sort().join('\u0001'),
+    [activeBundleShippingGroups],
+  );
+
+  useEffect(() => {
+    if (bundleShippingGroupCount > 0) {
+      setBundleShippingButtonAcked(false);
+    }
+  }, [activeBundleGroupKeysSig, bundleShippingGroupCount]);
+
+  const handleBundleShippingApply = useCallback((payload: BundleShippingApplyPayload) => {
+    const deletedSet = new Set(payload.deletedRowIds);
+    setPreviewRows((prev) => prev.filter((row) => !deletedSet.has(row.rowId)));
+    setUserOverrides((prev) => {
+      const next = { ...prev };
+      for (const id of payload.deletedRowIds) {
+        delete next[id];
+      }
+      for (const [rowId, cols] of Object.entries(payload.overrides)) {
+        if (deletedSet.has(rowId)) continue;
+        next[rowId] = { ...(next[rowId] ?? {}), ...cols };
+      }
+      return next;
+    });
+    setSelectedRows((prev) => prev.filter((id) => !deletedSet.has(id)));
+  }, []);
+
+  const resetBundleShippingUi = useCallback(() => {
+    setIsBundleShippingModalOpen(false);
+    setDismissedBundleGroupKeys([]);
+    setBundleShippingButtonAcked(false);
+  }, []);
+
   const handlePreviewScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
     setPreviewScrollTop(e.currentTarget.scrollTop);
   }, []);
@@ -550,6 +609,7 @@ export default function OrderConvertPage() {
       setUploadedFileMeta([]);
       setUserOverrides({});
       setSelectedRows([]);
+      resetBundleShippingUi();
       setNewRows(new Set());
       setEditingCell(null);
       setActiveCell(null);
@@ -1903,6 +1963,7 @@ export default function OrderConvertPage() {
   };
 
   const applyFullPreviewWorkspaceReset = useCallback(() => {
+    resetBundleShippingUi();
     setPreviewRows([]);
     setCourierHeaders([]);
     setUserOverrides({});
@@ -1931,11 +1992,21 @@ export default function OrderConvertPage() {
     if (excelFileInputRef.current) excelFileInputRef.current.value = '';
     if (courierFileInputRef.current) courierFileInputRef.current.value = '';
     setIsPreviewResetModalOpen(false);
-  }, []);
+  }, [resetBundleShippingUi, clearWorkspaceInputTracking]);
 
   return (
     <>
       {/* 삭제 확인 모달 */}
+      <BundleShippingModal
+        open={isBundleShippingModalOpen}
+        groups={activeBundleShippingGroups}
+        courierHeaders={courierHeaders}
+        previewRows={previewRows}
+        userOverrides={userOverrides}
+        onClose={() => setIsBundleShippingModalOpen(false)}
+        onApply={handleBundleShippingApply}
+      />
+
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-[400px] p-6">
@@ -2261,6 +2332,24 @@ export default function OrderConvertPage() {
                       </button>
                     )}
                   </div>
+
+                  {previewRows.length > 0 &&
+                    courierHeaders.length > 0 &&
+                    bundleShippingGroupCount > 0 &&
+                    bundleShippingDetection.columns && (
+                      <button
+                        type="button"
+                        className={`inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-violet-500/80 bg-violet-50 px-3 text-sm font-medium text-violet-900 transition hover:bg-violet-100 ${
+                          !bundleShippingButtonAcked ? 'animate-pulse ring-2 ring-violet-400/80' : ''
+                        }`}
+                        onClick={() => {
+                          setBundleShippingButtonAcked(true);
+                          setIsBundleShippingModalOpen(true);
+                        }}
+                      >
+                        묶음배송가능건 ({bundleShippingGroupCount}그룹 · {bundleShippingRowCount}건)
+                      </button>
+                    )}
                 </div>
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
