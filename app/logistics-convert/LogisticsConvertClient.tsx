@@ -4432,11 +4432,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 )}
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                  <div className="row-start-3 col-start-2 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-snug text-blue-600 sm:leading-tight">
-                    <span className="text-xs leading-snug text-blue-600 sm:whitespace-normal">
+                  <div className="row-start-3 col-start-2 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-snug sm:leading-tight">
+                    <span className="text-black sm:whitespace-normal">
                       주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
                     </span>
-                    <span className="sm:whitespace-nowrap">
+                    <span className="font-medium text-blue-600 sm:whitespace-nowrap">
                       총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
                     </span>
                     {hasMorePreviewRows && (
