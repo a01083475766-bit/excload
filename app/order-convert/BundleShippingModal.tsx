@@ -333,12 +333,6 @@ export function BundleShippingModal({
               <span className="font-medium">묶음 정리</span>를 먼저 선택해 주세요. 자동으로
               합치지 않으며, 묶음 정리 시에만 행 삭제·셀 수정이 가능합니다.
             </p>
-            <p className="mt-2 rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800">
-              후보 그룹 {groupDrafts.length}개 중 결정 완료 {decidedCount}개
-              {groupDrafts.length - decidedCount > 0 && (
-                <span className="text-amber-700"> · 미결정 {groupDrafts.length - decidedCount}개</span>
-              )}
-            </p>
             <p className="mt-1 text-xs text-gray-500">
               판단 기준: 수령인 이름 · 연락처 · 배송지 주소 (등록 양식 매핑 열 기준)
             </p>
@@ -619,7 +613,16 @@ export function BundleShippingModal({
                 <span className="text-amber-700"> · 모든 그룹 결정 후 적용 가능</span>
               )}
             </p>
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+              <p className="rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800">
+                후보 그룹 {groupDrafts.length}개 중 결정 완료 {decidedCount}개
+                {groupDrafts.length - decidedCount > 0 && (
+                  <span className="text-amber-700">
+                    {' '}
+                    · 미결정 {groupDrafts.length - decidedCount}개
+                  </span>
+                )}
+              </p>
               <button
                 type="button"
                 className="rounded border px-4 py-2 text-sm hover:bg-gray-50"
