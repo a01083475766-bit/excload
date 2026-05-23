@@ -421,15 +421,14 @@ export function BundleShippingModal({
                 {activeDecision === 'individual' && (
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-800">
-                      이 그룹은 <strong>개별배송</strong>으로 결정되었습니다. 주문 내용은 수정·삭제하지
-                      않고 미리보기에 그대로 둡니다.
+                      이 주문건들은 개별배송으로 유지합니다. 미리보기에 그대로 반영됩니다.
                     </p>
                     <button
                       type="button"
-                      className="text-xs text-gray-600 underline hover:text-gray-900"
+                      className="inline-flex h-9 shrink-0 items-center rounded-md border border-gray-400 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50"
                       onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
                     >
-                      결정 취소
+                      되돌리기
                     </button>
                   </div>
                 )}
@@ -454,10 +453,10 @@ export function BundleShippingModal({
                     </button>
                     <button
                       type="button"
-                      className="text-xs text-gray-600 underline hover:text-gray-900"
+                      className="inline-flex h-9 shrink-0 items-center rounded-md border border-gray-400 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50"
                       onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
                     >
-                      결정 취소
+                      되돌리기
                     </button>
                     <p className="w-full text-xs text-gray-500">
                       불필요한 행을 삭제하고 수량·상품 등을 수정한 뒤 「묶음 정리 완료」를 눌러
