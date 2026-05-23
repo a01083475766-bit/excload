@@ -2011,39 +2011,6 @@ export default function InvoiceFileConvertPage() {
                       </button>
                     )}
                   </div>
-
-                  {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                    <div className="min-w-0 flex flex-[1_1_12rem] flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-snug text-blue-600 sm:leading-tight">
-                      <span className="sm:whitespace-nowrap">
-                        총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                      </span>
-                      {hasMorePreviewRows && (
-                        <>
-                          <button
-                            className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
-                            type="button"
-                            onClick={() =>
-                              setRenderedRowCount((prev) =>
-                                Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                              )
-                            }
-                          >
-                            추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                          </button>
-                          <button
-                            className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
-                            type="button"
-                            onClick={() => setRenderedRowCount(sortedRows.length)}
-                          >
-                            전체 보기
-                          </button>
-                        </>
-                      )}
-                      <span className="basis-full pt-0.5 text-xs leading-snug text-blue-600 sm:whitespace-normal">
-                        주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
@@ -2052,6 +2019,39 @@ export default function InvoiceFileConvertPage() {
                     ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
                     ✔ 체크박스로 선택 후 삭제할 수 있습니다.
                   </p>
+                )}
+
+                {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
+                  <div className="row-start-3 col-start-2 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium leading-snug text-blue-600 sm:leading-tight">
+                    <span className="text-xs leading-snug text-blue-600 sm:whitespace-normal">
+                      주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+                    </span>
+                    <span className="sm:whitespace-nowrap">
+                      총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
+                    </span>
+                    {hasMorePreviewRows && (
+                      <>
+                        <button
+                          className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
+                          type="button"
+                          onClick={() =>
+                            setRenderedRowCount((prev) =>
+                              Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                            )
+                          }
+                        >
+                          추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
+                        </button>
+                        <button
+                          className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
+                          type="button"
+                          onClick={() => setRenderedRowCount(sortedRows.length)}
+                        >
+                          전체 보기
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
