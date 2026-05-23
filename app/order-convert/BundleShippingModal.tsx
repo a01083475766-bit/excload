@@ -87,6 +87,7 @@ export function BundleShippingModal({
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [confirmApplyOpen, setConfirmApplyOpen] = useState(false);
   const [confirmExitOpen, setConfirmExitOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const [editingCell, setEditingCell] = useState<{ rowId: string; header: string } | null>(null);
   const [activeCell, setActiveCell] = useState<{ rowId: string; header: string } | null>(null);
@@ -109,6 +110,7 @@ export function BundleShippingModal({
     setSelectedRowIds([]);
     setConfirmApplyOpen(false);
     setConfirmExitOpen(false);
+    setConfirmDeleteOpen(false);
     setEditingCell(null);
     setActiveCell(null);
     setEditingValue('');
@@ -220,7 +222,12 @@ export function BundleShippingModal({
     [canEditTable, previewRowMap],
   );
 
-  const handleDeleteSelected = () => {
+  const handleRequestDeleteSelected = () => {
+    if (!canEditTable || selectedRowIds.length === 0 || !activeDraft) return;
+    setConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDeleteSelected = () => {
     if (!canEditTable || selectedRowIds.length === 0 || !activeDraft) return;
     const toRemove = new Set(selectedRowIds);
     setRemovedRowIds((prev) => {
@@ -236,6 +243,7 @@ export function BundleShippingModal({
       ),
     );
     setSelectedRowIds([]);
+    setConfirmDeleteOpen(false);
   };
 
   const handleSetIndividual = () => {
@@ -450,7 +458,7 @@ export function BundleShippingModal({
                       <button
                         type="button"
                         className="inline-flex h-8 items-center rounded-md bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700"
-                        onClick={handleDeleteSelected}
+                        onClick={handleRequestDeleteSelected}
                       >
                         선택 삭제 ({selectedRowIds.length})
                       </button>
@@ -629,6 +637,35 @@ export function BundleShippingModal({
           </div>
         </div>
       </div>
+
+      {confirmDeleteOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h5 className="text-lg font-semibold text-gray-900">선택 삭제 확인</h5>
+            <p className="mt-3 text-sm leading-relaxed text-gray-700">
+              선택한 주문건은 삭제처리됩니다.
+              <br />
+              다른 주문건에 상품 및 수량을 수정하신 것이 맞는지 확인해 주세요.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-md border border-gray-400 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                onClick={() => setConfirmDeleteOpen(false)}
+              >
+                되돌리기
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-md bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700"
+                onClick={handleConfirmDeleteSelected}
+              >
+                삭제확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmExitOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
