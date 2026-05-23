@@ -253,6 +253,9 @@ export function BundleShippingModal({
 
   const handleCompleteBundleEdit = () => {
     if (!activeGroupId) return;
+    const deleted = getGroupDeletedCount(activeGroupId);
+    const draft = groupDrafts.find((g) => g.groupId === activeGroupId);
+    if (deleted < 1 || !draft || draft.rowIds.length < 1) return;
     setGroupDecisions((prev) => ({ ...prev, [activeGroupId]: 'bundle_done' }));
     setSelectedRowIds([]);
     setEditingCell(null);
@@ -299,6 +302,14 @@ export function BundleShippingModal({
     if (!orig || !draft) return 0;
     return orig.rowIds.length - draft.rowIds.length;
   };
+
+  const activeGroupDeletedCount = activeGroupId ? getGroupDeletedCount(activeGroupId) : 0;
+
+  /** 묶음 정리 완료: 1건 이상 삭제했고, 최소 1행은 남아 있어야 함 */
+  const canCompleteBundleEdit =
+    activeDecision === 'bundle_editing' &&
+    activeGroupDeletedCount >= 1 &&
+    activeRows.length >= 1;
 
   if (!open) return null;
 
@@ -446,7 +457,12 @@ export function BundleShippingModal({
                     )}
                     <button
                       type="button"
-                      className="inline-flex h-9 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
+                      disabled={!canCompleteBundleEdit}
+                      className={`inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-white ${
+                        canCompleteBundleEdit
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'cursor-not-allowed bg-green-300'
+                      }`}
                       onClick={handleCompleteBundleEdit}
                     >
                       묶음 정리 완료
@@ -459,8 +475,22 @@ export function BundleShippingModal({
                       되돌리기
                     </button>
                     <p className="w-full text-xs text-gray-500">
-                      불필요한 행을 삭제하고 수량·상품 등을 수정한 뒤 「묶음 정리 완료」를 눌러
-                      주세요. 여러 행을 남기면 업로드 파일에도 그대로 N건입니다.
+                      {activeRows.length === 0 ? (
+                        <>
+                          모든 행을 삭제했습니다. 묶음 정리를 마치려면 최소 1건은 남겨 두거나
+                          「되돌리기」 후 「개별배송하기」를 선택해 주세요.
+                        </>
+                      ) : activeGroupDeletedCount === 0 ? (
+                        <>
+                          행을 1건 이상 삭제해야 「묶음 정리 완료」를 할 수 있습니다. 삭제 없이
+                          내려면 「개별배송하기」를 이용해 주세요.
+                        </>
+                      ) : (
+                        <>
+                          불필요한 행을 삭제한 뒤 남은 주문의 수량·상품을 확인·수정하고 「묶음
+                          정리 완료」를 눌러 주세요. 남은 행 수만큼 업로드 파일에도 반영됩니다.
+                        </>
+                      )}
                     </p>
                   </>
                 )}
