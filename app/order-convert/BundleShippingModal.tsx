@@ -481,8 +481,8 @@ export function BundleShippingModal({
                     <p className="w-full text-xs text-gray-500">
                       {activeRows.length === 0 ? (
                         <>
-                          모든 행을 삭제했습니다. 묶음배송을 결정하려면 최소 1건은 남겨 두거나
-                          「되돌리기」 후 「개별배송하기」를 선택해 주세요.
+                          모든 주문건을 삭제했습니다. 묶음배송을 결정하려면 최소 1건 이상의
+                          주문건이 있어야 합니다. 「되돌리기」 후 「개별배송하기」를 선택해 주세요.
                         </>
                       ) : activeGroupDeletedCount === 0 ? (
                         <>
@@ -710,7 +710,7 @@ export function BundleShippingModal({
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <h5 className="text-lg font-semibold text-gray-900">정리 내용을 적용할까요?</h5>
             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-              선택한 내용만 택배 미리보기에 반영됩니다. 자동 합치기는 하지 않습니다.
+              정리된 내용으로 미리보기에 적용됩니다. 자동 합치기는 하지 않습니다.
             </p>
             <ul className="mt-3 space-y-1 text-sm text-gray-700">
               {individualGroupCount > 0 && (
