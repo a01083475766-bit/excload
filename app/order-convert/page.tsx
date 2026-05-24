@@ -2353,7 +2353,7 @@ export default function OrderConvertPage() {
                           setIsBundleShippingModalOpen(true);
                         }}
                       >
-                        동일 수령인 검수 ({bundleShippingGroupCount}그룹 · {bundleShippingRowCount}건)
+                        묶음배송가능건확인 ({bundleShippingGroupCount}그룹 · {bundleShippingRowCount}건)
                       </button>
                     )}
                 </div>

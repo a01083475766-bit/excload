@@ -328,7 +328,7 @@ export function BundleShippingModal({
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
         <div className="flex max-h-[min(92vh,900px)] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
           <div className="border-b px-5 py-4">
-            <h4 className="text-lg font-semibold text-gray-900">동일 수령인 주문 검수</h4>
+            <h4 className="text-lg font-semibold text-gray-900">묶음배송가능건</h4>
             <p className="mt-2 text-sm leading-relaxed text-gray-600">
               이름·전화·주소가 같은 주문을 후보 그룹으로 보여 드립니다. 각 그룹마다{' '}
               <span className="font-medium">개별배송</span> 또는{' '}
@@ -425,7 +425,7 @@ export function BundleShippingModal({
                       className="inline-flex h-9 items-center rounded-md border border-violet-500 bg-violet-50 px-4 text-sm font-medium text-violet-900 hover:bg-violet-100"
                       onClick={handleStartBundleEdit}
                     >
-                      묶음 정리하기
+                      묶음배송하기
                     </button>
                     <p className="text-xs text-gray-500">
                       먼저 배송 방식을 선택해 주세요. 선택 전에는 삭제·수정할 수 없습니다.
