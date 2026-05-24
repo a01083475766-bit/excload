@@ -505,8 +505,8 @@ export function BundleShippingModal({
                 {activeDecision === 'bundle_done' && (
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-900">
-                      이 그룹의 묶음배송이 결정되었습니다. 하단 「선택한 정리 내용 적용」으로
-                      미리보기에 반영할 수 있습니다.
+                      이 그룹의 묶음배송이 결정되었습니다. 묶음 처리된 주문건만 미리보기에
+                      반영됩니다.
                     </p>
                     <button
                       type="button"
@@ -516,7 +516,7 @@ export function BundleShippingModal({
                         setGroupDecisions((prev) => ({ ...prev, [activeGroupId]: 'bundle_editing' }))
                       }
                     >
-                      다시 묶음배송
+                      되돌리기
                     </button>
                   </div>
                 )}
