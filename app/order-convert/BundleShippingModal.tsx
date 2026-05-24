@@ -35,8 +35,8 @@ type GroupDraft = {
 const DECISION_LABEL: Record<BundleGroupDecision, string> = {
   undecided: '미결정',
   individual: '개별배송',
-  bundle_editing: '묶음 정리 중',
-  bundle_done: '묶음 정리 완료',
+  bundle_editing: '묶음배송 중',
+  bundle_done: '묶음배송결정',
 };
 
 function cloneOverridesForRows(
@@ -315,7 +315,7 @@ export function BundleShippingModal({
 
   const activeGroupDeletedCount = activeGroupId ? getGroupDeletedCount(activeGroupId) : 0;
 
-  /** 묶음 정리 완료: 1건 이상 삭제했고, 최소 1행은 남아 있어야 함 */
+  /** 묶음배송결정: 1건 이상 삭제했고, 최소 1행은 남아 있어야 함 */
   const canCompleteBundleEdit =
     activeDecision === 'bundle_editing' &&
     activeGroupDeletedCount >= 1 &&
@@ -332,8 +332,8 @@ export function BundleShippingModal({
             <p className="mt-2 text-sm leading-relaxed text-gray-600">
               이름·전화·주소가 같은 주문을 후보 그룹으로 보여 드립니다. 각 그룹마다{' '}
               <span className="font-medium">개별배송</span> 또는{' '}
-              <span className="font-medium">묶음 정리</span>를 먼저 선택해 주세요. 자동으로
-              합치지 않으며, 묶음 정리 시에만 행 삭제·셀 수정이 가능합니다.
+              <span className="font-medium">묶음배송</span>을 먼저 선택해 주세요. 자동으로
+              합치지 않으며, 묶음배송 시에만 행 삭제·셀 수정이 가능합니다.
             </p>
             <p className="mt-1 text-xs text-gray-500">
               판단 기준: 수령인 이름 · 연락처 · 배송지 주소 (등록 양식 매핑 열 기준)
@@ -481,12 +481,12 @@ export function BundleShippingModal({
                     <p className="w-full text-xs text-gray-500">
                       {activeRows.length === 0 ? (
                         <>
-                          모든 행을 삭제했습니다. 묶음 정리를 마치려면 최소 1건은 남겨 두거나
+                          모든 행을 삭제했습니다. 묶음배송을 결정하려면 최소 1건은 남겨 두거나
                           「되돌리기」 후 「개별배송하기」를 선택해 주세요.
                         </>
                       ) : activeGroupDeletedCount === 0 ? (
                         <>
-                          주문건 1건 이상 삭제·상품·수량 등의 수정 후 「묶음 정리 완료」를 할 수
+                          주문건 1건 이상 삭제·상품·수량 등의 수정 후 「묶음배송결정」을 할 수
                           있습니다. 묶음배송을 원하지 않으면 「개별배송하기」를 선택해 주세요.
                         </>
                       ) : (
@@ -505,7 +505,7 @@ export function BundleShippingModal({
                 {activeDecision === 'bundle_done' && (
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-900">
-                      이 그룹의 묶음 정리가 완료되었습니다. 하단 「선택한 정리 내용 적용」으로
+                      이 그룹의 묶음배송이 결정되었습니다. 하단 「선택한 정리 내용 적용」으로
                       미리보기에 반영할 수 있습니다.
                     </p>
                     <button
@@ -516,7 +516,7 @@ export function BundleShippingModal({
                         setGroupDecisions((prev) => ({ ...prev, [activeGroupId]: 'bundle_editing' }))
                       }
                     >
-                      다시 정리
+                      다시 묶음배송
                     </button>
                   </div>
                 )}
