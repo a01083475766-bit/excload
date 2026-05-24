@@ -275,13 +275,6 @@ export function BundleShippingModal({
       for (const id of toRemove) next.add(id);
       return next;
     });
-    setGroupDrafts((prev) =>
-      prev.map((g) =>
-        g.groupId === activeDraft.groupId
-          ? { ...g, rowIds: g.rowIds.filter((id) => !toRemove.has(id)) }
-          : g,
-      ),
-    );
     setSelectedRowIds([]);
     setConfirmDeleteOpen(false);
   };
@@ -303,7 +296,8 @@ export function BundleShippingModal({
     if (!activeGroupId) return;
     const deleted = getGroupDeletedCount(activeGroupId);
     const draft = groupDrafts.find((g) => g.groupId === activeGroupId);
-    if (deleted < 1 || !draft || draft.rowIds.length < 1) return;
+    const remaining = draft?.rowIds.filter((id) => !removedRowIds.has(id)).length ?? 0;
+    if (deleted < 1 || !draft || remaining < 1) return;
     setGroupDecisions((prev) => ({ ...prev, [activeGroupId]: 'bundle_done' }));
     setSelectedRowIds([]);
     setEditingCell(null);
@@ -383,18 +377,27 @@ export function BundleShippingModal({
 
   const getGroupDeletedCount = (groupId: string) => {
     const orig = originalGroupsRef.current.find((g) => g.groupId === groupId);
-    const draft = groupDrafts.find((g) => g.groupId === groupId);
-    if (!orig || !draft) return 0;
-    return orig.rowIds.length - draft.rowIds.length;
+    if (!orig) return 0;
+    return orig.rowIds.filter((id) => removedRowIds.has(id)).length;
   };
 
   const activeGroupDeletedCount = activeGroupId ? getGroupDeletedCount(activeGroupId) : 0;
 
-  /** 묶음배송결정: 1건 이상 삭제했고, 최소 1행은 남아 있어야 함 */
+  const activeGroupRemainingCount = useMemo(() => {
+    if (!activeDraft) return 0;
+    return activeDraft.rowIds.filter((id) => !removedRowIds.has(id)).length;
+  }, [activeDraft, removedRowIds]);
+
+  const selectableActiveRowIds = useMemo(
+    () => activeRows.filter((r) => !removedRowIds.has(r.rowId)).map((r) => r.rowId),
+    [activeRows, removedRowIds],
+  );
+
+  /** 묶음배송결정: 1건 이상 삭제 예정 + 유지 1건 이상 */
   const canCompleteBundleEdit =
     activeDecision === 'bundle_editing' &&
     activeGroupDeletedCount >= 1 &&
-    activeRows.length >= 1;
+    activeGroupRemainingCount >= 1;
 
   const totalCandidateRows = useMemo(
     () => groups.reduce((n, g) => n + g.rowIds.length, 0),
@@ -614,10 +617,10 @@ export function BundleShippingModal({
 
                     {activeDecision === 'bundle_editing' && (
                       <p className="mt-3 text-xs leading-relaxed text-gray-500">
-                        {activeRows.length === 0 ? (
+                        {activeGroupRemainingCount === 0 ? (
                           <>
-                            모든 주문건을 삭제했습니다. 묶음배송을 결정하려면 최소 1건 이상 남겨
-                            주세요. 「되돌리기」 후 「개별배송하기」를 선택해 주세요.
+                            모든 주문건이 삭제 예정입니다. 묶음배송을 결정하려면 최소 1건은 유지해야
+                            합니다. 「되돌리기」 후 다시 정리해 주세요.
                           </>
                         ) : activeGroupDeletedCount === 0 ? (
                           <>
@@ -646,10 +649,16 @@ export function BundleShippingModal({
                 )}
 
               <div className="min-h-0 flex-1 overflow-auto">
-                {activeRows.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-gray-400">이 그룹에 남은 행이 없습니다.</p>
+                {!activeDraft || activeDraft.rowIds.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-gray-400">이 그룹에 주문 행이 없습니다.</p>
                 ) : (
                   <div className="flex flex-col overflow-hidden rounded-lg border border-gray-300 bg-white">
+                    {activeGroupDeletedCount > 0 && (
+                      <p className="border-b border-red-100 bg-red-50/50 px-3 py-1.5 text-xs text-red-700">
+                        삭제 예정 행은 빨간 점선·취소선으로 표시됩니다. 미리보기에 적용할 때
+                        제외됩니다.
+                      </p>
+                    )}
                     <div className="overflow-auto">
                     <table className="min-w-max border-collapse text-sm">
                       <thead className="sticky top-0 z-10 bg-gray-50">
@@ -657,15 +666,15 @@ export function BundleShippingModal({
                           <th className="border border-gray-300 px-2 py-1 text-left">
                             <input
                               type="checkbox"
-                              disabled={!canEditTable}
+                              disabled={!canEditTable || selectableActiveRowIds.length === 0}
                               checked={
                                 canEditTable &&
-                                activeRows.length > 0 &&
-                                activeRows.every((r) => selectedRowSet.has(r.rowId))
+                                selectableActiveRowIds.length > 0 &&
+                                selectableActiveRowIds.every((id) => selectedRowSet.has(id))
                               }
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedRowIds(activeRows.map((r) => r.rowId));
+                                  setSelectedRowIds(selectableActiveRowIds);
                                 } else {
                                   setSelectedRowIds([]);
                                 }
@@ -683,7 +692,9 @@ export function BundleShippingModal({
                         </tr>
                       </thead>
                       <tbody>
-                        {activeRows.map((row) => (
+                        {activeRows.map((row) => {
+                          const markedForDeletion = removedRowIds.has(row.rowId);
+                          return (
                           <OrderConvertPreviewTableRow
                             key={row.rowId}
                             row={row}
@@ -691,7 +702,8 @@ export function BundleShippingModal({
                             overridesForRow={draftOverrides[row.rowId]}
                             isSelected={selectedRowSet.has(row.rowId)}
                             isNewRow={false}
-                            interactionEnabled={canEditTable}
+                            markedForDeletion={markedForDeletion}
+                            interactionEnabled={canEditTable && !markedForDeletion}
                             localEditingHeader={
                               editingCell?.rowId === row.rowId ? editingCell.header : null
                             }
@@ -722,7 +734,8 @@ export function BundleShippingModal({
                               setActiveCell(null);
                             }}
                           />
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                     </div>

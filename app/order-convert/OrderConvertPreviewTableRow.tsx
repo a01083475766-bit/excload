@@ -25,6 +25,8 @@ export type OrderConvertPreviewTableRowProps = {
   onFinishEditUi: () => void;
   /** false면 체크·셀 수정 비활성 (묶음 후보 검수 모달 등) */
   interactionEnabled?: boolean;
+  /** 삭제 예정 표시 (행 유지, 취소선·점선) */
+  markedForDeletion?: boolean;
 };
 
 function OrderConvertPreviewTableRowInner({
@@ -42,24 +44,42 @@ function OrderConvertPreviewTableRowInner({
   onCommitEdit,
   onFinishEditUi,
   interactionEnabled = true,
+  markedForDeletion = false,
 }: OrderConvertPreviewTableRowProps) {
+  const rowTone = markedForDeletion
+    ? 'bg-rose-50/80 border-b-2 border-dashed border-red-300'
+    : isSelected
+      ? 'bg-blue-100'
+      : isNewRow
+        ? 'bg-green-100 animate-pulse'
+        : interactionEnabled
+          ? 'hover:bg-gray-50'
+          : '';
+
+  const stickyBg = markedForDeletion
+    ? 'bg-rose-50/80'
+    : isSelected
+      ? 'bg-blue-100'
+      : isNewRow
+        ? 'bg-green-100'
+        : 'bg-white';
+
+  const cellText = markedForDeletion ? 'line-through text-gray-500 decoration-red-400' : '';
+
   return (
-    <tr
-      className={`transition-colors
-        ${isSelected ? 'bg-blue-100' : isNewRow ? 'bg-green-100 animate-pulse' : interactionEnabled ? 'hover:bg-gray-50' : ''}
-      `}
-    >
+    <tr className={`transition-colors ${rowTone}`}>
       <td
-        className={`sticky left-0 z-10 border border-gray-300 px-2 py-1 border-b whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)] ${
-          isSelected ? 'bg-blue-100' : isNewRow ? 'bg-green-100' : 'bg-white'
-        }`}
+        className={`sticky left-0 z-10 border border-gray-300 px-2 py-1 border-b whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)] ${stickyBg}`}
       >
         <input
           type="checkbox"
           checked={isSelected}
-          disabled={!interactionEnabled}
+          disabled={!interactionEnabled || markedForDeletion}
           onChange={(e) => onToggleSelect(row.rowId, e.target.checked)}
         />
+        {markedForDeletion && (
+          <span className="mt-0.5 block text-[10px] font-medium text-red-600">삭제 예정</span>
+        )}
       </td>
       {courierHeaders.map((header) => {
         const cellValue = row.data[header] ?? '';
@@ -69,7 +89,10 @@ function OrderConvertPreviewTableRowInner({
 
         if (localEditingHeader === header) {
           return (
-            <td key={header} className="border border-gray-300 px-2 py-1 border-b whitespace-nowrap bg-yellow-100">
+            <td
+              key={header}
+              className={`border border-gray-300 px-2 py-1 border-b whitespace-nowrap bg-yellow-100 ${cellText}`}
+            >
               <input
                 autoFocus
                 className="w-full h-full border-0 p-0 bg-transparent outline-none text-sm"
@@ -99,11 +122,13 @@ function OrderConvertPreviewTableRowInner({
         return (
           <td
             key={header}
-            className={`border border-gray-300 px-2 py-1 border-b whitespace-nowrap ${
-              interactionEnabled ? 'cursor-pointer' : ''
+            className={`border border-gray-300 px-2 py-1 border-b whitespace-nowrap ${cellText} ${
+              interactionEnabled && !markedForDeletion ? 'cursor-pointer' : ''
             } ${isActiveCell ? 'bg-yellow-100' : ''}`}
             onClick={() => {
-              if (interactionEnabled) onCellClickStartEdit(row.rowId, header, displayValue);
+              if (interactionEnabled && !markedForDeletion) {
+                onCellClickStartEdit(row.rowId, header, displayValue);
+              }
             }}
           >
             {isPhoneField ? formatPhoneDisplay(displayValue) : displayValue}
@@ -129,5 +154,6 @@ export const OrderConvertPreviewTableRow = memo(OrderConvertPreviewTableRowInner
   if (prev.onCommitEdit !== next.onCommitEdit) return false;
   if (prev.onFinishEditUi !== next.onFinishEditUi) return false;
   if (prev.interactionEnabled !== next.interactionEnabled) return false;
+  if (prev.markedForDeletion !== next.markedForDeletion) return false;
   return true;
 });
