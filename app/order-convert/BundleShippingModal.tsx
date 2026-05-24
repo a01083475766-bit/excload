@@ -638,7 +638,7 @@ export function BundleShippingModal({
                   className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                   onClick={() => setConfirmApplyOpen(true)}
                 >
-                  선택한 정리 내용 적용
+                  미리보기에 적용
                 </button>
               )}
             </div>
