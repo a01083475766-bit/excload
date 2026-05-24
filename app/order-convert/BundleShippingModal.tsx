@@ -469,7 +469,7 @@ export function BundleShippingModal({
                       }`}
                       onClick={handleCompleteBundleEdit}
                     >
-                      묶음 정리 완료
+                      묶음배송결정
                     </button>
                     <button
                       type="button"
@@ -493,9 +493,9 @@ export function BundleShippingModal({
                         <>
                           불필요한 행을 삭제한 뒤 남은 주문의 수량·상품을 확인·수정하고{' '}
                           <span className="text-sm font-semibold text-blue-600">
-                            「묶음 정리 완료」
+                            묶음배송결정
                           </span>
-                          를 눌러 주세요. 남은 주문건수만 미리보기·업로드 파일에 적용됩니다.
+                          을 눌러 주세요. 남은 주문건수만 미리보기·업로드 파일에 적용됩니다.
                         </>
                       )}
                     </p>
