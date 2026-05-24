@@ -88,6 +88,8 @@ export function BundleShippingModal({
   const [confirmApplyOpen, setConfirmApplyOpen] = useState(false);
   const [confirmExitOpen, setConfirmExitOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmSwitchGroupOpen, setConfirmSwitchGroupOpen] = useState(false);
+  const [pendingGroupSwitchId, setPendingGroupSwitchId] = useState<string | null>(null);
 
   const [editingCell, setEditingCell] = useState<{ rowId: string; header: string } | null>(null);
   const [activeCell, setActiveCell] = useState<{ rowId: string; header: string } | null>(null);
@@ -111,6 +113,8 @@ export function BundleShippingModal({
     setConfirmApplyOpen(false);
     setConfirmExitOpen(false);
     setConfirmDeleteOpen(false);
+    setConfirmSwitchGroupOpen(false);
+    setPendingGroupSwitchId(null);
     setEditingCell(null);
     setActiveCell(null);
     setEditingValue('');
@@ -272,8 +276,45 @@ export function BundleShippingModal({
     setActiveCell(null);
   };
 
+  const bundleEditingGroupIds = useMemo(
+    () => groupDrafts.filter((g) => groupDecisions[g.groupId] === 'bundle_editing').map((g) => g.groupId),
+    [groupDrafts, groupDecisions],
+  );
+
+  const bundleEditingPendingLabels = useMemo(() => {
+    return bundleEditingGroupIds.map((id) => {
+      const meta = groups.find((g) => g.groupId === id);
+      return meta?.displayName || '—';
+    });
+  }, [bundleEditingGroupIds, groups]);
+
+  const switchToGroup = useCallback((groupId: string) => {
+    setActiveGroupId(groupId);
+    setSelectedRowIds([]);
+    setEditingCell(null);
+    setActiveCell(null);
+  }, []);
+
+  const handleRequestSwitchGroup = useCallback(
+    (targetGroupId: string) => {
+      if (targetGroupId === activeGroupId) return;
+      if (activeGroupId && groupDecisions[activeGroupId] === 'bundle_editing') {
+        setPendingGroupSwitchId(targetGroupId);
+        setConfirmSwitchGroupOpen(true);
+        return;
+      }
+      switchToGroup(targetGroupId);
+    },
+    [activeGroupId, groupDecisions, switchToGroup],
+  );
+
+  const closeSwitchGroupConfirm = useCallback(() => {
+    setConfirmSwitchGroupOpen(false);
+    setPendingGroupSwitchId(null);
+  }, []);
+
   const handleRequestExit = () => {
-    if (hasUnsavedDraft) {
+    if (hasUnsavedDraft || bundleEditingGroupIds.length > 0) {
       setConfirmExitOpen(true);
       return;
     }
@@ -363,12 +404,7 @@ export function BundleShippingModal({
                             ? 'bg-blue-100 font-medium text-blue-900'
                             : 'hover:bg-gray-100 text-gray-800'
                         }`}
-                        onClick={() => {
-                          setActiveGroupId(g.groupId);
-                          setSelectedRowIds([]);
-                          setEditingCell(null);
-                          setActiveCell(null);
-                        }}
+                        onClick={() => handleRequestSwitchGroup(g.groupId)}
                       >
                         <div className="flex items-center justify-between gap-1">
                           <span className="line-clamp-1">{meta?.displayName || '—'}</span>
@@ -616,12 +652,18 @@ export function BundleShippingModal({
               )}
             </p>
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-              <p className="rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800">
+              <p className="rounded-md bg-slate-100 px-3 py-2.5 text-base font-semibold text-slate-800">
                 후보 그룹 {groupDrafts.length}개 중 결정 완료 {decidedCount}개
                 {groupDrafts.length - decidedCount > 0 && (
                   <span className="text-amber-700">
                     {' '}
                     · 미결정 {groupDrafts.length - decidedCount}개
+                  </span>
+                )}
+                {bundleEditingGroupIds.length > 0 && (
+                  <span className="text-violet-700">
+                    {' '}
+                    · 묶음배송결정 필요 {bundleEditingGroupIds.length}개
                   </span>
                 )}
               </p>
@@ -675,6 +717,59 @@ export function BundleShippingModal({
         </div>
       )}
 
+      {confirmSwitchGroupOpen && activeGroupId && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h5 className="text-lg font-semibold text-gray-900">묶음배송결정이 필요합니다</h5>
+            <p className="mt-3 text-sm leading-relaxed text-gray-600">
+              이 그룹은 아직 <strong>묶음배송결정</strong>이 없습니다. 다른 그룹으로 이동하기
+              전에 처리 방식을 선택해 주세요.
+            </p>
+            {!canCompleteBundleEdit && (
+              <p className="mt-2 text-xs leading-relaxed text-amber-800">
+                묶음배송결정을 하려면 주문건 1건 이상 삭제 후 최소 1건은 남겨 두어야 합니다.
+              </p>
+            )}
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className="rounded border px-4 py-2 text-sm hover:bg-gray-50"
+                onClick={closeSwitchGroupConfirm}
+              >
+                계속 편집
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center rounded-md border border-gray-400 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                onClick={() => {
+                  resetGroupToOriginal(activeGroupId);
+                  if (pendingGroupSwitchId) switchToGroup(pendingGroupSwitchId);
+                  closeSwitchGroupConfirm();
+                }}
+              >
+                되돌리기
+              </button>
+              <button
+                type="button"
+                disabled={!canCompleteBundleEdit}
+                className={`inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-white ${
+                  canCompleteBundleEdit
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'cursor-not-allowed bg-green-300'
+                }`}
+                onClick={() => {
+                  handleCompleteBundleEdit();
+                  if (pendingGroupSwitchId) switchToGroup(pendingGroupSwitchId);
+                  closeSwitchGroupConfirm();
+                }}
+              >
+                묶음배송결정
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmExitOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
@@ -682,6 +777,17 @@ export function BundleShippingModal({
             <p className="mt-3 text-sm leading-relaxed text-gray-600">
               아직 반영하지 않은 정리 내용이 있습니다. 나가면 미리보기는 변경되지 않습니다.
             </p>
+            {bundleEditingGroupIds.length > 0 && (
+              <p className="mt-3 text-sm leading-relaxed text-amber-800">
+                묶음배송결정이 없는 그룹이 <strong>{bundleEditingGroupIds.length}개</strong>
+                있습니다.
+                {bundleEditingPendingLabels.length > 0 && (
+                  <span className="mt-1 block text-xs">
+                    ({bundleEditingPendingLabels.join(', ')})
+                  </span>
+                )}
+              </p>
+            )}
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
