@@ -7,6 +7,8 @@
 import { ArrowDown, Coins, Search, Truck, Upload } from 'lucide-react';
 import { Fragment } from 'react';
 
+import UserGuidePreviewToolbar, { UserGuidePreviewHints } from './UserGuidePreviewToolbar';
+
 const INVOICE_FILE_WORKFLOW_STEPS = [
   {
     label: '쇼핑몰 송장 업로드 양식 등록',
@@ -128,28 +130,8 @@ export function InvoiceFileUserGuideSection() {
           <div className="px-6 pb-4 pt-6">
             <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
               <h3 className="row-start-1 col-start-1 self-center text-lg font-semibold">미리보기</h3>
-              <div className="row-start-1 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                <button
-                  type="button"
-                  data-ex-tooltip="표 영역을 크게 펼쳐서 볼 때 씁니다."
-                  className="ex-tooltip-target inline-flex h-9 w-20 shrink-0 cursor-default items-center justify-center rounded border text-sm"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  펼치기
-                </button>
-                <button
-                  type="button"
-                  data-ex-tooltip="첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다."
-                  className="ex-tooltip-target inline-flex h-9 shrink-0 cursor-default items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  미리보기 초기화
-                </button>
-              </div>
-              <p className="row-start-2 col-start-2 min-w-0 text-sm text-gray-500">
-                ✔ 셀을 클릭하면 수정할 수 있습니다. ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다. ✔ 체크
-                후 삭제할 수 있습니다.
-              </p>
+              <UserGuidePreviewToolbar showBundleShipping={false} />
+              <UserGuidePreviewHints />
             </div>
           </div>
           <div className="flex min-h-[192px] items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
