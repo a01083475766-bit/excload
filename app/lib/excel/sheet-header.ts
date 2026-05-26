@@ -6,6 +6,51 @@
 
 import * as XLSX from 'xlsx';
 
+type WorkSheet = XLSX.WorkSheet;
+
+/**
+ * 시트에 실제로 값이 있는 셀만 스캔해 사용 범위를 구한다.
+ * Excel에서 행을 삭제해도 !ref가 수십만 행으로 남는 파일(빈 행 대량 생성) 방지용.
+ */
+export function computePopulatedSheetRange(worksheet: WorkSheet): XLSX.Range | null {
+  let minR = Infinity;
+  let maxR = -1;
+  let minC = Infinity;
+  let maxC = -1;
+
+  for (const key of Object.keys(worksheet)) {
+    if (key[0] === '!') continue;
+    const addr = XLSX.utils.decode_cell(key);
+    if (!Number.isFinite(addr.r) || !Number.isFinite(addr.c)) continue;
+    minR = Math.min(minR, addr.r);
+    maxR = Math.max(maxR, addr.r);
+    minC = Math.min(minC, addr.c);
+    maxC = Math.max(maxC, addr.c);
+  }
+
+  if (maxR < 0) return null;
+  return { s: { r: minR, c: minC }, e: { r: maxR, c: maxC } };
+}
+
+/** 선언된 !ref가 실제 데이터보다 과대할 때, 채워진 셀 기준으로 범위를 줄인다. */
+export function clipWorksheetToPopulatedRange(worksheet: WorkSheet): void {
+  const populated = computePopulatedSheetRange(worksheet);
+  if (!populated) return;
+
+  if (!worksheet['!ref']) {
+    worksheet['!ref'] = XLSX.utils.encode_range(populated);
+    return;
+  }
+
+  const declared = XLSX.utils.decode_range(worksheet['!ref']);
+  const declaredRows = declared.e.r - declared.s.r + 1;
+  const populatedRows = populated.e.r - populated.s.r + 1;
+
+  if (populatedRows < declaredRows) {
+    worksheet['!ref'] = XLSX.utils.encode_range(populated);
+  }
+}
+
 /** 행 전체 join 문자열 기준 헤더 후보 판별 (기존 order / 3PL / preprocess 동일 규칙) */
 export function isExcelHeaderRowText(rowText: string): boolean {
   return (
@@ -62,6 +107,7 @@ export function readFirstSheetMatrixFromArrayBuffer(buffer: ArrayBuffer): unknow
   if (!worksheet) {
     return [];
   }
+  clipWorksheetToPopulatedRange(worksheet);
   return XLSX.utils.sheet_to_json(worksheet, {
     header: 1,
     defval: '',
