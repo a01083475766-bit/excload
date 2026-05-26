@@ -2752,7 +2752,21 @@ export default function InvoiceFileConvertPage() {
             {/* 통합 안내 문구 */}
             <div className="mb-6 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                모든 주문에 동일하게 적용할 택배사, 배송방법 등 고정 입력할 항목을 설정합니다.
+                모든 주문에 공통으로 쓸 택배사, 배송방법 등을 설정합니다.
+                <br />
+                주문에 값이 있으면 그 값을 우선하고, 비어 있는 항목에만 고정 입력이 적용됩니다.
+                <br />
+                <span className="block text-xs text-zinc-500 dark:text-zinc-400 mt-1.5">
+                  (예:{' '}
+                  <span className="inline-flex flex-wrap items-center gap-x-5 gap-y-1">
+                    <span>‘배송 전 연락 주세요’ 있음 → 유지</span>
+                    <span aria-hidden="true" className="text-zinc-400">
+                      ·
+                    </span>
+                    <span>없음 → 고정 ‘문 앞에 두세요’</span>
+                  </span>
+                  )
+                </span>
                 <br />
                 고정 입력은 선택 기능이며, 모든 주문에 동일한 정보가 있을 때만 설정하면 됩니다.
               </p>
