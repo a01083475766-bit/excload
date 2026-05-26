@@ -892,8 +892,6 @@ const TRIAL_DEFAULT_TEMPLATE_PUBLIC_PATH = '/trial-default-upload-template.xlsx'
 
 export function LogisticsConvertClient({ trialMode = false }: { trialMode?: boolean }) {
   const router = useRouter();
-  /** 택배주문변환과 동일: 연동 시 주문 가져오기 노출 (추후 API로 통합 가능) */
-  const connectedMalls = ['coupang'];
   const [isDesktopHoverDevice, setIsDesktopHoverDevice] = useState(false);
   const [floatingTooltip, setFloatingTooltip] = useState<{
     visible: boolean;
@@ -4218,17 +4216,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
                 {trialMode ? (
                   <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
-                ) : connectedMalls.length > 0 ? (
+                ) : (
                   <button
                     type="button"
                     onClick={() => router.push('/order/fetch')}
                     className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
                   >
-                    주문 가져오기
+                    즐겨찾는 쇼핑몰
                   </button>
-                ) : user ? (
-                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
-                ) : null}
+                )}
               </div>
               {!trialMode ? (
                 <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
@@ -4283,8 +4279,6 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       :{user.points.toLocaleString()}
                     </span>
                   </div>
-                ) : !trialMode && connectedMalls.length > 0 ? (
-                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
                 ) : null}
               </div>
             </div>

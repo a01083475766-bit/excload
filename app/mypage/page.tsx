@@ -607,10 +607,10 @@ export default function MyPage() {
               </div>
 
               <Link
-                href="/setting/mall"
+                href="/order/fetch"
                 className="block w-full mt-4 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition text-center"
               >
-                내 주문 연동하기
+                즐겨찾는 쇼핑몰
               </Link>
 
               <button

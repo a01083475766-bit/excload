@@ -242,8 +242,6 @@ const saveRecentExcelFormat = (
 
 export default function InvoiceFileConvertPage() {
   const router = useRouter();
-  /** 택배주문변환과 동일: 연동 몰이 있으면 주문 가져오기 노출 (추후 API로 통합 가능) */
-  const connectedMalls = ['coupang'];
   const user = useUserStore((state) => state.user);
   const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
@@ -1787,17 +1785,13 @@ export default function InvoiceFileConvertPage() {
             {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (택배주문변환과 동일 레이아웃) */}
             <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
-                {connectedMalls.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push('/order/fetch')}
-                    className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
-                  >
-                    주문 가져오기
-                  </button>
-                ) : user ? (
-                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => router.push('/order/fetch')}
+                  className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
+                >
+                  즐겨찾는 쇼핑몰
+                </button>
               </div>
               <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
                 송장파일변환 — 주문 엑셀 파일과 송장 엑셀 파일을 등록하여 쇼핑몰 송장 업로드 양식에 맞게 변환합니다.
@@ -1811,8 +1805,6 @@ export default function InvoiceFileConvertPage() {
                       :{user.points.toLocaleString()}
                     </span>
                   </div>
-                ) : connectedMalls.length > 0 ? (
-                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
                 ) : null}
               </div>
             </div>

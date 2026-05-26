@@ -259,7 +259,6 @@ const saveRecentExcelFormat = (
 
 export default function OrderConvertPage() {
   const router = useRouter();
-  const connectedMalls = ['coupang']; // 테스트용
   const user = useUserStore((state) => state.user);
   const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
@@ -2140,17 +2139,13 @@ export default function OrderConvertPage() {
             {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (한쪽만 있을 때는 반대쪽 빈 슬롯으로 대칭) */}
             <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
-                {connectedMalls.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push('/order/fetch')}
-                    className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
-                  >
-                    주문 가져오기
-                  </button>
-                ) : user ? (
-                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => router.push('/order/fetch')}
+                  className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
+                >
+                  즐겨찾는 쇼핑몰
+                </button>
               </div>
               <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
                 엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 택배 업로드 파일로 자동 변환합니다.
@@ -2164,8 +2159,6 @@ export default function OrderConvertPage() {
                       :{user.points.toLocaleString()}
                     </span>
                   </div>
-                ) : connectedMalls.length > 0 ? (
-                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
                 ) : null}
               </div>
             </div>

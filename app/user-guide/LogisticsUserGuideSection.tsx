@@ -44,11 +44,11 @@ export function LogisticsUserGuideSection() {
             <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
               <button
                 type="button"
-                data-ex-tooltip={`쇼핑몰과 연결된 경우, 여기서 주문 목록을 불러올 수 있어요.\u000a(가이드에서는 동작하지 않습니다.)`}
+                data-ex-tooltip={`자주 쓰는 쇼핑몰 URL을 등록해 두면\u000a여기서 새 창으로 바로 열 수 있어요.\u000a(가이드에서는 동작하지 않습니다.)`}
                 className="ex-tooltip-target flex h-[38px] w-full cursor-default items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white opacity-90 sm:w-[200px]"
                 onClick={(e) => e.preventDefault()}
               >
-                주문 가져오기
+                즐겨찾는 쇼핑몰
               </button>
             </div>
             <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">

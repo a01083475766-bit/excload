@@ -38,6 +38,9 @@ export const UPLOADED_FILES_KEYS = {
   metadata: 'uploaded-files-metadata',
 } as const;
 
+/** 즐겨찾는 쇼핑몰(이름·URL) — 계정별 localStorage */
+export const FAVORITE_MALLS_KEY = 'excload_favorite_malls_v1' as const;
+
 function normalizeUserId(userId: string | null | undefined): string | null {
   if (typeof userId !== 'string') return null;
   const t = userId.trim();
