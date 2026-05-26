@@ -31,6 +31,7 @@ import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
+import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
@@ -422,6 +423,20 @@ export default function OrderConvertPage() {
     setRequiresAccountModalOpen(true);
     return false;
   }, [user, isLoading]);
+
+  /** 양식 복원 대기 중에는 모달 없이 false — 화면 오버레이로 안내 */
+  const ensureCourierTemplateReady = useCallback(
+    (modalType: 'fixed-input' | 'convert'): boolean => {
+      if (isFormStatusChecking) return false;
+      if (!isValidCourierTemplate(courierUploadTemplate)) {
+        setNoTemplateModalType(modalType);
+        setIsNoTemplateModalOpen(true);
+        return false;
+      }
+      return true;
+    },
+    [isFormStatusChecking, courierUploadTemplate],
+  );
 
   // 고정 헤더 순서 배열 (courierUploadTemplate.headers 기준)
   const FIXED_HEADER_ORDER = useMemo(() => {
@@ -1078,12 +1093,7 @@ export default function OrderConvertPage() {
   };
 
   const handleOpenSenderModal = () => {
-    // 택배 업로드 양식이 없는 경우 안내 모달 표시
-    if (!isValidCourierTemplate(courierUploadTemplate)) {
-      setNoTemplateModalType('fixed-input');
-      setIsNoTemplateModalOpen(true);
-      return;
-    }
+    if (!ensureCourierTemplateReady('fixed-input')) return;
 
     // 택배 업로드 양식이 있는 경우 고정 입력 헤더 설정 모달 열기
     setIsSenderModalOpen(true);
@@ -1117,12 +1127,7 @@ export default function OrderConvertPage() {
         
       // 엑셀·암호 ZIP 파일 처리
       if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
-        // 택배 업로드 양식이 없는 경우 안내 모달 표시
-        if (!isValidCourierTemplate(courierUploadTemplate)) {
-          setNoTemplateModalType('convert');
-          setIsNoTemplateModalOpen(true);
-          return;
-        }
+        if (!ensureCourierTemplateReady('convert')) return;
         if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
           setUploadedExcelFile(file);
           parseExcelFile(file);
@@ -1439,12 +1444,7 @@ export default function OrderConvertPage() {
     }
     setErrorMessageTextImage(null);
 
-    // 택배 업로드 양식이 없는 경우 안내 모달 표시
-    if (!isValidCourierTemplate(courierUploadTemplate)) {
-      setNoTemplateModalType('convert');
-      setIsNoTemplateModalOpen(true);
-      return;
-    }
+    if (!ensureCourierTemplateReady('convert')) return;
 
     const trimmed = textInput.trim();
     if (!trimmed) {
@@ -1574,12 +1574,7 @@ export default function OrderConvertPage() {
       
       // 엑셀 파일 처리
       if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
-        // 택배 업로드 양식이 없는 경우 안내 모달 표시
-        if (!isValidCourierTemplate(courierUploadTemplate)) {
-          setNoTemplateModalType('convert');
-          setIsNoTemplateModalOpen(true);
-          return;
-        }
+        if (!ensureCourierTemplateReady('convert')) return;
         if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
           setUploadedExcelFile(file);
           parseExcelFile(file);
@@ -2045,6 +2040,8 @@ export default function OrderConvertPage() {
 
   return (
     <>
+      <WorkspaceSettingsCheckingOverlay open={isFormStatusChecking} />
+
       {/* 삭제 확인 모달 */}
       <BundleShippingModal
         open={isBundleShippingModalOpen}
@@ -2302,11 +2299,7 @@ export default function OrderConvertPage() {
                         e.preventDefault();
                         e.stopPropagation();
                         if (!ensureLoggedInForOrderInput()) return;
-                        if (!isValidCourierTemplate(courierUploadTemplate)) {
-                          setNoTemplateModalType('convert');
-                          setIsNoTemplateModalOpen(true);
-                          return;
-                        }
+                        if (!ensureCourierTemplateReady('convert')) return;
                         const today = new Date().toDateString();
                         const saved = localStorage.getItem("hideTextConvertModal");
 

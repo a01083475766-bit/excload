@@ -52,6 +52,7 @@ import {
 import { useUserStore } from '@/app/store/userStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
+import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
@@ -1359,6 +1360,19 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setRequiresAccountModalOpen(true);
     return false;
   }, [trialMode, user, isLoading]);
+
+  const ensureCourierTemplateReady = useCallback(
+    (modalType: 'fixed-input' | 'convert'): boolean => {
+      if (isFormStatusChecking) return false;
+      if (!isValidCourierTemplate(courierUploadTemplate)) {
+        setNoTemplateModalType(modalType);
+        setIsNoTemplateModalOpen(true);
+        return false;
+      }
+      return true;
+    },
+    [isFormStatusChecking, courierUploadTemplate],
+  );
 
   const resetBundleShippingUi = useCallback(() => {
     setIsBundleShippingModalOpen(false);
@@ -3099,14 +3113,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   };
 
   const handleOpenSenderModal = () => {
-    // 물류센터 업로드 양식이 없는 경우 안내 모달 표시
-    if (!isValidCourierTemplate(courierUploadTemplate)) {
-      setNoTemplateModalType('fixed-input');
-      setIsNoTemplateModalOpen(true);
-      return;
-    }
-
-    // 물류센터 업로드 양식이 있는 경우 고정 입력 헤더 설정 모달 열기
+    if (!ensureCourierTemplateReady('fixed-input')) return;
     setIsSenderModalOpen(true);
   };
 
@@ -3138,12 +3145,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         
       // 엑셀·암호 ZIP 파일 처리
       if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
-        // 물류센터 업로드 양식이 없는 경우 안내 모달 표시
-        if (!isValidCourierTemplate(courierUploadTemplate)) {
-          setNoTemplateModalType('convert');
-          setIsNoTemplateModalOpen(true);
-          return;
-        }
+        if (!ensureCourierTemplateReady('convert')) return;
         if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
           setUploadedExcelFile(file);
           parseExcelFile(file);
@@ -3473,11 +3475,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }
     setErrorMessageTextImage(null);
 
-    if (!isValidCourierTemplate(courierUploadTemplate)) {
-      setNoTemplateModalType('convert');
-      setIsNoTemplateModalOpen(true);
-      return;
-    }
+    if (!ensureCourierTemplateReady('convert')) return;
 
     const trimmed = textInput.trim();
     if (!trimmed) {
@@ -3609,12 +3607,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       
       // 엑셀·암호 ZIP 파일 처리
       if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
-        // 물류센터 업로드 양식이 없는 경우 안내 모달 표시
-        if (!isValidCourierTemplate(courierUploadTemplate)) {
-          setNoTemplateModalType('convert');
-          setIsNoTemplateModalOpen(true);
-          return;
-        }
+        if (!ensureCourierTemplateReady('convert')) return;
         if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
           setUploadedExcelFile(file);
           parseExcelFile(file);
@@ -4045,6 +4038,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   return (
     <>
+      <WorkspaceSettingsCheckingOverlay open={isFormStatusChecking} />
+
       <BundleShippingModal
         open={isBundleShippingModalOpen}
         groups={activeBundleShippingGroups}
@@ -4454,11 +4449,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         e.preventDefault();
                         e.stopPropagation();
                         if (!ensureLoggedInForOrderInput()) return;
-                        if (!isValidCourierTemplate(courierUploadTemplate)) {
-                          setNoTemplateModalType('convert');
-                          setIsNoTemplateModalOpen(true);
-                          return;
-                        }
+                        if (!ensureCourierTemplateReady('convert')) return;
                         const today = new Date().toDateString();
                         const saved = localStorage.getItem("hideLogisticsTextConvertModal");
 
