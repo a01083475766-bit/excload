@@ -932,6 +932,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState<string | null>(null);
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
+  const [settingsCheckOverlayOpen, setSettingsCheckOverlayOpen] = useState(false);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
   const [noTemplateModalType, setNoTemplateModalType] = useState<'fixed-input' | 'convert'>('fixed-input');
   const [isTemplateChangeReuploadModalOpen, setIsTemplateChangeReuploadModalOpen] = useState(false);
@@ -1361,9 +1362,19 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     return false;
   }, [trialMode, user, isLoading]);
 
+  useEffect(() => {
+    if (!isFormStatusChecking) {
+      setSettingsCheckOverlayOpen(false);
+    }
+  }, [isFormStatusChecking]);
+
   const ensureCourierTemplateReady = useCallback(
     (modalType: 'fixed-input' | 'convert'): boolean => {
-      if (isFormStatusChecking) return false;
+      if (isFormStatusChecking) {
+        setSettingsCheckOverlayOpen(true);
+        return false;
+      }
+      setSettingsCheckOverlayOpen(false);
       if (!isValidCourierTemplate(courierUploadTemplate)) {
         setNoTemplateModalType(modalType);
         setIsNoTemplateModalOpen(true);
@@ -4038,7 +4049,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   return (
     <>
-      <WorkspaceSettingsCheckingOverlay open={isFormStatusChecking} />
+      <WorkspaceSettingsCheckingOverlay open={settingsCheckOverlayOpen} />
 
       <BundleShippingModal
         open={isBundleShippingModalOpen}

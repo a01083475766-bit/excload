@@ -3,7 +3,7 @@
 import { Loader2 } from 'lucide-react';
 
 type WorkspaceSettingsCheckingOverlayProps = {
-  /** localStorage·계정별 양식 복원 대기 중 */
+  /** 업로드·변환 등 사용자 동작 시 설정 복원이 아직 끝나지 않았을 때만 true */
   open: boolean;
   message?: string;
   subMessage?: string;
@@ -11,7 +11,7 @@ type WorkspaceSettingsCheckingOverlayProps = {
 
 /**
  * 변환 화면 위에 반투명 레이어 + 안내 카드만 표시.
- * 페이지 레이아웃·하단 「양식 확인중」 배너는 그대로 두고, 업로드 등 조작만 막는다.
+ * 페이지 진입·이동 시에는 띄우지 않고, 업로드 등 동작 시 복원 대기 중일 때만 사용한다.
  */
 export function WorkspaceSettingsCheckingOverlay({
   open,

@@ -285,6 +285,7 @@ export default function OrderConvertPage() {
   const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState<string | null>(null);
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
+  const [settingsCheckOverlayOpen, setSettingsCheckOverlayOpen] = useState(false);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
   const [noTemplateModalType, setNoTemplateModalType] = useState<'fixed-input' | 'convert'>('fixed-input');
   const [isTemplateChangeReuploadModalOpen, setIsTemplateChangeReuploadModalOpen] = useState(false);
@@ -424,10 +425,20 @@ export default function OrderConvertPage() {
     return false;
   }, [user, isLoading]);
 
-  /** 양식 복원 대기 중에는 모달 없이 false — 화면 오버레이로 안내 */
+  useEffect(() => {
+    if (!isFormStatusChecking) {
+      setSettingsCheckOverlayOpen(false);
+    }
+  }, [isFormStatusChecking]);
+
+  /** 양식 복원 대기 중: 등록 모달 대신 오버레이만. 완료 후 없으면 등록 모달 */
   const ensureCourierTemplateReady = useCallback(
     (modalType: 'fixed-input' | 'convert'): boolean => {
-      if (isFormStatusChecking) return false;
+      if (isFormStatusChecking) {
+        setSettingsCheckOverlayOpen(true);
+        return false;
+      }
+      setSettingsCheckOverlayOpen(false);
       if (!isValidCourierTemplate(courierUploadTemplate)) {
         setNoTemplateModalType(modalType);
         setIsNoTemplateModalOpen(true);
@@ -2040,7 +2051,7 @@ export default function OrderConvertPage() {
 
   return (
     <>
-      <WorkspaceSettingsCheckingOverlay open={isFormStatusChecking} />
+      <WorkspaceSettingsCheckingOverlay open={settingsCheckOverlayOpen} />
 
       {/* 삭제 확인 모달 */}
       <BundleShippingModal
