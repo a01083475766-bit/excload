@@ -91,6 +91,19 @@ import {
   isTrialSeedFormatId,
   repairTrialBridgeFileIfNeeded,
 } from '@/app/logistics-convert/trial-sample-formats';
+import {
+  BundleShippingModal,
+  type BundleShippingApplyPayload,
+  type BundleShippingApplySummary,
+} from '@/app/order-convert/BundleShippingModal';
+import {
+  countBundleShippingDuplicateRows,
+  detectBundleShippingGroups,
+} from '@/app/order-convert/bundle-shipping-utils';
+
+/** 미리보기 상단·보조 액션 버튼 공통 틀 (택배주문변환과 동일) */
+const PREVIEW_TOOLBAR_BTN =
+  'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
 
 /** 상품코드 매핑 실패 시 안내 배너용 */
 type ProductCodeMappingNotice = {
@@ -938,6 +951,18 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isPreviewResetModalOpen, setIsPreviewResetModalOpen] = useState(false);
+  const [isBundleShippingModalOpen, setIsBundleShippingModalOpen] = useState(false);
+  const [dismissedBundleGroupKeys, setDismissedBundleGroupKeys] = useState<string[]>([]);
+  const [bundleShippingButtonAcked, setBundleShippingButtonAcked] = useState(false);
+  type BundleShippingUndoSnapshot = {
+    previewRows: PreviewRowWithId[];
+    userOverrides: Record<string, Record<string, string>>;
+    dismissedBundleGroupKeys: string[];
+  };
+  const [bundleApplyUndo, setBundleApplyUndo] = useState<{
+    snapshot: BundleShippingUndoSnapshot;
+    summary: BundleShippingApplySummary;
+  } | null>(null);
   const [courierHeaders, setCourierHeaders] = useState<string[]>([]);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
@@ -1335,8 +1360,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     return false;
   }, [trialMode, user, isLoading]);
 
+  const resetBundleShippingUi = useCallback(() => {
+    setIsBundleShippingModalOpen(false);
+    setDismissedBundleGroupKeys([]);
+    setBundleShippingButtonAcked(false);
+    setBundleApplyUndo(null);
+  }, []);
+
   /** 다운로드 완료 후와 동일 — 미리보기·입력 소스·파일 선택 상태만 정리 (양식/브릿지는 유지) */
   const applyPreviewWorkspaceReset = useCallback(() => {
+    resetBundleShippingUi();
     setPreviewRows([]);
     resetProductCodeColumnToggle();
     setUserOverrides({});
@@ -1360,7 +1393,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setUploadedFileMeta([]);
     clearWorkspaceInputTracking();
     setSelectedImage(null);
-  }, [resetProductCodeColumnToggle, clearWorkspaceInputTracking]);
+  }, [resetBundleShippingUi, resetProductCodeColumnToggle, clearWorkspaceInputTracking]);
 
   /** 미리보기·입력 소스·변환 결과 비우기 (양식·브릿지·고정값은 유지). 확인 모달 후 실행 */
   const applyFullPreviewWorkspaceReset = useCallback(() => {
@@ -1443,6 +1476,81 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   }, [previewRows.length, courierHeaders.length, isPreviewExpanded]);
 
   const hasMorePreviewRows = sortedRows.length > renderedRowCount;
+
+  const bundleShippingDetection = useMemo(
+    () => detectBundleShippingGroups(previewRows, courierHeaders, templateBridgeFile, userOverrides),
+    [previewRows, courierHeaders, templateBridgeFile, userOverrides],
+  );
+
+  const activeBundleShippingGroups = useMemo(
+    () =>
+      bundleShippingDetection.groups.filter((g) => !dismissedBundleGroupKeys.includes(g.key)),
+    [bundleShippingDetection.groups, dismissedBundleGroupKeys],
+  );
+
+  const bundleShippingGroupCount = activeBundleShippingGroups.length;
+  const bundleShippingRowCount = countBundleShippingDuplicateRows(activeBundleShippingGroups);
+
+  const activeBundleGroupKeysSig = useMemo(
+    () => activeBundleShippingGroups.map((g) => g.key).sort().join('\u0001'),
+    [activeBundleShippingGroups],
+  );
+
+  useEffect(() => {
+    if (bundleShippingGroupCount > 0) {
+      setBundleShippingButtonAcked(false);
+    }
+  }, [activeBundleGroupKeysSig, bundleShippingGroupCount]);
+
+  const clonePreviewRows = (rows: PreviewRowWithId[]) =>
+    rows.map((r) => ({ rowId: r.rowId, data: { ...r.data } }));
+
+  const handleBundleShippingApply = useCallback(
+    (payload: BundleShippingApplyPayload) => {
+      setBundleApplyUndo({
+        snapshot: {
+          previewRows: clonePreviewRows(previewRows),
+          userOverrides: structuredClone(userOverrides),
+          dismissedBundleGroupKeys: [...dismissedBundleGroupKeys],
+        },
+        summary: payload.summary,
+      });
+
+      const deletedSet = new Set(payload.deletedRowIds);
+      setPreviewRows((prev) => prev.filter((row) => !deletedSet.has(row.rowId)));
+      setUserOverrides((prev) => {
+        const next = { ...prev };
+        for (const id of payload.deletedRowIds) {
+          delete next[id];
+        }
+        for (const [rowId, cols] of Object.entries(payload.overrides)) {
+          if (deletedSet.has(rowId)) continue;
+          next[rowId] = { ...(next[rowId] ?? {}), ...cols };
+        }
+        return next;
+      });
+      setSelectedRows((prev) => prev.filter((id) => !deletedSet.has(id)));
+      if (payload.ignoredGroupKeys.length > 0) {
+        setDismissedBundleGroupKeys((prev) => {
+          const merged = new Set([...prev, ...payload.ignoredGroupKeys]);
+          return [...merged];
+        });
+      }
+      setBundleShippingButtonAcked(true);
+    },
+    [previewRows, userOverrides, dismissedBundleGroupKeys],
+  );
+
+  const handleUndoBundleShippingApply = useCallback(() => {
+    if (!bundleApplyUndo) return;
+    const { snapshot } = bundleApplyUndo;
+    setPreviewRows(snapshot.previewRows);
+    setUserOverrides(snapshot.userOverrides);
+    setDismissedBundleGroupKeys(snapshot.dismissedBundleGroupKeys);
+    setSelectedRows([]);
+    setBundleApplyUndo(null);
+    setBundleShippingButtonAcked(false);
+  }, [bundleApplyUndo]);
 
   const handlePreviewScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
     setPreviewScrollTop(e.currentTarget.scrollTop);
@@ -1549,6 +1657,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       setSelectedFiles([]);
       setUploadedFileMeta([]);
       setUserOverrides({});
+      resetBundleShippingUi();
       setSelectedRows([]);
       setNewRows(new Set());
       setEditingCell(null);
@@ -3936,6 +4045,16 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   return (
     <>
+      <BundleShippingModal
+        open={isBundleShippingModalOpen}
+        groups={activeBundleShippingGroups}
+        courierHeaders={courierHeaders}
+        previewRows={previewRows}
+        userOverrides={userOverrides}
+        onClose={() => setIsBundleShippingModalOpen(false)}
+        onApply={handleBundleShippingApply}
+      />
+
       {/* 삭제 확인 모달 */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -4385,8 +4504,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 <div className="row-start-1 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
+                      type="button"
                       data-ex-tooltip={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
-                      className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 flex-shrink-0 items-center justify-center rounded border text-sm transition`}
+                      className={`${trialMode ? 'ex-tooltip-target' : ''} ${PREVIEW_TOOLBAR_BTN} w-20 border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
                       onClick={() => setIsPreviewExpanded(prev => !prev)}
                     >
                       {isPreviewExpanded ? '닫기' : '펼치기'}
@@ -4401,26 +4521,70 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           ? '첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.'
                           : undefined
                       }
-                      className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
+                      className={`${trialMode ? 'ex-tooltip-target' : ''} ${PREVIEW_TOOLBAR_BTN} border-amber-500/80 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
                       onClick={() => setIsPreviewResetModalOpen(true)}
                     >
                       미리보기 초기화
                     </button>
                   )}
 
-                  <div className="flex w-20 flex-shrink-0 justify-start">
-                    {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
-                      <button
-                        className={`${trialMode ? 'ex-tooltip-target' : ''} inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700`}
-                        data-ex-tooltip={trialMode ? '삭제가 필요한경우 선택하여 삭제 할수 있습니다' : undefined}
-                        onClick={() => {
-                          setIsDeleteModalOpen(true);
-                        }}
-                      >
-                        선택 삭제
-                      </button>
-                    )}
-                  </div>
+                  {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
+                    <button
+                      type="button"
+                      className={`${trialMode ? 'ex-tooltip-target' : ''} ${PREVIEW_TOOLBAR_BTN} border-red-600 bg-red-600 text-white hover:bg-red-700`}
+                      data-ex-tooltip={trialMode ? '삭제가 필요한경우 선택하여 삭제 할수 있습니다' : undefined}
+                      onClick={() => {
+                        setIsDeleteModalOpen(true);
+                      }}
+                    >
+                      선택 삭제
+                    </button>
+                  )}
+
+                  {previewRows.length > 0 &&
+                    courierHeaders.length > 0 &&
+                    bundleShippingDetection.columns &&
+                    (bundleApplyUndo ? (
+                      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                        <div
+                          className={`${PREVIEW_TOOLBAR_BTN} whitespace-nowrap border-violet-400/70 bg-violet-50 font-normal text-violet-950`}
+                        >
+                          묶음 : 삭제{' '}
+                          <b className="font-medium text-red-600">
+                            {bundleApplyUndo.summary.deletedRowCount}
+                          </b>
+                          건 · 개별배송{' '}
+                          <b className="font-medium">{bundleApplyUndo.summary.individualGroupCount}</b>
+                          그룹 · 묶음결정{' '}
+                          <b className="font-medium">{bundleApplyUndo.summary.bundleDoneGroupCount}</b>그룹
+                        </div>
+                        <button
+                          type="button"
+                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
+                          onClick={handleUndoBundleShippingApply}
+                        >
+                          묶음배송 적용취소
+                        </button>
+                      </div>
+                    ) : (
+                      bundleShippingGroupCount > 0 && (
+                        <button
+                          type="button"
+                          className={`${PREVIEW_TOOLBAR_BTN} border-violet-500/80 bg-violet-50 text-violet-900 hover:bg-violet-100 ${
+                            !bundleShippingButtonAcked
+                              ? 'animate-pulse ring-2 ring-violet-400/80'
+                              : ''
+                          }`}
+                          onClick={() => {
+                            setBundleShippingButtonAcked(true);
+                            setIsBundleShippingModalOpen(true);
+                          }}
+                        >
+                          묶음배송가능건확인 ({bundleShippingGroupCount}그룹 ·{' '}
+                          {bundleShippingRowCount}건)
+                        </button>
+                      )
+                    ))}
                 </div>
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
@@ -4442,8 +4606,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                     {hasMorePreviewRows && (
                       <>
                         <button
-                          className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
                           type="button"
+                          className={`${PREVIEW_TOOLBAR_BTN} h-7 border-gray-300 bg-white px-2.5 text-xs text-gray-800 hover:bg-gray-100`}
                           onClick={() =>
                             setRenderedRowCount((prev) =>
                               Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
@@ -4453,8 +4617,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
                         </button>
                         <button
-                          className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
                           type="button"
+                          className={`${PREVIEW_TOOLBAR_BTN} h-7 border-gray-300 bg-white px-2.5 text-xs text-gray-800 hover:bg-gray-100`}
                           onClick={() => setRenderedRowCount(sortedRows.length)}
                         >
                           전체 보기

@@ -2703,7 +2703,7 @@ export default function OrderConvertPage() {
                 </h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 text-center">
-                변환이 완료된 주문 데이터를
+                변환이 완료된 주문데이터를 미리보기 기준으로
                 <br />
                 택배사 업로드용 파일로 내려받는 단계입니다.
               </p>
