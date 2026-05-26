@@ -186,6 +186,8 @@ export function BundleShippingModal({
 
   const allGroupsDecided = decidedCount === groupDrafts.length && groupDrafts.length > 0;
 
+  const undecidedCount = groupDrafts.length - decidedCount;
+
   const individualGroupCount = useMemo(
     () => groupDrafts.filter((g) => groupDecisions[g.groupId] === 'individual').length,
     [groupDrafts, groupDecisions],
@@ -315,6 +317,9 @@ export function BundleShippingModal({
       return meta?.displayName || '—';
     });
   }, [bundleEditingGroupIds, groups]);
+
+  /** 미결정·묶음배송결정 필요 시에만 하단 진행 요약 표시 */
+  const showFooterProgress = !allGroupsDecided || bundleEditingGroupIds.length > 0;
 
   const switchToGroup = useCallback((groupId: string) => {
     setActiveGroupId(groupId);
@@ -748,21 +753,24 @@ export function BundleShippingModal({
               )}
             </p>
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-              <p className="rounded-lg border border-violet-500/50 bg-violet-50 px-3 py-2.5 text-base font-semibold text-violet-950">
-                후보 그룹 {groupDrafts.length}개 중 결정 완료 {decidedCount}개
-                {groupDrafts.length - decidedCount > 0 && (
-                  <span className="text-amber-800">
-                    {' '}
-                    · 미결정 {groupDrafts.length - decidedCount}개
-                  </span>
-                )}
-                {bundleEditingGroupIds.length > 0 && (
-                  <span className="text-violet-800">
-                    {' '}
-                    · 묶음배송결정 필요 {bundleEditingGroupIds.length}개
-                  </span>
-                )}
-              </p>
+              {showFooterProgress && (
+                <p className="text-sm font-medium text-violet-950">
+                  결정 완료 <b className="text-violet-800">{decidedCount}</b> / {groupDrafts.length}
+                  {undecidedCount > 0 && (
+                    <>
+                      {' '}
+                      · 미결정 <b className="text-amber-800">{undecidedCount}</b>
+                    </>
+                  )}
+                  {bundleEditingGroupIds.length > 0 && (
+                    <>
+                      {' '}
+                      · 묶음결정 필요{' '}
+                      <b className="text-violet-800">{bundleEditingGroupIds.length}</b>
+                    </>
+                  )}
+                </p>
+              )}
               <button type="button" className={BTN_SECONDARY} onClick={handleRequestExit}>
                 나가기
               </button>
@@ -852,6 +860,18 @@ export function BundleShippingModal({
             <h5 className="text-lg font-semibold text-gray-900">나가시겠습니까?</h5>
             <p className="mt-3 text-sm leading-relaxed text-gray-600">
               아직 반영하지 않은 정리 내용이 있습니다. 나가면 미리보기는 변경되지 않습니다.
+            </p>
+            <p className="mt-3 rounded-lg border border-violet-500/50 bg-violet-50 px-3 py-2.5 text-sm font-semibold leading-relaxed text-violet-950">
+              후보 그룹 {groupDrafts.length}개 중 결정 완료 {decidedCount}개
+              {undecidedCount > 0 && (
+                <span className="text-amber-800"> · 미결정 {undecidedCount}개</span>
+              )}
+              {bundleEditingGroupIds.length > 0 && (
+                <span className="text-violet-800">
+                  {' '}
+                  · 묶음배송결정 필요 {bundleEditingGroupIds.length}개
+                </span>
+              )}
             </p>
             {bundleEditingGroupIds.length > 0 && (
               <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">
