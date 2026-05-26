@@ -593,7 +593,7 @@ export function BundleShippingModal({
                       {activeDecision === 'bundle_done' && (
                         <div className="flex w-full flex-wrap items-center gap-2">
                           <p className="max-w-md rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
-                            이 그룹의 묶음배송이 결정되었습니다. 묶음 처리된 주문건만 미리보기에
+                            묶음배송이 결정되었습니다. 삭제예정 주문건은 제외하고 미리보기에
                             반영됩니다.
                           </p>
                           <button
