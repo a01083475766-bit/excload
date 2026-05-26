@@ -11,11 +11,22 @@ import type { BundleShippingGroup } from '@/app/order-convert/bundle-shipping-ut
 /** 그룹별 1차 결정 상태 */
 export type BundleGroupDecision = 'undecided' | 'individual' | 'bundle_editing' | 'bundle_done';
 
+export type BundleShippingApplySummary = {
+  deletedRowCount: number;
+  modifiedOverrideCount: number;
+  individualGroupCount: number;
+  bundleDoneGroupCount: number;
+  bundlePreviewRowCount: number;
+  individualGroupLabels: string[];
+  bundleDoneGroupLabels: string[];
+};
+
 export type BundleShippingApplyPayload = {
   deletedRowIds: string[];
   overrides: Record<string, Record<string, string>>;
   /** 개별배송으로 결정한 그룹 — 이후 후보 알림에서 제외 */
   ignoredGroupKeys: string[];
+  summary: BundleShippingApplySummary;
 };
 
 type BundleShippingModalProps = {
@@ -355,15 +366,15 @@ export function BundleShippingModal({
   };
 
   const handleConfirmApply = () => {
-    const ignoredGroupKeys = groupDrafts
-      .filter((g) => groupDecisions[g.groupId] === 'individual')
-      .map((g) => g.groupId);
-
-    const bundleRowIds = new Set(
-      groupDrafts
-        .filter((g) => groupDecisions[g.groupId] === 'bundle_done')
-        .flatMap((g) => g.rowIds),
+    const individualDrafts = groupDrafts.filter(
+      (g) => groupDecisions[g.groupId] === 'individual',
     );
+    const bundleDoneDrafts = groupDrafts.filter(
+      (g) => groupDecisions[g.groupId] === 'bundle_done',
+    );
+    const ignoredGroupKeys = individualDrafts.map((g) => g.groupId);
+
+    const bundleRowIds = new Set(bundleDoneDrafts.flatMap((g) => g.rowIds));
 
     const overrides: Record<string, Record<string, string>> = {};
     for (const rowId of bundleRowIds) {
@@ -371,10 +382,31 @@ export function BundleShippingModal({
       if (draftOverrides[rowId]) overrides[rowId] = { ...draftOverrides[rowId] };
     }
 
+    const labelFor = (groupId: string) =>
+      groups.find((g) => g.groupId === groupId)?.displayName || '—';
+
+    const bundlePreviewRowCount = bundleDoneDrafts.reduce(
+      (n, g) => n + g.rowIds.filter((id) => !removedRowIds.has(id)).length,
+      0,
+    );
+
     onApply({
       deletedRowIds: [...removedRowIds],
       overrides,
       ignoredGroupKeys,
+      summary: {
+        deletedRowCount: removedRowIds.size,
+        modifiedOverrideCount: countModifiedRows(
+          bundleDoneDrafts.flatMap((g) => g.rowIds),
+          draftOverrides,
+          userOverrides,
+        ),
+        individualGroupCount: individualDrafts.length,
+        bundleDoneGroupCount: bundleDoneDrafts.length,
+        bundlePreviewRowCount,
+        individualGroupLabels: individualDrafts.map((g) => labelFor(g.groupId)),
+        bundleDoneGroupLabels: bundleDoneDrafts.map((g) => labelFor(g.groupId)),
+      },
     });
     setConfirmApplyOpen(false);
     onClose();
@@ -502,14 +534,14 @@ export function BundleShippingModal({
                             <div className="mt-0.5 text-xs text-gray-500 line-clamp-1">
                               {meta?.displayPhone}
                             </div>
-                            <div className="mt-1 text-xs leading-relaxed text-gray-600">
+                            <div className="mt-1 whitespace-nowrap text-xs text-gray-600">
                               총 {g.rowIds.length}건
                               {del > 0 && <span className="text-red-600"> · 삭제 {del}</span>}
                               {edits > 0 && <span className="text-blue-600"> · 수정 {edits}</span>}
                               {previewApply !== null && (
                                 <span className="text-green-700">
                                   {' '}
-                                  · 미리보기 {previewApply}건 적용
+                                  · 미리보기 {previewApply}건
                                 </span>
                               )}
                             </div>

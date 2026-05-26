@@ -58,6 +58,7 @@ import {
 import {
   BundleShippingModal,
   type BundleShippingApplyPayload,
+  type BundleShippingApplySummary,
 } from '@/app/order-convert/BundleShippingModal';
 import {
   countBundleShippingDuplicateRows,
@@ -302,6 +303,15 @@ export default function OrderConvertPage() {
   const [isBundleShippingModalOpen, setIsBundleShippingModalOpen] = useState(false);
   const [dismissedBundleGroupKeys, setDismissedBundleGroupKeys] = useState<string[]>([]);
   const [bundleShippingButtonAcked, setBundleShippingButtonAcked] = useState(false);
+  type BundleShippingUndoSnapshot = {
+    previewRows: PreviewRowWithId[];
+    userOverrides: Record<string, Record<string, string>>;
+    dismissedBundleGroupKeys: string[];
+  };
+  const [bundleApplyUndo, setBundleApplyUndo] = useState<{
+    snapshot: BundleShippingUndoSnapshot;
+    summary: BundleShippingApplySummary;
+  } | null>(null);
   const [courierHeaders, setCourierHeaders] = useState<string[]>([]);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
@@ -501,33 +511,61 @@ export default function OrderConvertPage() {
     }
   }, [activeBundleGroupKeysSig, bundleShippingGroupCount]);
 
-  const handleBundleShippingApply = useCallback((payload: BundleShippingApplyPayload) => {
-    const deletedSet = new Set(payload.deletedRowIds);
-    setPreviewRows((prev) => prev.filter((row) => !deletedSet.has(row.rowId)));
-    setUserOverrides((prev) => {
-      const next = { ...prev };
-      for (const id of payload.deletedRowIds) {
-        delete next[id];
-      }
-      for (const [rowId, cols] of Object.entries(payload.overrides)) {
-        if (deletedSet.has(rowId)) continue;
-        next[rowId] = { ...(next[rowId] ?? {}), ...cols };
-      }
-      return next;
-    });
-    setSelectedRows((prev) => prev.filter((id) => !deletedSet.has(id)));
-    if (payload.ignoredGroupKeys.length > 0) {
-      setDismissedBundleGroupKeys((prev) => {
-        const merged = new Set([...prev, ...payload.ignoredGroupKeys]);
-        return [...merged];
+  const clonePreviewRows = (rows: PreviewRowWithId[]) =>
+    rows.map((r) => ({ rowId: r.rowId, data: { ...r.data } }));
+
+  const handleBundleShippingApply = useCallback(
+    (payload: BundleShippingApplyPayload) => {
+      setBundleApplyUndo({
+        snapshot: {
+          previewRows: clonePreviewRows(previewRows),
+          userOverrides: structuredClone(userOverrides),
+          dismissedBundleGroupKeys: [...dismissedBundleGroupKeys],
+        },
+        summary: payload.summary,
       });
-    }
-  }, []);
+
+      const deletedSet = new Set(payload.deletedRowIds);
+      setPreviewRows((prev) => prev.filter((row) => !deletedSet.has(row.rowId)));
+      setUserOverrides((prev) => {
+        const next = { ...prev };
+        for (const id of payload.deletedRowIds) {
+          delete next[id];
+        }
+        for (const [rowId, cols] of Object.entries(payload.overrides)) {
+          if (deletedSet.has(rowId)) continue;
+          next[rowId] = { ...(next[rowId] ?? {}), ...cols };
+        }
+        return next;
+      });
+      setSelectedRows((prev) => prev.filter((id) => !deletedSet.has(id)));
+      if (payload.ignoredGroupKeys.length > 0) {
+        setDismissedBundleGroupKeys((prev) => {
+          const merged = new Set([...prev, ...payload.ignoredGroupKeys]);
+          return [...merged];
+        });
+      }
+      setBundleShippingButtonAcked(true);
+    },
+    [previewRows, userOverrides, dismissedBundleGroupKeys],
+  );
+
+  const handleUndoBundleShippingApply = useCallback(() => {
+    if (!bundleApplyUndo) return;
+    const { snapshot } = bundleApplyUndo;
+    setPreviewRows(snapshot.previewRows);
+    setUserOverrides(snapshot.userOverrides);
+    setDismissedBundleGroupKeys(snapshot.dismissedBundleGroupKeys);
+    setSelectedRows([]);
+    setBundleApplyUndo(null);
+    setBundleShippingButtonAcked(false);
+  }, [bundleApplyUndo]);
 
   const resetBundleShippingUi = useCallback(() => {
     setIsBundleShippingModalOpen(false);
     setDismissedBundleGroupKeys([]);
     setBundleShippingButtonAcked(false);
+    setBundleApplyUndo(null);
   }, []);
 
   const handlePreviewScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
@@ -1948,6 +1986,7 @@ export default function OrderConvertPage() {
           setSortConfig(null);
           setUnknownHeadersWarning([]);
           setSelectedFileName(null);
+          resetBundleShippingUi();
 
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
@@ -2341,21 +2380,97 @@ export default function OrderConvertPage() {
 
                   {previewRows.length > 0 &&
                     courierHeaders.length > 0 &&
-                    bundleShippingGroupCount > 0 &&
-                    bundleShippingDetection.columns && (
-                      <button
-                        type="button"
-                        className={`inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-violet-500/80 bg-violet-50 px-3 text-sm font-medium text-violet-900 transition hover:bg-violet-100 ${
-                          !bundleShippingButtonAcked ? 'animate-pulse ring-2 ring-violet-400/80' : ''
-                        }`}
-                        onClick={() => {
-                          setBundleShippingButtonAcked(true);
-                          setIsBundleShippingModalOpen(true);
-                        }}
-                      >
-                        묶음배송가능건확인 ({bundleShippingGroupCount}그룹 · {bundleShippingRowCount}건)
-                      </button>
-                    )}
+                    bundleShippingDetection.columns &&
+                    (bundleApplyUndo ? (
+                      <div className="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                        <div className="min-w-0 rounded-lg border border-violet-400/70 bg-violet-50 px-3 py-2 text-sm leading-snug text-violet-950">
+                          <p className="font-semibold">묶음배송 정리 적용됨</p>
+                          <p className="mt-0.5 text-violet-900/90">
+                            삭제 <b className="text-red-600">{bundleApplyUndo.summary.deletedRowCount}</b>
+                            건 · 개별배송{' '}
+                            <b>{bundleApplyUndo.summary.individualGroupCount}</b>그룹 · 묶음결정{' '}
+                            <b>{bundleApplyUndo.summary.bundleDoneGroupCount}</b>그룹 (미리보기{' '}
+                            <b className="text-green-700">
+                              {bundleApplyUndo.summary.bundlePreviewRowCount}
+                            </b>
+                            건)
+                            {bundleApplyUndo.summary.modifiedOverrideCount > 0 && (
+                              <>
+                                {' '}
+                                · 수정 <b className="text-blue-600">{bundleApplyUndo.summary.modifiedOverrideCount}</b>건
+                              </>
+                            )}
+                          </p>
+                          {(bundleApplyUndo.summary.individualGroupLabels.length > 0 ||
+                            bundleApplyUndo.summary.bundleDoneGroupLabels.length > 0) && (
+                            <p className="mt-1 text-xs text-violet-800/80 line-clamp-2">
+                              {bundleApplyUndo.summary.bundleDoneGroupLabels.length > 0 && (
+                                <span>
+                                  묶음: {bundleApplyUndo.summary.bundleDoneGroupLabels.join(', ')}
+                                </span>
+                              )}
+                              {bundleApplyUndo.summary.individualGroupLabels.length > 0 && (
+                                <span>
+                                  {bundleApplyUndo.summary.bundleDoneGroupLabels.length > 0
+                                    ? ' · '
+                                    : ''}
+                                  개별: {bundleApplyUndo.summary.individualGroupLabels.join(', ')}
+                                </span>
+                              )}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-shrink-0 flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex h-9 items-center justify-center rounded border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 hover:bg-gray-100"
+                            onClick={handleUndoBundleShippingApply}
+                          >
+                            방금 적용 취소
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 items-center justify-center rounded border border-violet-500/80 bg-violet-50 px-3 text-sm font-medium text-violet-900 hover:bg-violet-100"
+                            onClick={() => {
+                              setBundleShippingButtonAcked(true);
+                              setIsBundleShippingModalOpen(true);
+                            }}
+                          >
+                            묶음배송 다시 검수
+                          </button>
+                          {bundleShippingGroupCount > 0 && (
+                            <button
+                              type="button"
+                              className="inline-flex h-9 items-center justify-center rounded border border-violet-500/80 bg-white px-3 text-sm font-medium text-violet-900 hover:bg-violet-50"
+                              onClick={() => {
+                                setBundleShippingButtonAcked(true);
+                                setIsBundleShippingModalOpen(true);
+                              }}
+                            >
+                              추가 후보 ({bundleShippingGroupCount}그룹)
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      bundleShippingGroupCount > 0 && (
+                        <button
+                          type="button"
+                          className={`inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-violet-500/80 bg-violet-50 px-3 text-sm font-medium text-violet-900 transition hover:bg-violet-100 ${
+                            !bundleShippingButtonAcked
+                              ? 'animate-pulse ring-2 ring-violet-400/80'
+                              : ''
+                          }`}
+                          onClick={() => {
+                            setBundleShippingButtonAcked(true);
+                            setIsBundleShippingModalOpen(true);
+                          }}
+                        >
+                          묶음배송가능건확인 ({bundleShippingGroupCount}그룹 ·{' '}
+                          {bundleShippingRowCount}건)
+                        </button>
+                      )
+                    ))}
                 </div>
 
                 {previewRows.length > 0 && courierHeaders.length > 0 && (
