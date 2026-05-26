@@ -68,3 +68,17 @@ export function openFavoriteMallUrl(url: string): boolean {
   window.open(normalized, '_blank', 'noopener,noreferrer');
   return true;
 }
+
+/** 등록된 URL(중복 제외)을 순서대로 새 창으로 엽니다. 열린 개수를 반환합니다. */
+export function openAllFavoriteMallUrls(entries: FavoriteMallEntry[]): number {
+  const seen = new Set<string>();
+  let opened = 0;
+  for (const entry of entries) {
+    const normalized = normalizeFavoriteMallUrl(entry.url);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    window.open(normalized, '_blank', 'noopener,noreferrer');
+    opened += 1;
+  }
+  return opened;
+}

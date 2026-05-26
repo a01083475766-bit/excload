@@ -1,25 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useUserStore } from "@/app/store/userStore";
 import {
   createEmptyFavoriteMallEntry,
   loadFavoriteMalls,
+  openAllFavoriteMallUrls,
   openFavoriteMallUrl,
   saveFavoriteMalls,
   type FavoriteMallEntry,
 } from "@/app/lib/favorite-malls-storage";
 
-type FavoriteMallsPanelProps = {
-  backHref?: string;
-  backLabel?: string;
-};
-
-export default function FavoriteMallsPanel({
-  backHref = "/mypage",
-  backLabel = "← 마이페이지로 돌아가기",
-}: FavoriteMallsPanelProps) {
+export default function FavoriteMallsPanel() {
   const user = useUserStore((state) => state.user);
   const storageUserId = user?.userId ?? null;
   const [entries, setEntries] = useState<FavoriteMallEntry[]>([]);
@@ -62,6 +54,13 @@ export default function FavoriteMallsPanel({
       window.alert("URL 주소를 입력해 주세요.");
     }
   }, []);
+
+  const handleOpenAll = useCallback(() => {
+    const opened = openAllFavoriteMallUrls(entries);
+    if (opened === 0) {
+      window.alert("열 수 있는 URL이 없습니다. URL 주소를 입력해 주세요.");
+    }
+  }, [entries]);
 
   if (!hydrated) {
     return (
@@ -148,22 +147,22 @@ export default function FavoriteMallsPanel({
         </table>
       </div>
 
-      <button
-        type="button"
-        onClick={addRow}
-        className="mt-4 rounded-lg border border-dashed border-blue-300 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/40"
-      >
-        추가하기
-      </button>
-
-      {backHref ? (
-        <Link
-          href={backHref}
-          className="mt-8 inline-block text-sm text-gray-500 underline hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          onClick={handleOpenAll}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
         >
-          {backLabel}
-        </Link>
-      ) : null}
+          새창으로 모두열기
+        </button>
+        <button
+          type="button"
+          onClick={addRow}
+          className="rounded-lg border border-dashed border-blue-300 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/40"
+        >
+          추가하기
+        </button>
+      </div>
     </div>
   );
 }
