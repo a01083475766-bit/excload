@@ -71,6 +71,10 @@ import {
   removeLocalStorageForUser,
 } from '@/app/lib/scoped-local-storage';
 
+/** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
+const PREVIEW_TOOLBAR_BTN =
+  'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
+
 interface CourierUploadHeader {
   name: string;
   index: number;
@@ -2348,7 +2352,8 @@ export default function OrderConvertPage() {
                 <div className="row-start-1 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
-                      className="inline-flex h-9 w-20 flex-shrink-0 items-center justify-center rounded border text-sm transition"
+                      type="button"
+                      className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
                       onClick={() => setIsPreviewExpanded(prev => !prev)}
                     >
                       {isPreviewExpanded ? '닫기' : '펼치기'}
@@ -2358,40 +2363,45 @@ export default function OrderConvertPage() {
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
                       type="button"
-                      className="inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
+                      className={`${PREVIEW_TOOLBAR_BTN} border-amber-500/80 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
                       onClick={() => setIsPreviewResetModalOpen(true)}
                     >
                       미리보기 초기화
                     </button>
                   )}
 
-                  <div className="flex w-20 flex-shrink-0 justify-start">
-                    {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
-                      <button
-                        className="inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700"
-                        onClick={() => {
-                          setIsDeleteModalOpen(true);
-                        }}
-                      >
-                        선택 삭제
-                      </button>
-                    )}
-                  </div>
+                  {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
+                    <button
+                      type="button"
+                      className={`${PREVIEW_TOOLBAR_BTN} border-red-600 bg-red-600 text-white hover:bg-red-700`}
+                      onClick={() => {
+                        setIsDeleteModalOpen(true);
+                      }}
+                    >
+                      선택 삭제
+                    </button>
+                  )}
 
                   {previewRows.length > 0 &&
                     courierHeaders.length > 0 &&
                     bundleShippingDetection.columns &&
                     (bundleApplyUndo ? (
                       <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                        <p className="whitespace-nowrap rounded-lg border border-violet-400/70 bg-violet-50 px-3 py-2 text-sm text-violet-950">
+                        <div
+                          className={`${PREVIEW_TOOLBAR_BTN} whitespace-nowrap border-violet-400/70 bg-violet-50 font-normal text-violet-950`}
+                        >
                           묶음 : 삭제{' '}
-                          <b className="text-red-600">{bundleApplyUndo.summary.deletedRowCount}</b>건 ·
-                          개별배송 <b>{bundleApplyUndo.summary.individualGroupCount}</b>그룹 · 묶음결정{' '}
-                          <b>{bundleApplyUndo.summary.bundleDoneGroupCount}</b>그룹
-                        </p>
+                          <b className="font-medium text-red-600">
+                            {bundleApplyUndo.summary.deletedRowCount}
+                          </b>
+                          건 · 개별배송{' '}
+                          <b className="font-medium">{bundleApplyUndo.summary.individualGroupCount}</b>
+                          그룹 · 묶음결정{' '}
+                          <b className="font-medium">{bundleApplyUndo.summary.bundleDoneGroupCount}</b>그룹
+                        </div>
                         <button
                           type="button"
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 hover:bg-gray-100"
+                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
                           onClick={handleUndoBundleShippingApply}
                         >
                           묶음배송 적용취소
@@ -2401,7 +2411,7 @@ export default function OrderConvertPage() {
                       bundleShippingGroupCount > 0 && (
                         <button
                           type="button"
-                          className={`inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-violet-500/80 bg-violet-50 px-3 text-sm font-medium text-violet-900 transition hover:bg-violet-100 ${
+                          className={`${PREVIEW_TOOLBAR_BTN} border-violet-500/80 bg-violet-50 text-violet-900 hover:bg-violet-100 ${
                             !bundleShippingButtonAcked
                               ? 'animate-pulse ring-2 ring-violet-400/80'
                               : ''
@@ -2437,8 +2447,8 @@ export default function OrderConvertPage() {
                     {hasMorePreviewRows && (
                       <>
                         <button
-                          className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
                           type="button"
+                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
                           onClick={() =>
                             setRenderedRowCount((prev) =>
                               Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
@@ -2448,8 +2458,8 @@ export default function OrderConvertPage() {
                           추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
                         </button>
                         <button
-                          className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
                           type="button"
+                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
                           onClick={() => setRenderedRowCount(sortedRows.length)}
                         >
                           전체 보기
