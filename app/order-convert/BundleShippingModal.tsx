@@ -648,8 +648,7 @@ export function BundleShippingModal({
                   <div className="flex flex-col overflow-hidden rounded-lg border border-gray-300 bg-white">
                     {activeGroupDeletedCount > 0 && (
                       <p className="border-b border-red-100 bg-red-50/50 px-3 py-1.5 text-xs text-red-700">
-                        삭제 예정 행은 빨간 점선·취소선으로 표시됩니다. 미리보기에 적용할 때
-                        제외됩니다.
+                        삭제 예정 행은 취소선으로 표시됩니다. 미리보기에 적용할 때 제외됩니다.
                       </p>
                     )}
                     <div className="overflow-auto">
@@ -807,8 +806,8 @@ export function BundleShippingModal({
           <div className={SUB_MODAL_PANEL}>
             <h5 className="text-lg font-semibold text-gray-900">묶음배송결정이 필요합니다</h5>
             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-              이 그룹은 아직 <strong className="text-violet-900">묶음배송결정</strong>이 없습니다.
-              다른 그룹으로 이동하기 전에 처리 방식을 선택해 주세요.
+              이 그룹은 아직 <strong className="text-violet-900">묶음배송결정</strong>이 완료되지
+              않았습니다. 다른 그룹으로 이동하기 전에 처리 방식을 선택해 주세요.
             </p>
             {!canCompleteBundleEdit && (
               <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">

@@ -25,7 +25,7 @@ export type OrderConvertPreviewTableRowProps = {
   onFinishEditUi: () => void;
   /** false면 체크·셀 수정 비활성 (묶음 후보 검수 모달 등) */
   interactionEnabled?: boolean;
-  /** 삭제 예정 표시 (행 유지, 취소선·점선) */
+  /** 삭제 예정 표시 (행 유지, 취소선) */
   markedForDeletion?: boolean;
 };
 
@@ -47,7 +47,7 @@ function OrderConvertPreviewTableRowInner({
   markedForDeletion = false,
 }: OrderConvertPreviewTableRowProps) {
   const rowTone = markedForDeletion
-    ? 'bg-rose-50/80 border-b-2 border-dashed border-red-300'
+    ? 'bg-rose-50/80'
     : isSelected
       ? 'bg-blue-100'
       : isNewRow
@@ -71,14 +71,17 @@ function OrderConvertPreviewTableRowInner({
       <td
         className={`sticky left-0 z-10 border border-gray-300 px-2 py-1 border-b whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)] ${stickyBg}`}
       >
-        <input
-          type="checkbox"
-          checked={isSelected}
-          disabled={!interactionEnabled || markedForDeletion}
-          onChange={(e) => onToggleSelect(row.rowId, e.target.checked)}
-        />
-        {markedForDeletion && (
-          <span className="mt-0.5 block text-[10px] font-medium text-red-600">삭제 예정</span>
+        {markedForDeletion ? (
+          <span className="inline-block text-[11px] font-semibold leading-tight text-red-600">
+            삭제 예정
+          </span>
+        ) : (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            disabled={!interactionEnabled}
+            onChange={(e) => onToggleSelect(row.rowId, e.target.checked)}
+          />
         )}
       </td>
       {courierHeaders.map((header) => {
