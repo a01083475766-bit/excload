@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { firstSheetHasPopulatedCells } from '@/app/lib/excel/sheet-header';
 import {
   EXCEL_DECRYPT_FAILED_MESSAGE,
   EXCEL_SECURITY_DOCUMENT_MESSAGE,
@@ -15,18 +16,9 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-/** SheetJS로 읽을 수 있는지 빠르게 확인 */
+/** SheetJS로 읽을 수 있는지 빠르게 확인 (과대 !ref 시 빈 100만 행 sheet_to_json 방지) */
 export function canReadExcelWithSheetJs(buffer: ArrayBuffer): boolean {
-  try {
-    const workbook = XLSX.read(buffer, { type: 'array' });
-    if (!workbook.SheetNames?.length) return false;
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    if (!sheet) return false;
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
-    return rows.length > 0;
-  } catch {
-    return false;
-  }
+  return firstSheetHasPopulatedCells(buffer);
 }
 
 export function isZipFileName(fileName: string): boolean {
@@ -179,10 +171,6 @@ export async function probeExcelUploadFile(file: File): Promise<ExcelUnlockProbe
 
   const buffer = await file.arrayBuffer();
 
-  if (canReadExcelWithSheetJs(buffer)) {
-    return { action: 'use_plain', buffer };
-  }
-
   let encrypted = false;
   try {
     encrypted = await detectOfficeEncryption(buffer);
@@ -195,6 +183,16 @@ export async function probeExcelUploadFile(file: File): Promise<ExcelUnlockProbe
 
   if (encrypted) {
     return { action: 'need_password', kind: 'excel', buffer };
+  }
+
+  // 암호 없음: probe에서 전체 시트 파싱·sheet_to_json 생략(과대 !ref 파일 20초+ 방지)
+  try {
+    const workbook = XLSX.read(buffer, { type: 'array', bookSheets: true });
+    if (workbook.SheetNames?.length) {
+      return { action: 'use_plain', buffer };
+    }
+  } catch {
+    // fall through
   }
 
   return {

@@ -8,6 +8,14 @@ import * as XLSX from 'xlsx';
 
 type WorkSheet = XLSX.WorkSheet;
 
+/** 업로드·probe 공통 — 스타일/수식 포맷 파싱 생략으로 읽기 부담 완화 */
+export const XLSX_UPLOAD_READ_OPTIONS: XLSX.ParsingOptions = {
+  type: 'array',
+  cellStyles: false,
+  cellNF: false,
+  cellHTML: false,
+};
+
 /**
  * 시트에 실제로 값이 있는 셀만 스캔해 사용 범위를 구한다.
  * Excel에서 행을 삭제해도 !ref가 수십만 행으로 남는 파일(빈 행 대량 생성) 방지용.
@@ -100,8 +108,22 @@ export function alignRowsFromHeader(rows: string[][], headerIndex: number): stri
 /**
  * 첫 시트를 header:1 2차원 배열로 읽기 (XLSX 공통)
  */
+/** probe·암호 해제 판별용 — 전체 sheet_to_json 없이 데이터 존재만 확인 */
+export function firstSheetHasPopulatedCells(buffer: ArrayBuffer): boolean {
+  try {
+    const workbook = XLSX.read(buffer, XLSX_UPLOAD_READ_OPTIONS);
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = firstSheetName ? workbook.Sheets[firstSheetName] : undefined;
+    if (!worksheet) return false;
+    clipWorksheetToPopulatedRange(worksheet);
+    return computePopulatedSheetRange(worksheet) != null;
+  } catch {
+    return false;
+  }
+}
+
 export function readFirstSheetMatrixFromArrayBuffer(buffer: ArrayBuffer): unknown[][] {
-  const workbook = XLSX.read(buffer, { type: 'array' });
+  const workbook = XLSX.read(buffer, XLSX_UPLOAD_READ_OPTIONS);
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
   if (!worksheet) {

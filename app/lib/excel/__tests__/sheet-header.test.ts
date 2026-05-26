@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import * as XLSX from 'xlsx';
+import fs from 'fs';
 import {
   clipWorksheetToPopulatedRange,
   computePopulatedSheetRange,
+  firstSheetHasPopulatedCells,
+  readFirstSheetMatrixFromArrayBuffer,
 } from '@/app/lib/excel/sheet-header';
 
 describe('sheet-header populated range', () => {
@@ -25,4 +28,17 @@ describe('sheet-header populated range', () => {
   test('computePopulatedSheetRange returns null for empty sheet', () => {
     expect(computePopulatedSheetRange({ '!ref': 'A1:Z100' })).toBeNull();
   });
+
+  test('inflated !ref: matrix read returns only populated rows', () => {
+    const fixture =
+      'c:/Users/my pc/OneDrive/Desktop/주문파일 - 복사본100 - 복사본.xlsx';
+    if (!fs.existsSync(fixture)) return;
+
+    const buf = fs.readFileSync(fixture);
+    const arrayBuf = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+
+    const matrix = readFirstSheetMatrixFromArrayBuffer(arrayBuf);
+    expect(matrix.length).toBeLessThan(20);
+    expect(firstSheetHasPopulatedCells(arrayBuf)).toBe(true);
+  }, 20_000);
 });
