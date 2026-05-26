@@ -386,6 +386,19 @@ export function BundleShippingModal({
     return orig.rowIds.filter((id) => removedRowIds.has(id)).length;
   };
 
+  /** 미리보기에 반영될 건수 (미결정 그룹은 null) */
+  const getGroupPreviewApplyCount = (
+    groupId: string,
+    decision: BundleGroupDecision,
+    rowIds: string[],
+  ): number | null => {
+    const orig = originalGroupsRef.current.find((g) => g.groupId === groupId);
+    if (!orig) return null;
+    if (decision === 'undecided') return null;
+    if (decision === 'individual') return orig.rowIds.length;
+    return rowIds.filter((id) => !removedRowIds.has(id)).length;
+  };
+
   const activeGroupDeletedCount = activeGroupId ? getGroupDeletedCount(activeGroupId) : 0;
 
   const activeGroupRemainingCount = useMemo(() => {
@@ -464,6 +477,7 @@ export function BundleShippingModal({
                   const decision = groupDecisions[g.groupId] ?? 'undecided';
                   const isActive = g.groupId === activeGroupId;
                   const del = getGroupDeletedCount(g.groupId);
+                  const previewApply = getGroupPreviewApplyCount(g.groupId, decision, g.rowIds);
                   const edits =
                     decision === 'bundle_done' || decision === 'bundle_editing'
                       ? countModifiedRows(g.rowIds, draftOverrides, userOverrides)
@@ -488,10 +502,16 @@ export function BundleShippingModal({
                             <div className="mt-0.5 text-xs text-gray-500 line-clamp-1">
                               {meta?.displayPhone}
                             </div>
-                            <div className="mt-1 text-xs text-gray-600">
+                            <div className="mt-1 text-xs leading-relaxed text-gray-600">
                               총 {g.rowIds.length}건
                               {del > 0 && <span className="text-red-600"> · 삭제 {del}</span>}
                               {edits > 0 && <span className="text-blue-600"> · 수정 {edits}</span>}
+                              {previewApply !== null && (
+                                <span className="text-green-700">
+                                  {' '}
+                                  · 미리보기 {previewApply}건 적용
+                                </span>
+                              )}
                             </div>
                           </div>
                           <StatusPill decision={decision} />
@@ -519,14 +539,15 @@ export function BundleShippingModal({
                           {activeGroupMeta.displayPhone} · {activeGroupMeta.displayAddress}
                         </p>
                       </div>
-                      {(activeDecision === 'bundle_editing' ||
-                        activeDecision === 'bundle_done') && (
-                        <div className="rounded-xl bg-gray-50 px-4 py-2 text-sm text-gray-600 ring-1 ring-gray-200">
-                          삭제 예정{' '}
-                          <b className="text-red-600">{activeGroupDeletedCount}건</b> · 수정 반영{' '}
-                          <b className="text-blue-600">{activeGroupEditCount}건</b>
-                        </div>
-                      )}
+                      <div
+                        className="flex h-10 shrink-0 items-center whitespace-nowrap rounded-xl bg-gray-50 px-4 text-sm text-gray-600 ring-1 ring-gray-200"
+                        aria-live="polite"
+                      >
+                        삭제 예정{' '}
+                        <b className="tabular-nums text-red-600">{activeGroupDeletedCount}건</b> ·
+                        수정 반영{' '}
+                        <b className="tabular-nums text-blue-600">{activeGroupEditCount}건</b>
+                      </div>
                     </div>
 
                     <div className="mt-4 flex flex-wrap items-center gap-2">
