@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, CheckCircle2, PackageCheck, RotateCcw, Trash2, X } from 'lucide-react';
+import { CheckCircle2, PackageCheck, RotateCcw, Trash2, X } from 'lucide-react';
 import {
   OrderConvertPreviewTableRow,
   type PreviewRowWithId,
@@ -538,19 +538,19 @@ export function BundleShippingModal({
                       )}
 
                       {activeDecision === 'individual' && (
-                        <>
-                          <p className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                        <div className="flex w-full flex-wrap items-center gap-2">
+                          <p className="max-w-md rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-800">
                             이 주문건들은 개별배송으로 유지합니다. 미리보기에 그대로 반영됩니다.
                           </p>
                           <button
                             type="button"
-                            className={BTN_SECONDARY}
+                            className={`${BTN_SECONDARY} shrink-0`}
                             onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
                           >
                             <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                             되돌리기
                           </button>
-                        </>
+                        </div>
                       )}
 
                       {activeDecision === 'bundle_editing' && (
@@ -586,14 +586,14 @@ export function BundleShippingModal({
                       )}
 
                       {activeDecision === 'bundle_done' && (
-                        <>
-                          <p className="w-full rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
+                        <div className="flex w-full flex-wrap items-center gap-2">
+                          <p className="max-w-md rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
                             이 그룹의 묶음배송이 결정되었습니다. 묶음 처리된 주문건만 미리보기에
                             반영됩니다.
                           </p>
                           <button
                             type="button"
-                            className={BTN_SECONDARY}
+                            className={`${BTN_SECONDARY} shrink-0`}
                             onClick={() =>
                               activeGroupId &&
                               setGroupDecisions((prev) => ({
@@ -605,13 +605,14 @@ export function BundleShippingModal({
                             <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                             되돌리기
                           </button>
-                        </>
+                        </div>
                       )}
                     </div>
 
                     {activeDecision === 'undecided' && (
                       <p className="mt-3 text-xs text-gray-500">
-                        먼저 배송 방식을 선택해 주세요. 선택 전에는 삭제·수정할 수 없습니다.
+                        먼저 배송 방식을 선택해 주세요. 삭제·수정등 결정된 내용만 미리보기에
+                        반영됩니다.
                       </p>
                     )}
 
@@ -637,14 +638,6 @@ export function BundleShippingModal({
                         )}
                       </p>
                     )}
-
-                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900 ring-1 ring-amber-100">
-                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                      <p>
-                        이 화면은 정리 보조입니다. 여러 주문을 자동으로 1건으로 합치지 않으며,
-                        삭제·수정한 내용만 미리보기에 반영됩니다.
-                      </p>
-                    </div>
                   </section>
                 )}
 
