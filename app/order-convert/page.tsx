@@ -2382,75 +2382,20 @@ export default function OrderConvertPage() {
                     courierHeaders.length > 0 &&
                     bundleShippingDetection.columns &&
                     (bundleApplyUndo ? (
-                      <div className="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                        <div className="min-w-0 rounded-lg border border-violet-400/70 bg-violet-50 px-3 py-2 text-sm leading-snug text-violet-950">
-                          <p className="font-semibold">묶음배송 정리 적용됨</p>
-                          <p className="mt-0.5 text-violet-900/90">
-                            삭제 <b className="text-red-600">{bundleApplyUndo.summary.deletedRowCount}</b>
-                            건 · 개별배송{' '}
-                            <b>{bundleApplyUndo.summary.individualGroupCount}</b>그룹 · 묶음결정{' '}
-                            <b>{bundleApplyUndo.summary.bundleDoneGroupCount}</b>그룹 (미리보기{' '}
-                            <b className="text-green-700">
-                              {bundleApplyUndo.summary.bundlePreviewRowCount}
-                            </b>
-                            건)
-                            {bundleApplyUndo.summary.modifiedOverrideCount > 0 && (
-                              <>
-                                {' '}
-                                · 수정 <b className="text-blue-600">{bundleApplyUndo.summary.modifiedOverrideCount}</b>건
-                              </>
-                            )}
-                          </p>
-                          {(bundleApplyUndo.summary.individualGroupLabels.length > 0 ||
-                            bundleApplyUndo.summary.bundleDoneGroupLabels.length > 0) && (
-                            <p className="mt-1 text-xs text-violet-800/80 line-clamp-2">
-                              {bundleApplyUndo.summary.bundleDoneGroupLabels.length > 0 && (
-                                <span>
-                                  묶음: {bundleApplyUndo.summary.bundleDoneGroupLabels.join(', ')}
-                                </span>
-                              )}
-                              {bundleApplyUndo.summary.individualGroupLabels.length > 0 && (
-                                <span>
-                                  {bundleApplyUndo.summary.bundleDoneGroupLabels.length > 0
-                                    ? ' · '
-                                    : ''}
-                                  개별: {bundleApplyUndo.summary.individualGroupLabels.join(', ')}
-                                </span>
-                              )}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-shrink-0 flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className="inline-flex h-9 items-center justify-center rounded border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 hover:bg-gray-100"
-                            onClick={handleUndoBundleShippingApply}
-                          >
-                            방금 적용 취소
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex h-9 items-center justify-center rounded border border-violet-500/80 bg-violet-50 px-3 text-sm font-medium text-violet-900 hover:bg-violet-100"
-                            onClick={() => {
-                              setBundleShippingButtonAcked(true);
-                              setIsBundleShippingModalOpen(true);
-                            }}
-                          >
-                            묶음배송 다시 검수
-                          </button>
-                          {bundleShippingGroupCount > 0 && (
-                            <button
-                              type="button"
-                              className="inline-flex h-9 items-center justify-center rounded border border-violet-500/80 bg-white px-3 text-sm font-medium text-violet-900 hover:bg-violet-50"
-                              onClick={() => {
-                                setBundleShippingButtonAcked(true);
-                                setIsBundleShippingModalOpen(true);
-                              }}
-                            >
-                              추가 후보 ({bundleShippingGroupCount}그룹)
-                            </button>
-                          )}
-                        </div>
+                      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                        <p className="whitespace-nowrap rounded-lg border border-violet-400/70 bg-violet-50 px-3 py-2 text-sm text-violet-950">
+                          묶음 : 삭제{' '}
+                          <b className="text-red-600">{bundleApplyUndo.summary.deletedRowCount}</b>건 ·
+                          개별배송 <b>{bundleApplyUndo.summary.individualGroupCount}</b>그룹 · 묶음결정{' '}
+                          <b>{bundleApplyUndo.summary.bundleDoneGroupCount}</b>그룹
+                        </p>
+                        <button
+                          type="button"
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 hover:bg-gray-100"
+                          onClick={handleUndoBundleShippingApply}
+                        >
+                          묶음배송 적용취소
+                        </button>
                       </div>
                     ) : (
                       bundleShippingGroupCount > 0 && (
