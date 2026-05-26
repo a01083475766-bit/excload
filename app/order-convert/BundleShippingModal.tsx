@@ -433,13 +433,13 @@ export function BundleShippingModal({
                     후보 {groupDrafts.length}그룹 · {totalCandidateRows}건
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-gray-500">
-                  자동으로 합치지 않습니다. 후보를 확인한 뒤 그룹마다{' '}
-                  <span className="font-medium text-gray-700">개별배송</span> 또는{' '}
-                  <span className="font-medium text-violet-900">묶음배송</span>을 정해 주세요.
+                <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                  등록 양식 기준: 수령인 이름 · 연락처 · 배송지 주소로 묶음배송가능건으로
+                  확인하였습니다.
                 </p>
-                <p className="mt-0.5 text-xs text-gray-400">
-                  판단 기준: 수령인 이름 · 연락처 · 배송지 주소 (등록 양식 매핑 열 기준)
+                <p className="mt-0.5 text-sm leading-relaxed text-gray-500">
+                  각 주문건을 확인후 개별배송 또는 묶음배송을 정해 주세요. (자동으로 합치지
+                  않습니다.)
                 </p>
               </div>
             </div>
@@ -592,9 +592,8 @@ export function BundleShippingModal({
 
                       {activeDecision === 'bundle_done' && (
                         <div className="flex w-full flex-wrap items-center gap-2">
-                          <p className="max-w-md rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">
-                            묶음배송이 결정되었습니다. 삭제예정 주문건은 제외하고 미리보기에
-                            반영됩니다.
+                          <p className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900 sm:whitespace-nowrap">
+                            묶음배송이 결정되었습니다. 삭제예정 주문건은 제외하고 미리보기에 반영됩니다.
                           </p>
                           <button
                             type="button"
@@ -630,9 +629,8 @@ export function BundleShippingModal({
                           </>
                         ) : activeGroupDeletedCount === 0 ? (
                           <>
-                            주문건 1건 이상 삭제·수정 후 「묶음배송결정」을 누를 수 있습니다.
-                            묶음배송이 필요 없으면 「되돌리기」 후 「개별배송하기」를 선택해
-                            주세요.
+                            주문건 1건 이상 삭제·수정 후 「묶음배송결정」할 수 있습니다. 개별발송을
+                            원하시면 「되돌리기」 후 「개별배송하기」를 선택해 주세요.
                           </>
                         ) : (
                           <>
