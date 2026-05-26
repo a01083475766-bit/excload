@@ -77,9 +77,14 @@ export default function FavoriteMallsPanel() {
       </h1>
 
       <p className="text-sm text-gray-600 dark:text-zinc-400 mb-6 leading-relaxed">
-        자주 찾는 쇼핑몰 주소를 등록해 두면, 엑클로드에서 바로 해당 사이트로
-        이동해 주문·배송 업무를 이어갈 수 있습니다. 등록한 주소는 이 기기·브라우저에
-        저장되며, 로그인하시면 계정별로 따로 보관됩니다.
+        자주 사용하는 쇼핑몰 주소를 저장해두고 클릭 한 번으로 바로 이동해보세요.
+        <br />
+        주문조회·배송관리·엑셀다운로드 페이지 같은 자주 사용하는 상세 주소도 등록할 수
+        있습니다.
+        <br />
+        <span className="text-zinc-500 dark:text-zinc-500">
+          예) https://sell.smartstore.naver.com/o/orders
+        </span>
       </p>
 
       <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
