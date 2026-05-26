@@ -64,14 +64,14 @@ export default function FavoriteMallsPanel() {
 
   if (!hydrated) {
     return (
-      <div className="p-6 max-w-3xl mx-auto">
+      <div className="mx-auto max-w-3xl p-6 pb-4">
         <p className="text-sm text-gray-500">불러오는 중…</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="mx-auto max-w-3xl p-6 pb-4">
       <h1 className="text-xl font-bold mb-3 text-zinc-900 dark:text-zinc-100">
         즐겨찾는 쇼핑몰
       </h1>
