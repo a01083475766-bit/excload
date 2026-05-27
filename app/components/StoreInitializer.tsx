@@ -121,6 +121,20 @@ export default function StoreInitializer() {
     }
   }, [pathname, uploadedFiles, currentFilePreviewData]);
 
+  // 새로고침(F5) / 문서 언로드 시: 미리보기 세션을 항상 비웁니다.
+  // SPA 라우팅(다른 메뉴 이동)은 "문서 언로드"가 아니므로 유지됩니다.
+  useEffect(() => {
+    const clearOnUnload = () => {
+      clearAllPreviewWorkspacesInTab();
+    };
+    window.addEventListener('beforeunload', clearOnUnload);
+    window.addEventListener('pagehide', clearOnUnload);
+    return () => {
+      window.removeEventListener('beforeunload', clearOnUnload);
+      window.removeEventListener('pagehide', clearOnUnload);
+    };
+  }, []);
+
 
   return null;
 }
