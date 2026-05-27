@@ -87,20 +87,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type } = body;
     const session = await getServerSession(authOptions);
-    const referer = request.headers.get('referer') || '';
     const trialHeader = request.headers.get('x-excload-trial');
-    const isTrialReferer =
-      referer.includes('/trial') ||
-      referer.includes('/excload') ||
-      /https?:\/\/[^/]+\/?(?:\?|#|$)/.test(referer);
-    const isTrialRequest = trialHeader === '1' || isTrialReferer;
+    const isTrialRequest = trialHeader === '1';
     const allowAnonymousTrialTypes = new Set([
       'normalize-29',
       'header-map',
       'extract',
       'normalize',
     ]);
+    const allowAnonymousTrialByEnv = process.env.AI_ALLOW_ANONYMOUS_TRIAL === 'true';
     const allowAnonymousTrial =
+      allowAnonymousTrialByEnv &&
       isTrialRequest &&
       typeof type === 'string' &&
       allowAnonymousTrialTypes.has(type);
@@ -112,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (!session && allowAnonymousTrial) {
       console.log('[AI Gateway] trial anonymous request allowed:', {
         type,
-        referer,
+        byEnv: true,
       });
     }
 

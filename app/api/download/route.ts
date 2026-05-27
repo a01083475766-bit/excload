@@ -96,29 +96,52 @@ export async function POST(request: NextRequest) {
 
     // 6. 다운로드 성공 후 사용량 차감 (FREE 플랜만)
     if (user.plan === 'FREE') {
-      const updatedUser = await prisma.user.update({
-        where: { email: userEmail },
-        data: {
-          points: {
-            decrement: 1000,
+      const updatedUser = await prisma.$transaction(async (tx) => {
+        const deducted = await tx.user.updateMany({
+          where: {
+            id: user.id,
+            points: { gte: 1000 },
           },
-        },
-        select: {
-          id: true,
-          email: true,
-          plan: true,
-          points: true,
-        },
+          data: {
+            points: {
+              decrement: 1000,
+            },
+          },
+        });
+
+        if (deducted.count === 0) {
+          return null;
+        }
+
+        const freshUser = await tx.user.findUnique({
+          where: { id: user.id },
+          select: {
+            id: true,
+            email: true,
+            plan: true,
+            points: true,
+          },
+        });
+
+        if (!freshUser) return null;
+
+        await tx.pointHistory.create({
+          data: {
+            userId: freshUser.id,
+            change: -1000,
+            reason: 'DOWNLOAD_FILE',
+          },
+        });
+
+        return freshUser;
       });
 
-      // 사용량 차감 로그 기록
-      await prisma.pointHistory.create({
-        data: {
-          userId: updatedUser.id,
-          change: -1000,
-          reason: 'DOWNLOAD_FILE',
-        },
-      });
+      if (!updatedUser) {
+        return NextResponse.json(
+          { error: '사용량이 부족합니다.' },
+          { status: 400 }
+        );
+      }
 
       usedPoints = 1000;
     }

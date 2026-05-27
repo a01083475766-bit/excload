@@ -176,30 +176,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 9. 변환 성공 후 사용량 차감
-    const updatedUser = await prisma.user.update({
-      where: { email: userEmail },
-      data: {
-        points: {
-          decrement: textLength,
+    // 9. 변환 성공 후 사용량 차감 (원자적 차감: 동시 요청 과차감 방지)
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const deducted = await tx.user.updateMany({
+        where: {
+          id: user.id,
+          points: { gte: textLength },
         },
-      },
-      select: {
-        id: true,
-        email: true,
-        plan: true,
-        points: true,
-      },
+        data: {
+          points: {
+            decrement: textLength,
+          },
+        },
+      });
+
+      if (deducted.count === 0) return null;
+
+      const freshUser = await tx.user.findUnique({
+        where: { id: user.id },
+        select: {
+          id: true,
+          email: true,
+          plan: true,
+          points: true,
+        },
+      });
+
+      if (!freshUser) return null;
+
+      await tx.pointHistory.create({
+        data: {
+          userId: freshUser.id,
+          change: -textLength,
+          reason: 'TEXT_CONVERT',
+        },
+      });
+
+      return freshUser;
     });
 
-    // 사용량 차감 로그 기록
-    await prisma.pointHistory.create({
-      data: {
-        userId: updatedUser.id,
-        change: -textLength,
-        reason: 'TEXT_CONVERT',
-      },
-    });
+    if (!updatedUser) {
+      return NextResponse.json(
+        { error: '사용량이 부족합니다.' },
+        { status: 400 }
+      );
+    }
 
     // 10. 성공 응답 반환
     return NextResponse.json({
