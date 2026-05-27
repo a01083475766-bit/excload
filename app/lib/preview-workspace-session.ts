@@ -1,20 +1,40 @@
 /**
- * 미리보기·편집 작업을 sessionStorage에 임시 보관 (새로고침 복구, DB 미사용).
+ * 미리보기·편집·입력 UI 작업을 sessionStorage에 임시 보관 (페이지 이동·새로고침 복구, DB 미사용).
  * 계정별 키 분리. 로그아웃·계정 전환 시 제거.
  */
+
+import type { InputSourceCounts } from '@/app/lib/history-input-sources';
 
 export type PreviewWorkspacePageKey =
   | 'order-convert'
   | 'invoice-file-convert'
   | 'logistics-convert';
 
+export type WorkspaceFileMetaSnapshot = {
+  name: string;
+  size: number;
+  lastModified: number;
+  type: string;
+};
+
+export type WorkspaceInputSnapshot = {
+  selectedFileName: string | null;
+  uploadedFileMeta: WorkspaceFileMetaSnapshot[];
+  textInput: string;
+  inputSourceType: 'excel' | 'image' | 'text' | null;
+  sessionInputCounts: InputSourceCounts;
+  /** 송장 변환: 택배사 송장 엑셀 파일 메타 */
+  courierInvoiceFileMeta?: WorkspaceFileMetaSnapshot | null;
+};
+
 export type PreviewWorkspaceSnapshot = {
-  v: 1;
+  v: 1 | 2;
   savedAt: string;
   previewRows: Array<{ rowId: string; data: Record<string, string> }>;
   userOverrides: Record<string, Record<string, string>>;
   courierHeaders: string[];
   sortConfig: { header: string; direction: 'asc' | 'desc' } | null;
+  input?: WorkspaceInputSnapshot;
 };
 
 const BASE = 'excloud_preview_workspace';
@@ -23,6 +43,19 @@ const MAX_ROWS = 2500;
 function storageKey(page: PreviewWorkspacePageKey, userId: string | null): string {
   const scope = userId?.trim() ? userId.trim() : 'guest';
   return `${BASE}:${page}:${scope}`;
+}
+
+function normalizeSnapshot(parsed: unknown): PreviewWorkspaceSnapshot | null {
+  if (!parsed || typeof parsed !== 'object') return null;
+  const p = parsed as PreviewWorkspaceSnapshot;
+  if ((p.v !== 1 && p.v !== 2) || !Array.isArray(p.previewRows)) return null;
+  return {
+    ...p,
+    v: 2,
+    userOverrides: p.userOverrides ?? {},
+    courierHeaders: p.courierHeaders ?? [],
+    sortConfig: p.sortConfig ?? null,
+  };
 }
 
 export function savePreviewWorkspace(
@@ -40,7 +73,7 @@ export function savePreviewWorkspace(
   }
   try {
     const payload: PreviewWorkspaceSnapshot = {
-      v: 1,
+      v: 2,
       savedAt: new Date().toISOString(),
       ...snapshot,
     };
@@ -58,9 +91,7 @@ export function loadPreviewWorkspace(
   try {
     const raw = sessionStorage.getItem(storageKey(page, userId));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as PreviewWorkspaceSnapshot;
-    if (parsed?.v !== 1 || !Array.isArray(parsed.previewRows)) return null;
-    return parsed;
+    return normalizeSnapshot(JSON.parse(raw));
   } catch {
     return null;
   }

@@ -44,7 +44,12 @@ import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
-import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
+import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBridgeChange';
+import {
+  clearAllPreviewWorkspacesForScope,
+  clearPreviewWorkspace,
+  type WorkspaceFileMetaSnapshot,
+} from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
@@ -158,6 +163,15 @@ function isDummyTemplateCell(cellValue: string | undefined): boolean {
   ];
   
   return allPatterns.some(pattern => pattern.test(value));
+}
+
+function workspaceFileMetaFromFile(file: File): WorkspaceFileMetaSnapshot {
+  return {
+    name: file.name,
+    size: file.size,
+    lastModified: file.lastModified,
+    type: file.type,
+  };
 }
 
 const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean => {
@@ -311,6 +325,8 @@ export default function InvoiceFileConvertPage() {
   const [isDraggingCourier, setIsDraggingCourier] = useState(false);
   /** 택배사에서 받은 송장번호 엑셀 (후속 병합 단계에서 사용) */
   const [courierInvoiceFile, setCourierInvoiceFile] = useState<File | null>(null);
+  const [courierInvoiceFileMeta, setCourierInvoiceFileMeta] =
+    useState<WorkspaceFileMetaSnapshot | null>(null);
   const [downloadModalFileName, setDownloadModalFileName] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "processing" | "done">("idle");
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
@@ -375,6 +391,7 @@ export default function InvoiceFileConvertPage() {
   const clearUnlockUpload = useCallback(() => {
     if (unlockTargetRef.current === 'invoice') {
       setCourierInvoiceFile(null);
+      setCourierInvoiceFileMeta(null);
       unlockedInvoiceBufferRef.current = null;
     } else {
       setUploadedExcelFile(null);
@@ -621,6 +638,7 @@ export default function InvoiceFileConvertPage() {
       setTemplateBridgeFile(null);
       setUploadedExcelFile(null);
       setCourierInvoiceFile(null);
+      setCourierInvoiceFileMeta(null);
       unlockedOrderBufferRef.current = null;
       unlockedInvoiceBufferRef.current = null;
       setSelectedFiles([]);
@@ -686,6 +704,23 @@ export default function InvoiceFileConvertPage() {
       .map((header) => header.name);
   }, [courierUploadTemplate]);
 
+  const handleInvoicePreviewSessionRestored = useCallback(() => {
+    setPreviewReady(true);
+    setConversionProgress(100);
+    setFileProcessingStatus('done');
+  }, []);
+
+  const handleInvoiceTemplateBridgeChanged = useCallback(() => {
+    setPreviewRows([]);
+    setCourierHeaders([]);
+    setPreviewReady(false);
+    setConversionProgress(0);
+    if (previewRevealTimeoutRef.current) {
+      window.clearTimeout(previewRevealTimeoutRef.current);
+      previewRevealTimeoutRef.current = null;
+    }
+  }, []);
+
   usePreviewWorkspaceSession({
     pageKey: 'invoice-file-convert',
     enabled: authAssetsReady,
@@ -698,7 +733,32 @@ export default function InvoiceFileConvertPage() {
     setUserOverrides,
     setCourierHeaders,
     setSortConfig,
+    selectedFileName,
+    uploadedFileMeta: uploadedFileMeta.map((m) => ({
+      name: m.name,
+      size: m.size,
+      lastModified: 0,
+      type: '',
+    })),
+    textInput: '',
+    inputSourceType,
+    sessionInputCounts,
+    courierInvoiceFileMeta,
+    setSelectedFileName,
+    setUploadedFileMeta: (meta) =>
+      setUploadedFileMeta(meta.map(({ name, size }) => ({ name, size }))),
+    setTextInput: () => {},
+    setInputSourceType: (v) => {
+      if (v === 'excel' || v === null) setInputSourceType(v);
+    },
+    setSessionInputCounts,
+    setCourierInvoiceFileMeta,
+    onSessionRestored: (snap) => {
+      if (snap.previewRows.length > 0) handleInvoicePreviewSessionRestored();
+    },
   });
+
+  useClearPreviewOnBridgeChange(templateBridgeFile, handleInvoiceTemplateBridgeChanged);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !invoiceCourierHydratedRef.current || !authAssetsReady) return;
@@ -712,21 +772,6 @@ export default function InvoiceFileConvertPage() {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
   }, [fixedHeaderValues, storageUserId, authAssetsReady]);
-
-  // templateBridgeFile 변경 시 기존 Stage2/Stage3 결과 초기화
-  useEffect(() => {
-    if (!templateBridgeFile) return;
-
-    // 기존 변환 결과 초기화
-    setPreviewRows([]);
-    setCourierHeaders([]);
-    setPreviewReady(false);
-    setConversionProgress(0);
-    if (previewRevealTimeoutRef.current) {
-      window.clearTimeout(previewRevealTimeoutRef.current);
-      previewRevealTimeoutRef.current = null;
-    }
-  }, [templateBridgeFile]);
 
   // 점 애니메이션 처리 (파일 처리용)
   useEffect(() => {
@@ -742,6 +787,7 @@ export default function InvoiceFileConvertPage() {
   const clearOrderInputForTemplateChange = useCallback(() => {
     setUploadedExcelFile(null);
     setCourierInvoiceFile(null);
+    setCourierInvoiceFileMeta(null);
     setOrderStandardFile(null);
     setUploadedFileMeta([]);
     setPreviewReady(false);
@@ -1112,6 +1158,7 @@ export default function InvoiceFileConvertPage() {
       return;
     }
     setCourierInvoiceFile(file);
+    setCourierInvoiceFileMeta(workspaceFileMetaFromFile(file));
     recordWorkspaceInput('excel');
     void tryEagerUnlockInvoiceFile(file);
     if (e.target) e.target.value = '';
@@ -1277,6 +1324,7 @@ export default function InvoiceFileConvertPage() {
       return;
     }
     setCourierInvoiceFile(file);
+    setCourierInvoiceFileMeta(workspaceFileMetaFromFile(file));
     recordWorkspaceInput('excel');
     void tryEagerUnlockInvoiceFile(file);
   };
@@ -1634,6 +1682,8 @@ export default function InvoiceFileConvertPage() {
           setDownloadStatus("idle");
           setDownloadModalFileName(null);
 
+          clearPreviewWorkspace('invoice-file-convert', storageUserId);
+
           // 🔥 기존 초기화 유지
           setPreviewRows([]);
           setUserOverrides({});
@@ -1654,6 +1704,7 @@ export default function InvoiceFileConvertPage() {
           setUploadedFileMeta([]);
           clearWorkspaceInputTracking();
           setCourierInvoiceFile(null);
+          setCourierInvoiceFileMeta(null);
           unlockedOrderBufferRef.current = null;
           unlockedInvoiceBufferRef.current = null;
         }, 3000);
@@ -1666,6 +1717,7 @@ export default function InvoiceFileConvertPage() {
   };
 
   const applyInvoicePreviewWorkspaceReset = useCallback(() => {
+    clearPreviewWorkspace('invoice-file-convert', storageUserId);
     setPreviewRows([]);
     setCourierHeaders([]);
     setUserOverrides({});
@@ -1679,6 +1731,7 @@ export default function InvoiceFileConvertPage() {
     setCurrentFilePreviewData([]);
     setUploadedExcelFile(null);
     setCourierInvoiceFile(null);
+    setCourierInvoiceFileMeta(null);
     unlockedOrderBufferRef.current = null;
     unlockedInvoiceBufferRef.current = null;
     setUploadedFileMeta([]);
@@ -1697,7 +1750,7 @@ export default function InvoiceFileConvertPage() {
     if (courierFileInputRef.current) courierFileInputRef.current.value = '';
     if (courierInvoiceFileInputRef.current) courierInvoiceFileInputRef.current.value = '';
     setIsPreviewResetModalOpen(false);
-  }, []);
+  }, [clearWorkspaceInputTracking, storageUserId]);
 
   return (
     <>
@@ -1858,10 +1911,14 @@ export default function InvoiceFileConvertPage() {
                         <p className="text-xs text-gray-500">클릭하거나 드래그하여 업로드하세요</p>
                         <p className="text-xs text-gray-400 mt-1.5">(xlsx, xls)</p>
                       </div>
-                      {uploadedExcelFile && (
+                      {(uploadedExcelFile || uploadedFileMeta.length > 0 || selectedFileName) && (
                         <div className="flex items-center justify-center gap-3 mt-2 text-sm text-gray-600">
                           <span>
-                            📄 선택됨: {uploadedExcelFile.name}
+                            📄 선택됨:{' '}
+                            {uploadedExcelFile?.name ??
+                              selectedFileName ??
+                              uploadedFileMeta[0]?.name ??
+                              ''}
                             {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
                           </span>
                           <span className="w-[110px] text-right inline-block">
@@ -1926,7 +1983,7 @@ export default function InvoiceFileConvertPage() {
                         ? 'border-blue-500 bg-blue-100'
                         : courierDropzoneFlashPlaying
                           ? 'invoice-dropzone-double-flash'
-                          : courierInvoiceFile
+                          : courierInvoiceFile || courierInvoiceFileMeta
                             ? 'border-blue-300 bg-blue-50 hover:border-blue-400'
                             : 'border-gray-300 bg-gray-50 hover:border-blue-400'
                     }`}
@@ -1938,9 +1995,9 @@ export default function InvoiceFileConvertPage() {
                         <p className="text-xs text-gray-500">클릭하거나 드래그하여 업로드하세요</p>
                         <p className="text-xs text-gray-400 mt-1.5">(xlsx, xls)</p>
                       </div>
-                      {courierInvoiceFile && (
+                      {(courierInvoiceFile || courierInvoiceFileMeta) && (
                         <p className="mt-2 text-sm text-gray-600">
-                          📄 선택됨: {courierInvoiceFile.name}
+                          📄 선택됨: {courierInvoiceFile?.name ?? courierInvoiceFileMeta?.name ?? ''}
                         </p>
                       )}
                     </div>

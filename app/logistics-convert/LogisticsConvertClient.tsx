@@ -55,7 +55,11 @@ import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusB
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
-import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
+import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBridgeChange';
+import {
+  clearAllPreviewWorkspacesForScope,
+  clearPreviewWorkspace,
+} from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
 import {
   NormalizeQualityNoticeModal,
@@ -1392,6 +1396,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   /** 다운로드 완료 후와 동일 — 미리보기·입력 소스·파일 선택 상태만 정리 (양식/브릿지는 유지) */
   const applyPreviewWorkspaceReset = useCallback(() => {
+    clearPreviewWorkspace('logistics-convert', userId);
     resetBundleShippingUi();
     setPreviewRows([]);
     resetProductCodeColumnToggle();
@@ -1416,7 +1421,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setUploadedFileMeta([]);
     clearWorkspaceInputTracking();
     setSelectedImage(null);
-  }, [resetBundleShippingUi, resetProductCodeColumnToggle, clearWorkspaceInputTracking]);
+  }, [resetBundleShippingUi, resetProductCodeColumnToggle, clearWorkspaceInputTracking, userId]);
 
   /** 미리보기·입력 소스·변환 결과 비우기 (양식·브릿지·고정값은 유지). 확인 모달 후 실행 */
   const applyFullPreviewWorkspaceReset = useCallback(() => {
@@ -1762,6 +1767,19 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       .map((header) => header.name);
   }, [courierUploadTemplate]);
 
+  const handleLogisticsPreviewSessionRestored = useCallback(() => {
+    setFileProcessingStatus('done');
+  }, []);
+
+  const handleLogisticsTemplateBridgeChanged = useCallback(() => {
+    setPreviewRows([]);
+    setCourierHeaders([]);
+    resetProductCodeColumnToggle();
+    setColumnCodeMappingSnapshots({});
+    setColumnMappingStaging({});
+    setShowColumnCodeMappingModal(false);
+  }, [resetProductCodeColumnToggle]);
+
   usePreviewWorkspaceSession({
     pageKey: 'logistics-convert',
     enabled: authAssetsReady && !trialMode,
@@ -1774,7 +1792,28 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setUserOverrides,
     setCourierHeaders,
     setSortConfig,
+    selectedFileName,
+    uploadedFileMeta: uploadedFileMeta.map((m) => ({
+      name: m.name,
+      size: m.size,
+      lastModified: 0,
+      type: '',
+    })),
+    textInput,
+    inputSourceType,
+    sessionInputCounts,
+    setSelectedFileName,
+    setUploadedFileMeta: (meta) =>
+      setUploadedFileMeta(meta.map(({ name, size }) => ({ name, size }))),
+    setTextInput,
+    setInputSourceType,
+    setSessionInputCounts,
+    onSessionRestored: (snap) => {
+      if (snap.previewRows.length > 0) handleLogisticsPreviewSessionRestored();
+    },
   });
+
+  useClearPreviewOnBridgeChange(templateBridgeFile, handleLogisticsTemplateBridgeChanged);
 
   // fixedHeaderValues 저장 (복원 후)
   useEffect(() => {
@@ -1798,19 +1837,6 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
   }, [fixedHeaderValues, trialMode, authAssetsReady, userId]);
-
-  // templateBridgeFile 변경 시 기존 Stage2/Stage3 결과 초기화
-  useEffect(() => {
-    if (!templateBridgeFile) return;
-
-    // 기존 변환 결과 초기화
-    setPreviewRows([]);
-    setCourierHeaders([]);
-    resetProductCodeColumnToggle();
-    setColumnCodeMappingSnapshots({});
-    setColumnMappingStaging({});
-    setShowColumnCodeMappingModal(false);
-  }, [templateBridgeFile, resetProductCodeColumnToggle]);
 
   // 물류 상품코드 매핑 목록·선택 복원 (3PL과 동일 패턴)
   useEffect(() => {
@@ -4338,10 +4364,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           (xlsx, xls, jpg, png, gif)
                         </p>
                       </div>
-                      {uploadedExcelFile && (
+                      {(uploadedExcelFile || uploadedFileMeta.length > 0 || selectedFileName) && (
                         <div className="flex items-center justify-center gap-3 mt-2 text-sm text-gray-600">
                           <span>
-                            📄 선택된 파일: {uploadedExcelFile.name}
+                            📄 선택된 파일:{' '}
+                            {uploadedExcelFile?.name ??
+                              selectedFileName ??
+                              uploadedFileMeta[0]?.name ??
+                              ''}
                             {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
                           </span>
 

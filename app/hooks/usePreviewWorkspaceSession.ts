@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import type { InputSourceCounts } from '@/app/lib/history-input-sources';
 import {
   type PreviewWorkspacePageKey,
+  type PreviewWorkspaceSnapshot,
+  type WorkspaceFileMetaSnapshot,
+  type WorkspaceInputSnapshot,
   clearPreviewWorkspace,
   loadPreviewWorkspace,
   savePreviewWorkspace,
@@ -24,26 +28,76 @@ type Options = {
   setUserOverrides: (v: Record<string, Record<string, string>>) => void;
   setCourierHeaders: (headers: string[]) => void;
   setSortConfig: (config: SortConfig) => void;
+  onSessionRestored?: (snap: PreviewWorkspaceSnapshot) => void;
+  selectedFileName?: string | null;
+  uploadedFileMeta?: WorkspaceFileMetaSnapshot[];
+  textInput?: string;
+  inputSourceType?: 'excel' | 'image' | 'text' | null;
+  sessionInputCounts?: InputSourceCounts;
+  courierInvoiceFileMeta?: WorkspaceFileMetaSnapshot | null;
+  setSelectedFileName?: (v: string | null) => void;
+  setUploadedFileMeta?: (v: WorkspaceFileMetaSnapshot[]) => void;
+  setTextInput?: (v: string) => void;
+  setInputSourceType?: (v: 'excel' | 'image' | 'text' | null) => void;
+  setSessionInputCounts?: (v: InputSourceCounts) => void;
+  setCourierInvoiceFileMeta?: (v: WorkspaceFileMetaSnapshot | null) => void;
 };
 
+function buildInputSnapshot(opts: Options): WorkspaceInputSnapshot | undefined {
+  if (!opts.setSelectedFileName) return undefined;
+  return {
+    selectedFileName: opts.selectedFileName ?? null,
+    uploadedFileMeta: opts.uploadedFileMeta ?? [],
+    textInput: opts.textInput ?? '',
+    inputSourceType: opts.inputSourceType ?? null,
+    sessionInputCounts: opts.sessionInputCounts ?? {},
+    courierInvoiceFileMeta: opts.courierInvoiceFileMeta ?? null,
+  };
+}
+
+function restoreInputSnapshot(opts: Options, input: WorkspaceInputSnapshot | undefined): void {
+  if (!input || !opts.setSelectedFileName) return;
+  opts.setSelectedFileName(input.selectedFileName ?? null);
+  opts.setUploadedFileMeta?.(input.uploadedFileMeta ?? []);
+  opts.setTextInput?.(input.textInput ?? '');
+  opts.setInputSourceType?.(input.inputSourceType ?? null);
+  opts.setSessionInputCounts?.(input.sessionInputCounts ?? {});
+  opts.setCourierInvoiceFileMeta?.(input.courierInvoiceFileMeta ?? null);
+}
+
 /**
- * auth 확정 후 sessionStorage에서 미리보기 복구, 변경 시 디바운스 저장.
+ * auth 확정 후 sessionStorage에서 미리보기·입력 UI 복구, 변경 시 디바운스 저장.
  * 계정 경계 변경 시 호출 측에서 clearPreviewWorkspace 와 함께 state 리셋.
  */
-export function usePreviewWorkspaceSession({
-  pageKey,
-  enabled,
-  storageUserId,
-  previewRows,
-  userOverrides,
-  courierHeaders,
-  sortConfig,
-  setPreviewRows,
-  setUserOverrides,
-  setCourierHeaders,
-  setSortConfig,
-}: Options): void {
+export function usePreviewWorkspaceSession(opts: Options): void {
+  const {
+    pageKey,
+    enabled,
+    storageUserId,
+    previewRows,
+    userOverrides,
+    courierHeaders,
+    sortConfig,
+    setPreviewRows,
+    setUserOverrides,
+    setCourierHeaders,
+    setSortConfig,
+    onSessionRestored,
+    selectedFileName,
+    uploadedFileMeta,
+    textInput,
+    inputSourceType,
+    sessionInputCounts,
+    courierInvoiceFileMeta,
+    setSelectedFileName,
+    setUploadedFileMeta,
+    setTextInput,
+    setInputSourceType,
+    setSessionInputCounts,
+  } = opts;
+
   const restoredRef = useRef(false);
+  const persistInput = Boolean(setSelectedFileName);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -62,16 +116,11 @@ export function usePreviewWorkspaceSession({
     setUserOverrides(snap.userOverrides ?? {});
     setCourierHeaders(snap.courierHeaders ?? []);
     setSortConfig(snap.sortConfig ?? null);
+    restoreInputSnapshot(opts, snap.input);
+    onSessionRestored?.(snap);
     restoredRef.current = true;
-  }, [
-    enabled,
-    pageKey,
-    storageUserId,
-    setPreviewRows,
-    setUserOverrides,
-    setCourierHeaders,
-    setSortConfig,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 복원은 마운트·계정·페이지당 1회
+  }, [enabled, pageKey, storageUserId]);
 
   useEffect(() => {
     restoredRef.current = false;
@@ -85,12 +134,16 @@ export function usePreviewWorkspaceSession({
     }
 
     const timer = window.setTimeout(() => {
-      savePreviewWorkspace(pageKey, storageUserId, {
+      const payload: Omit<PreviewWorkspaceSnapshot, 'v' | 'savedAt'> = {
         previewRows,
         userOverrides,
         courierHeaders,
         sortConfig,
-      });
+      };
+      if (persistInput) {
+        payload.input = buildInputSnapshot(opts);
+      }
+      savePreviewWorkspace(pageKey, storageUserId, payload);
     }, 600);
 
     return () => window.clearTimeout(timer);
@@ -102,5 +155,12 @@ export function usePreviewWorkspaceSession({
     userOverrides,
     courierHeaders,
     sortConfig,
+    persistInput,
+    selectedFileName,
+    uploadedFileMeta,
+    textInput,
+    inputSourceType,
+    sessionInputCounts,
+    courierInvoiceFileMeta,
   ]);
 }

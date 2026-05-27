@@ -34,7 +34,11 @@ import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusB
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
-import { clearAllPreviewWorkspacesForScope } from '@/app/lib/preview-workspace-session';
+import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBridgeChange';
+import {
+  clearAllPreviewWorkspacesForScope,
+  clearPreviewWorkspace,
+} from '@/app/lib/preview-workspace-session';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import {
   emptyInputSourceCounts,
@@ -762,6 +766,15 @@ export default function OrderConvertPage() {
       .map((header) => header.name);
   }, [courierUploadTemplate]);
 
+  const handlePreviewSessionRestored = useCallback(() => {
+    setFileProcessingStatus('done');
+  }, []);
+
+  const handleTemplateBridgeChanged = useCallback(() => {
+    setPreviewRows([]);
+    setCourierHeaders([]);
+  }, []);
+
   usePreviewWorkspaceSession({
     pageKey: 'order-convert',
     enabled: authAssetsReady,
@@ -774,7 +787,28 @@ export default function OrderConvertPage() {
     setUserOverrides,
     setCourierHeaders,
     setSortConfig,
+    selectedFileName,
+    uploadedFileMeta: uploadedFileMeta.map((m) => ({
+      name: m.name,
+      size: m.size,
+      lastModified: 0,
+      type: '',
+    })),
+    textInput,
+    inputSourceType,
+    sessionInputCounts,
+    setSelectedFileName,
+    setUploadedFileMeta: (meta) =>
+      setUploadedFileMeta(meta.map(({ name, size }) => ({ name, size }))),
+    setTextInput,
+    setInputSourceType,
+    setSessionInputCounts,
+    onSessionRestored: (snap) => {
+      if (snap.previewRows.length > 0) handlePreviewSessionRestored();
+    },
   });
+
+  useClearPreviewOnBridgeChange(templateBridgeFile, handleTemplateBridgeChanged);
 
   // fixedHeaderValues를 localStorage에 저장 (복원 후에만 저장해 계정 전환 시 오쓰기 방지)
   useEffect(() => {
@@ -789,15 +823,6 @@ export default function OrderConvertPage() {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
   }, [fixedHeaderValues, storageUserId, authAssetsReady]);
-
-  // templateBridgeFile 변경 시 기존 Stage2/Stage3 결과 초기화
-  useEffect(() => {
-    if (!templateBridgeFile) return;
-
-    // 기존 변환 결과 초기화
-    setPreviewRows([]);
-    setCourierHeaders([]);
-  }, [templateBridgeFile]);
 
   // 점 애니메이션 처리 (파일 처리용)
   useEffect(() => {
@@ -1989,6 +2014,8 @@ export default function OrderConvertPage() {
           setDownloadStatus("idle");
           setDownloadModalFileName(null);
 
+          clearPreviewWorkspace('order-convert', storageUserId);
+
           // 🔥 기존 초기화 유지
           setPreviewRows([]);
           setUserOverrides({});
@@ -2017,6 +2044,7 @@ export default function OrderConvertPage() {
   };
 
   const applyFullPreviewWorkspaceReset = useCallback(() => {
+    clearPreviewWorkspace('order-convert', storageUserId);
     resetBundleShippingUi();
     setPreviewRows([]);
     setCourierHeaders([]);
@@ -2046,7 +2074,7 @@ export default function OrderConvertPage() {
     if (excelFileInputRef.current) excelFileInputRef.current.value = '';
     if (courierFileInputRef.current) courierFileInputRef.current.value = '';
     setIsPreviewResetModalOpen(false);
-  }, [resetBundleShippingUi, clearWorkspaceInputTracking]);
+  }, [resetBundleShippingUi, clearWorkspaceInputTracking, storageUserId]);
 
   return (
     <>
@@ -2213,10 +2241,14 @@ export default function OrderConvertPage() {
                           (xlsx, xls, jpg, png, gif)
                         </p>
                       </div>
-                      {uploadedExcelFile && (
+                      {(uploadedExcelFile || uploadedFileMeta.length > 0 || selectedFileName) && (
                         <div className="flex items-center justify-center gap-3 mt-2 text-sm text-gray-600">
                           <span>
-                              📄 선택된 파일: {uploadedExcelFile.name}
+                              📄 선택된 파일:{' '}
+                              {uploadedExcelFile?.name ??
+                                selectedFileName ??
+                                uploadedFileMeta[0]?.name ??
+                                ''}
                               {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
                             </span>
 
