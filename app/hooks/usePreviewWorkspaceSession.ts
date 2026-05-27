@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { startTransition, useEffect, useLayoutEffect, useRef } from 'react';
 import type { InputSourceCounts } from '@/app/lib/history-input-sources';
 import {
   type PreviewWorkspacePageKey,
@@ -8,6 +8,7 @@ import {
   type WorkspaceFileMetaSnapshot,
   type WorkspaceInputSnapshot,
   loadPreviewWorkspace,
+  migratePreviewWorkspaceGuestToUser,
   savePreviewWorkspace,
 } from '@/app/lib/preview-workspace-session';
 
@@ -27,9 +28,7 @@ type Options = {
   setUserOverrides: (v: Record<string, Record<string, string>>) => void;
   setCourierHeaders: (headers: string[]) => void;
   setSortConfig: (config: SortConfig) => void;
-  /** 복원 시 snap.courierHeaders 가 비어 있을 때 사용 (등록된 택배 양식 헤더) */
   fallbackCourierHeaders?: string[];
-  /** state 복원 전에 localStorage 등에서 헤더를 동기 조회 (권장) */
   getFallbackCourierHeaders?: () => string[];
   onSessionRestored?: (snap: PreviewWorkspaceSnapshot) => void;
   selectedFileName?: string | null;
@@ -70,18 +69,16 @@ function restoreInputSnapshot(opts: Options, input: WorkspaceInputSnapshot | und
 
 function resolveCourierHeaders(
   snap: PreviewWorkspaceSnapshot,
-  opts: Pick<Options, 'fallbackCourierHeaders' | 'getFallbackCourierHeaders'>,
+  getFallback?: () => string[],
 ): string[] {
   if (snap.courierHeaders?.length) return snap.courierHeaders;
-  const fromGetter = opts.getFallbackCourierHeaders?.() ?? [];
-  if (fromGetter.length) return fromGetter;
-  if (opts.fallbackCourierHeaders?.length) return opts.fallbackCourierHeaders;
-  return [];
+  const fromGetter = getFallback?.() ?? [];
+  return fromGetter.length ? fromGetter : [];
 }
 
 /**
- * auth 확정 후 sessionStorage에서 미리보기·입력 UI 복구, 변경 시 디바운스 저장.
- * 계정 경계 변경 시 호출 측에서 clearPreviewWorkspace 와 함께 state 리셋.
+ * auth·양식 LS 복원 확정 후 sessionStorage에서 미리보기·입력 UI 복구.
+ * 페이지 이탈 시에만 즉시 flush 저장 (복원 중 연속 JSON 저장 방지).
  */
 export function usePreviewWorkspaceSession(opts: Options): void {
   const {
@@ -96,117 +93,74 @@ export function usePreviewWorkspaceSession(opts: Options): void {
     setUserOverrides,
     setCourierHeaders,
     setSortConfig,
-    fallbackCourierHeaders,
-    getFallbackCourierHeaders,
     onSessionRestored,
-    selectedFileName,
-    uploadedFileMeta,
-    textInput,
-    inputSourceType,
-    sessionInputCounts,
-    courierInvoiceFileMeta,
     setSelectedFileName,
-    setUploadedFileMeta,
-    setTextInput,
-    setInputSourceType,
-    setSessionInputCounts,
   } = opts;
 
-  const restoredRef = useRef(false);
-  const scopeKeyRef = useRef<string | null>(null);
+  const restoredScopeRef = useRef<string | null>(null);
   const persistInput = Boolean(setSelectedFileName);
-  const latestRef = useRef({
-    previewRows,
-    userOverrides,
-    courierHeaders,
-    sortConfig,
-    selectedFileName,
-    uploadedFileMeta,
-    textInput,
-    inputSourceType,
-    sessionInputCounts,
-    courierInvoiceFileMeta,
-    persistInput,
-    opts,
-  });
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
 
-  latestRef.current = {
-    previewRows,
-    userOverrides,
-    courierHeaders,
-    sortConfig,
-    selectedFileName,
-    uploadedFileMeta,
-    textInput,
-    inputSourceType,
-    sessionInputCounts,
-    courierInvoiceFileMeta,
-    persistInput,
-    opts,
+  const flushSave = () => {
+    const latest = optsRef.current;
+    if (!latest.enabled || typeof window === 'undefined') return;
+    if (latest.previewRows.length === 0) return;
+
+    const payload: Omit<PreviewWorkspaceSnapshot, 'v' | 'savedAt'> = {
+      previewRows: latest.previewRows,
+      userOverrides: latest.userOverrides,
+      courierHeaders: latest.courierHeaders.length
+        ? latest.courierHeaders
+        : resolveCourierHeaders(
+            { previewRows: latest.previewRows } as PreviewWorkspaceSnapshot,
+            () => latest.getFallbackCourierHeaders?.() ?? latest.fallbackCourierHeaders ?? [],
+          ),
+      sortConfig: latest.sortConfig,
+    };
+    if (persistInput) {
+      payload.input = buildInputSnapshot(latest);
+    }
+    savePreviewWorkspace(latest.pageKey, latest.storageUserId, payload);
   };
 
-  // useLayoutEffect: 저장 effect보다 먼저 복원해, 빈 previewRows로 sessionStorage가 지워지는 레이스 방지
+  const scopeKey = `${pageKey}:${storageUserId ?? 'guest'}`;
+
   useLayoutEffect(() => {
-    if (!enabled || typeof window === 'undefined') {
-      restoredRef.current = false;
-      return;
+    if (!enabled || typeof window === 'undefined') return;
+    if (restoredScopeRef.current === scopeKey) return;
+
+    if (storageUserId) {
+      migratePreviewWorkspaceGuestToUser(pageKey, storageUserId);
     }
-    if (restoredRef.current) return;
 
     const snap = loadPreviewWorkspace(pageKey, storageUserId);
-    restoredRef.current = true;
+    restoredScopeRef.current = scopeKey;
 
     if (!snap || snap.previewRows.length === 0) {
       return;
     }
 
-    setPreviewRows(snap.previewRows);
-    setUserOverrides(snap.userOverrides ?? {});
-    setCourierHeaders(resolveCourierHeaders(snap, opts));
-    setSortConfig(snap.sortConfig ?? null);
-    restoreInputSnapshot(opts, snap.input);
-    onSessionRestored?.(snap);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 복원은 마운트·계정·페이지당 1회
-  }, [enabled, pageKey, storageUserId, fallbackCourierHeaders, getFallbackCourierHeaders]);
+    const headers = resolveCourierHeaders(snap, () => optsRef.current.getFallbackCourierHeaders?.() ?? []);
 
-  useLayoutEffect(() => {
-    const scopeKey = `${pageKey}:${storageUserId ?? 'guest'}`;
-    if (scopeKeyRef.current !== null && scopeKeyRef.current !== scopeKey) {
-      restoredRef.current = false;
-    }
-    scopeKeyRef.current = scopeKey;
-  }, [storageUserId, pageKey]);
+    startTransition(() => {
+      setPreviewRows(snap.previewRows);
+      setUserOverrides(snap.userOverrides ?? {});
+      setCourierHeaders(headers);
+      setSortConfig(snap.sortConfig ?? null);
+      restoreInputSnapshot(optsRef.current, snap.input);
+      onSessionRestored?.(snap);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scopeKey 단위 1회 복원
+  }, [enabled, scopeKey, pageKey, storageUserId]);
 
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return;
-    if (previewRows.length === 0) return;
+    if (!enabled || previewRows.length === 0) return;
 
-    const flushSave = () => {
-      const latest = latestRef.current;
-      if (latest.previewRows.length === 0) return;
-
-      const payload: Omit<PreviewWorkspaceSnapshot, 'v' | 'savedAt'> = {
-        previewRows: latest.previewRows,
-        userOverrides: latest.userOverrides,
-        courierHeaders: latest.courierHeaders.length
-          ? latest.courierHeaders
-          : resolveCourierHeaders(
-              { previewRows: latest.previewRows } as PreviewWorkspaceSnapshot,
-              latest.opts,
-            ),
-        sortConfig: latest.sortConfig,
-      };
-      if (latest.persistInput) {
-        payload.input = buildInputSnapshot(latest.opts);
-      }
-      savePreviewWorkspace(pageKey, storageUserId, payload);
-    };
-
-    const timer = window.setTimeout(flushSave, 400);
+    const timer = window.setTimeout(flushSave, 900);
 
     return () => {
       window.clearTimeout(timer);
-      flushSave();
     };
   }, [
     enabled,
@@ -217,13 +171,19 @@ export function usePreviewWorkspaceSession(opts: Options): void {
     courierHeaders,
     sortConfig,
     persistInput,
-    selectedFileName,
-    uploadedFileMeta,
-    textInput,
-    inputSourceType,
-    sessionInputCounts,
-    courierInvoiceFileMeta,
-    fallbackCourierHeaders,
-    getFallbackCourierHeaders,
+    opts.selectedFileName,
+    opts.uploadedFileMeta,
+    opts.textInput,
+    opts.inputSourceType,
+    opts.sessionInputCounts,
+    opts.courierInvoiceFileMeta,
   ]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    return () => {
+      flushSave();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 페이지 이탈·scope 변경 시만 flush
+  }, [enabled, scopeKey]);
 }

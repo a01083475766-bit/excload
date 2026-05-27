@@ -83,6 +83,30 @@ export function savePreviewWorkspace(
   }
 }
 
+/** 로그인 직후 guest 스코프에만 남은 작업을 계정 스코프로 옮깁니다. */
+export function migratePreviewWorkspaceGuestToUser(
+  page: PreviewWorkspacePageKey,
+  userId: string,
+): void {
+  if (!userId.trim() || typeof window === 'undefined') return;
+  const guestSnap = loadPreviewWorkspace(page, null);
+  if (!guestSnap?.previewRows?.length) return;
+  const userSnap = loadPreviewWorkspace(page, userId);
+  if (userSnap?.previewRows?.length) return;
+  try {
+    savePreviewWorkspace(page, userId, {
+      previewRows: guestSnap.previewRows,
+      userOverrides: guestSnap.userOverrides ?? {},
+      courierHeaders: guestSnap.courierHeaders ?? [],
+      sortConfig: guestSnap.sortConfig ?? null,
+      input: guestSnap.input,
+    });
+    clearPreviewWorkspace(page, null);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function loadPreviewWorkspace(
   page: PreviewWorkspacePageKey,
   userId: string | null,

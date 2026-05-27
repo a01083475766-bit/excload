@@ -667,6 +667,8 @@ export default function OrderConvertPage() {
     }
 
     const boundaryKey = storageUserId ?? '__guest__';
+    const guestToUserLogin =
+      prevAccountBoundaryRef.current === '__guest__' && boundaryKey !== '__guest__';
     if (
       prevAccountBoundaryRef.current !== undefined &&
       prevAccountBoundaryRef.current !== boundaryKey
@@ -676,6 +678,7 @@ export default function OrderConvertPage() {
           ? null
           : prevAccountBoundaryRef.current;
       clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      if (!guestToUserLogin) {
       isCancelledRef.current = true;
       setPreviewRows([]);
       setCourierHeaders([]);
@@ -716,6 +719,7 @@ export default function OrderConvertPage() {
       setShowScreenshotModal(false);
       setQualityNoticeModal('hidden');
       setIsDragging(false);
+      }
     }
     prevAccountBoundaryRef.current = boundaryKey;
 
@@ -792,7 +796,7 @@ export default function OrderConvertPage() {
 
   usePreviewWorkspaceSession({
     pageKey: 'order-convert',
-    enabled: authAssetsReady,
+    enabled: authAssetsReady && workspaceStorageHydrated,
     storageUserId,
     previewRows,
     userOverrides,

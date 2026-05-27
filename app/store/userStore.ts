@@ -60,7 +60,10 @@ export const useUserStore = create<UserStoreState>()(
       },
 
       fetchUser: async () => {
-        set({ isLoading: true });
+        const hadUser = Boolean(get().user);
+        if (!hadUser) {
+          set({ isLoading: true });
+        }
         try {
           const response = await fetch('/api/user/get', {
             credentials: 'include',

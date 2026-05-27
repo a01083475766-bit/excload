@@ -1666,6 +1666,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }
 
     const boundaryKey = userId ?? '__guest__';
+    const guestToUserLogin =
+      prevLogisticsAccountBoundaryRef.current === '__guest__' && boundaryKey !== '__guest__';
     if (
       prevLogisticsAccountBoundaryRef.current !== undefined &&
       prevLogisticsAccountBoundaryRef.current !== boundaryKey
@@ -1676,6 +1678,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           ? null
           : prevLogisticsAccountBoundaryRef.current;
       clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      if (!guestToUserLogin) {
       isCancelledRef.current = true;
       setPreviewRows([]);
       setCourierHeaders([]);
@@ -1716,6 +1719,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       setShowScreenshotModal(false);
       setQualityNoticeModal('hidden');
       setIsDragging(false);
+      }
     }
     prevLogisticsAccountBoundaryRef.current = boundaryKey;
 
@@ -1797,7 +1801,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   usePreviewWorkspaceSession({
     pageKey: 'logistics-convert',
-    enabled: authAssetsReady && !trialMode,
+    enabled: authAssetsReady && !trialMode && workspaceStorageHydrated,
     storageUserId: userId,
     previewRows,
     userOverrides,

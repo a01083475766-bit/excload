@@ -623,6 +623,8 @@ export default function InvoiceFileConvertPage() {
     }
 
     const boundaryKey = storageUserId ?? '__guest__';
+    const guestToUserLogin =
+      prevAccountBoundaryRef.current === '__guest__' && boundaryKey !== '__guest__';
     if (
       prevAccountBoundaryRef.current !== undefined &&
       prevAccountBoundaryRef.current !== boundaryKey
@@ -632,6 +634,7 @@ export default function InvoiceFileConvertPage() {
           ? null
           : prevAccountBoundaryRef.current;
       clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      if (!guestToUserLogin) {
       setPreviewRows([]);
       setCourierHeaders([]);
       setOrderStandardFile(null);
@@ -670,6 +673,7 @@ export default function InvoiceFileConvertPage() {
       }
       setIsDraggingOrder(false);
       setIsDraggingCourier(false);
+      }
     }
     prevAccountBoundaryRef.current = boundaryKey;
 
@@ -738,7 +742,7 @@ export default function InvoiceFileConvertPage() {
 
   usePreviewWorkspaceSession({
     pageKey: 'invoice-file-convert',
-    enabled: authAssetsReady,
+    enabled: authAssetsReady && workspaceStorageHydrated,
     storageUserId,
     previewRows,
     userOverrides,
