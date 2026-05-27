@@ -775,6 +775,21 @@ export default function OrderConvertPage() {
     setCourierHeaders([]);
   }, []);
 
+  const getFallbackCourierHeaders = useCallback((): string[] => {
+    if (templateBridgeFile?.courierHeaders?.length) {
+      return templateBridgeFile.courierHeaders;
+    }
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.bridge, storageUserId);
+      if (!saved) return [];
+      const parsed = JSON.parse(saved) as TemplateBridgeFile;
+      return Array.isArray(parsed.courierHeaders) ? parsed.courierHeaders : [];
+    } catch {
+      return [];
+    }
+  }, [templateBridgeFile, storageUserId]);
+
   usePreviewWorkspaceSession({
     pageKey: 'order-convert',
     enabled: authAssetsReady,
@@ -787,6 +802,8 @@ export default function OrderConvertPage() {
     setUserOverrides,
     setCourierHeaders,
     setSortConfig,
+    getFallbackCourierHeaders,
+    fallbackCourierHeaders: templateBridgeFile?.courierHeaders ?? [],
     selectedFileName,
     uploadedFileMeta: uploadedFileMeta.map((m) => ({
       name: m.name,
