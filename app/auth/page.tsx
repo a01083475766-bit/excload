@@ -36,6 +36,7 @@ function AuthPageSuspenseFallback() {
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = searchParams ?? new URLSearchParams();
   const { status } = useSession();
   const fetchUser = useUserStore((state) => state.fetchUser);
   const storeUser = useUserStore((state) => state.user);
@@ -85,27 +86,27 @@ function AuthPageContent() {
 
   // URL 쿼리 파라미터 변경 시 모드/에러 업데이트
   useEffect(() => {
-    const urlMode = searchParams.get('mode') as AuthMode | null;
+    const urlMode = params.get('mode') as AuthMode | null;
     if (urlMode === 'signup' || urlMode === 'login') {
       setMode(urlMode);
     }
 
-    const authError = searchParams.get('error');
+    const authError = params.get('error');
     if (authError) {
       setError(getAuthErrorMessage(authError));
     }
-  }, [searchParams]);
+  }, [params]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
 
-    const rawCallback = searchParams.get('callbackUrl');
+    const rawCallback = params.get('callbackUrl');
     if (rawCallback?.startsWith('/') && !rawCallback.startsWith('//')) {
       router.replace(rawCallback);
       return;
     }
     router.replace('/order-convert');
-  }, [status, router, searchParams]);
+  }, [status, router, params]);
 
   useEffect(() => {
     if (storeUser?.lastLoginProvider === 'GOOGLE') {

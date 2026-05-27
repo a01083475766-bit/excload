@@ -89,7 +89,7 @@ export default function ContactPage() {
       setSubmitFeedback({
         type: 'success',
         message:
-          data?.message ||
+          (typeof data.message === 'string' ? data.message : null) ||
           '문의가 접수되었습니다. 입력하신 이메일로 접수 확인 메일을 보내드렸습니다.',
       });
     } catch (err) {

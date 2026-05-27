@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 function SocialLoadingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = searchParams ?? new URLSearchParams();
   const { status } = useSession();
   const redirectedRef = useRef(false);
 
@@ -16,7 +17,7 @@ function SocialLoadingContent() {
 
     if (status === 'authenticated') {
       redirectedRef.current = true;
-      const provider = (searchParams.get('provider') || '').toLowerCase();
+      const provider = (params.get('provider') || '').toLowerCase();
       if (provider === 'google' || provider === 'kakao' || provider === 'naver') {
         try {
           window.localStorage.setItem('preferred-social-provider', provider);
@@ -32,7 +33,7 @@ function SocialLoadingContent() {
       redirectedRef.current = true;
       router.replace('/auth?mode=login&error=OAuthSignin');
     }
-  }, [status, router, searchParams]);
+  }, [status, router, params]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">

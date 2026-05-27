@@ -1649,7 +1649,7 @@ export default function InvoiceFileConvertPage() {
         void parseExcelFile(orderFile, unlocked);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- parseExcelFile은 의도적으로 최신 ref만 사용
+     
   }, [courierInvoiceFile, templateBridgeFile, ensureBothFilesUnlocked]);
 
   const handleDownloadPreview = async () => {

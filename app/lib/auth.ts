@@ -240,11 +240,11 @@ export const authOptions: NextAuthOptions = {
           }),
         ]
       : []),
-    ...(kakaoClientId
+    ...(kakaoClientId && kakaoClientSecret
       ? [
           KakaoProvider({
             clientId: kakaoClientId,
-            ...(kakaoClientSecret ? { clientSecret: kakaoClientSecret } : {}),
+            clientSecret: kakaoClientSecret,
           }),
         ]
       : []),

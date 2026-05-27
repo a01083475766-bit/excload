@@ -1810,7 +1810,7 @@ export default function OrderConvertPage() {
         stage2Result.baseHeaders.includes(pcccBaseHeader);
       const row0 = String(stage2Result?.rows?.[0]?.[pcccBaseHeader] ?? '');
 
-      // eslint-disable-next-line no-console
+       
       console.log(
         `[EXCLOAD][DEBUG][PCCC] Stage2 baseHeadersHas=${includes} row0=${row0}`
       );
@@ -1868,7 +1868,7 @@ export default function OrderConvertPage() {
         const mappedBaseHeader =
           idx >= 0 ? templateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
 
-        // eslint-disable-next-line no-console
+         
         console.log(
           `[EXCLOAD][DEBUG][PCCC] Stage3 courierHeader=${pcccCourierHeader} mappedBase=${mappedBaseHeader} previewRow0=${previewRow0}`
         );

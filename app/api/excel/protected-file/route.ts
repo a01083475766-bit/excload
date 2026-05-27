@@ -12,11 +12,14 @@ function excelEntryName(name: string): boolean {
 function findExcelEntry(zip: AdmZip) {
   return zip
     .getEntries()
-    .find((entry) => !entry.isDirectory && excelEntryName(entry.entryName));
+    .find((entry: { isDirectory: boolean; entryName: string }) => !entry.isDirectory && excelEntryName(entry.entryName));
 }
 
 /** ZIP 항목이 암호 보호인지 (adm-zip: 암호 없이 읽기 실패 시 보호로 간주) */
-function entryNeedsPassword(entry: AdmZip.IZipEntry, zip: AdmZip): boolean {
+function entryNeedsPassword(
+  entry: { entryName: string; isDirectory: boolean; getData: (password?: string) => Buffer },
+  zip: AdmZip,
+): boolean {
   try {
     entry.getData();
     return false;
@@ -91,7 +94,7 @@ export async function POST(request: Request) {
         );
       }
 
-      return new NextResponse(data, {
+      return new NextResponse(new Uint8Array(data), {
         status: 200,
         headers: {
           'Content-Type':

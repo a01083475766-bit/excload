@@ -117,7 +117,7 @@ export default function MyPage() {
   };
 
   useEffect(() => {
-    setPhoneInput(formatPhoneDisplay(user?.phone));
+    setPhoneInput(formatPhoneDisplay(user?.phone ?? undefined));
   }, [user?.phone]);
 
   useEffect(() => {
@@ -526,7 +526,8 @@ export default function MyPage() {
   }
 
   // 이메일에서 이름 추출 (이메일 앞부분 사용) — 이후 JSX는 user 존재를 전제로 함
-  const userName = (user.name || user.email.split('@')[0] || '사용자').trim();
+  const safeUser = user!;
+  const userName = (safeUser.name || safeUser.email.split('@')[0] || '사용자').trim();
   
   // 가입일은 임시로 현재 날짜 사용 (실제로는 API에서 가져와야 함)
   const joinDate = new Date().toISOString().split('T')[0];
@@ -567,7 +568,7 @@ export default function MyPage() {
                     type="button"
                     onClick={() =>
                       router.push(
-                        `/subscribe?plan=${user.plan === 'YEARLY' ? 'yearly' : 'monthly'}`
+                        `/subscribe?plan=${safeUser.plan === 'YEARLY' ? 'yearly' : 'monthly'}`
                       )
                     }
                     className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition-colors"
@@ -600,7 +601,7 @@ export default function MyPage() {
                   {userName}
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {user.email}
+                  {safeUser.email}
                 </p>
               </div>
 
@@ -668,7 +669,7 @@ export default function MyPage() {
                       </label>
                       <input
                         type="email"
-                        defaultValue={user.email}
+                        defaultValue={safeUser.email}
                         disabled
                         className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 cursor-not-allowed"
                       />
@@ -708,7 +709,7 @@ export default function MyPage() {
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                      <span>플랜: {getPlanName(user.plan)}</span>
+                      <span>플랜: {getPlanName(safeUser.plan)}</span>
                     </div>
                     
                     {hasPaidPlan ? (
@@ -772,15 +773,15 @@ export default function MyPage() {
                           잔여 사용량
                         </p>
                         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
-                          {getPlanName(user.plan)} 플랜 · 현재 이용 가능
+                          {getPlanName(safeUser.plan)} 플랜 · 현재 이용 가능
                         </p>
                       </div>
                       <p className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-right">
-                        {user.points.toLocaleString()}
+                        {safeUser.points.toLocaleString()}
                       </p>
                     </div>
                     <p className="px-6 py-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 border-t border-blue-200/60 dark:border-blue-800/40">
-                      {getUsageHint(user.plan)}
+                      {getUsageHint(safeUser.plan)}
                     </p>
                   </div>
                 </div>
@@ -796,7 +797,7 @@ export default function MyPage() {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="font-semibold text-zinc-900 dark:text-zinc-100">현재 플랜</p>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">{getPlanName(user.plan)}</p>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">{getPlanName(safeUser.plan)}</p>
                         {hasPaidPlan && currentPeriodEndText && (
                           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                             다음 결제 예정일: {currentPeriodEndText}
@@ -832,7 +833,7 @@ export default function MyPage() {
                         type="button"
                         onClick={() =>
                           router.push(
-                            `/subscribe?plan=${user.plan === 'YEARLY' ? 'monthly' : 'yearly'}`
+                            `/subscribe?plan=${safeUser.plan === 'YEARLY' ? 'monthly' : 'yearly'}`
                           )
                         }
                         className="w-full px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
@@ -945,7 +946,7 @@ export default function MyPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => router.push(`/subscribe?plan=${user.plan === 'YEARLY' ? 'yearly' : 'monthly'}`)}
+                        onClick={() => router.push(`/subscribe?plan=${safeUser.plan === 'YEARLY' ? 'yearly' : 'monthly'}`)}
                         className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         {tossCardState.hasBillingKey ? '카드 변경' : '카드 등록'}

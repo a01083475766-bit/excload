@@ -168,7 +168,7 @@ export function usePreviewWorkspaceSession(opts: Options): void {
     restoreInputSnapshot(optsRef.current, snap.input);
     onSessionRestored?.(snap);
     onRestoreSettled?.(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- scopeKey 단위 1회 복원
+     
   }, [enabled, scopeKey, pageKey, storageUserId]);
 
   useEffect(() => {
@@ -210,6 +210,6 @@ export function usePreviewWorkspaceSession(opts: Options): void {
     return () => {
       flushSave();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 페이지 이탈·scope 변경 시만 flush
+     
   }, [enabled, scopeKey]);
 }

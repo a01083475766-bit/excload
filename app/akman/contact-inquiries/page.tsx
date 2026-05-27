@@ -60,7 +60,7 @@ export default function AkmanContactInquiriesPage() {
 
   useEffect(() => {
     void loadRows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
