@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { isAdminEmail } from '@/app/lib/admin-auth';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -126,8 +127,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /akman: 임시로 누구나 통과 (관리자 검증 비활성화 — 운영 전 반드시 복구)
+  // /akman — 관리자 UI (로그인 + 관리자 이메일만 허용, API는 각 route에서 동일 검증)
   if (pathname.startsWith('/akman')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!token) {
+      const loginUrl = new URL('/auth/login', request.url);
+      const callbackPath = pathname + request.nextUrl.search;
+      loginUrl.searchParams.set('callbackUrl', callbackPath);
+      return NextResponse.redirect(loginUrl);
+    }
+    const email =
+      typeof token.email === 'string'
+        ? token.email
+        : typeof token.sub === 'string'
+          ? token.sub
+          : null;
+    if (!isAdminEmail(email)) {
+      return NextResponse.redirect(new URL('/excload', request.url));
+    }
     return NextResponse.next();
   }
 
