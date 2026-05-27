@@ -18,6 +18,7 @@ import {
   type UIEvent,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
@@ -59,6 +60,7 @@ import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBrid
 import {
   clearAllPreviewWorkspacesForScope,
   clearPreviewWorkspace,
+  migratePreviewWorkspaceGuestToUser,
 } from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
 import {
@@ -911,8 +913,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const user = useUserStore((state) => state.user);
   const isLoading = useUserStore((state) => state.isLoading);
   const userId = user?.userId ?? null;
+  const { status: authStatus } = useSession();
   const authAssetsReady = useAuthAssetsReady();
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
+  const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
+  const previewSessionEnabled =
+    !trialMode &&
+    authAssetsReady &&
+    workspaceStorageHydrated &&
+    (authStatus === 'unauthenticated' || Boolean(userId));
   const isFormStatusChecking = trialMode
     ? !workspaceStorageHydrated
     : !authAssetsReady || !workspaceStorageHydrated;
@@ -1677,7 +1686,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         prevLogisticsAccountBoundaryRef.current === '__trial__'
           ? null
           : prevLogisticsAccountBoundaryRef.current;
-      clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      if (guestToUserLogin && userId) {
+        migratePreviewWorkspaceGuestToUser('logistics-convert', userId);
+        clearPreviewWorkspace('logistics-convert', null);
+      } else {
+        clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      }
       if (!guestToUserLogin) {
       isCancelledRef.current = true;
       setPreviewRows([]);
@@ -1799,9 +1813,35 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }
   }, [templateBridgeFile, userId]);
 
+  useEffect(() => {
+    if (trialMode) {
+      setIsPreviewSessionRestoring(false);
+      return;
+    }
+    if (previewSessionEnabled || !authAssetsReady || !workspaceStorageHydrated) return;
+    if (authStatus === 'loading') return;
+    setIsPreviewSessionRestoring(false);
+  }, [trialMode, previewSessionEnabled, authAssetsReady, workspaceStorageHydrated, authStatus]);
+
+  useEffect(() => {
+    if (!previewSessionEnabled) return;
+    if (previewRows.length > 0 && courierHeaders.length === 0) {
+      const headers = getFallbackCourierHeaders();
+      if (headers.length > 0) {
+        setCourierHeaders(headers);
+      }
+    }
+  }, [
+    previewSessionEnabled,
+    previewRows.length,
+    courierHeaders.length,
+    getFallbackCourierHeaders,
+    templateBridgeFile,
+  ]);
+
   usePreviewWorkspaceSession({
     pageKey: 'logistics-convert',
-    enabled: authAssetsReady && !trialMode && workspaceStorageHydrated,
+    enabled: previewSessionEnabled,
     storageUserId: userId,
     previewRows,
     userOverrides,
@@ -1831,6 +1871,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     setSessionInputCounts,
     onSessionRestored: (snap) => {
       if (snap.previewRows.length > 0) handleLogisticsPreviewSessionRestored();
+    },
+    onRestoreSettled: (hadPreview) => {
+      setIsPreviewSessionRestoring(false);
+      if (!hadPreview) {
+        setFileProcessingStatus('idle');
+      }
     },
   });
 
@@ -4676,7 +4722,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 )}
               </div>
             </div>
-            {previewRows.length === 0 || courierHeaders.length === 0 ? (
+            {previewSessionEnabled &&
+            isPreviewSessionRestoring &&
+            (previewRows.length === 0 || courierHeaders.length === 0) ? (
+              <div className="min-h-[192px] flex flex-col items-center justify-center gap-2 px-4 text-center text-sm text-gray-500">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                <p>이전 작업 내용을 불러오는 중입니다…</p>
+              </div>
+            ) : previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
                 <p>
                   주문을 가져오면 변환결과가 여기에 표시됩니다

@@ -12,6 +12,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Truck, Search, ArrowDown, X, Check, Upload, Loader2 } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
@@ -48,6 +49,7 @@ import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBrid
 import {
   clearAllPreviewWorkspacesForScope,
   clearPreviewWorkspace,
+  migratePreviewWorkspaceGuestToUser,
   type WorkspaceFileMetaSnapshot,
 } from '@/app/lib/preview-workspace-session';
 import { Coins } from 'lucide-react';
@@ -261,8 +263,14 @@ export default function InvoiceFileConvertPage() {
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
   const storageUserId = user?.userId ?? null;
+  const { status: authStatus } = useSession();
   const authAssetsReady = useAuthAssetsReady();
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
+  const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
+  const previewSessionEnabled =
+    authAssetsReady &&
+    workspaceStorageHydrated &&
+    (authStatus === 'unauthenticated' || Boolean(storageUserId));
   const isFormStatusChecking = !authAssetsReady || !workspaceStorageHydrated;
   const invoiceCourierHydratedRef = useRef(false);
   const prevAccountBoundaryRef = useRef<string | undefined>(undefined);
@@ -633,7 +641,12 @@ export default function InvoiceFileConvertPage() {
         prevAccountBoundaryRef.current === '__guest__'
           ? null
           : prevAccountBoundaryRef.current;
-      clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      if (guestToUserLogin && storageUserId) {
+        migratePreviewWorkspaceGuestToUser('invoice-file-convert', storageUserId);
+        clearPreviewWorkspace('invoice-file-convert', null);
+      } else {
+        clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      }
       if (!guestToUserLogin) {
       setPreviewRows([]);
       setCourierHeaders([]);
@@ -740,9 +753,33 @@ export default function InvoiceFileConvertPage() {
     }
   }, [templateBridgeFile, storageUserId]);
 
+  useEffect(() => {
+    if (previewSessionEnabled || !authAssetsReady || !workspaceStorageHydrated) return;
+    if (authStatus === 'loading') return;
+    setIsPreviewSessionRestoring(false);
+  }, [previewSessionEnabled, authAssetsReady, workspaceStorageHydrated, authStatus]);
+
+  useEffect(() => {
+    if (!previewSessionEnabled) return;
+    if (previewRows.length > 0 && courierHeaders.length === 0) {
+      const headers = getFallbackCourierHeaders();
+      if (headers.length > 0) {
+        setCourierHeaders(headers);
+        setPreviewReady(true);
+        setConversionProgress(100);
+      }
+    }
+  }, [
+    previewSessionEnabled,
+    previewRows.length,
+    courierHeaders.length,
+    getFallbackCourierHeaders,
+    templateBridgeFile,
+  ]);
+
   usePreviewWorkspaceSession({
     pageKey: 'invoice-file-convert',
-    enabled: authAssetsReady && workspaceStorageHydrated,
+    enabled: previewSessionEnabled,
     storageUserId,
     previewRows,
     userOverrides,
@@ -776,6 +813,14 @@ export default function InvoiceFileConvertPage() {
     setCourierInvoiceFileMeta,
     onSessionRestored: (snap) => {
       if (snap.previewRows.length > 0) handleInvoicePreviewSessionRestored();
+    },
+    onRestoreSettled: (hadPreview) => {
+      setIsPreviewSessionRestoring(false);
+      if (!hadPreview) {
+        setPreviewReady(false);
+        setFileProcessingStatus('idle');
+        setConversionProgress(0);
+      }
     },
   });
 
@@ -2125,7 +2170,14 @@ export default function InvoiceFileConvertPage() {
                 )}
               </div>
             </div>
-            {!previewReady || previewRows.length === 0 || courierHeaders.length === 0 ? (
+            {previewSessionEnabled &&
+            isPreviewSessionRestoring &&
+            (!previewReady || previewRows.length === 0 || courierHeaders.length === 0) ? (
+              <div className="min-h-[192px] flex flex-col items-center justify-center gap-2 px-4 text-center text-sm text-gray-500">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                <p>이전 작업 내용을 불러오는 중입니다…</p>
+              </div>
+            ) : !previewReady || previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center text-gray-400 px-4 text-center text-sm leading-relaxed">
                 <>
                   주문파일과 송장번호파일을 가져오면 변환결과가 여기에 표시됩니다

@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { InputSourceCounts } from '@/app/lib/history-input-sources';
 import {
   type PreviewWorkspacePageKey,
@@ -31,6 +31,8 @@ type Options = {
   fallbackCourierHeaders?: string[];
   getFallbackCourierHeaders?: () => string[];
   onSessionRestored?: (snap: PreviewWorkspaceSnapshot) => void;
+  /** 복원 시도 종료(데이터 유무와 무관) — 로딩 UI 해제용 */
+  onRestoreSettled?: (hadPreview: boolean) => void;
   selectedFileName?: string | null;
   uploadedFileMeta?: WorkspaceFileMetaSnapshot[];
   textInput?: string;
@@ -94,12 +96,14 @@ export function usePreviewWorkspaceSession(opts: Options): void {
     setCourierHeaders,
     setSortConfig,
     onSessionRestored,
+    onRestoreSettled,
     setSelectedFileName,
   } = opts;
 
   const restoredScopeRef = useRef<string | null>(null);
   const persistInput = Boolean(setSelectedFileName);
   const optsRef = useRef(opts);
+  const prevPreviewCountRef = useRef(0);
   optsRef.current = opts;
 
   const flushSave = () => {
@@ -138,30 +142,36 @@ export function usePreviewWorkspaceSession(opts: Options): void {
     restoredScopeRef.current = scopeKey;
 
     if (!snap || snap.previewRows.length === 0) {
+      onRestoreSettled?.(false);
       return;
     }
 
     const headers = resolveCourierHeaders(snap, () => optsRef.current.getFallbackCourierHeaders?.() ?? []);
 
-    startTransition(() => {
-      setPreviewRows(snap.previewRows);
-      setUserOverrides(snap.userOverrides ?? {});
-      setCourierHeaders(headers);
-      setSortConfig(snap.sortConfig ?? null);
-      restoreInputSnapshot(optsRef.current, snap.input);
-      onSessionRestored?.(snap);
-    });
+    setPreviewRows(snap.previewRows);
+    setUserOverrides(snap.userOverrides ?? {});
+    setCourierHeaders(headers);
+    setSortConfig(snap.sortConfig ?? null);
+    restoreInputSnapshot(optsRef.current, snap.input);
+    onSessionRestored?.(snap);
+    onRestoreSettled?.(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scopeKey 단위 1회 복원
   }, [enabled, scopeKey, pageKey, storageUserId]);
 
   useEffect(() => {
     if (!enabled || previewRows.length === 0) return;
 
-    const timer = window.setTimeout(flushSave, 900);
+    const becameNonEmpty =
+      prevPreviewCountRef.current === 0 && previewRows.length > 0;
+    prevPreviewCountRef.current = previewRows.length;
 
-    return () => {
-      window.clearTimeout(timer);
-    };
+    if (becameNonEmpty) {
+      flushSave();
+      return;
+    }
+
+    const timer = window.setTimeout(flushSave, 900);
+    return () => window.clearTimeout(timer);
   }, [
     enabled,
     pageKey,

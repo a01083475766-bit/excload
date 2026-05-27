@@ -9,6 +9,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2 } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
@@ -38,6 +39,7 @@ import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBrid
 import {
   clearAllPreviewWorkspacesForScope,
   clearPreviewWorkspace,
+  migratePreviewWorkspaceGuestToUser,
 } from '@/app/lib/preview-workspace-session';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import {
@@ -269,8 +271,14 @@ export default function OrderConvertPage() {
   const updatePoints = useUserStore((state) => state.updatePoints);
   /** 로그인 시 계정별 localStorage 분리 (/api/user/get 의 id 와 동일) */
   const storageUserId = user?.userId ?? null;
+  const { status: authStatus } = useSession();
   const authAssetsReady = useAuthAssetsReady();
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
+  const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
+  const previewSessionEnabled =
+    authAssetsReady &&
+    workspaceStorageHydrated &&
+    (authStatus === 'unauthenticated' || Boolean(storageUserId));
   const isFormStatusChecking = !authAssetsReady || !workspaceStorageHydrated;
   const courierStorageHydratedRef = useRef(false);
   const prevAccountBoundaryRef = useRef<string | undefined>(undefined);
@@ -677,7 +685,12 @@ export default function OrderConvertPage() {
         prevAccountBoundaryRef.current === '__guest__'
           ? null
           : prevAccountBoundaryRef.current;
-      clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      if (guestToUserLogin && storageUserId) {
+        migratePreviewWorkspaceGuestToUser('order-convert', storageUserId);
+        clearPreviewWorkspace('order-convert', null);
+      } else {
+        clearAllPreviewWorkspacesForScope(prevScopeUserId);
+      }
       if (!guestToUserLogin) {
       isCancelledRef.current = true;
       setPreviewRows([]);
@@ -794,9 +807,31 @@ export default function OrderConvertPage() {
     }
   }, [templateBridgeFile, storageUserId]);
 
+  useEffect(() => {
+    if (previewSessionEnabled || !authAssetsReady || !workspaceStorageHydrated) return;
+    if (authStatus === 'loading') return;
+    setIsPreviewSessionRestoring(false);
+  }, [previewSessionEnabled, authAssetsReady, workspaceStorageHydrated, authStatus]);
+
+  useEffect(() => {
+    if (!previewSessionEnabled) return;
+    if (previewRows.length > 0 && courierHeaders.length === 0) {
+      const headers = getFallbackCourierHeaders();
+      if (headers.length > 0) {
+        setCourierHeaders(headers);
+      }
+    }
+  }, [
+    previewSessionEnabled,
+    previewRows.length,
+    courierHeaders.length,
+    getFallbackCourierHeaders,
+    templateBridgeFile,
+  ]);
+
   usePreviewWorkspaceSession({
     pageKey: 'order-convert',
-    enabled: authAssetsReady && workspaceStorageHydrated,
+    enabled: previewSessionEnabled,
     storageUserId,
     previewRows,
     userOverrides,
@@ -826,6 +861,12 @@ export default function OrderConvertPage() {
     setSessionInputCounts,
     onSessionRestored: (snap) => {
       if (snap.previewRows.length > 0) handlePreviewSessionRestored();
+    },
+    onRestoreSettled: (hadPreview) => {
+      setIsPreviewSessionRestoring(false);
+      if (!hadPreview) {
+        setFileProcessingStatus('idle');
+      }
     },
   });
 
@@ -2520,7 +2561,14 @@ export default function OrderConvertPage() {
                 )}
               </div>
             </div>
-            {previewRows.length === 0 || courierHeaders.length === 0 ? (
+            {previewSessionEnabled &&
+            isPreviewSessionRestoring &&
+            (previewRows.length === 0 || courierHeaders.length === 0) ? (
+              <div className="min-h-[192px] flex flex-col items-center justify-center gap-2 px-4 text-center text-sm text-gray-500">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                <p>이전 작업 내용을 불러오는 중입니다…</p>
+              </div>
+            ) : previewRows.length === 0 || courierHeaders.length === 0 ? (
               <div className="min-h-[192px] flex items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
                 <p>
                   주문을 가져오면 변환결과가 여기에 표시됩니다
