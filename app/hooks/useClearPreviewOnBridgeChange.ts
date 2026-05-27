@@ -22,15 +22,14 @@ export function useClearPreviewOnBridgeChange(
   const prevSigRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!templateBridgeFile) {
-      prevSigRef.current = null;
-      return;
-    }
+    if (!templateBridgeFile) return;
     const sig = bridgeSignature(templateBridgeFile);
-    if (prevSigRef.current === undefined) {
+    // 초기 로딩(또는 null 상태에서 최초로 로드됨)에서는 미리보기를 지우지 않음
+    if (prevSigRef.current == null) {
       prevSigRef.current = sig;
       return;
     }
+    // 이후에 "실제로" bridge가 바뀌는 경우에만 초기화
     if (prevSigRef.current !== sig) {
       onBridgeChanged();
       prevSigRef.current = sig;
