@@ -62,6 +62,11 @@ import {
   clearPreviewWorkspace,
   migratePreviewWorkspaceGuestToUser,
 } from '@/app/lib/preview-workspace-session';
+import {
+  clearWorkspaceFiles,
+  loadWorkspaceFiles,
+  putWorkspaceFiles,
+} from '@/app/lib/workspace-order-files-idb';
 import { Coins } from 'lucide-react';
 import {
   NormalizeQualityNoticeModal,
@@ -1406,6 +1411,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   /** 다운로드 완료 후와 동일 — 미리보기·입력 소스·파일 선택 상태만 정리 (양식/브릿지는 유지) */
   const applyPreviewWorkspaceReset = useCallback(() => {
     clearPreviewWorkspace('logistics-convert', userId);
+    void clearWorkspaceFiles('logistics-convert', userId);
     resetBundleShippingUi();
     setPreviewRows([]);
     resetProductCodeColumnToggle();
@@ -1691,6 +1697,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         clearPreviewWorkspace('logistics-convert', null);
       } else {
         clearAllPreviewWorkspacesForScope(prevScopeUserId);
+        void clearWorkspaceFiles('logistics-convert', prevScopeUserId);
       }
       if (!guestToUserLogin) {
       isCancelledRef.current = true;
@@ -1881,6 +1888,53 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   });
 
   useClearPreviewOnBridgeChange(templateBridgeFile, handleLogisticsTemplateBridgeChanged);
+
+  useEffect(() => {
+    if (!previewSessionEnabled || typeof window === 'undefined') return;
+    const t = window.setTimeout(() => {
+      const slots: { slot: string; file: File }[] = [];
+      if (uploadedExcelFile) slots.push({ slot: 'orderExcel', file: uploadedExcelFile });
+      if (selectedImage) slots.push({ slot: 'selectedImage', file: selectedImage });
+      void putWorkspaceFiles('logistics-convert', userId, slots);
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [previewSessionEnabled, userId, uploadedExcelFile, selectedImage]);
+
+  useEffect(() => {
+    if (!previewSessionEnabled || isPreviewSessionRestoring) return;
+    if (typeof window === 'undefined') return;
+    if (uploadedExcelFile) return;
+    if (uploadedFileMeta.length === 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      const files = await loadWorkspaceFiles('logistics-convert', userId);
+      if (cancelled) return;
+      const order = files.orderExcel;
+      const m0 = uploadedFileMeta[0];
+      if (order && m0 && order.name === m0.name && order.size === m0.size) {
+        setUploadedExcelFile(order);
+        if (previewRows.length > 0) {
+          setFileProcessingStatus('done');
+        }
+      }
+      const img = files.selectedImage;
+      if (img && inputSourceType === 'image') {
+        setSelectedImage(img);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    previewSessionEnabled,
+    isPreviewSessionRestoring,
+    userId,
+    uploadedFileMeta,
+    uploadedExcelFile,
+    previewRows.length,
+    inputSourceType,
+  ]);
 
   // fixedHeaderValues 저장 (복원 후)
   useEffect(() => {

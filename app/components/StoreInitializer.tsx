@@ -10,6 +10,7 @@ import {
   clearAllPreviewWorkspacesInTab,
   setPreviewWorkspacePersistenceSuppressed,
 } from '@/app/lib/preview-workspace-session';
+import { clearAllWorkspaceFilesInTab } from '@/app/lib/workspace-order-files-idb';
 
 export default function StoreInitializer() {
   const { status, data: session } = useSession();
@@ -43,6 +44,7 @@ export default function StoreInitializer() {
       setHistoryUserId(null);
       clearSessionsInMemory();
       clearAllPreviewWorkspacesInTab();
+      void clearAllWorkspaceFilesInTab();
     }
     if (status === 'authenticated') {
       setPreviewWorkspacePersistenceSuppressed(false);
@@ -78,6 +80,7 @@ export default function StoreInitializer() {
     const prev = prevPreviewScopeUserIdRef.current;
     if (prev && prev !== uploadMetaUserId) {
       clearAllPreviewWorkspacesInTab();
+      void clearAllWorkspaceFilesInTab();
       setPreviewWorkspacePersistenceSuppressed(false);
     }
     prevPreviewScopeUserIdRef.current = uploadMetaUserId;
@@ -121,17 +124,15 @@ export default function StoreInitializer() {
     }
   }, [pathname, uploadedFiles, currentFilePreviewData]);
 
-  // 새로고침(F5) / 문서 언로드 시: 미리보기 세션을 항상 비웁니다.
-  // SPA 라우팅(다른 메뉴 이동)은 "문서 언로드"가 아니므로 유지됩니다.
+  // 새로고침(F5)·탭 종료 시에만 세션·워크스페이스 파일 정리 (SPA 메뉴 이동은 유지)
   useEffect(() => {
     const clearOnUnload = () => {
       clearAllPreviewWorkspacesInTab();
+      void clearAllWorkspaceFilesInTab();
     };
     window.addEventListener('beforeunload', clearOnUnload);
-    window.addEventListener('pagehide', clearOnUnload);
     return () => {
       window.removeEventListener('beforeunload', clearOnUnload);
-      window.removeEventListener('pagehide', clearOnUnload);
     };
   }, []);
 

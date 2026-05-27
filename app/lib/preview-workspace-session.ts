@@ -40,6 +40,18 @@ export type PreviewWorkspaceSnapshot = {
 const BASE = 'excloud_preview_workspace';
 const MAX_ROWS = 2500;
 
+/** 미리보기 행이 없어도, 입력·첨부 메타만 있으면 sessionStorage에 남깁니다. */
+export function hasPersistableWorkspaceInput(input: WorkspaceInputSnapshot | undefined): boolean {
+  if (!input) return false;
+  if (input.textInput?.trim()) return true;
+  if (input.uploadedFileMeta && input.uploadedFileMeta.length > 0) return true;
+  if (input.inputSourceType) return true;
+  if (input.courierInvoiceFileMeta && (input.courierInvoiceFileMeta.name || input.courierInvoiceFileMeta.size > 0))
+    return true;
+  if (input.selectedFileName?.trim()) return true;
+  return false;
+}
+
 /** 로그아웃·계정 전환 직후 unmount flush 가 세션을 다시 쓰지 않도록 */
 let persistenceSuppressed = false;
 
@@ -64,6 +76,7 @@ function normalizeSnapshot(parsed: unknown): PreviewWorkspaceSnapshot | null {
   if (!parsed || typeof parsed !== 'object') return null;
   const p = parsed as PreviewWorkspaceSnapshot;
   if ((p.v !== 1 && p.v !== 2) || !Array.isArray(p.previewRows)) return null;
+  if (p.previewRows.length === 0 && !hasPersistableWorkspaceInput(p.input)) return null;
   return {
     ...p,
     v: 2,
@@ -79,7 +92,8 @@ export function savePreviewWorkspace(
   snapshot: Omit<PreviewWorkspaceSnapshot, 'v' | 'savedAt'>,
 ): void {
   if (typeof window === 'undefined' || !mayPersistToSessionStorage()) return;
-  if (snapshot.previewRows.length === 0) {
+  const hasInput = hasPersistableWorkspaceInput(snapshot.input);
+  if (snapshot.previewRows.length === 0 && !hasInput) {
     clearPreviewWorkspace(page, userId);
     return;
   }
@@ -105,12 +119,18 @@ export function migratePreviewWorkspaceGuestToUser(
 ): void {
   if (!userId.trim() || typeof window === 'undefined') return;
   const guestSnap = loadPreviewWorkspace(page, null);
-  if (!guestSnap?.previewRows?.length) return;
+  const guestHasWork =
+    guestSnap &&
+    ((guestSnap.previewRows?.length ?? 0) > 0 || hasPersistableWorkspaceInput(guestSnap.input));
+  if (!guestHasWork) return;
   const userSnap = loadPreviewWorkspace(page, userId);
-  if (userSnap?.previewRows?.length) return;
+  const userHasWork =
+    userSnap &&
+    ((userSnap.previewRows?.length ?? 0) > 0 || hasPersistableWorkspaceInput(userSnap.input));
+  if (userHasWork) return;
   try {
     savePreviewWorkspace(page, userId, {
-      previewRows: guestSnap.previewRows,
+      previewRows: guestSnap.previewRows ?? [],
       userOverrides: guestSnap.userOverrides ?? {},
       courierHeaders: guestSnap.courierHeaders ?? [],
       sortConfig: guestSnap.sortConfig ?? null,

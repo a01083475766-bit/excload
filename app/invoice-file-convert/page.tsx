@@ -52,6 +52,11 @@ import {
   migratePreviewWorkspaceGuestToUser,
   type WorkspaceFileMetaSnapshot,
 } from '@/app/lib/preview-workspace-session';
+import {
+  clearWorkspaceFiles,
+  loadWorkspaceFiles,
+  putWorkspaceFiles,
+} from '@/app/lib/workspace-order-files-idb';
 import { Coins } from 'lucide-react';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
@@ -646,6 +651,7 @@ export default function InvoiceFileConvertPage() {
         clearPreviewWorkspace('invoice-file-convert', null);
       } else {
         clearAllPreviewWorkspacesForScope(prevScopeUserId);
+        void clearWorkspaceFiles('invoice-file-convert', prevScopeUserId);
       }
       if (!guestToUserLogin) {
       setPreviewRows([]);
@@ -827,7 +833,62 @@ export default function InvoiceFileConvertPage() {
   useClearPreviewOnBridgeChange(templateBridgeFile, handleInvoiceTemplateBridgeChanged);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !invoiceCourierHydratedRef.current || !authAssetsReady) return;
+    if (!previewSessionEnabled || typeof window === 'undefined') return;
+    const t = window.setTimeout(() => {
+      const slots: { slot: string; file: File }[] = [];
+      if (uploadedExcelFile) slots.push({ slot: 'orderExcel', file: uploadedExcelFile });
+      if (courierInvoiceFile) slots.push({ slot: 'courierInvoice', file: courierInvoiceFile });
+      void putWorkspaceFiles('invoice-file-convert', storageUserId, slots);
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [previewSessionEnabled, storageUserId, uploadedExcelFile, courierInvoiceFile]);
+
+  useEffect(() => {
+    if (!previewSessionEnabled || isPreviewSessionRestoring) return;
+    if (typeof window === 'undefined') return;
+
+    let cancelled = false;
+    void (async () => {
+      const files = await loadWorkspaceFiles('invoice-file-convert', storageUserId);
+      if (cancelled) return;
+
+      if (!uploadedExcelFile && uploadedFileMeta.length > 0) {
+        const order = files.orderExcel;
+        const m0 = uploadedFileMeta[0];
+        if (order && m0 && order.name === m0.name && order.size === m0.size) {
+          setUploadedExcelFile(order);
+        }
+      }
+
+      if (!courierInvoiceFile && courierInvoiceFileMeta) {
+        const inv = files.courierInvoice;
+        const m = courierInvoiceFileMeta;
+        if (inv && m && inv.name === m.name && inv.size === m.size) {
+          setCourierInvoiceFile(inv);
+        }
+      }
+
+      if (previewRows.length > 0 && (files.orderExcel || uploadedExcelFile)) {
+        setPreviewReady(true);
+        setConversionProgress(100);
+        setFileProcessingStatus('done');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    previewSessionEnabled,
+    isPreviewSessionRestoring,
+    storageUserId,
+    uploadedFileMeta,
+    uploadedExcelFile,
+    courierInvoiceFileMeta,
+    courierInvoiceFile,
+    previewRows.length,
+  ]);
+
+  useEffect(() => {
     try {
       writeLocalStorageForUser(
         INVOICE_FILE_CONVERT_KEYS.fixedHeaders,
@@ -1749,6 +1810,7 @@ export default function InvoiceFileConvertPage() {
           setDownloadModalFileName(null);
 
           clearPreviewWorkspace('invoice-file-convert', storageUserId);
+          void clearWorkspaceFiles('invoice-file-convert', storageUserId);
 
           // 🔥 기존 초기화 유지
           setPreviewRows([]);
@@ -1784,6 +1846,7 @@ export default function InvoiceFileConvertPage() {
 
   const applyInvoicePreviewWorkspaceReset = useCallback(() => {
     clearPreviewWorkspace('invoice-file-convert', storageUserId);
+    void clearWorkspaceFiles('invoice-file-convert', storageUserId);
     setPreviewRows([]);
     setCourierHeaders([]);
     setUserOverrides({});

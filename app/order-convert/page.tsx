@@ -41,6 +41,11 @@ import {
   clearPreviewWorkspace,
   migratePreviewWorkspaceGuestToUser,
 } from '@/app/lib/preview-workspace-session';
+import {
+  clearWorkspaceFiles,
+  loadWorkspaceFiles,
+  putWorkspaceFiles,
+} from '@/app/lib/workspace-order-files-idb';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
 import {
   emptyInputSourceCounts,
@@ -690,6 +695,7 @@ export default function OrderConvertPage() {
         clearPreviewWorkspace('order-convert', null);
       } else {
         clearAllPreviewWorkspacesForScope(prevScopeUserId);
+        void clearWorkspaceFiles('order-convert', prevScopeUserId);
       }
       if (!guestToUserLogin) {
       isCancelledRef.current = true;
@@ -871,6 +877,54 @@ export default function OrderConvertPage() {
   });
 
   useClearPreviewOnBridgeChange(templateBridgeFile, handleTemplateBridgeChanged);
+
+  // SPA 이동 후에도 주문 엑셀·이미지 파일 복구 (IndexedDB)
+  useEffect(() => {
+    if (!previewSessionEnabled || typeof window === 'undefined') return;
+    const t = window.setTimeout(() => {
+      const slots: { slot: string; file: File }[] = [];
+      if (uploadedExcelFile) slots.push({ slot: 'orderExcel', file: uploadedExcelFile });
+      if (selectedImage) slots.push({ slot: 'selectedImage', file: selectedImage });
+      void putWorkspaceFiles('order-convert', storageUserId, slots);
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [previewSessionEnabled, storageUserId, uploadedExcelFile, selectedImage]);
+
+  useEffect(() => {
+    if (!previewSessionEnabled || isPreviewSessionRestoring) return;
+    if (typeof window === 'undefined') return;
+    if (uploadedExcelFile) return;
+    if (uploadedFileMeta.length === 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      const files = await loadWorkspaceFiles('order-convert', storageUserId);
+      if (cancelled) return;
+      const order = files.orderExcel;
+      const m0 = uploadedFileMeta[0];
+      if (order && m0 && order.name === m0.name && order.size === m0.size) {
+        setUploadedExcelFile(order);
+        if (previewRows.length > 0) {
+          setFileProcessingStatus('done');
+        }
+      }
+      const img = files.selectedImage;
+      if (img && inputSourceType === 'image') {
+        setSelectedImage(img);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    previewSessionEnabled,
+    isPreviewSessionRestoring,
+    storageUserId,
+    uploadedFileMeta,
+    uploadedExcelFile,
+    previewRows.length,
+    inputSourceType,
+  ]);
 
   // fixedHeaderValues를 localStorage에 저장 (복원 후에만 저장해 계정 전환 시 오쓰기 방지)
   useEffect(() => {
@@ -2077,6 +2131,7 @@ export default function OrderConvertPage() {
           setDownloadModalFileName(null);
 
           clearPreviewWorkspace('order-convert', storageUserId);
+          void clearWorkspaceFiles('order-convert', storageUserId);
 
           // 🔥 기존 초기화 유지
           setPreviewRows([]);
@@ -2107,6 +2162,7 @@ export default function OrderConvertPage() {
 
   const applyFullPreviewWorkspaceReset = useCallback(() => {
     clearPreviewWorkspace('order-convert', storageUserId);
+    void clearWorkspaceFiles('order-convert', storageUserId);
     resetBundleShippingUi();
     setPreviewRows([]);
     setCourierHeaders([]);

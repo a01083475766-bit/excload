@@ -7,11 +7,13 @@ import {
   type PreviewWorkspaceSnapshot,
   type WorkspaceFileMetaSnapshot,
   type WorkspaceInputSnapshot,
+  hasPersistableWorkspaceInput,
   loadPreviewWorkspace,
   mayPersistPreviewWorkspace,
   migratePreviewWorkspaceGuestToUser,
   savePreviewWorkspace,
 } from '@/app/lib/preview-workspace-session';
+import { migrateWorkspaceFilesGuestToUser } from '@/app/lib/workspace-order-files-idb';
 
 type SortConfig = { header: string; direction: 'asc' | 'desc' } | null;
 
@@ -110,7 +112,9 @@ export function usePreviewWorkspaceSession(opts: Options): void {
   const flushSave = () => {
     const latest = optsRef.current;
     if (!latest.enabled || typeof window === 'undefined' || !mayPersistPreviewWorkspace()) return;
-    if (latest.previewRows.length === 0) return;
+    const inputSnap = persistInput ? buildInputSnapshot(latest) : undefined;
+    const hasIn = hasPersistableWorkspaceInput(inputSnap);
+    if (latest.previewRows.length === 0 && !hasIn) return;
 
     const payload: Omit<PreviewWorkspaceSnapshot, 'v' | 'savedAt'> = {
       previewRows: latest.previewRows,
@@ -124,7 +128,7 @@ export function usePreviewWorkspaceSession(opts: Options): void {
       sortConfig: latest.sortConfig,
     };
     if (persistInput) {
-      payload.input = buildInputSnapshot(latest);
+      payload.input = inputSnap;
     }
     savePreviewWorkspace(latest.pageKey, latest.storageUserId, payload);
   };
@@ -137,19 +141,27 @@ export function usePreviewWorkspaceSession(opts: Options): void {
 
     if (storageUserId) {
       migratePreviewWorkspaceGuestToUser(pageKey, storageUserId);
+      void migrateWorkspaceFilesGuestToUser(pageKey, storageUserId);
     }
 
     const snap = loadPreviewWorkspace(pageKey, storageUserId);
     restoredScopeRef.current = scopeKey;
 
-    if (!snap || snap.previewRows.length === 0) {
+    const hasRestorable =
+      snap &&
+      ((snap.previewRows?.length ?? 0) > 0 || hasPersistableWorkspaceInput(snap.input));
+    if (!hasRestorable || !snap) {
       onRestoreSettled?.(false);
       return;
     }
 
     const headers = resolveCourierHeaders(snap, () => optsRef.current.getFallbackCourierHeaders?.() ?? []);
 
-    setPreviewRows(snap.previewRows);
+    if (snap.previewRows.length > 0) {
+      setPreviewRows(snap.previewRows);
+    } else {
+      setPreviewRows([]);
+    }
     setUserOverrides(snap.userOverrides ?? {});
     setCourierHeaders(headers);
     setSortConfig(snap.sortConfig ?? null);
@@ -160,7 +172,10 @@ export function usePreviewWorkspaceSession(opts: Options): void {
   }, [enabled, scopeKey, pageKey, storageUserId]);
 
   useEffect(() => {
-    if (!enabled || previewRows.length === 0) return;
+    if (!enabled) return;
+    const inputSnap = persistInput ? buildInputSnapshot(optsRef.current) : undefined;
+    const hasIn = hasPersistableWorkspaceInput(inputSnap);
+    if (previewRows.length === 0 && !hasIn) return;
 
     const becameNonEmpty =
       prevPreviewCountRef.current === 0 && previewRows.length > 0;
