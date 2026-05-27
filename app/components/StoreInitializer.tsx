@@ -6,6 +6,10 @@ import { useSession } from 'next-auth/react';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { useUploadedFilesStore } from '@/app/lib/stores/uploadedFilesStore';
 import { useUserStore } from '@/app/store/userStore';
+import {
+  clearAllPreviewWorkspacesInTab,
+  setPreviewWorkspacePersistenceSuppressed,
+} from '@/app/lib/preview-workspace-session';
 
 export default function StoreInitializer() {
   const { status, data: session } = useSession();
@@ -18,6 +22,7 @@ export default function StoreInitializer() {
   const uploadMetaUserId = useUserStore((state) => state.user?.userId ?? null);
   const pathname = usePathname();
   const prevPathnameRef = useRef<string | null>(null);
+  const prevPreviewScopeUserIdRef = useRef<string | null>(null);
   
   // uploadedFiles.excel과 currentFilePreviewData 값 추적
   const uploadedFiles = useUploadedFilesStore((state) => state.files.excel);
@@ -37,6 +42,10 @@ export default function StoreInitializer() {
     if (status === 'unauthenticated') {
       setHistoryUserId(null);
       clearSessionsInMemory();
+      clearAllPreviewWorkspacesInTab();
+    }
+    if (status === 'authenticated') {
+      setPreviewWorkspacePersistenceSuppressed(false);
     }
   }, [
     status,
@@ -57,6 +66,22 @@ export default function StoreInitializer() {
     if (uploadMetaIsLoading) return;
     syncUploadedFilesMetadataScope();
   }, [status, uploadMetaIsLoading, uploadMetaUserId, syncUploadedFilesMetadataScope]);
+
+  // 계정 A → B 전환 시 이전 사용자의 변환 작업 세션 제거
+  useEffect(() => {
+    if (status !== 'authenticated' || !uploadMetaUserId) {
+      if (status === 'unauthenticated') {
+        prevPreviewScopeUserIdRef.current = null;
+      }
+      return;
+    }
+    const prev = prevPreviewScopeUserIdRef.current;
+    if (prev && prev !== uploadMetaUserId) {
+      clearAllPreviewWorkspacesInTab();
+      setPreviewWorkspacePersistenceSuppressed(false);
+    }
+    prevPreviewScopeUserIdRef.current = uploadMetaUserId;
+  }, [status, uploadMetaUserId]);
 
   // 다른 탭에서 로그인·로그아웃 시 persist(user-store) 변경 → 동기화
   useEffect(() => {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
+import { clearAllPreviewWorkspacesInTab } from '@/app/lib/preview-workspace-session';
 import {
   User,
   Calendar,
@@ -104,6 +105,7 @@ export default function MyPage() {
 
   const handleLogout = async () => {
     try {
+      clearAllPreviewWorkspacesInTab();
       await signOut({ redirect: false });
       clearUser();
       // 홈으로 보내 상단「로그인/회원가입」을 한 번 더 거치게 함(의도적 마찰)

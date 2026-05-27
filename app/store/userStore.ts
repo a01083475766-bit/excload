@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { clearAllPreviewWorkspacesInTab } from '@/app/lib/preview-workspace-session';
 
 export type Plan = 'FREE' | 'PRO' | 'YEARLY';
 
@@ -56,6 +57,7 @@ export const useUserStore = create<UserStoreState>()(
       },
 
       clearUser: () => {
+        clearAllPreviewWorkspacesInTab();
         set({ user: null });
       },
 

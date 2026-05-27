@@ -40,6 +40,21 @@ export type PreviewWorkspaceSnapshot = {
 const BASE = 'excloud_preview_workspace';
 const MAX_ROWS = 2500;
 
+/** 로그아웃·계정 전환 직후 unmount flush 가 세션을 다시 쓰지 않도록 */
+let persistenceSuppressed = false;
+
+export function setPreviewWorkspacePersistenceSuppressed(suppressed: boolean): void {
+  persistenceSuppressed = suppressed;
+}
+
+function mayPersistToSessionStorage(): boolean {
+  return !persistenceSuppressed;
+}
+
+export function mayPersistPreviewWorkspace(): boolean {
+  return mayPersistToSessionStorage();
+}
+
 function storageKey(page: PreviewWorkspacePageKey, userId: string | null): string {
   const scope = userId?.trim() ? userId.trim() : 'guest';
   return `${BASE}:${page}:${scope}`;
@@ -63,7 +78,7 @@ export function savePreviewWorkspace(
   userId: string | null,
   snapshot: Omit<PreviewWorkspaceSnapshot, 'v' | 'savedAt'>,
 ): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !mayPersistToSessionStorage()) return;
   if (snapshot.previewRows.length === 0) {
     clearPreviewWorkspace(page, userId);
     return;
@@ -141,5 +156,26 @@ export function clearAllPreviewWorkspacesForScope(userId: string | null): void {
   ];
   for (const page of pages) {
     clearPreviewWorkspace(page, userId);
+  }
+}
+
+/** 로그아웃·계정 전환 시 탭 내 모든 변환 작업 세션(게스트·모든 계정 키) 제거 */
+export function clearAllPreviewWorkspacesInTab(): void {
+  if (typeof window === 'undefined') return;
+  setPreviewWorkspacePersistenceSuppressed(true);
+  clearAllPreviewWorkspacesForScope(null);
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(`${BASE}:`)) {
+        keysToRemove.push(key);
+      }
+    }
+    for (const key of keysToRemove) {
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    /* ignore */
   }
 }

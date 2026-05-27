@@ -8,6 +8,7 @@ import {
   type WorkspaceFileMetaSnapshot,
   type WorkspaceInputSnapshot,
   loadPreviewWorkspace,
+  mayPersistPreviewWorkspace,
   migratePreviewWorkspaceGuestToUser,
   savePreviewWorkspace,
 } from '@/app/lib/preview-workspace-session';
@@ -108,7 +109,7 @@ export function usePreviewWorkspaceSession(opts: Options): void {
 
   const flushSave = () => {
     const latest = optsRef.current;
-    if (!latest.enabled || typeof window === 'undefined') return;
+    if (!latest.enabled || typeof window === 'undefined' || !mayPersistPreviewWorkspace()) return;
     if (latest.previewRows.length === 0) return;
 
     const payload: Omit<PreviewWorkspaceSnapshot, 'v' | 'savedAt'> = {
