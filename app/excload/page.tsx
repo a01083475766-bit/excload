@@ -199,7 +199,7 @@ export default function HomePage() {
       name: '무료',
       priceLabel: '무료',
       description: '무료 이용 플랜',
-      features: ['매월 5,000 사용량 제공', '텍스트 입력 최대 5,000자', '엑셀 다운로드 1회 1 사용량 차감'],
+      features: ['매월 5,000 사용량 제공', '텍스트 입력 최대 5,000자', '엑셀 다운로드 1회 최대 1,000 사용량 차감(잔여가 더 적으면 전액 차감)'],
       popular: false,
     },
     {

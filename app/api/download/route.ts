@@ -100,15 +100,16 @@ export async function POST(request: NextRequest) {
 
     // 6. 다운로드 성공 후 사용량 차감 (FREE 플랜만)
     if (user.plan === 'FREE') {
+      const deductionAmount = Math.min(user.points, 1000);
       const updatedUser = await prisma.$transaction(async (tx) => {
         const deducted = await tx.user.updateMany({
           where: {
             id: user.id,
-            points: { gte: 1 },
+            points: { gte: deductionAmount },
           },
           data: {
             points: {
-              decrement: 1,
+              decrement: deductionAmount,
             },
           },
         });
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
         await tx.pointHistory.create({
           data: {
             userId: freshUser.id,
-            change: -1,
+            change: -deductionAmount,
             reason: 'DOWNLOAD_FILE',
           },
         });
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      usedPoints = 1;
+      usedPoints = deductionAmount;
     }
 
     // 7. 성공 응답 반환 (엑셀 파일 + 사용량 정보)

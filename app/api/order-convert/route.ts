@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
 
     // 월간 포인트 지급/리셋은 POST /api/user/grant-monthly-points 에서만 처리합니다.
 
-    // 7. 사용량 부족 검사
-    if (user.points < textLength) {
+    // 7. 사용량 부족 검사 (잔여 1포인트 이상이면 마지막 1회 허용)
+    if (user.points < 1) {
       return NextResponse.json(
         { error: '사용량이 부족합니다.' },
         { status: 400 }
@@ -176,16 +176,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 9. 변환 성공 후 사용량 차감 (원자적 차감: 동시 요청 과차감 방지)
+    // 9. 변환 성공 후 사용량 차감 (요청량보다 잔여가 적으면 잔여 전액 차감)
+    const deductionAmount = Math.min(user.points, textLength);
     const updatedUser = await prisma.$transaction(async (tx) => {
       const deducted = await tx.user.updateMany({
         where: {
           id: user.id,
-          points: { gte: textLength },
+          points: { gte: deductionAmount },
         },
         data: {
           points: {
-            decrement: textLength,
+            decrement: deductionAmount,
           },
         },
       });
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
       await tx.pointHistory.create({
         data: {
           userId: freshUser.id,
-          change: -textLength,
+          change: -deductionAmount,
           reason: 'TEXT_CONVERT',
         },
       });
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest) {
         plan: updatedUser.plan as 'FREE' | 'PRO' | 'YEARLY',
         points: updatedUser.points,
       },
-      usedPoints: textLength,
+      usedPoints: deductionAmount,
     });
   } catch (error) {
     console.error('[Order Convert API] 에러:', error);

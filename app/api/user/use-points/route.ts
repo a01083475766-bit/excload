@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (user.points < amount) {
+      if (user.points < 1) {
         return NextResponse.json(
           {
             error: '사용량이 부족합니다.',
@@ -80,10 +80,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // 정책:
+      // - text: 요청량이 잔액보다 커도 잔여 포인트 전액 차감 후 1회 허용
+      // - download: (무료에서 호출) 1회 1000 기준이지만 잔액이 부족하면 전액 차감 후 1회 허용
+      const normalizedAmount = Math.max(1, Math.floor(amount));
+      const deductionAmount = Math.min(user.points, normalizedAmount);
+
       // 동시 요청 시 잔액보다 많이 빠지지 않도록 한 번에 조건+차감 (TOCTOU 방지)
       const deducted = await prisma.user.updateMany({
-        where: { id: user.id, points: { gte: amount } },
-        data: { points: { decrement: amount } },
+        where: { id: user.id, points: { gte: deductionAmount } },
+        data: { points: { decrement: deductionAmount } },
       });
 
       if (deducted.count === 0) {
@@ -120,7 +126,7 @@ export async function POST(request: NextRequest) {
           points: updatedUser.points,
           nextPointDate: updatedUser.nextPointDate?.toISOString() ?? null,
         },
-        usedAmount: amount,
+        usedAmount: deductionAmount,
         reason: reason || '사용량 차감',
       });
     } catch (dbError) {

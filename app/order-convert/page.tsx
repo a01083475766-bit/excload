@@ -1563,7 +1563,7 @@ export default function OrderConvertPage() {
     }
 
     // 사용량 부족 확인
-    if (currentUser.points < amount) {
+    if (currentUser.points < 1) {
       alert(buildInsufficientPointsMessage(currentUser.plan, currentUser.nextPointDate ?? currentUser.lastMonthlyGrant ?? null));
       return false;
     }
@@ -1634,7 +1634,7 @@ export default function OrderConvertPage() {
       return;
     }
 
-    if (user.points < textLength) {
+    if (user.points < 1) {
       setErrorMessageTextImage('사용량이 부족합니다');
       return;
     }
@@ -2025,14 +2025,14 @@ export default function OrderConvertPage() {
         return;
       }
       
-      // 사용량 부족 체크 (무료 플랜 다운로드 1회 1포인트)
+      // 사용량 부족 체크 (무료 플랜 다운로드 1회 최대 1,000포인트, 잔여가 적으면 전액 차감)
       if (user.points < 1) {
         alert(buildInsufficientPointsMessage(user.plan, user.nextPointDate ?? user.lastMonthlyGrant ?? null));
         return;
       }
       
-      // 사용량 차감 (API 호출)
-      const pointsDeducted = await usePoints(1, 'download');
+      // 사용량 차감 (무료 다운로드 1회 기준 1,000 포인트, 잔여가 적으면 전액 소진)
+      const pointsDeducted = await usePoints(1000, 'download');
       if (!pointsDeducted) {
         return; // 사용량 부족으로 차단
       }
