@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         email: true,
         plan: true,
         points: true,
+        nextPointDate: true,
       },
     });
 
@@ -77,9 +78,12 @@ export async function POST(request: NextRequest) {
     // 4. FREE 플랜일 경우만 사용량 검사
     let usedPoints = 0;
     if (user.plan === 'FREE') {
-      if (user.points < 1000) {
+      if (user.points < 1) {
         return NextResponse.json(
-          { error: '사용량이 부족합니다.' },
+          {
+            error: '사용량이 부족합니다.',
+            nextPointDate: user.nextPointDate?.toISOString() ?? null,
+          },
           { status: 400 }
         );
       }
@@ -100,11 +104,11 @@ export async function POST(request: NextRequest) {
         const deducted = await tx.user.updateMany({
           where: {
             id: user.id,
-            points: { gte: 1000 },
+            points: { gte: 1 },
           },
           data: {
             points: {
-              decrement: 1000,
+              decrement: 1,
             },
           },
         });
@@ -120,6 +124,7 @@ export async function POST(request: NextRequest) {
             email: true,
             plan: true,
             points: true,
+            nextPointDate: true,
           },
         });
 
@@ -128,7 +133,7 @@ export async function POST(request: NextRequest) {
         await tx.pointHistory.create({
           data: {
             userId: freshUser.id,
-            change: -1000,
+            change: -1,
             reason: 'DOWNLOAD_FILE',
           },
         });
@@ -143,7 +148,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      usedPoints = 1000;
+      usedPoints = 1;
     }
 
     // 7. 성공 응답 반환 (엑셀 파일 + 사용량 정보)

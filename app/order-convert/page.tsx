@@ -1521,6 +1521,24 @@ export default function OrderConvertPage() {
     }
   }, [showScreenshotModal]);
   
+  const formatNextRechargeDate = (dateLike?: string | null): string => {
+    if (!dateLike) return '다음 충전일 미정';
+    const parsed = new Date(dateLike);
+    if (Number.isNaN(parsed.getTime())) return '다음 충전일 미정';
+    return `${parsed.getFullYear()}.${String(parsed.getMonth() + 1).padStart(2, '0')}.${String(parsed.getDate()).padStart(2, '0')}`;
+  };
+
+  const buildInsufficientPointsMessage = (
+    plan: 'FREE' | 'PRO' | 'YEARLY',
+    nextPointDate?: string | null,
+  ): string => {
+    const nextDateLabel = formatNextRechargeDate(nextPointDate);
+    if (plan === 'FREE') {
+      return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다리거나 플랜 업그레이드 후 이용해 주세요.`;
+    }
+    return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다려 주세요.`;
+  };
+
   // 사용량 차감 헬퍼 함수
   const usePoints = async (amount: number, type: 'text' | 'download'): Promise<boolean> => {
     // 현재 사용자 정보 가져오기 (최신 상태)
@@ -1546,8 +1564,7 @@ export default function OrderConvertPage() {
 
     // 사용량 부족 확인
     if (currentUser.points < amount) {
-      alert('사용량이 부족합니다');
-      router.push('/pricing');
+      alert(buildInsufficientPointsMessage(currentUser.plan, currentUser.nextPointDate ?? currentUser.lastMonthlyGrant ?? null));
       return false;
     }
 
@@ -1567,8 +1584,12 @@ export default function OrderConvertPage() {
       if (!response.ok) {
         const data = await response.json();
         if (data.error === '사용량이 부족합니다.') {
-          alert('사용량이 부족합니다');
-          router.push('/pricing');
+          alert(
+            buildInsufficientPointsMessage(
+              currentUser.plan,
+              (data.nextPointDate as string | null | undefined) ?? currentUser.nextPointDate ?? currentUser.lastMonthlyGrant ?? null,
+            ),
+          );
           return false;
         }
         throw new Error(data.error || '사용량 차감 실패');
@@ -1577,7 +1598,10 @@ export default function OrderConvertPage() {
       const result = await response.json();
       if (result.success && result.user) {
         // Zustand store 업데이트
-        updatePoints(result.user.points, result.user.monthlyPoints);
+        updatePoints(result.user.points, result.user.monthlyPoints, result.user.nextPointDate);
+        if (result.user.points === 0) {
+          alert(`이번 작업으로 사용량이 모두 소진되었습니다.\n다음 충전일: ${formatNextRechargeDate(result.user.nextPointDate ?? currentUser.nextPointDate ?? currentUser.lastMonthlyGrant ?? null)}`);
+        }
         return true;
       }
 
@@ -2001,14 +2025,14 @@ export default function OrderConvertPage() {
         return;
       }
       
-      // 사용량 부족 체크 (다운로드 1회 1,000 사용량 필요)
-      if (user.points < 1000) {
-        alert('사용량이 부족합니다');
+      // 사용량 부족 체크 (무료 플랜 다운로드 1회 1포인트)
+      if (user.points < 1) {
+        alert(buildInsufficientPointsMessage(user.plan, user.nextPointDate ?? user.lastMonthlyGrant ?? null));
         return;
       }
       
       // 사용량 차감 (API 호출)
-      const pointsDeducted = await usePoints(1000, 'download');
+      const pointsDeducted = await usePoints(1, 'download');
       if (!pointsDeducted) {
         return; // 사용량 부족으로 차단
       }

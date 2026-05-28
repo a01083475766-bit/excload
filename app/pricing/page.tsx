@@ -18,7 +18,7 @@ export default function PricingPage() {
       features: [
         '매월 5,000 사용량 제공',
         '텍스트 변환 시 글자수만큼 사용량 차감',
-        '엑셀 다운로드 1회 1,000 사용량 차감',
+        '엑셀 다운로드 1회 1 사용량 차감',
         '텍스트 입력 최대 5,000자',
       ],
       recommendations: [

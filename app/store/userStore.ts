@@ -21,13 +21,14 @@ export interface User {
   lastLoginProvider?: 'CREDENTIALS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'UNKNOWN' | string;
   monthlyPoints?: number;
   lastMonthlyGrant?: string | null;
+  nextPointDate?: string | null;
 }
 
 interface UserStoreState {
   user: User | null;
   isLoading: boolean;
   setUser: (user: User | null) => void;
-  updatePoints: (points: number, monthlyPoints?: number) => void;
+  updatePoints: (points: number, monthlyPoints?: number, nextPointDate?: string | null) => void;
   clearUser: () => void;
   fetchUser: () => Promise<void>;
   grantMonthlyPoints: () => Promise<void>;
@@ -43,7 +44,7 @@ export const useUserStore = create<UserStoreState>()(
         set({ user });
       },
 
-      updatePoints: (points, monthlyPoints) => {
+      updatePoints: (points, monthlyPoints, nextPointDate) => {
         const currentUser = get().user;
         if (currentUser) {
           set({
@@ -51,6 +52,7 @@ export const useUserStore = create<UserStoreState>()(
               ...currentUser,
               points,
               monthlyPoints: monthlyPoints ?? currentUser.monthlyPoints,
+              nextPointDate: nextPointDate ?? currentUser.nextPointDate ?? null,
             },
           });
         }
@@ -84,6 +86,7 @@ export const useUserStore = create<UserStoreState>()(
                   lastLoginProvider: data.user.lastLoginProvider,
                   monthlyPoints: data.user.monthlyPoints,
                   lastMonthlyGrant: data.user.lastMonthlyGrant,
+                  nextPointDate: data.user.nextPointDate,
                 },
               });
 

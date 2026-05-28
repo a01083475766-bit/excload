@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
           email: true,
           plan: true,
           points: true,
+          nextPointDate: true,
         },
       });
 
@@ -71,7 +72,10 @@ export async function POST(request: NextRequest) {
 
       if (user.points < amount) {
         return NextResponse.json(
-          { error: '사용량이 부족합니다.' },
+          {
+            error: '사용량이 부족합니다.',
+            nextPointDate: user.nextPointDate?.toISOString() ?? null,
+          },
           { status: 400 }
         );
       }
@@ -96,6 +100,7 @@ export async function POST(request: NextRequest) {
           email: true,
           plan: true,
           points: true,
+          nextPointDate: true,
         },
       });
 
@@ -113,6 +118,7 @@ export async function POST(request: NextRequest) {
           email: updatedUser.email,
           plan: updatedUser.plan as 'FREE' | 'PRO' | 'YEARLY',
           points: updatedUser.points,
+          nextPointDate: updatedUser.nextPointDate?.toISOString() ?? null,
         },
         usedAmount: amount,
         reason: reason || '사용량 차감',

@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
           lastLoginProvider: user.lastLoginProvider,
           monthlyPoints: undefined,
           lastMonthlyGrant: user.nextPointDate?.toISOString() || null,
+          nextPointDate: user.nextPointDate?.toISOString() || null,
           createdAt: user.createdAt.toISOString(),
           updatedAt: user.updatedAt.toISOString(),
         },
