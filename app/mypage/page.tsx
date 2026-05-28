@@ -60,6 +60,13 @@ interface PointGrantHistoryItem {
   grantedAtLabel: string;
 }
 
+interface PointUsageHistoryItem {
+  id: string;
+  reasonLabel: string;
+  change: number;
+  usedAtLabel: string;
+}
+
 export default function MyPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -87,6 +94,9 @@ export default function MyPage() {
   const [pointGrantHistory, setPointGrantHistory] = useState<PointGrantHistoryItem[]>([]);
   const [isLoadingPointGrantHistory, setIsLoadingPointGrantHistory] = useState(false);
   const [isPointGrantHistoryOpen, setIsPointGrantHistoryOpen] = useState(false);
+  const [pointUsageHistory, setPointUsageHistory] = useState<PointUsageHistoryItem[]>([]);
+  const [isLoadingPointUsageHistory, setIsLoadingPointUsageHistory] = useState(false);
+  const [isPointUsageHistoryOpen, setIsPointUsageHistoryOpen] = useState(false);
   const [pendingPlanChange, setPendingPlanChange] = useState<PendingPlanChangeState | null>(null);
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const [isCancellingPlanChange, setIsCancellingPlanChange] = useState(false);
@@ -201,6 +211,38 @@ export default function MyPage() {
       }
     };
     loadPointGrantHistory();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadPointUsageHistory = async () => {
+      try {
+        setIsLoadingPointUsageHistory(true);
+        const response = await fetch('/api/user/point-usage-history', {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          setPointUsageHistory([]);
+          return;
+        }
+        const data = await response.json();
+        const items = Array.isArray(data?.usages) ? data.usages : [];
+        setPointUsageHistory(
+          items.map((p: Record<string, unknown>) => ({
+            id: String(p.id ?? ''),
+            reasonLabel: typeof p.reasonLabel === 'string' ? p.reasonLabel : '포인트 사용',
+            change: typeof p.change === 'number' ? p.change : 0,
+            usedAtLabel: typeof p.usedAtLabel === 'string' ? p.usedAtLabel : '',
+          }))
+        );
+      } catch (error) {
+        console.error('[MyPage] 포인트 사용 내역 조회 실패:', error);
+        setPointUsageHistory([]);
+      } finally {
+        setIsLoadingPointUsageHistory(false);
+      }
+    };
+    loadPointUsageHistory();
   }, [user]);
 
   useEffect(() => {
@@ -1015,6 +1057,68 @@ export default function MyPage() {
                               </ul>
                               <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
                                 최근 {pointGrantHistory.length}건 표시
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-700">
+                      <button
+                        type="button"
+                        onClick={() => setIsPointUsageHistoryOpen((open) => !open)}
+                        className="flex w-full items-center justify-between gap-2 text-left rounded-lg py-1 -mx-1 px-1 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                        aria-expanded={isPointUsageHistoryOpen}
+                      >
+                        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                          포인트 사용 내역
+                          {!isLoadingPointUsageHistory && pointUsageHistory.length > 0 && (
+                            <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
+                              ({pointUsageHistory.length}건)
+                            </span>
+                          )}
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 ${
+                            isPointUsageHistoryOpen ? 'rotate-180' : ''
+                          }`}
+                          aria-hidden
+                        />
+                      </button>
+
+                      {isPointUsageHistoryOpen && (
+                        <div className="mt-3">
+                          {isLoadingPointUsageHistory ? (
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">불러오는 중…</p>
+                          ) : pointUsageHistory.length === 0 ? (
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                              포인트 사용 내역이 없습니다.
+                            </p>
+                          ) : (
+                            <>
+                              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                                {pointUsageHistory.map((item) => (
+                                  <li
+                                    key={item.id}
+                                    className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2.5 text-sm"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                        {item.reasonLabel}
+                                      </p>
+                                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                        {item.usedAtLabel}
+                                      </p>
+                                    </div>
+                                    <p className="shrink-0 font-semibold text-rose-700 dark:text-rose-300 tabular-nums">
+                                      -{item.change.toLocaleString()}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ul>
+                              <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+                                최근 {pointUsageHistory.length}건 표시
                               </p>
                             </>
                           )}

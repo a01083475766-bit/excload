@@ -9,6 +9,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { PrismaClient } from '@prisma/client';
+import {
+  paymentFailureClearData,
+  recordPaymentFailure,
+} from '@/app/lib/subscription/payment-failure';
 
 function isPrismaUniqueViolation(e: unknown): boolean {
   return (e as { code?: string })?.code === 'P2002';
@@ -305,6 +309,7 @@ export async function POST(request: NextRequest) {
                   plan,
                   stripeCustomerId: session.customer as string | null,
                   points: 400000,
+                  ...paymentFailureClearData(),
                 },
               }),
             ]);
@@ -318,6 +323,7 @@ export async function POST(request: NextRequest) {
                 data: {
                   plan,
                   stripeCustomerId: session.customer as string | null,
+                  ...paymentFailureClearData(),
                 },
               });
             } else {
@@ -330,6 +336,7 @@ export async function POST(request: NextRequest) {
             data: {
               plan,
               stripeCustomerId: session.customer as string | null,
+              ...paymentFailureClearData(),
             },
           });
         }
@@ -692,6 +699,7 @@ export async function POST(request: NextRequest) {
                     data: {
                       plan,
                       points: 400000,
+                      ...paymentFailureClearData(),
                     },
                     select: {
                       id: true,
@@ -718,7 +726,10 @@ export async function POST(request: NextRequest) {
                   if (updatedUser.plan !== plan) {
                     await prisma.user.update({
                       where: { id: user.id },
-                      data: { plan },
+                      data: {
+                        plan,
+                        ...paymentFailureClearData(),
+                      },
                     });
                     updatedUser.plan = plan;
                   }
@@ -728,6 +739,11 @@ export async function POST(request: NextRequest) {
               }
             }
           }
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: paymentFailureClearData(),
+          });
 
           console.log('[Stripe Webhook] 포인트 처리 완료 userId=', user.id, 'eventId=', event.id);
 
@@ -917,7 +933,18 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ received: true });
         }
 
-        // Stripe 재시도 대기 - 플랜 변경 없음
+        const invoiceAny = invoice as unknown as {
+          attempt_count?: number;
+          last_finalization_error?: { message?: string; code?: string } | null;
+        };
+        const failureReason =
+          invoiceAny.last_finalization_error?.message ||
+          `Stripe 자동결제 실패 (시도 ${invoiceAny.attempt_count ?? 1}회)`;
+        const failureCode = invoiceAny.last_finalization_error?.code;
+
+        await recordPaymentFailure(user.id, failureReason, failureCode);
+
+        // Stripe 재시도 대기 + 내부 유예기간 상태 반영
         console.log('[Stripe Webhook] 결제 실패 - Stripe 재시도 대기', {
           subscriptionId,
           userId: user.id,
