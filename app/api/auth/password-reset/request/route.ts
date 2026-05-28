@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     console.log('STEP 1: API HIT');
     const body = (await request.json()) as PasswordResetRequestBody;
     const email = (body.email || '').trim().toLowerCase();
-    console.log('EMAIL RECEIVED:', email);
+    console.log('PASSWORD RESET REQUEST RECEIVED');
     const ip = getClientIp(request);
     const now = new Date();
     const windowStart = new Date(now.getTime() - RATE_LIMIT_WINDOW_MS);
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       where: { email },
       select: { id: true },
     });
-    console.log('USER FOUND:', user);
+    console.log('USER LOOKUP COMPLETE:', { found: Boolean(user) });
 
     if (!user) {
       console.log('BLOCKED: USER NOT FOUND');
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       code,
       expireMinutes: PASSWORD_RESET_EXPIRE_MINUTES,
     });
-    console.log('[Password Reset Request] mail result:', mailResult);
+    console.log('[Password Reset Request] mail result:', { sent: mailResult.sent, reason: mailResult.reason ?? null });
 
     await prisma.passwordResetAuditLog.create({
       data: {

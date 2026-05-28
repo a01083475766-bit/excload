@@ -26,8 +26,8 @@ if (!process.env.NEXTAUTH_SECRET) {
   );
 }
 
-const AKMAN_ADMIN_EMAIL = 'akman@excload.com';
-const AKMAN_ADMIN_BCRYPT_HASH = '$2b$10$WP8wPfSr5v/HHQlo0pf9I.piql9e9PLm/NJZ2trg4o2Q8GJgHUvtm';
+const AKMAN_ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase() || '';
+const AKMAN_ADMIN_BCRYPT_HASH = process.env.ADMIN_BCRYPT_HASH?.trim() || '';
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
@@ -77,9 +77,13 @@ export const authOptions: NextAuthOptions = {
           const inputId = credentials.email.trim().toLowerCase();
           const normalizedEmail = inputId === 'akman' ? AKMAN_ADMIN_EMAIL : inputId;
 
-          if (normalizedEmail === AKMAN_ADMIN_EMAIL) {
+          if (AKMAN_ADMIN_EMAIL && normalizedEmail === AKMAN_ADMIN_EMAIL) {
             // 관리자 계정은 DB 상태와 무관하게 로그인 가능하도록 우선 비밀번호를 직접 검증한다.
             const { compare } = await import('bcryptjs');
+            if (!AKMAN_ADMIN_BCRYPT_HASH) {
+              console.error('[Auth] ADMIN_BCRYPT_HASH missing');
+              return null;
+            }
             const adminPasswordMatch = await compare(credentials.password, AKMAN_ADMIN_BCRYPT_HASH);
 
             if (!adminPasswordMatch) {
@@ -137,48 +141,40 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
-          console.log('[Auth] LOGIN ATTEMPT:', {
-            email: normalizedEmail,
+          console.log('[Auth] LOGIN ATTEMPT', {
             userFound: !!user,
-            userEmail: user?.email,
             hasPasswordHash: !!user?.passwordHash,
-            emailVerified: user?.emailVerified,
+            emailVerified: Boolean(user?.emailVerified),
           });
 
           if (!user) {
-            console.log('[Auth] USER NOT FOUND:', normalizedEmail);
+            console.log('[Auth] USER NOT FOUND');
             return null;
           }
 
           // 보안: 이메일 인증 전 계정은 로그인 차단
           if (!user.emailVerified) {
-            console.log('[Auth] EMAIL NOT VERIFIED - LOGIN BLOCKED:', user.email);
+            console.log('[Auth] EMAIL NOT VERIFIED - LOGIN BLOCKED');
             return null;
           }
 
-          // 비밀번호 검증
-          // - 신규/관리자 계정: bcrypt
-          // - 기존 계정 하위호환: btoa
-          const inputPasswordHash = btoa(credentials.password);
+          // 비밀번호 검증: bcrypt 전용
           const storedHash = user.passwordHash || '';
-          let passwordMatch = false;
-          if (storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$') || storedHash.startsWith('$2y$')) {
-            const { compare } = await import('bcryptjs');
-            passwordMatch = await compare(credentials.password, storedHash);
-          } else {
-            passwordMatch = storedHash === inputPasswordHash;
+          if (!(storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$') || storedHash.startsWith('$2y$'))) {
+            console.warn('[Auth] LEGACY NON-BCRYPT HASH DETECTED');
+            return null;
           }
+          const { compare } = await import('bcryptjs');
+          const passwordMatch = await compare(credentials.password, storedHash);
           
-          console.log('[Auth] PASSWORD CHECK:', {
-            email: user.email,
+          console.log('[Auth] PASSWORD CHECK', {
             hasStoredHash: !!user.passwordHash,
             storedHashLength: user.passwordHash?.length,
-            inputHashLength: inputPasswordHash.length,
             passwordMatch,
           });
           
           if (passwordMatch) {
-            console.log('[Auth] LOGIN SUCCESS:', user.email);
+            console.log('[Auth] LOGIN SUCCESS');
             try {
               await prisma.user.update({
                 where: { id: user.id },
@@ -194,7 +190,7 @@ export const authOptions: NextAuthOptions = {
             };
           }
 
-          console.log('[Auth] PASSWORD MISMATCH:', user.email);
+          console.log('[Auth] PASSWORD MISMATCH');
           return null;
         } catch (error) {
           console.error('[Auth] 사용자 인증 오류:', error);

@@ -16,13 +16,15 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 
   // 문자열 비교 안정성 향상: 공백/대소문자 차이로 인한 오판 방지
   const normalized = email.trim().toLowerCase();
-  const adminFromEnv = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const singleAdmin = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const adminList = (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
 
-  // akman 관리자 이메일(또는 임시 로그인용 아이디 'akman') 또는 환경 변수 ADMIN_EMAIL과 일치하는지 확인
-  return (
-    normalized === 'akman@excload.com' ||
-    normalized === 'akman' ||
-    normalized === 'a01083475766@gmail.com' ||
-    normalized === adminFromEnv
-  );
+  if (singleAdmin && normalized === singleAdmin) {
+    return true;
+  }
+
+  return adminList.includes(normalized);
 }

@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
+import { hash } from 'bcryptjs';
 
 interface CreateAkmanRequest {
   password: string;
@@ -63,8 +64,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 비밀번호 해시 생성 (btoa 사용 - 현재 시스템과 동일)
-    const passwordHash = btoa(password);
+    // 비밀번호 해시 생성 (bcrypt)
+    const passwordHash = await hash(password, 10);
 
     // akman 계정 생성
     const akman = await prisma.user.create({

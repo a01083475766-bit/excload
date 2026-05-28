@@ -12,12 +12,49 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { createHash } from 'crypto';
 import { authOptions } from '@/app/lib/auth';
 import { checkOrderPipelineRateLimit } from '@/app/lib/api-rate-limit';
 import { run as runOrderPipeline } from '@/app/pipeline/order/order-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 import type { MappingResult } from '@/app/pipeline/template/map-template-to-base';
 import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
+import { TRIAL_ACCESS_LIMITS_ENABLED } from '@/app/lib/trial-access';
+
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) {
+    const first = forwarded.split(',')[0]?.trim();
+    if (first) return first;
+  }
+  const real = request.headers.get('x-real-ip');
+  if (real) return real.trim();
+  return request.headers.get('cf-connecting-ip')?.trim() ?? 'unknown';
+}
+
+function hashIp(ip: string): string {
+  const salt = process.env.TRIAL_IP_SALT ?? 'excload-trial-ip-v1';
+  return createHash('sha256').update(`${salt}:${ip}`).digest('hex');
+}
+
+async function allowAnonymousByTrialIpRecord(request: NextRequest): Promise<boolean> {
+  if (!TRIAL_ACCESS_LIMITS_ENABLED) {
+    return false;
+  }
+
+  try {
+    const ip = getClientIp(request);
+    const ipHash = hashIp(ip);
+    const { prisma } = await import('@/app/lib/prisma');
+    const row = await prisma.trialIpAccess.findUnique({
+      where: { ipHash },
+      select: { count: true },
+    });
+    return (row?.count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * API Route Handler
@@ -25,13 +62,7 @@ import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const referer = request.headers.get('referer') || '';
-    const trialHeader = request.headers.get('x-excload-trial');
-    const isTrialReferer =
-      referer.includes('/trial') ||
-      referer.includes('/excload') ||
-      /https?:\/\/[^/]+\/?(?:\?|#|$)/.test(referer);
-    const allowAnonymousTrial = trialHeader === '1' || isTrialReferer;
+    const allowAnonymousTrial = await allowAnonymousByTrialIpRecord(request);
 
     if (!session && !allowAnonymousTrial) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -85,11 +116,13 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log('[Stage2 INPUT]', {
-      prompt,
-      type: typeof prompt,
-      length: prompt?.length,
-    });
+    if (isExcloudPipelineDebugServer()) {
+      console.log('[Stage2 INPUT META]', {
+        promptType: typeof prompt,
+        promptLength: prompt?.length ?? 0,
+        hasFileSessionId: Boolean(fileSessionId),
+      });
+    }
 
     // Stage2 Order Pipeline 실행
     let result;
@@ -102,25 +135,22 @@ export async function POST(request: NextRequest) {
           : undefined,
       );
     } catch (error) {
-      console.error('[Stage2 ERROR FULL]', error);
+      console.error('[Stage2 ERROR]');
       throw error;
     }
 
-    console.log('[Stage2 OUTPUT]', result);
+    if (isExcloudPipelineDebugServer()) {
+      console.log('[Stage2 OUTPUT META]', {
+        rowCount: Array.isArray(result?.rows) ? result.rows.length : 0,
+        baseHeaderCount: Array.isArray(result?.baseHeaders) ? result.baseHeaders.length : 0,
+        unknownHeaderCount: Array.isArray(result?.unknownHeaders) ? result.unknownHeaders.length : 0,
+      });
+    }
 
     if (isExcloudPipelineDebugServer() && result?.rows?.length) {
-      const row0 = result.rows[0] as Record<string, string>;
-      console.log('[EXCLOUD DEBUG ② 서버] Stage2 rows[0] — 핵심 기준헤더', {
-        받는사람: row0['받는사람'],
-        받는사람전화1: row0['받는사람전화1'],
-        받는사람전화2: row0['받는사람전화2'],
-        받는사람우편번호: row0['받는사람우편번호'],
-        받는사람주소1: row0['받는사람주소1'],
-        받는사람주소2: row0['받는사람주소2'],
-        상품명: row0['상품명'],
-        수량: row0['수량'],
+      console.log('[EXCLOUD DEBUG ② 서버] Stage2 rows[0] 존재', {
+        rowCount: result.rows.length,
       });
-      console.log('[EXCLOUD DEBUG ② 서버] Stage2 rows[0] — 전체(JSON)', JSON.stringify(row0, null, 2));
     }
 
     return NextResponse.json(result);

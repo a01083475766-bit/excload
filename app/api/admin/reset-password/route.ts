@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { isAdminEmail } from '@/app/lib/admin-auth';
+import { hash } from 'bcryptjs';
 
 interface ResetPasswordRequest {
   email: string;
@@ -77,8 +78,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 비밀번호 해시 생성 (btoa 사용 - 현재 시스템과 동일)
-      const passwordHash = btoa(newPassword);
+      // 비밀번호 해시 생성 (bcrypt)
+      const passwordHash = await hash(newPassword, 10);
 
       // 비밀번호 업데이트
       await prisma.user.update({
