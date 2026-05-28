@@ -6,14 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
-
 
 interface AddPointsRequest {
   amount: number;
   reason?: string;
-  userEmail?: string; // Webhook에서 사용
+  userEmail?: string;
 }
 
 /**
@@ -23,36 +20,34 @@ interface AddPointsRequest {
 export async function POST(request: NextRequest) {
   try {
     const body: AddPointsRequest = await request.json();
-    const { amount, reason, userEmail: requestUserEmail } = body;
+    const { amount, reason, userEmail } = body;
 
-    // Webhook에서 호출하는 경우 (userEmail이 body에 포함된 경우)
-    let userEmail: string;
-    if (requestUserEmail) {
-      // Webhook 전용 인증: 내부 호출만 허용
-      const webhookSecret = request.headers.get('x-webhook-secret');
-      if (webhookSecret !== process.env.WEBHOOK_INTERNAL_SECRET) {
-        return NextResponse.json(
-          { error: '인증 실패' },
-          { status: 401 }
-        );
-      }
-      userEmail = requestUserEmail;
-    } else {
-      // 일반 사용자 호출: 세션 확인
-      const session = await getServerSession(authOptions);
-      if (!session || !session.user || !session.user.email) {
-        return NextResponse.json(
-          { error: '로그인이 필요합니다.' },
-          { status: 401 }
-        );
-      }
-      userEmail = session.user.email;
+    // 내부 전용 API: 웹훅 시크릿이 반드시 일치해야 한다.
+    const internalSecret = process.env.WEBHOOK_INTERNAL_SECRET;
+    if (!internalSecret) {
+      return NextResponse.json(
+        { error: '서버 내부 인증 설정이 필요합니다.' },
+        { status: 503 }
+      );
+    }
+    const webhookSecret = request.headers.get('x-webhook-secret');
+    if (webhookSecret !== internalSecret) {
+      return NextResponse.json(
+        { error: '인증 실패' },
+        { status: 401 }
+      );
     }
 
     // 유효성 검사
     if (!amount || amount <= 0) {
       return NextResponse.json(
         { error: '유효한 사용량 수치가 필요합니다.' },
+        { status: 400 }
+      );
+    }
+    if (!userEmail || !userEmail.trim()) {
+      return NextResponse.json(
+        { error: 'userEmail이 필요합니다.' },
         { status: 400 }
       );
     }
