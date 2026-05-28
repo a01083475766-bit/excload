@@ -146,44 +146,14 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!user) {
-            // DB에 없으면 하드코딩된 테스트 사용자 확인 (하위 호환성)
-            const testUsers = [
-              {
-                id: '1',
-                email: 'test@example.com',
-                password: 'test1234',
-                name: 'Test User',
-              },
-              {
-                id: 'seed-test-a1234',
-                email: 'a1234@naver.com',
-                password: '123456',
-                name: 'Test Account',
-              },
-            ];
-
-            const testUser = testUsers.find(
-              (u) => u.email === normalizedEmail && u.password === credentials.password
-            );
-
-            if (testUser) {
-              console.log('[Auth] TEST USER LOGIN:', testUser.email);
-              return {
-                id: testUser.id,
-                email: testUser.email,
-                name: testUser.name,
-              };
-            }
-
             console.log('[Auth] USER NOT FOUND:', normalizedEmail);
             return null;
           }
 
-          // 이메일 인증 확인 (개발 단계에서는 임시 비활성화)
+          // 보안: 이메일 인증 전 계정은 로그인 차단
           if (!user.emailVerified) {
-            console.log('[Auth] EMAIL NOT VERIFIED - DEV MODE ALLOW LOGIN:', user.email);
-            // 개발 단계에서는 이메일 인증 체크 비활성화
-            // throw new Error('이메일 인증이 필요합니다. 이메일을 확인해주세요.');
+            console.log('[Auth] EMAIL NOT VERIFIED - LOGIN BLOCKED:', user.email);
+            return null;
           }
 
           // 비밀번호 검증
@@ -380,8 +350,13 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  // 보안 설정 — NEXTAUTH_SECRET 미설정 시에만 임시값(빌드 통과용). 운영에서는 반드시 환경 변수 설정.
+  // 보안 설정
   secret:
     process.env.NEXTAUTH_SECRET?.trim() ||
-    'dev-only-insecure-nextauth-secret-set-NEXTAUTH_SECRET-in-production',
+    (() => {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('[Auth] NEXTAUTH_SECRET is required in production.');
+      }
+      return 'dev-only-insecure-nextauth-secret-set-NEXTAUTH_SECRET-in-production';
+    })(),
 };

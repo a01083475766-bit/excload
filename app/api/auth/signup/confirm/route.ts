@@ -79,12 +79,10 @@ export async function POST(request: NextRequest) {
           throw new Error('PHONE_ALREADY_EXISTS');
         }
 
-        const initialPoints =
-          verification.plan === 'FREE'
-            ? 5000
-            : verification.plan === 'PRO' || verification.plan === 'YEARLY'
-              ? 400000
-              : 5000;
+        // 보안: 가입 완료 시에도 FREE 플랜만 허용한다.
+        // 유료 전환은 결제/관리자 전용 경로에서만 처리한다.
+        const initialPlan = 'FREE';
+        const initialPoints = 5000;
 
         const signupNow = new Date();
         const newUser = await tx.user.create({
@@ -92,7 +90,7 @@ export async function POST(request: NextRequest) {
             email: verification.email,
             phone: verification.phone,
             passwordHash: verification.passwordHash,
-            plan: verification.plan,
+            plan: initialPlan,
             points: initialPoints,
             emailVerified: new Date(),
             signupProvider: 'CREDENTIALS',

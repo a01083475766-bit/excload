@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as SignupRequestBody;
     const email = (body.email || '').trim().toLowerCase();
     const password = body.password || '';
-    const plan = body.plan || 'FREE';
+    // 보안: 회원가입 단계에서 클라이언트가 플랜을 선택할 수 없도록 서버에서 FREE로 고정한다.
+    const plan = 'FREE';
     const phoneDigits = normalizeKoreanPhoneDigits(String(body.phone || ''));
 
     if (!email || !password) {
