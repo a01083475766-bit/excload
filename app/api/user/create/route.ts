@@ -23,6 +23,21 @@ interface CreateUserRequest {
   deviceId?: string;
 }
 
+function addOneMonthKeepingDay(baseDate: Date): Date {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const day = baseDate.getDate();
+  const hour = baseDate.getHours();
+  const minute = baseDate.getMinutes();
+  const second = baseDate.getSeconds();
+  const millisecond = baseDate.getMilliseconds();
+
+  const targetMonthStart = new Date(year, month + 1, 1, hour, minute, second, millisecond);
+  const lastDayOfTargetMonth = new Date(year, month + 2, 0).getDate();
+  targetMonthStart.setDate(Math.min(day, lastDayOfTargetMonth));
+  return targetMonthStart;
+}
+
 /**
  * POST /api/user/create
  * 회원가입 시 사용자 생성
@@ -86,6 +101,7 @@ export async function POST(request: NextRequest) {
       
       const initialPoints =
         plan === 'FREE' ? 5000 : plan === 'PRO' || plan === 'YEARLY' ? 400000 : 5000;
+      const now = new Date();
 
       // 사용자 생성
       const newUser = await prisma.user.create({
@@ -100,9 +116,7 @@ export async function POST(request: NextRequest) {
           lastLoginProvider: 'CREDENTIALS',
           deviceId: deviceId || null,
           lastIp: ip,
-          nextPointDate: new Date(
-            Date.now() + 30 * 24 * 60 * 60 * 1000
-          ),
+          nextPointDate: addOneMonthKeepingDay(now),
         },
         select: {
           id: true,

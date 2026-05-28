@@ -53,6 +53,13 @@ interface PaymentHistoryItem {
   paidAtLabel: string;
 }
 
+interface PointGrantHistoryItem {
+  id: string;
+  reasonLabel: string;
+  change: number;
+  grantedAtLabel: string;
+}
+
 export default function MyPage() {
   const router = useRouter();
   const { status } = useSession();
@@ -77,6 +84,9 @@ export default function MyPage() {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
   const [isLoadingPaymentHistory, setIsLoadingPaymentHistory] = useState(false);
   const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
+  const [pointGrantHistory, setPointGrantHistory] = useState<PointGrantHistoryItem[]>([]);
+  const [isLoadingPointGrantHistory, setIsLoadingPointGrantHistory] = useState(false);
+  const [isPointGrantHistoryOpen, setIsPointGrantHistoryOpen] = useState(false);
   const [pendingPlanChange, setPendingPlanChange] = useState<PendingPlanChangeState | null>(null);
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const [isCancellingPlanChange, setIsCancellingPlanChange] = useState(false);
@@ -159,6 +169,38 @@ export default function MyPage() {
       }
     };
     loadSubscriptionState();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadPointGrantHistory = async () => {
+      try {
+        setIsLoadingPointGrantHistory(true);
+        const response = await fetch('/api/user/point-history', {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          setPointGrantHistory([]);
+          return;
+        }
+        const data = await response.json();
+        const items = Array.isArray(data?.points) ? data.points : [];
+        setPointGrantHistory(
+          items.map((p: Record<string, unknown>) => ({
+            id: String(p.id ?? ''),
+            reasonLabel: typeof p.reasonLabel === 'string' ? p.reasonLabel : '포인트 지급',
+            change: typeof p.change === 'number' ? p.change : 0,
+            grantedAtLabel: typeof p.grantedAtLabel === 'string' ? p.grantedAtLabel : '',
+          }))
+        );
+      } catch (error) {
+        console.error('[MyPage] 포인트 지급 내역 조회 실패:', error);
+        setPointGrantHistory([]);
+      } finally {
+        setIsLoadingPointGrantHistory(false);
+      }
+    };
+    loadPointGrantHistory();
   }, [user]);
 
   useEffect(() => {
@@ -911,6 +953,68 @@ export default function MyPage() {
                               </ul>
                               <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
                                 최근 {paymentHistory.length}건 표시
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-700">
+                      <button
+                        type="button"
+                        onClick={() => setIsPointGrantHistoryOpen((open) => !open)}
+                        className="flex w-full items-center justify-between gap-2 text-left rounded-lg py-1 -mx-1 px-1 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                        aria-expanded={isPointGrantHistoryOpen}
+                      >
+                        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                          포인트 지급 내역
+                          {!isLoadingPointGrantHistory && pointGrantHistory.length > 0 && (
+                            <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
+                              ({pointGrantHistory.length}건)
+                            </span>
+                          )}
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 ${
+                            isPointGrantHistoryOpen ? 'rotate-180' : ''
+                          }`}
+                          aria-hidden
+                        />
+                      </button>
+
+                      {isPointGrantHistoryOpen && (
+                        <div className="mt-3">
+                          {isLoadingPointGrantHistory ? (
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">불러오는 중…</p>
+                          ) : pointGrantHistory.length === 0 ? (
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                              포인트 지급 내역이 없습니다.
+                            </p>
+                          ) : (
+                            <>
+                              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                                {pointGrantHistory.map((item) => (
+                                  <li
+                                    key={item.id}
+                                    className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2.5 text-sm"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                        {item.reasonLabel}
+                                      </p>
+                                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                        {item.grantedAtLabel}
+                                      </p>
+                                    </div>
+                                    <p className="shrink-0 font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">
+                                      +{item.change.toLocaleString()}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ul>
+                              <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+                                최근 {pointGrantHistory.length}건 표시
                               </p>
                             </>
                           )}

@@ -113,19 +113,13 @@ export const useUserStore = create<UserStoreState>()(
         }
 
         try {
-          // 이번 달 지급 여부 확인
+          // nextPointDate 도달 시 지급 API 호출
           const now = new Date();
-          const lastGrant = currentUser.lastMonthlyGrant 
-            ? new Date(currentUser.lastMonthlyGrant) 
+          const nextPointDate = currentUser.nextPointDate
+            ? new Date(currentUser.nextPointDate)
             : null;
 
-          // 이번 달 지급 여부 확인
-          const shouldGrant = !lastGrant || 
-            lastGrant.getFullYear() < now.getFullYear() || 
-            lastGrant.getMonth() < now.getMonth();
-
-          if (!shouldGrant) {
-            // 이미 이번 달 지급됨
+          if (nextPointDate && nextPointDate > now) {
             return;
           }
 
@@ -140,7 +134,7 @@ export const useUserStore = create<UserStoreState>()(
 
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.user && !data.alreadyGranted) {
+            if (data.success && data.user) {
               // Zustand store 업데이트
               set({
                 user: {
@@ -148,6 +142,7 @@ export const useUserStore = create<UserStoreState>()(
                   points: data.user.points,
                   monthlyPoints: data.user.monthlyPoints,
                   lastMonthlyGrant: data.user.lastMonthlyGrant,
+                  nextPointDate: data.user.nextPointDate ?? currentUser.nextPointDate ?? null,
                 },
               });
             }

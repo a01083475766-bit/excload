@@ -9,6 +9,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 
+function addOneMonthKeepingDay(baseDate: Date): Date {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const day = baseDate.getDate();
+  const hour = baseDate.getHours();
+  const minute = baseDate.getMinutes();
+  const second = baseDate.getSeconds();
+  const millisecond = baseDate.getMilliseconds();
+
+  const targetMonthStart = new Date(year, month + 1, 1, hour, minute, second, millisecond);
+  const lastDayOfTargetMonth = new Date(year, month + 2, 0).getDate();
+  targetMonthStart.setDate(Math.min(day, lastDayOfTargetMonth));
+  return targetMonthStart;
+}
+
 /**
  * POST /api/user/grant-monthly-points
  * 월간 사용량 자동 제공
@@ -36,11 +51,6 @@ export async function POST(request: NextRequest) {
     try {
       const { prisma } = await import('@/app/lib/prisma');
       const now = new Date();
-      const startOfMonth = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        1
-      );
 
       const user = await prisma.user.findUnique({
         where: { email: userEmail },
@@ -50,6 +60,7 @@ export async function POST(request: NextRequest) {
           plan: true,
           points: true,
           nextPointDate: true,
+          createdAt: true,
         },
       });
 
@@ -79,17 +90,19 @@ export async function POST(request: NextRequest) {
       /** 관리자 사용량 내역·로그 검색용 (PointHistory.reason) */
       const grantReason = 'FREE플랜_월간사용량자동지급';
 
-      // 이번 달 미지급인 경우에만 포인트 증가 + 내역 기록 (동시 요청 시 하나만 성공)
+      const dueDate = user.nextPointDate ?? addOneMonthKeepingDay(user.createdAt);
+
+      // 지급일 도달 시에만 포인트 증가 + 내역 기록 (동시 요청 시 하나만 성공)
       const txResult = await prisma.$transaction(async (tx) => {
         const updateResult = await tx.user.updateMany({
           where: {
             id: user.id,
             plan: 'FREE',
-            OR: [{ nextPointDate: null }, { nextPointDate: { lt: startOfMonth } }],
+            OR: [{ nextPointDate: null }, { nextPointDate: { lte: now } }],
           },
           data: {
             points: { increment: grantAmount },
-            nextPointDate: now,
+            nextPointDate: addOneMonthKeepingDay(dueDate),
           },
         });
 
@@ -147,6 +160,7 @@ export async function POST(request: NextRequest) {
             plan: fresh.plan as 'FREE' | 'PRO' | 'YEARLY',
             points: fresh.points,
             lastMonthlyGrant: fresh.nextPointDate?.toISOString() || null,
+            nextPointDate: fresh.nextPointDate?.toISOString() || null,
           },
         });
       }
@@ -170,6 +184,7 @@ export async function POST(request: NextRequest) {
           plan: updatedUser.plan as 'FREE' | 'PRO' | 'YEARLY',
           points: updatedUser.points,
           lastMonthlyGrant: updatedUser.nextPointDate?.toISOString() || null,
+          nextPointDate: updatedUser.nextPointDate?.toISOString() || null,
         },
       });
     } catch (dbError) {

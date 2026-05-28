@@ -3,7 +3,7 @@
  */
 import { prisma } from '@/app/lib/prisma';
 
-export const SUBSCRIPTION_GRACE_DAYS = 7;
+export const SUBSCRIPTION_GRACE_DAYS = 3;
 
 export type SubscriptionStatusValue = 'active' | 'past_due' | 'canceled';
 

@@ -22,7 +22,7 @@ describe('payment-failure', () => {
     });
   });
 
-  it('grace period is 7 days', () => {
-    expect(SUBSCRIPTION_GRACE_DAYS).toBe(7);
+  it('grace period is 3 days', () => {
+    expect(SUBSCRIPTION_GRACE_DAYS).toBe(3);
   });
 });

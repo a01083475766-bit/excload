@@ -7,6 +7,21 @@ interface SignupConfirmBody {
   code?: string;
 }
 
+function addOneMonthKeepingDay(baseDate: Date): Date {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const day = baseDate.getDate();
+  const hour = baseDate.getHours();
+  const minute = baseDate.getMinutes();
+  const second = baseDate.getSeconds();
+  const millisecond = baseDate.getMilliseconds();
+
+  const targetMonthStart = new Date(year, month + 1, 1, hour, minute, second, millisecond);
+  const lastDayOfTargetMonth = new Date(year, month + 2, 0).getDate();
+  targetMonthStart.setDate(Math.min(day, lastDayOfTargetMonth));
+  return targetMonthStart;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as SignupConfirmBody;
@@ -71,6 +86,7 @@ export async function POST(request: NextRequest) {
               ? 400000
               : 5000;
 
+        const signupNow = new Date();
         const newUser = await tx.user.create({
           data: {
             email: verification.email,
@@ -82,7 +98,7 @@ export async function POST(request: NextRequest) {
             signupProvider: 'CREDENTIALS',
             lastLoginProvider: 'CREDENTIALS',
             deviceId: verification.deviceId || null,
-            nextPointDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            nextPointDate: addOneMonthKeepingDay(signupNow),
           },
           select: {
             id: true,
