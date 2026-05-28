@@ -20,7 +20,6 @@ interface CreateCheckoutSessionRequest {
  * Stripe Checkout 세션 생성
  */
 export async function POST(request: NextRequest) {
-  console.log('[Stripe Checkout] POST /api/stripe/create-checkout-session 수신');
   try {
     // Stripe Secret Key 확인 (가장 먼저 확인)
     if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.trim() === '') {
@@ -35,7 +34,6 @@ export async function POST(request: NextRequest) {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: '2026-02-25.clover',
     });
-    console.log('[Stripe Checkout] Stripe 클라이언트 초기화 완료 (STRIPE_SECRET_KEY 적용)');
 
     // 세션 확인
     const session = await getServerSession(authOptions);
@@ -50,16 +48,6 @@ export async function POST(request: NextRequest) {
     const body: CreateCheckoutSessionRequest = await request.json();
     const { planType } = body;
 
-    console.log('[Stripe Checkout] 요청 요약:', {
-      planType,
-      email: session.user.email,
-    });
-
-    // 1️⃣ planType 수신 확인 로그
-    console.log('[Stripe Checkout] 수신된 planType:', planType);
-    console.log('[Stripe Checkout] planType 타입:', typeof planType);
-    console.log('[Stripe Checkout] planType === "monthly":', planType === 'monthly');
-    console.log('[Stripe Checkout] planType === "yearly":', planType === 'yearly');
 
     // 유효성 검사
     if (!planType || (planType !== 'monthly' && planType !== 'yearly')) {
@@ -93,11 +81,6 @@ export async function POST(request: NextRequest) {
     
     if (!customerId) {
       // Stripe Customer 생성
-      console.log('[Stripe Checkout] Stripe Customer 생성 중:', {
-        userId: user.id,
-        email: userEmail,
-      });
-      
       const customer = await stripe.customers.create({
         email: userEmail,
         metadata: {
@@ -113,20 +96,7 @@ export async function POST(request: NextRequest) {
         data: { stripeCustomerId: customerId },
       });
       
-      console.log('[Stripe Checkout] Stripe Customer 생성 완료:', {
-        userId: user.id,
-        customerId: customerId,
-      });
-    } else {
-      console.log('[Stripe Checkout] 기존 Stripe Customer 사용:', {
-        userId: user.id,
-        customerId: customerId,
-      });
     }
-
-    // 2️⃣ Price ID 선택 로직 확인 로그
-    console.log('[Stripe Checkout] STRIPE_MONTHLY_PRICE_ID:', process.env.STRIPE_MONTHLY_PRICE_ID);
-    console.log('[Stripe Checkout] STRIPE_YEARLY_PRICE_ID:', process.env.STRIPE_YEARLY_PRICE_ID);
     
     // Stripe Price ID 설정
     const priceId = planType === 'monthly' 
@@ -152,14 +122,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingSubscription) {
-      console.log('[Stripe Checkout] 활성 구독 존재 - 플랜 변경 시도:', {
-        userId: user.id,
-        email: userEmail,
-        existingSubscriptionId: existingSubscription.stripeSubscriptionId,
-        targetPlanType: planType,
-        targetPriceId: priceId,
-      });
-
       const subscription = await stripe.subscriptions.retrieve(existingSubscription.stripeSubscriptionId);
       const item = subscription.items.data[0];
       if (!item) {
@@ -225,16 +187,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 3️⃣ 선택된 Price ID 확인 로그
-    console.log('[Stripe Checkout] 선택된 priceId:', priceId);
-    console.log('[Stripe Checkout] Price ID 선택 조건:', planType === 'monthly' ? 'monthly → STRIPE_MONTHLY_PRICE_ID' : 'yearly → STRIPE_YEARLY_PRICE_ID');
-
-    console.log('[Stripe Checkout] checkout.sessions.create 요청:', {
-      planType,
-      priceId,
-      customerId,
-    });
-
     // Stripe Checkout 세션 생성 (line_items[].price ← STRIPE_MONTHLY_PRICE_ID 또는 STRIPE_YEARLY_PRICE_ID)
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -264,9 +216,9 @@ export async function POST(request: NextRequest) {
       cancel_url: `${getPublicBaseUrl()}/payment/cancel`,
     });
 
-    console.log('[Stripe Checkout] Checkout 세션 생성 성공:', {
+    console.info('[Stripe Checkout] session created', {
       sessionId: checkoutSession.id,
-      hasUrl: !!checkoutSession.url,
+      planType,
     });
 
     return NextResponse.json({

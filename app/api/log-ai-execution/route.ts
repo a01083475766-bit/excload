@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { appendFileSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
 
 /**
  * API route to log AI E' execution results to server log file in JSONL format
@@ -38,21 +36,8 @@ export async function POST(request: NextRequest) {
       timestamp: logData.timestamp,
     };
 
-    const logLine = JSON.stringify(logEntry) + '\n';
-
-    // Append to server log file
-    // Log file location: logs/ai-execution.log (relative to project root)
-    const logFilePath = join(process.cwd(), 'logs', 'ai-execution.log');
-    
-    // Ensure logs directory exists (create if it doesn't)
-    try {
-      mkdirSync(dirname(logFilePath), { recursive: true });
-    } catch (error) {
-      // Directory might already exist, ignore error
-    }
-
-    // Append log entry
-    appendFileSync(logFilePath, logLine, 'utf-8');
+    // 운영 최소 로그: 상태 요약만 남기고 파일 저장은 하지 않는다.
+    console.info('[AI Execution]', logEntry);
 
     return NextResponse.json({ success: true });
   } catch (error) {

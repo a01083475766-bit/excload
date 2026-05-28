@@ -27,6 +27,8 @@ import {
 } from '@/app/pipeline/base/base-headers';
 import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
 
+const enableAIDebugLog = process.env.AI_DEBUG_LOG === 'true';
+
 /** 클라이언트가 text 또는 originalText만 보내는 경우 모두 수용 */
 function resolveNormalize29InboundText(body: Record<string, unknown>): string {
   const t = body.text;
@@ -106,11 +108,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!session && allowAnonymousTrial) {
-      console.log('[AI Gateway] trial anonymous request allowed:', {
-        type,
-        byEnv: true,
-      });
+    if (!session && allowAnonymousTrial && enableAIDebugLog) {
+      console.log('[AI Gateway] trial anonymous request allowed:', { type });
     }
 
     // AI 활성화 여부 확인
@@ -331,8 +330,8 @@ E. 확장 필드 보수 추출 (매우 중요)
 
     const data = await response.json();
     const aiText = data?.choices?.[0]?.message?.content || '{}';
-    if (isExcloudPipelineDebugServer()) {
-      console.log('[AI RAW RESPONSE]', aiText);
+    if (isExcloudPipelineDebugServer() && enableAIDebugLog) {
+      console.log('[AI Gateway] normalize-29 raw response received');
     }
 
     let parsed;
@@ -365,13 +364,13 @@ E. 확장 필드 보수 추출 (매우 중요)
       orders = [normalizeOrderObject(buildNormalize29HeuristicFallbackRow(text))];
     }
 
-    console.log('[PARSED ORDERS]', orders);
-    console.log('[PARSED ORDERS LENGTH]', orders.length);
-    console.log('[FINAL RETURN ORDERS]', orders);
-    console.log('[NORMALIZE29 META]', {
-      usedFallback: fallbackReason !== 'none',
-      fallbackReason,
-    });
+    if (enableAIDebugLog) {
+      console.log('[AI Gateway] normalize-29 summary', {
+        ordersCount: orders.length,
+        usedFallback: fallbackReason !== 'none',
+        fallbackReason,
+      });
+    }
 
     return NextResponse.json({
       orders,
@@ -528,21 +527,17 @@ ${unknownHeaders.join(', ')}
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content || '{}';
 
-    // OpenAI 응답 로그 출력
-    console.log('[AI Gateway] header-map OpenAI Raw Response:', {
-      content,
-      contentLength: content.length,
-      contentType: typeof content,
-    });
-
     // JSON 파싱
     let mappingResult: Record<string, string>;
     try {
       mappingResult = JSON.parse(content);
-      console.log('[AI Gateway] header-map Parsed JSON:', mappingResult);
+      if (enableAIDebugLog) {
+        console.log('[AI Gateway] header-map parsed', {
+          mappedCount: Object.keys(mappingResult).length,
+        });
+      }
     } catch (parseError) {
       console.error('[AI Gateway] header-map JSON 파싱 실패:', parseError);
-      console.error('[AI Gateway] header-map Raw Content:', content);
       return NextResponse.json(
         { error: '헤더 매핑 결과를 처리할 수 없습니다.' },
         { status: 500 }
@@ -567,14 +562,13 @@ ${unknownHeaders.join(', ')}
       validMapping[header] = baseHeader;
     }
 
-    // 검증 결과 로그 출력
-    console.log('[AI Gateway] header-map Validation Result:', {
-      totalMappings: Object.keys(mappingResult).length,
-      validMappings: Object.keys(validMapping).length,
-      invalidMappings: invalidHeaders.length,
-      invalidHeaders,
-      validMapping,
-    });
+    if (enableAIDebugLog) {
+      console.log('[AI Gateway] header-map validation summary:', {
+        totalMappings: Object.keys(mappingResult).length,
+        validMappings: Object.keys(validMapping).length,
+        invalidMappings: invalidHeaders.length,
+      });
+    }
 
     return NextResponse.json(validMapping);
   } catch (error) {
