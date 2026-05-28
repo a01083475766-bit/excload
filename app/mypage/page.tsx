@@ -969,7 +969,7 @@ export default function MyPage() {
                             </p>
                           ) : (
                             <>
-                              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                              <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
                                 {paymentHistory.map((item) => (
                                   <li
                                     key={item.id}
@@ -1035,7 +1035,7 @@ export default function MyPage() {
                             </p>
                           ) : (
                             <>
-                              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                              <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
                                 {pointGrantHistory.map((item) => (
                                   <li
                                     key={item.id}
@@ -1097,7 +1097,7 @@ export default function MyPage() {
                             </p>
                           ) : (
                             <>
-                              <ul className="space-y-2 max-h-64 overflow-y-auto">
+                              <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
                                 {pointUsageHistory.map((item) => (
                                   <li
                                     key={item.id}
