@@ -154,7 +154,7 @@ export default function FavoriteMallsPanel() {
                       onClick={() => handleOpen(row.url)}
                       className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 whitespace-nowrap"
                     >
-                      새창으로 열기
+                      바로가기
                     </button>
                     {entries.length > 1 ? (
                       <button
@@ -203,7 +203,7 @@ export default function FavoriteMallsPanel() {
           onClick={handleOpenAll}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
         >
-          새창으로 모두열기
+          모두 바로가기
         </button>
         <button
           type="button"
