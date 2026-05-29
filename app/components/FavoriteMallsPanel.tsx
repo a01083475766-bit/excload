@@ -15,7 +15,6 @@ import {
   saveFavoriteMallsToServer,
   type FavoriteMallEntry,
 } from "@/app/lib/favorite-malls-storage";
-import { FAVORITE_MALLS_KEY, removeLocalStorageForUser } from "@/app/lib/scoped-local-storage";
 
 export default function FavoriteMallsPanel() {
   const { data: session, status: sessionStatus } = useSession();
@@ -56,11 +55,11 @@ export default function FavoriteMallsPanel() {
             if (!serverHasContent && localHasContent) {
               const migrated = await saveFavoriteMallsToServer(localEntries);
               if (cancelled) return;
-              removeLocalStorageForUser(FAVORITE_MALLS_KEY, storageUserId);
+              saveFavoriteMalls(storageUserId, migrated);
               setEntries(migrated);
             } else {
+              saveFavoriteMalls(storageUserId, serverEntries);
               setEntries(serverEntries);
-              removeLocalStorageForUser(FAVORITE_MALLS_KEY, storageUserId);
             }
           }
         } catch (error) {
@@ -90,20 +89,27 @@ export default function FavoriteMallsPanel() {
       return;
     }
 
+    saveFavoriteMalls(storageUserId, entries);
+
     if (storageUserId) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        void saveFavoriteMallsToServer(entries).catch((error) => {
-          console.error("[FavoriteMallsPanel] server save failed:", error);
-          setLoadError("서버 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-        });
+        void saveFavoriteMallsToServer(entries)
+          .then((saved) => {
+            saveFavoriteMalls(storageUserId, saved);
+            setLoadError(null);
+          })
+          .catch((error) => {
+            console.error("[FavoriteMallsPanel] server save failed:", error);
+            setLoadError(
+              "서버 저장에 실패했습니다. 이 기기에는 저장되어 있으며, 연결 후 다시 동기화됩니다.",
+            );
+          });
       }, 500);
       return () => {
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       };
     }
-
-    saveFavoriteMalls(storageUserId, entries);
   }, [entries, hydrated, storageUserId]);
 
   const updateEntry = useCallback((id: string, patch: Partial<Pick<FavoriteMallEntry, "name" | "url">>) => {
@@ -187,7 +193,8 @@ export default function FavoriteMallsPanel() {
 
       {storageUserId ? (
         <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-500">
-          로그인 계정에 저장되어 다른 기기에서도 동일한 목록을 사용할 수 있습니다.
+          이 기기와 로그인 계정에 함께 저장되어, 빠르게 불러오고 다른 기기에서도 동일한 목록을
+          사용할 수 있습니다.
           {isSyncing ? " (동기화 중…)" : null}
         </p>
       ) : null}
