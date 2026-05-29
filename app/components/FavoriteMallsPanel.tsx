@@ -180,22 +180,22 @@ export default function FavoriteMallsPanel() {
         <div className="flex flex-col gap-6">
           <figure>
             <p className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-              ① 쇼핑몰 관리자 페이지에 로그인합니다.
-            </p>
-            <img
-              src="/favorite-malls/guide-naver-login.png"
-              alt="네이버 커머스 ID 로그인 화면 예시"
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
-            />
-          </figure>
-          <figure>
-            <p className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-              ② 자주 쓰는 상세 페이지로 이동한 뒤, 주소창 URL을 복사해 URL 주소란에
+              ① 자주 쓰는 상세 페이지로 이동한 뒤, 주소창 URL을 복사해 URL 주소란에
               붙여 넣습니다.
             </p>
             <img
               src="/favorite-malls/guide-copy-url.png"
               alt="스마트스토어센터 주소창에서 상세 페이지 URL 복사 예시"
+              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
+            />
+          </figure>
+          <figure>
+            <p className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+              ② 로그인 합니다.
+            </p>
+            <img
+              src="/favorite-malls/guide-naver-login.png"
+              alt="네이버 커머스 ID 로그인 화면 예시"
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700"
             />
           </figure>
