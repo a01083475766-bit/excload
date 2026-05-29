@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useUserStore } from "@/app/store/userStore";
 import {
   createEmptyFavoriteMallEntry,
@@ -17,15 +18,21 @@ import {
 import { FAVORITE_MALLS_KEY, removeLocalStorageForUser } from "@/app/lib/scoped-local-storage";
 
 export default function FavoriteMallsPanel() {
+  const { data: session, status: sessionStatus } = useSession();
   const user = useUserStore((state) => state.user);
-  const storageUserId = user?.userId ?? null;
+  const storageUserId = user?.userId ?? session?.user?.id ?? null;
   const [entries, setEntries] = useState<FavoriteMallEntry[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const skipSaveRef = useRef(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const authReady = sessionStatus !== "loading";
+
   useEffect(() => {
+    if (!authReady) return;
+
     let cancelled = false;
 
     async function loadEntries() {
@@ -33,6 +40,11 @@ export default function FavoriteMallsPanel() {
 
       if (storageUserId) {
         const localEntries = loadFavoriteMalls(storageUserId);
+        setEntries(localEntries);
+        setHydrated(true);
+        skipSaveRef.current = true;
+
+        setIsSyncing(true);
         try {
           const serverEntries = await fetchFavoriteMallsFromServer();
           if (cancelled) return;
@@ -50,32 +62,27 @@ export default function FavoriteMallsPanel() {
               setEntries(serverEntries);
               removeLocalStorageForUser(FAVORITE_MALLS_KEY, storageUserId);
             }
-          } else {
-            setEntries(localEntries);
           }
         } catch (error) {
           if (cancelled) return;
           console.error("[FavoriteMallsPanel] server load failed:", error);
-          setEntries(localEntries);
           setLoadError("서버에서 불러오지 못해 이 기기에 저장된 목록을 표시합니다.");
+        } finally {
+          if (!cancelled) setIsSyncing(false);
         }
       } else {
         setEntries(loadFavoriteMalls(null));
-      }
-
-      if (!cancelled) {
         setHydrated(true);
         skipSaveRef.current = true;
       }
     }
 
-    setHydrated(false);
     void loadEntries();
 
     return () => {
       cancelled = true;
     };
-  }, [storageUserId]);
+  }, [authReady, storageUserId]);
 
   useEffect(() => {
     if (!hydrated || skipSaveRef.current) {
@@ -149,7 +156,7 @@ export default function FavoriteMallsPanel() {
     }
   }, [entries]);
 
-  if (!hydrated) {
+  if (!authReady || !hydrated) {
     return (
       <div className="mx-auto max-w-3xl p-6 pb-4">
         <p className="text-sm text-gray-500">불러오는 중…</p>
@@ -181,20 +188,21 @@ export default function FavoriteMallsPanel() {
       {storageUserId ? (
         <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-500">
           로그인 계정에 저장되어 다른 기기에서도 동일한 목록을 사용할 수 있습니다.
+          {isSyncing ? " (동기화 중…)" : null}
         </p>
       ) : null}
 
       <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[560px] text-sm table-fixed">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50 text-left dark:border-zinc-800 dark:bg-zinc-950">
-              <th className="px-3 py-3 font-semibold text-zinc-700 dark:text-zinc-300 w-[28%]">
+              <th className="px-3 py-3 font-semibold text-zinc-700 dark:text-zinc-300 w-[24%]">
                 쇼핑몰
               </th>
               <th className="px-3 py-3 font-semibold text-zinc-700 dark:text-zinc-300">
                 URL 주소
               </th>
-              <th className="px-3 py-3 font-semibold text-zinc-700 dark:text-zinc-300 w-[300px]">
+              <th className="px-3 py-3 font-semibold text-zinc-700 dark:text-zinc-300 w-[132px]">
                 열기
               </th>
             </tr>
@@ -224,34 +232,36 @@ export default function FavoriteMallsPanel() {
                   />
                 </td>
                 <td className="px-3 py-2 align-top">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <button
-                      type="button"
-                      onClick={() => handleOpen(row.url)}
-                      className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 whitespace-nowrap"
-                    >
-                      바로가기
-                    </button>
-                    {entries.length > 1 ? (
+                  <div className="flex items-start gap-1.5">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                       <button
                         type="button"
-                        onClick={() => removeRow(row.id)}
-                        className="shrink-0 rounded-lg border border-zinc-200 px-3 py-2 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                        onClick={() => handleOpen(row.url)}
+                        className="w-full rounded-lg bg-blue-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 whitespace-nowrap"
                       >
-                        삭제
+                        바로가기
                       </button>
-                    ) : null}
+                      {entries.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row.id)}
+                          className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-[11px] text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                        >
+                          삭제
+                        </button>
+                      ) : null}
+                    </div>
                     {entries.length > 1 ? (
-                      <div className="flex shrink-0 gap-1">
+                      <div className="flex shrink-0 flex-col gap-0.5">
                         <button
                           type="button"
                           onClick={() => moveRowUp(row.id)}
                           disabled={index === 0}
                           title="위로 이동"
                           aria-label="위로 이동"
-                          className="rounded-lg border border-zinc-200 px-2 py-2 text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent"
+                          className="rounded border border-zinc-200 px-1 py-0.5 text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent"
                         >
-                          <ChevronUp className="h-4 w-4" aria-hidden />
+                          <ChevronUp className="h-3 w-3" aria-hidden />
                         </button>
                         <button
                           type="button"
@@ -259,9 +269,9 @@ export default function FavoriteMallsPanel() {
                           disabled={index === entries.length - 1}
                           title="아래로 이동"
                           aria-label="아래로 이동"
-                          className="rounded-lg border border-zinc-200 px-2 py-2 text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent"
+                          className="rounded border border-zinc-200 px-1 py-0.5 text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent"
                         >
-                          <ChevronDown className="h-4 w-4" aria-hidden />
+                          <ChevronDown className="h-3 w-3" aria-hidden />
                         </button>
                       </div>
                     ) : null}
