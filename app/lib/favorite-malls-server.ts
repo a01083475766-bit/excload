@@ -46,6 +46,7 @@ export function sanitizeFavoriteMallEntries(raw: unknown): FavoriteMallEntry[] {
   return rows.length > 0 ? rows : createDefaultFavoriteMalls();
 }
 
+export async function loadUserFavoriteMalls(userId: string): Promise<FavoriteMallEntry[]> {
   const rows = await prisma.userFavoriteMall.findMany({
     where: { userId },
     orderBy: { sortOrder: 'asc' },
