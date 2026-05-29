@@ -298,6 +298,7 @@ export default function AkmanClient() {
     { href: '/akman/points', title: '사용량 로그', desc: '사용량 제공·차감 이력' },
     { href: '/akman/ai-mapping', title: 'AI 매핑', desc: '매핑 규칙 관리' },
     { href: '/akman/popups', title: '팝업 관리', desc: '사이트 팝업 설정' },
+    { href: '/akman/favorite-malls', title: '즐겨찾기 URL', desc: '자주 등록된 쇼핑몰 주소 집계' },
     { href: '/akman/abuse', title: '어뷰징', desc: '의심 계정·조치' },
   ];
 
