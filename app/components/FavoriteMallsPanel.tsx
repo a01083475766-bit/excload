@@ -214,7 +214,7 @@ export default function FavoriteMallsPanel() {
         </button>
       </div>
 
-      <section className="mt-8 rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950/60">
+      <section className="mt-16 rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950/60">
         <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">
           URL 등록 방법
         </h2>
