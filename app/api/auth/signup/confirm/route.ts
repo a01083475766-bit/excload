@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
 import { hashResetCode, PASSWORD_RESET_MAX_ATTEMPTS } from '@/app/lib/password-reset';
+import { addOneMonthKeepingDay } from '@/app/lib/add-one-month-keeping-day';
+import {
+  isSignupBonusBlocked,
+  recordSignupBonusFingerprints,
+} from '@/app/lib/free-benefit-fingerprint';
 
 interface SignupConfirmBody {
   email?: string;
   code?: string;
-}
-
-function addOneMonthKeepingDay(baseDate: Date): Date {
-  const year = baseDate.getFullYear();
-  const month = baseDate.getMonth();
-  const day = baseDate.getDate();
-  const hour = baseDate.getHours();
-  const minute = baseDate.getMinutes();
-  const second = baseDate.getSeconds();
-  const millisecond = baseDate.getMilliseconds();
-
-  const targetMonthStart = new Date(year, month + 1, 1, hour, minute, second, millisecond);
-  const lastDayOfTargetMonth = new Date(year, month + 2, 0).getDate();
-  targetMonthStart.setDate(Math.min(day, lastDayOfTargetMonth));
-  return targetMonthStart;
 }
 
 export async function POST(request: NextRequest) {
@@ -62,6 +52,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '인증코드가 올바르지 않습니다.' }, { status: 400 });
     }
 
+    const signupBonusBlocked = await isSignupBonusBlocked({
+      email: verification.email,
+      phone: verification.phone,
+      deviceId: verification.deviceId,
+    });
+
     try {
       const result = await prisma.$transaction(async (tx) => {
         const existingByEmail = await tx.user.findUnique({
@@ -79,12 +75,10 @@ export async function POST(request: NextRequest) {
           throw new Error('PHONE_ALREADY_EXISTS');
         }
 
-        // 보안: 가입 완료 시에도 FREE 플랜만 허용한다.
-        // 유료 전환은 결제/관리자 전용 경로에서만 처리한다.
         const initialPlan = 'FREE';
-        const initialPoints = 5000;
-
+        const initialPoints = signupBonusBlocked ? 0 : 5000;
         const signupNow = new Date();
+
         const newUser = await tx.user.create({
           data: {
             email: verification.email,
@@ -96,7 +90,8 @@ export async function POST(request: NextRequest) {
             signupProvider: 'CREDENTIALS',
             lastLoginProvider: 'CREDENTIALS',
             deviceId: verification.deviceId || null,
-            nextPointDate: addOneMonthKeepingDay(signupNow),
+            signupBonusClaimed: true,
+            nextPointDate: signupBonusBlocked ? null : addOneMonthKeepingDay(signupNow),
           },
           select: {
             id: true,
@@ -112,10 +107,21 @@ export async function POST(request: NextRequest) {
         return newUser;
       });
 
+      if (!signupBonusBlocked) {
+        await recordSignupBonusFingerprints({
+          email: verification.email,
+          phone: verification.phone,
+          deviceId: verification.deviceId,
+        });
+      }
+
       return NextResponse.json({
         success: true,
-        message: '회원가입이 완료되었습니다.',
+        message: signupBonusBlocked
+          ? '회원가입이 완료되었습니다. (이전에 무료 혜택을 사용한 기록이 있어 가입 보너스는 제공되지 않습니다.)'
+          : '회원가입이 완료되었습니다.',
         user: result,
+        signupBonusGranted: !signupBonusBlocked,
       });
     } catch (txError) {
       if (txError instanceof Error && txError.message === 'EMAIL_ALREADY_EXISTS') {

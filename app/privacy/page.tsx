@@ -254,7 +254,11 @@ export default function PrivacyPage() {
               있습니다.
             </li>
             <li>
-              회원 탈퇴·개인정보 삭제 요청은{' '}
+              회원 탈퇴는{' '}
+              <a href="/mypage" className="text-blue-600 underline underline-offset-2">
+                마이페이지
+              </a>
+              에서 직접 신청할 수 있습니다. 개인정보 삭제 요청은{' '}
               <a href="/contact" className="text-blue-600 underline underline-offset-2">
                 고객 문의
               </a>

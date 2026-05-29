@@ -12,9 +12,11 @@ import {
   LogOut,
   AlertTriangle,
   ChevronDown,
+  UserX,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 import { formatPhoneDisplay, formatPhoneForInput } from '@/app/utils/format-phone';
+import { FAVORITE_MALLS_KEY, removeLocalStorageForUser } from '@/app/lib/scoped-local-storage';
 
 interface SubscriptionState {
   status: string | null;
@@ -115,6 +117,11 @@ export default function MyPage() {
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [nicknameInput, setNicknameInput] = useState('');
   const [isSavingNickname, setIsSavingNickname] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawRequiresPassword, setWithdrawRequiresPassword] = useState(true);
+  const [withdrawPassword, setWithdrawPassword] = useState('');
+  const [withdrawConfirmText, setWithdrawConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   // 세션이 확인된 뒤 사용자 정보 동기화
   useEffect(() => {
@@ -133,6 +140,63 @@ export default function MyPage() {
     } catch (error) {
       console.error('[MyPage] 로그아웃 중 오류:', error);
       alert('로그아웃 중 오류가 발생했습니다.');
+    }
+  };
+
+  const openWithdrawModal = async () => {
+    try {
+      const response = await fetch('/api/user/delete-account', { credentials: 'include' });
+      const data = await response.json();
+      if (response.ok && data?.success) {
+        setWithdrawRequiresPassword(!!data.requiresPassword);
+      }
+    } catch (error) {
+      console.error('[MyPage] 탈퇴 확인 정보 조회 실패:', error);
+    }
+    setWithdrawPassword('');
+    setWithdrawConfirmText('');
+    setShowWithdrawModal(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount) return;
+
+    const ok = window.confirm(
+      '정말 탈퇴하시겠습니까?\n탈퇴 후 계정·즐겨찾기·결제 연동 정보가 삭제되며, 같은 이메일로 다시 가입할 수 있습니다.',
+    );
+    if (!ok) return;
+
+    try {
+      setIsDeletingAccount(true);
+      const response = await fetch('/api/user/delete-account', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          withdrawRequiresPassword
+            ? { password: withdrawPassword }
+            : { confirmText: withdrawConfirmText },
+        ),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data?.error || '회원 탈퇴에 실패했습니다.');
+        return;
+      }
+
+      if (user?.userId) {
+        removeLocalStorageForUser(FAVORITE_MALLS_KEY, user.userId);
+      }
+      clearAllPreviewWorkspacesInTab();
+      setShowWithdrawModal(false);
+      await signOut({ redirect: false });
+      clearUser();
+      window.location.href = '/?withdrawn=1';
+    } catch (error) {
+      console.error('[MyPage] 회원 탈퇴 실패:', error);
+      alert('회원 탈퇴 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -1161,6 +1225,30 @@ export default function MyPage() {
                       </button>
                     </div>
                   </div>
+
+                  <div className="p-6 rounded-lg border border-rose-200 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20">
+                    <div className="flex items-start gap-3">
+                      <UserX className="mt-0.5 h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">회원 탈퇴</p>
+                        <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+                          <li>계정 정보, 즐겨찾는 쇼핑몰, 포인트·결제 연동 정보가 삭제됩니다.</li>
+                          <li>진행 중인 Stripe 구독은 즉시 해지됩니다.</li>
+                          <li>환불 신청이 검토 중이면 탈퇴할 수 없습니다.</li>
+                          <li>브라우저에 저장된 변환 내역 등은 기기에서 직접 삭제해 주세요.</li>
+                          <li>탈퇴 후 같은 이메일·휴대폰·기기로 재가입해도 무료 가입 보너스·월간 무료 지급은 다시 제공되지 않습니다.</li>
+                          <li>탈퇴 후 같은 이메일로 다시 가입할 수 있습니다.</li>
+                        </ul>
+                        <button
+                          type="button"
+                          onClick={() => void openWithdrawModal()}
+                          className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-zinc-900 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                        >
+                          회원 탈퇴하기
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1220,6 +1308,66 @@ export default function MyPage() {
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
               >
                 {isRequestingRefund ? '신청 중...' : '환불 신청하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-zinc-900">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">회원 탈퇴</h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
+              탈퇴하면 계정과 연동된 서버 데이터가 삭제됩니다. 되돌릴 수 없습니다.
+            </p>
+
+            {withdrawRequiresPassword ? (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  비밀번호 확인
+                </label>
+                <input
+                  type="password"
+                  value={withdrawPassword}
+                  onChange={(e) => setWithdrawPassword(e.target.value)}
+                  placeholder="현재 비밀번호"
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  확인 문구 입력
+                </label>
+                <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  아래 문구를 그대로 입력해 주세요: <strong>탈퇴합니다</strong>
+                </p>
+                <input
+                  type="text"
+                  value={withdrawConfirmText}
+                  onChange={(e) => setWithdrawConfirmText(e.target.value)}
+                  placeholder="탈퇴합니다"
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                />
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(false)}
+                disabled={isDeletingAccount}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteAccount()}
+                disabled={isDeletingAccount}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+              >
+                {isDeletingAccount ? '탈퇴 처리 중…' : '탈퇴하기'}
               </button>
             </div>
           </div>

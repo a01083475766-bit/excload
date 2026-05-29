@@ -277,28 +277,56 @@ export const authOptions: NextAuthOptions = {
       if (tokenEmail && shouldSyncUser) {
         try {
           const { prisma } = await import('@/app/lib/prisma');
+          const { addOneMonthKeepingDay } = await import('@/app/lib/add-one-month-keeping-day');
+          const {
+            isSignupBonusBlocked,
+            recordSignupBonusFingerprints,
+          } = await import('@/app/lib/free-benefit-fingerprint');
           const providerDbValue = mapProviderToDb(account?.provider);
           const updateData =
             providerDbValue === 'UNKNOWN' ? {} : { lastLoginProvider: providerDbValue };
           const dbStartedAt = perfNowMs();
-          const ensuredUser = await prisma.user.upsert({
+
+          const existingUser = await prisma.user.findUnique({
             where: { email: tokenEmail },
-            update: updateData,
-            create: {
-              email: tokenEmail,
-              name: typeof token.name === 'string' ? token.name : null,
-              emailVerified: new Date(),
-              signupProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
-              lastLoginProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
-            },
             select: { id: true, name: true },
           });
+
+          if (existingUser) {
+            const ensuredUser = await prisma.user.update({
+              where: { email: tokenEmail },
+              data: updateData,
+              select: { id: true, name: true },
+            });
+            token.id = ensuredUser.id;
+            token.name = ensuredUser.name ?? token.name;
+          } else {
+            const signupBonusBlocked = await isSignupBonusBlocked({ email: tokenEmail });
+            const signupNow = new Date();
+            const ensuredUser = await prisma.user.create({
+              data: {
+                email: tokenEmail,
+                name: typeof token.name === 'string' ? token.name : null,
+                emailVerified: new Date(),
+                signupProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
+                lastLoginProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
+                points: signupBonusBlocked ? 0 : 5000,
+                signupBonusClaimed: true,
+                nextPointDate: signupBonusBlocked ? null : addOneMonthKeepingDay(signupNow),
+              },
+              select: { id: true, name: true },
+            });
+            if (!signupBonusBlocked) {
+              await recordSignupBonusFingerprints({ email: tokenEmail });
+            }
+            token.id = ensuredUser.id;
+            token.name = ensuredUser.name ?? token.name;
+          }
+
           perfLog('jwt.user-upsert', dbStartedAt, {
             email: tokenEmail,
             provider: account?.provider ?? null,
           });
-          token.id = ensuredUser.id;
-          token.name = ensuredUser.name ?? token.name;
         } catch (error) {
           console.error('[Auth] JWT USER UPSERT FAILED:', error);
         }

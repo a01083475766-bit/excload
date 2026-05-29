@@ -5,24 +5,76 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useUserStore } from "@/app/store/userStore";
 import {
   createEmptyFavoriteMallEntry,
+  favoriteMallsHaveContent,
+  fetchFavoriteMallsFromServer,
   loadFavoriteMalls,
   openAllFavoriteMallUrls,
   openFavoriteMallUrl,
   saveFavoriteMalls,
+  saveFavoriteMallsToServer,
   type FavoriteMallEntry,
 } from "@/app/lib/favorite-malls-storage";
+import { FAVORITE_MALLS_KEY, removeLocalStorageForUser } from "@/app/lib/scoped-local-storage";
 
 export default function FavoriteMallsPanel() {
   const user = useUserStore((state) => state.user);
   const storageUserId = user?.userId ?? null;
   const [entries, setEntries] = useState<FavoriteMallEntry[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const skipSaveRef = useRef(true);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setEntries(loadFavoriteMalls(storageUserId));
-    setHydrated(true);
-    skipSaveRef.current = true;
+    let cancelled = false;
+
+    async function loadEntries() {
+      setLoadError(null);
+
+      if (storageUserId) {
+        const localEntries = loadFavoriteMalls(storageUserId);
+        try {
+          const serverEntries = await fetchFavoriteMallsFromServer();
+          if (cancelled) return;
+
+          if (serverEntries) {
+            const serverHasContent = favoriteMallsHaveContent(serverEntries);
+            const localHasContent = favoriteMallsHaveContent(localEntries);
+
+            if (!serverHasContent && localHasContent) {
+              const migrated = await saveFavoriteMallsToServer(localEntries);
+              if (cancelled) return;
+              removeLocalStorageForUser(FAVORITE_MALLS_KEY, storageUserId);
+              setEntries(migrated);
+            } else {
+              setEntries(serverEntries);
+              removeLocalStorageForUser(FAVORITE_MALLS_KEY, storageUserId);
+            }
+          } else {
+            setEntries(localEntries);
+          }
+        } catch (error) {
+          if (cancelled) return;
+          console.error("[FavoriteMallsPanel] server load failed:", error);
+          setEntries(localEntries);
+          setLoadError("서버에서 불러오지 못해 이 기기에 저장된 목록을 표시합니다.");
+        }
+      } else {
+        setEntries(loadFavoriteMalls(null));
+      }
+
+      if (!cancelled) {
+        setHydrated(true);
+        skipSaveRef.current = true;
+      }
+    }
+
+    setHydrated(false);
+    void loadEntries();
+
+    return () => {
+      cancelled = true;
+    };
   }, [storageUserId]);
 
   useEffect(() => {
@@ -30,6 +82,20 @@ export default function FavoriteMallsPanel() {
       skipSaveRef.current = false;
       return;
     }
+
+    if (storageUserId) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        void saveFavoriteMallsToServer(entries).catch((error) => {
+          console.error("[FavoriteMallsPanel] server save failed:", error);
+          setLoadError("서버 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        });
+      }, 500);
+      return () => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      };
+    }
+
     saveFavoriteMalls(storageUserId, entries);
   }, [entries, hydrated, storageUserId]);
 
@@ -107,6 +173,16 @@ export default function FavoriteMallsPanel() {
           예) https://sell.smartstore.naver.com/o/orders
         </span>
       </p>
+
+      {loadError ? (
+        <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">{loadError}</p>
+      ) : null}
+
+      {storageUserId ? (
+        <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-500">
+          로그인 계정에 저장되어 다른 기기에서도 동일한 목록을 사용할 수 있습니다.
+        </p>
+      ) : null}
 
       <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <table className="w-full min-w-[640px] text-sm">

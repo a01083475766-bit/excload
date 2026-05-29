@@ -1,6 +1,7 @@
 import {
   FAVORITE_MALLS_KEY,
   readLocalStorageWithLegacyMigrate,
+  removeLocalStorageForUser,
   writeLocalStorageForUser,
 } from '@/app/lib/scoped-local-storage';
 
@@ -52,6 +53,40 @@ export function saveFavoriteMalls(
 ): void {
   const rows = entries.length > 0 ? entries : createDefaultFavoriteMalls();
   writeLocalStorageForUser(FAVORITE_MALLS_KEY, userId, JSON.stringify(rows));
+}
+
+export function favoriteMallsHaveContent(entries: FavoriteMallEntry[]): boolean {
+  return entries.some((row) => row.name.trim() || row.url.trim());
+}
+
+export async function fetchFavoriteMallsFromServer(): Promise<FavoriteMallEntry[] | null> {
+  const res = await fetch('/api/user/favorite-malls', { credentials: 'include' });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error('즐겨찾기를 불러오지 못했습니다.');
+  const data = (await res.json()) as { success?: boolean; entries?: FavoriteMallEntry[] };
+  if (!data.success || !Array.isArray(data.entries)) {
+    throw new Error('즐겨찾기 응답 형식이 올바르지 않습니다.');
+  }
+  return data.entries.length > 0 ? data.entries : createDefaultFavoriteMalls();
+}
+
+export async function saveFavoriteMallsToServer(
+  entries: FavoriteMallEntry[],
+): Promise<FavoriteMallEntry[]> {
+  const res = await fetch('/api/user/favorite-malls', {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entries }),
+  });
+  if (!res.ok) {
+    throw new Error('즐겨찾기를 저장하지 못했습니다.');
+  }
+  const data = (await res.json()) as { success?: boolean; entries?: FavoriteMallEntry[] };
+  if (!data.success || !Array.isArray(data.entries)) {
+    throw new Error('즐겨찾기 저장 응답 형식이 올바르지 않습니다.');
+  }
+  return data.entries.length > 0 ? data.entries : createDefaultFavoriteMalls();
 }
 
 /** http(s) 없으면 https:// 를 붙입니다. */

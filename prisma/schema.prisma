@@ -70,6 +70,7 @@ model User {
 
   pointHistory     PointHistory[]
   subscriptions   Subscription[]
+  favoriteMalls   UserFavoriteMall[]
 }
 
 model EmailVerificationToken {
@@ -274,4 +275,53 @@ model TrialIpAccess {
   count     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// 계정별 즐겨찾는 쇼핑몰 바로가기
+model UserFavoriteMall {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @default("")
+  url       String   @default("")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sortOrder])
+}
+
+/// URL별 등록 집계 (관리자·기본값 제공용)
+model FavoriteMallUrlStat {
+  id              String   @id @default(cuid())
+  normalizedUrl   String   @unique
+  registerCount   Int      @default(0)
+  uniqueUserCount Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@index([uniqueUserCount])
+}
+
+/// 사용자가 특정 URL을 한 번이라도 저장했는지 (uniqueUserCount 집계용)
+model UserFavoriteMallUrlSeen {
+  userId        String
+  normalizedUrl String
+  createdAt     DateTime @default(now())
+
+  @@id([userId, normalizedUrl])
+}
+
+/// 무료 혜택(가입·월간) 재수령 방지 — 탈퇴 후에도 해시만 보관
+model FreeBenefitFingerprint {
+  type                 String
+  hash                 String
+  signupBonusUsed      Boolean  @default(false)
+  blockedAfterWithdraw Boolean  @default(false)
+  firstClaimedAt       DateTime @default(now())
+  lastWithdrawnAt      DateTime?
+  withdrawCount        Int      @default(0)
+
+  @@id([type, hash])
+  @@index([blockedAfterWithdraw])
 }

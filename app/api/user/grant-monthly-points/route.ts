@@ -8,21 +8,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-
-function addOneMonthKeepingDay(baseDate: Date): Date {
-  const year = baseDate.getFullYear();
-  const month = baseDate.getMonth();
-  const day = baseDate.getDate();
-  const hour = baseDate.getHours();
-  const minute = baseDate.getMinutes();
-  const second = baseDate.getSeconds();
-  const millisecond = baseDate.getMilliseconds();
-
-  const targetMonthStart = new Date(year, month + 1, 1, hour, minute, second, millisecond);
-  const lastDayOfTargetMonth = new Date(year, month + 2, 0).getDate();
-  targetMonthStart.setDate(Math.min(day, lastDayOfTargetMonth));
-  return targetMonthStart;
-}
+import { addOneMonthKeepingDay } from '@/app/lib/add-one-month-keeping-day';
+import { isMonthlyFreeGrantBlocked } from '@/app/lib/free-benefit-fingerprint';
 
 /**
  * POST /api/user/grant-monthly-points
@@ -57,6 +44,8 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           email: true,
+          phone: true,
+          deviceId: true,
           plan: true,
           points: true,
           nextPointDate: true,
@@ -83,6 +72,19 @@ export async function POST(request: NextRequest) {
           success: false,
           message: 'FREE 플랜만 월간 사용량 제공 대상입니다',
           alreadyGranted: true,
+        });
+      }
+
+      const monthlyBlocked = await isMonthlyFreeGrantBlocked({
+        email: user.email,
+        phone: user.phone,
+        deviceId: user.deviceId,
+      });
+      if (monthlyBlocked) {
+        return NextResponse.json({
+          success: false,
+          blocked: true,
+          message: '탈퇴 후 재가입 계정은 무료 월간 사용량 제공 대상이 아닙니다.',
         });
       }
 
