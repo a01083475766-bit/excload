@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useUserStore } from "@/app/store/userStore";
 import {
   createEmptyFavoriteMallEntry,
@@ -46,6 +47,26 @@ export default function FavoriteMallsPanel() {
     setEntries((prev) => {
       if (prev.length <= 1) return prev;
       return prev.filter((row) => row.id !== id);
+    });
+  }, []);
+
+  const moveRowUp = useCallback((id: string) => {
+    setEntries((prev) => {
+      const index = prev.findIndex((row) => row.id === id);
+      if (index <= 0) return prev;
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
+  }, []);
+
+  const moveRowDown = useCallback((id: string) => {
+    setEntries((prev) => {
+      const index = prev.findIndex((row) => row.id === id);
+      if (index < 0 || index >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next;
     });
   }, []);
 
@@ -97,13 +118,13 @@ export default function FavoriteMallsPanel() {
               <th className="px-3 py-3 font-semibold text-zinc-700 dark:text-zinc-300">
                 URL 주소
               </th>
-              <th className="px-3 py-3 font-semibold text-zinc-700 dark:text-zinc-300 w-[200px]">
+              <th className="px-3 py-3 font-semibold text-zinc-700 dark:text-zinc-300 w-[300px]">
                 열기
               </th>
             </tr>
           </thead>
           <tbody>
-            {entries.map((row) => (
+            {entries.map((row, index) => (
               <tr
                 key={row.id}
                 className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-800"
@@ -143,6 +164,30 @@ export default function FavoriteMallsPanel() {
                       >
                         삭제
                       </button>
+                    ) : null}
+                    {entries.length > 1 ? (
+                      <div className="flex shrink-0 gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveRowUp(row.id)}
+                          disabled={index === 0}
+                          title="위로 이동"
+                          aria-label="위로 이동"
+                          className="rounded-lg border border-zinc-200 px-2 py-2 text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent"
+                        >
+                          <ChevronUp className="h-4 w-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveRowDown(row.id)}
+                          disabled={index === entries.length - 1}
+                          title="아래로 이동"
+                          aria-label="아래로 이동"
+                          className="rounded-lg border border-zinc-200 px-2 py-2 text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:disabled:hover:bg-transparent"
+                        >
+                          <ChevronDown className="h-4 w-4" aria-hidden />
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 </td>
