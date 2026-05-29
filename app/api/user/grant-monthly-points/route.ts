@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { addOneMonthKeepingDay } from '@/app/lib/add-one-month-keeping-day';
 import { isMonthlyFreeGrantBlocked } from '@/app/lib/free-benefit-fingerprint';
+import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 
 /**
  * POST /api/user/grant-monthly-points
@@ -50,6 +51,9 @@ export async function POST(request: NextRequest) {
           points: true,
           nextPointDate: true,
           createdAt: true,
+          isBlocked: true,
+          abuseFlag: true,
+          blockReason: true,
         },
       });
 
@@ -66,6 +70,9 @@ export async function POST(request: NextRequest) {
           { status: 403 }
         );
       }
+
+      const blockedResponse = serviceBlockedResponse(user);
+      if (blockedResponse) return blockedResponse;
 
       if (user.plan !== 'FREE') {
         return NextResponse.json({

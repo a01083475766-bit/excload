@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 
 interface UsePointsRequest {
   amount: number;
@@ -60,6 +61,9 @@ export async function POST(request: NextRequest) {
           plan: true,
           points: true,
           nextPointDate: true,
+          isBlocked: true,
+          abuseFlag: true,
+          blockReason: true,
         },
       });
 
@@ -69,6 +73,9 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
+
+      const blockedResponse = serviceBlockedResponse(user);
+      if (blockedResponse) return blockedResponse;
 
       if (user.points < 1) {
         return NextResponse.json(

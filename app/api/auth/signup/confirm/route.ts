@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
 import { hashResetCode, PASSWORD_RESET_MAX_ATTEMPTS } from '@/app/lib/password-reset';
-import { addOneMonthKeepingDay } from '@/app/lib/add-one-month-keeping-day';
-import {
-  isSignupBonusBlocked,
-  recordSignupBonusFingerprints,
-} from '@/app/lib/free-benefit-fingerprint';
+import { getClientIp } from '@/app/lib/client-ip';
+import { finalizeSignupFreeBenefits } from '@/app/lib/user-access-guard';
+import { isSignupBonusBlocked } from '@/app/lib/free-benefit-fingerprint';
 
 interface SignupConfirmBody {
   email?: string;
@@ -52,7 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '인증코드가 올바르지 않습니다.' }, { status: 400 });
     }
 
-    const signupBonusBlocked = await isSignupBonusBlocked({
+    const fingerprintBlocked = await isSignupBonusBlocked({
       email: verification.email,
       phone: verification.phone,
       deviceId: verification.deviceId,
@@ -75,23 +73,19 @@ export async function POST(request: NextRequest) {
           throw new Error('PHONE_ALREADY_EXISTS');
         }
 
-        const initialPlan = 'FREE';
-        const initialPoints = signupBonusBlocked ? 0 : 5000;
-        const signupNow = new Date();
-
         const newUser = await tx.user.create({
           data: {
             email: verification.email,
             phone: verification.phone,
             passwordHash: verification.passwordHash,
-            plan: initialPlan,
-            points: initialPoints,
+            plan: 'FREE',
+            points: 0,
             emailVerified: new Date(),
             signupProvider: 'CREDENTIALS',
             lastLoginProvider: 'CREDENTIALS',
             deviceId: verification.deviceId || null,
-            signupBonusClaimed: true,
-            nextPointDate: signupBonusBlocked ? null : addOneMonthKeepingDay(signupNow),
+            signupBonusClaimed: false,
+            nextPointDate: null,
           },
           select: {
             id: true,
@@ -107,21 +101,33 @@ export async function POST(request: NextRequest) {
         return newUser;
       });
 
-      if (!signupBonusBlocked) {
-        await recordSignupBonusFingerprints({
-          email: verification.email,
-          phone: verification.phone,
-          deviceId: verification.deviceId,
-        });
+      const benefitResult = await finalizeSignupFreeBenefits({
+        userId: result.id,
+        email: verification.email,
+        phone: verification.phone,
+        deviceId: verification.deviceId,
+        clientIp: getClientIp(request),
+        fingerprintBlocked,
+      });
+
+      let message = '회원가입이 완료되었습니다.';
+      if (!benefitResult.granted) {
+        if (benefitResult.abuseFlag) {
+          message =
+            '회원가입이 완료되었습니다. (비정상 이용 패턴이 감지되어 무료 가입 보너스는 제공되지 않습니다.)';
+        } else if (fingerprintBlocked) {
+          message =
+            '회원가입이 완료되었습니다. (이전에 무료 혜택을 사용한 기록이 있어 가입 보너스는 제공되지 않습니다.)';
+        } else {
+          message = '회원가입이 완료되었습니다. (가입 보너스는 제공되지 않습니다.)';
+        }
       }
 
       return NextResponse.json({
         success: true,
-        message: signupBonusBlocked
-          ? '회원가입이 완료되었습니다. (이전에 무료 혜택을 사용한 기록이 있어 가입 보너스는 제공되지 않습니다.)'
-          : '회원가입이 완료되었습니다.',
+        message,
         user: result,
-        signupBonusGranted: !signupBonusBlocked,
+        signupBonusGranted: benefitResult.granted,
       });
     } catch (txError) {
       if (txError instanceof Error && txError.message === 'EMAIL_ALREADY_EXISTS') {

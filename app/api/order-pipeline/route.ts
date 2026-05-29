@@ -15,22 +15,13 @@ import { getServerSession } from 'next-auth';
 import { createHash } from 'crypto';
 import { authOptions } from '@/app/lib/auth';
 import { checkOrderPipelineRateLimit } from '@/app/lib/api-rate-limit';
+import { getClientIp } from '@/app/lib/client-ip';
+import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 import { run as runOrderPipeline } from '@/app/pipeline/order/order-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 import type { MappingResult } from '@/app/pipeline/template/map-template-to-base';
 import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
 import { TRIAL_ACCESS_LIMITS_ENABLED } from '@/app/lib/trial-access';
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  const real = request.headers.get('x-real-ip');
-  if (real) return real.trim();
-  return request.headers.get('cf-connecting-ip')?.trim() ?? 'unknown';
-}
 
 function hashIp(ip: string): string {
   const salt = process.env.TRIAL_IP_SALT ?? 'excload-trial-ip-v1';
@@ -88,6 +79,22 @@ export async function POST(request: NextRequest) {
     );
     if (rateLimited) {
       return rateLimited;
+    }
+
+    if (session?.user?.email) {
+      const { prisma } = await import('@/app/lib/prisma');
+      const pipelineUser = await prisma.user.findUnique({
+        where: { email: session.user.email.trim().toLowerCase() },
+        select: {
+          isBlocked: true,
+          abuseFlag: true,
+          blockReason: true,
+        },
+      });
+      if (pipelineUser) {
+        const blockedResponse = serviceBlockedResponse(pipelineUser);
+        if (blockedResponse) return blockedResponse;
+      }
     }
 
     // CleanInputFile 검증

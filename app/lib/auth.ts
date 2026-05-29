@@ -277,11 +277,6 @@ export const authOptions: NextAuthOptions = {
       if (tokenEmail && shouldSyncUser) {
         try {
           const { prisma } = await import('@/app/lib/prisma');
-          const { addOneMonthKeepingDay } = await import('@/app/lib/add-one-month-keeping-day');
-          const {
-            isSignupBonusBlocked,
-            recordSignupBonusFingerprints,
-          } = await import('@/app/lib/free-benefit-fingerprint');
           const providerDbValue = mapProviderToDb(account?.provider);
           const updateData =
             providerDbValue === 'UNKNOWN' ? {} : { lastLoginProvider: providerDbValue };
@@ -301,8 +296,6 @@ export const authOptions: NextAuthOptions = {
             token.id = ensuredUser.id;
             token.name = ensuredUser.name ?? token.name;
           } else {
-            const signupBonusBlocked = await isSignupBonusBlocked({ email: tokenEmail });
-            const signupNow = new Date();
             const ensuredUser = await prisma.user.create({
               data: {
                 email: tokenEmail,
@@ -310,15 +303,12 @@ export const authOptions: NextAuthOptions = {
                 emailVerified: new Date(),
                 signupProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
                 lastLoginProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
-                points: signupBonusBlocked ? 0 : 5000,
-                signupBonusClaimed: true,
-                nextPointDate: signupBonusBlocked ? null : addOneMonthKeepingDay(signupNow),
+                points: 0,
+                signupBonusClaimed: false,
+                nextPointDate: null,
               },
               select: { id: true, name: true },
             });
-            if (!signupBonusBlocked) {
-              await recordSignupBonusFingerprints({ email: tokenEmail });
-            }
             token.id = ensuredUser.id;
             token.name = ensuredUser.name ?? token.name;
           }

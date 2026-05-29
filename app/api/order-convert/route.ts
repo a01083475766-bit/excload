@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
+import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 
 interface OrderConvertRequest {
   inputText: string;
@@ -105,6 +106,8 @@ export async function POST(request: NextRequest) {
         plan: true,
         points: true,
         isBlocked: true,
+        abuseFlag: true,
+        blockReason: true,
       },
     });
 
@@ -115,12 +118,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (user.isBlocked) {
-      return NextResponse.json(
-        { error: '이용이 제한된 계정입니다.' },
-        { status: 403 }
-      );
-    }
+    const blockedResponse = serviceBlockedResponse(user);
+    if (blockedResponse) return blockedResponse;
 
     // 월간 포인트 지급/리셋은 POST /api/user/grant-monthly-points 에서만 처리합니다.
 

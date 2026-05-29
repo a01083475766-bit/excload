@@ -10,6 +10,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import { getClientIp } from '@/app/lib/client-ip';
+import {
+  syncUserIpAndAbuseScore,
+  tryGrantInitialFreeBenefits,
+} from '@/app/lib/user-access-guard';
 
 /**
  * GET /api/user/get
@@ -53,21 +58,47 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      await syncUserIpAndAbuseScore(user.id, getClientIp(request));
+      await tryGrantInitialFreeBenefits(user.id);
+
+      const freshUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          plan: true,
+          points: true,
+          lastLoginProvider: true,
+          nextPointDate: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      if (!freshUser) {
+        return NextResponse.json(
+          { error: '사용자를 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+
       return NextResponse.json({
         success: true,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          phone: user.phone,
-          plan: user.plan as 'FREE' | 'PRO' | 'YEARLY',
-          points: user.points,
-          lastLoginProvider: user.lastLoginProvider,
+          id: freshUser.id,
+          email: freshUser.email,
+          name: freshUser.name,
+          phone: freshUser.phone,
+          plan: freshUser.plan as 'FREE' | 'PRO' | 'YEARLY',
+          points: freshUser.points,
+          lastLoginProvider: freshUser.lastLoginProvider,
           monthlyPoints: undefined,
-          lastMonthlyGrant: user.nextPointDate?.toISOString() || null,
-          nextPointDate: user.nextPointDate?.toISOString() || null,
-          createdAt: user.createdAt.toISOString(),
-          updatedAt: user.updatedAt.toISOString(),
+          lastMonthlyGrant: freshUser.nextPointDate?.toISOString() || null,
+          nextPointDate: freshUser.nextPointDate?.toISOString() || null,
+          createdAt: freshUser.createdAt.toISOString(),
+          updatedAt: freshUser.updatedAt.toISOString(),
         },
       });
     } catch (dbError) {

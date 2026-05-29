@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
+import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 import * as XLSX from 'xlsx';
 
 interface DownloadRequest {
@@ -65,6 +66,9 @@ export async function POST(request: NextRequest) {
         plan: true,
         points: true,
         nextPointDate: true,
+        isBlocked: true,
+        abuseFlag: true,
+        blockReason: true,
       },
     });
 
@@ -74,6 +78,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const blockedResponse = serviceBlockedResponse(user);
+    if (blockedResponse) return blockedResponse;
 
     // 4. FREE 플랜일 경우만 사용량 검사
     let usedPoints = 0;
