@@ -59,7 +59,9 @@ import { Coins } from 'lucide-react';
 import {
   NormalizeQualityNoticeModal,
   isLikelyClientNetworkError,
+  type NormalizeQualityNoticeVariant,
 } from '@/app/components/NormalizeQualityNoticeModal';
+import { resolveNormalizeQualityNotice } from '@/app/lib/normalize-29/normalize29-error';
 import {
   TextConvertResultReviewModal,
   buildTextConvertReviewRows,
@@ -368,12 +370,11 @@ export default function OrderConvertPage() {
   const [isProcessingTextImage, setIsProcessingTextImage] = useState(false);
   const [errorMessageTextImage, setErrorMessageTextImage] = useState<string | null>(null);
   const [qualityNoticeModal, setQualityNoticeModal] = useState<
-    'hidden' | 'heuristic' | 'network'
+    'hidden' | NormalizeQualityNoticeVariant
   >('hidden');
   const [textConvertReviewModal, setTextConvertReviewModal] = useState<{
     originalText: string;
     rows: TextConvertReviewRow[];
-    showFallbackNotice: boolean;
   } | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -1654,12 +1655,6 @@ export default function OrderConvertPage() {
     setTextConvertStatusLabel(null);
     setStage2ChunkLabel(null);
     try {
-      setTextConvertStatusLabel('사용량 확인 중…');
-      const pointsDeducted = await usePoints(textLength, 'text');
-      if (!pointsDeducted) {
-        return;
-      }
-
       if (pendingImageOcrTextConvertRef.current) {
         pendingImageOcrTextConvertRef.current = false;
       } else {
@@ -1667,54 +1662,69 @@ export default function OrderConvertPage() {
       }
 
       setTextConvertStatusLabel('주문 텍스트 분석 중…');
-      const adapterResult = await runTextToCleanInputAdapter(trimmed);
-      const { normalizeMeta, ...cleanInputFile } = adapterResult;
-      if (cleanInputFile) {
-        const fileSessionId = crypto.randomUUID();
-        setTextConvertStatusLabel('택배 양식에 맞추는 중…');
-        const pipelineResult = await runUnifiedInputOrderPipelines({
-          cleanInputFile: {
-            ...cleanInputFile,
-            headers: [...cleanInputFile.headers],
-            rows: cleanInputFile.rows.map((r) => [...r]),
-          },
-          templateBridgeFile,
-          fixedHeaderValues,
-          fileSessionId,
-          onStage2ChunkProgress: (completed, total) => {
-            if (total > 1) {
-              setStage2ChunkLabel(`서버 변환 ${completed}/${total}`);
-            }
-          },
+      const adapterResult = await runTextToCleanInputAdapter(trimmed, { strict: true });
+      const { normalizeMeta: _normalizeMeta, ...cleanInputFile } = adapterResult;
+      if (!cleanInputFile.rows.length) {
+        setQualityNoticeModal('convert_failed');
+        return;
+      }
+
+      const fileSessionId = crypto.randomUUID();
+      setTextConvertStatusLabel('택배 양식에 맞추는 중…');
+      const pipelineResult = await runUnifiedInputOrderPipelines({
+        cleanInputFile: {
+          ...cleanInputFile,
+          headers: [...cleanInputFile.headers],
+          rows: cleanInputFile.rows.map((r) => [...r]),
+        },
+        templateBridgeFile,
+        fixedHeaderValues,
+        fileSessionId,
+        onStage2ChunkProgress: (completed, total) => {
+          if (total > 1) {
+            setStage2ChunkLabel(`서버 변환 ${completed}/${total}`);
+          }
+        },
+      });
+
+      if (!pipelineResult.mergeResult) {
+        setErrorMessageTextImage('텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.');
+        return;
+      }
+
+      setTextConvertStatusLabel('사용량 반영 중…');
+      const pointsDeducted = await usePoints(textLength, 'text');
+      if (!pointsDeducted) {
+        return;
+      }
+
+      const appendResult = handleUnifiedPipelinesCompleted(pipelineResult);
+
+      if (appendResult) {
+        setTextConvertReviewModal({
+          originalText: trimmed,
+          rows: buildTextConvertReviewRows(
+            appendResult.newRowIds,
+            appendResult.previewRows,
+            appendResult.courierHeaders,
+            templateBridgeFile?.mappedBaseHeaders,
+          ),
         });
-
-        const appendResult = handleUnifiedPipelinesCompleted(pipelineResult);
-
-        if (appendResult) {
-          setTextConvertReviewModal({
-            originalText: trimmed,
-            rows: buildTextConvertReviewRows(
-              appendResult.newRowIds,
-              appendResult.previewRows,
-              appendResult.courierHeaders,
-              templateBridgeFile?.mappedBaseHeaders,
-            ),
-            showFallbackNotice: normalizeMeta.usedFallback,
-          });
-        }
-
         setTextInput('');
       } else {
         setErrorMessageTextImage('텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.');
       }
     } catch (error) {
       console.error('[OrderConvertPage] 텍스트 주문 변환 중 오류:', error);
-      if (isLikelyClientNetworkError(error)) {
-        setQualityNoticeModal('network');
+      const noticeKind = resolveNormalizeQualityNotice(error, isLikelyClientNetworkError);
+      if (noticeKind) {
+        setQualityNoticeModal(noticeKind);
+        setErrorMessageTextImage(null);
+      } else {
+        setErrorMessageTextImage(
+          error instanceof Error ? error.message : '텍스트를 변환하는 중 알 수 없는 오류가 발생했습니다.',
+        );
       }
-      setErrorMessageTextImage(
-        error instanceof Error ? error.message : '텍스트를 변환하는 중 알 수 없는 오류가 발생했습니다.'
-      );
     } finally {
       setIsProcessingTextImage(false);
       setTextConvertStatusLabel(null);
@@ -3599,7 +3609,7 @@ export default function OrderConvertPage() {
 
       <NormalizeQualityNoticeModal
         isOpen={qualityNoticeModal !== 'hidden'}
-        variant={qualityNoticeModal === 'network' ? 'network' : 'heuristic'}
+        variant={qualityNoticeModal === 'hidden' ? 'network' : qualityNoticeModal}
         onClose={() => setQualityNoticeModal('hidden')}
       />
 
@@ -3607,7 +3617,6 @@ export default function OrderConvertPage() {
         isOpen={textConvertReviewModal !== null}
         originalText={textConvertReviewModal?.originalText ?? ''}
         rows={textConvertReviewModal?.rows ?? []}
-        showFallbackNotice={textConvertReviewModal?.showFallbackNotice ?? false}
         onConfirm={handleTextConvertReviewConfirm}
         onApply={handleTextConvertReviewApply}
       />

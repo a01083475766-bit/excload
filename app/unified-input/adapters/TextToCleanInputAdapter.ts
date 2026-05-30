@@ -1,5 +1,9 @@
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
+import {
+  Normalize29Error,
+  type Normalize29ErrorCode,
+} from '@/app/lib/normalize-29/normalize29-error';
 import type { InternalOrderFormat } from '@/app/lib/export/internalOrderFormat';
 
 export type TextNormalizeMeta = {
@@ -7,6 +11,11 @@ export type TextNormalizeMeta = {
   fallbackReason?: string;
   /** normalize-29 프롬프트 경로: core(단순·빠름) | full(복잡·전체필드) */
   promptRoute?: 'core' | 'full';
+};
+
+export type TextToCleanInputAdapterOptions = {
+  /** true: 휴리스틱 폴백 없이 실패 시 에러 (택배 텍스트 변환) */
+  strict?: boolean;
 };
 
 /** 텍스트 → CleanInputFile + normalize-29 메타(폴백 여부). Stage2 전달 시 normalizeMeta는 제거하세요. */
@@ -17,10 +26,23 @@ export type TextToCleanInputAdapterResult = {
   normalizeMeta: TextNormalizeMeta;
 };
 
-export async function runTextToCleanInputAdapter(text: string): Promise<TextToCleanInputAdapterResult> {
+function parseNormalize29ErrorCode(value: unknown): Normalize29ErrorCode {
+  if (value === 'AI_TIMEOUT') return 'AI_TIMEOUT';
+  if (value === 'AI_PARSE_FAILED') return 'AI_PARSE_FAILED';
+  if (value === 'AI_EMPTY_ORDERS') return 'AI_EMPTY_ORDERS';
+  if (value === 'AI_UNAVAILABLE') return 'AI_UNAVAILABLE';
+  return 'AI_API_ERROR';
+}
+
+export async function runTextToCleanInputAdapter(
+  text: string,
+  options?: TextToCleanInputAdapterOptions,
+): Promise<TextToCleanInputAdapterResult> {
   if (!text || text.trim() === '') {
     throw new Error('텍스트가 비어있습니다.');
   }
+
+  const strict = options?.strict === true;
 
   const response = await fetch('/api/ai-gateway', {
     method: 'POST',
@@ -30,25 +52,33 @@ export async function runTextToCleanInputAdapter(text: string): Promise<TextToCl
     body: JSON.stringify({
       type: 'normalize-29',
       text,
+      strict,
     }),
   });
 
+  const data = await response.json().catch(() => null);
+
   if (!response.ok) {
-    throw new Error('normalize-29 호출 실패');
+    const errorCode = parseNormalize29ErrorCode(data?.errorCode);
+    throw new Normalize29Error(
+      errorCode,
+      typeof data?.error === 'string' ? data.error : 'normalize-29 호출 실패',
+    );
   }
 
-  const data = await response.json();
   const dbg = isExcloudPipelineDebugClient();
   if (dbg) {
     console.log('[API RESPONSE RAW]', data);
   }
 
   if (!data?.orders || !Array.isArray(data.orders)) {
-    throw new Error('normalize-29 응답 형식 오류');
+    throw new Normalize29Error('AI_API_ERROR', 'normalize-29 응답 형식 오류');
   }
 
-  // 서버는 파싱 실패·빈 orders 시 1건 fallback 주문을 채워 반환하고 meta.usedFallback을 씁니다.
-  // 여기서 에러를 던지면 복구된 행을 쓰지 못해 텍스트 변환이 항상 실패한 것처럼 보입니다.
+  if (strict && data.orders.length === 0) {
+    throw new Normalize29Error('AI_EMPTY_ORDERS', '주문 정보를 추출하지 못했습니다.');
+  }
+
   if (data?.meta?.usedFallback && dbg) {
     console.warn('[normalize-29] 서버 fallback 주문 사용', data.meta);
   }
@@ -117,3 +147,5 @@ export async function convertTextToInternalOrder(
   });
   return { internalOrder };
 }
+
+export { Normalize29Error };

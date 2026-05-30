@@ -59,7 +59,6 @@ interface TextConvertResultReviewModalProps {
   isOpen: boolean;
   originalText: string;
   rows: TextConvertReviewRow[];
-  showFallbackNotice: boolean;
   onConfirm: () => void;
   onApply: (overrides: Record<string, Record<string, string>>) => void;
 }
@@ -71,7 +70,6 @@ export function TextConvertResultReviewModal({
   isOpen,
   originalText,
   rows,
-  showFallbackNotice,
   onConfirm,
   onApply,
 }: TextConvertResultReviewModalProps) {
@@ -166,24 +164,6 @@ export function TextConvertResultReviewModal({
         </div>
 
         <div className="px-6 pb-4 flex-1 min-h-0 overflow-hidden flex flex-col gap-4">
-          {showFallbackNotice && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 leading-relaxed flex-shrink-0">
-              <p className="font-medium mb-1">변환 결과를 확인해 주세요</p>
-              <p>
-                주문 정보가 여러 형식으로 섞여 있어, 일부 항목은 자동으로 정리되었을 수
-                있습니다.
-              </p>
-              <p className="mt-2">
-                <strong>미리보기에서 이름·전화·주소·상품</strong>이 맞는지 꼭 확인한 뒤
-                다운로드해 주세요.
-              </p>
-              <p className="mt-2 text-amber-900/80">
-                빠진 항목이 있으면 아래에서 수정하거나, 미리보기에서 직접 고친 뒤 다시
-                변환해 보세요.
-              </p>
-            </div>
-          )}
-
           <div className="flex-shrink-0">
             <p className="text-xs font-medium text-gray-500 mb-1.5">붙여넣은 원문</p>
             <div className="max-h-[140px] overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">

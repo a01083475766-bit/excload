@@ -1,6 +1,10 @@
 'use client';
 
-export type NormalizeQualityNoticeVariant = 'heuristic' | 'network';
+export type NormalizeQualityNoticeVariant =
+  | 'heuristic'
+  | 'network'
+  | 'timeout'
+  | 'convert_failed';
 
 export function isLikelyClientNetworkError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
@@ -14,9 +18,11 @@ interface NormalizeQualityNoticeModalProps {
   onClose: () => void;
 }
 
+const NO_CHARGE_NOTE =
+  '이번 시도는 사용량이 차감되지 않았습니다. 잠시 후 다시 시도해 주세요.';
+
 /**
- * normalize-29가 폴백(간단 규칙 등)으로 처리했거나,
- * 클라이언트에서 서버 호출이 네트워크 때문에 실패했을 때 안내합니다.
+ * normalize-29 폴백(물류 등), 네트워크·타임아웃·변환 실패 안내.
  */
 export function NormalizeQualityNoticeModal({
   isOpen,
@@ -25,7 +31,14 @@ export function NormalizeQualityNoticeModal({
 }: NormalizeQualityNoticeModalProps) {
   if (!isOpen) return null;
 
-  const isNetwork = variant === 'network';
+  const title =
+    variant === 'network'
+      ? '서버에 연결하지 못했습니다'
+      : variant === 'timeout'
+        ? '처리 시간이 초과되었습니다'
+        : variant === 'convert_failed'
+          ? '변환에 실패했습니다'
+          : '변환 결과를 확인해 주세요';
 
   return (
     <div
@@ -41,23 +54,49 @@ export function NormalizeQualityNoticeModal({
       >
         <h3
           id="normalize-quality-notice-title"
-          className={`text-lg font-semibold mb-3 ${isNetwork ? 'text-amber-900' : 'text-amber-900'}`}
+          className="text-lg font-semibold mb-3 text-amber-900"
         >
-          {isNetwork ? '서버에 연결하지 못했습니다' : '변환 결과를 확인해 주세요'}
+          {title}
         </h3>
         <div className="space-y-3 text-sm text-gray-700 leading-relaxed mb-6">
-          {isNetwork ? (
+          {variant === 'network' && (
             <>
               <p>
                 인터넷 연결이 불안정하거나 일시적으로 서버에 닿지 못한 것 같습니다. 주문
                 자동 정리는 안정적인 네트워크 연결이 필요합니다.
               </p>
               <p>
-                잠시 후 Wi-Fi·데이터 상태를 확인하시고, 연결이 원활할 때 한 번 더 시도해
-                주세요.
+                Wi-Fi·데이터 상태를 확인하신 뒤, 연결이 원활할 때 한 번 더 시도해 주세요.
               </p>
+              <p className="text-gray-600">{NO_CHARGE_NOTE}</p>
             </>
-          ) : (
+          )}
+          {variant === 'timeout' && (
+            <>
+              <p>
+                주문 자동 정리에 예상보다 시간이 걸려 중단되었습니다. 입력 분량이 많거나
+                서버·네트워크가 일시적으로 느릴 수 있습니다.
+              </p>
+              <p>
+                줄바꿈·탭으로 주문을 나눠 붙이거나, 잠시 후 다시 시도해 보세요.
+              </p>
+              <p className="text-gray-600">{NO_CHARGE_NOTE}</p>
+            </>
+          )}
+          {variant === 'convert_failed' && (
+            <>
+              <p>
+                자동 정리 결과를 불러오지 못했습니다. 입력 형식이나 서버 응답 문제일 수
+                있습니다.
+              </p>
+              <p>
+                원문을 줄 단위로 정리한 뒤 다시 변환해 보세요. 같은 문제가 반복되면
+                고객센터로 문의해 주세요.
+              </p>
+              <p className="text-gray-600">{NO_CHARGE_NOTE}</p>
+            </>
+          )}
+          {variant === 'heuristic' && (
             <>
               <p>
                 주문 정보가 여러 형식으로 섞여 있어, 일부 항목은 자동으로 정리되었을 수

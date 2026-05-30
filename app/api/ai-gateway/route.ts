@@ -107,8 +107,16 @@ export async function POST(request: NextRequest) {
 
     // AI 활성화 여부 확인
     if (process.env.NEXT_PUBLIC_AI_ENABLED !== 'true') {
-      // AI 비활성화여도 normalize-29는 최소 1건 fallback을 반환
       if (type === 'normalize-29') {
+        if (body.strict === true) {
+          return NextResponse.json(
+            {
+              error: '현재 분석 기능을 사용할 수 없습니다.',
+              errorCode: 'AI_UNAVAILABLE',
+            },
+            { status: 503 },
+          );
+        }
         const fallbackText = resolveNormalize29InboundText(body);
         const promptRoute = classifyNormalize29PromptRoute(fallbackText);
         return NextResponse.json({
@@ -127,6 +135,15 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       if (type === 'normalize-29') {
+        if (body.strict === true) {
+          return NextResponse.json(
+            {
+              error: '시스템 설정 오류가 발생했습니다.',
+              errorCode: 'AI_UNAVAILABLE',
+            },
+            { status: 503 },
+          );
+        }
         const fallbackText = resolveNormalize29InboundText(body);
         const promptRoute = classifyNormalize29PromptRoute(fallbackText);
         return NextResponse.json({
@@ -188,6 +205,7 @@ export async function handleNormalize29(
     return NextResponse.json({ error: 'text is required' }, { status: 400 });
   }
 
+  const strictMode = body.strict === true;
   const promptRoute = classifyNormalize29PromptRoute(text);
   let fallbackReason: 'none' | 'json_parse_failed' | 'empty_orders' = 'none';
 
@@ -251,8 +269,11 @@ export async function handleNormalize29(
         errorText,
       });
       return NextResponse.json(
-        { error: '텍스트 분석에 실패했습니다.' },
-        { status: 500 }
+        {
+          error: '텍스트 분석에 실패했습니다.',
+          errorCode: strictMode ? 'AI_API_ERROR' : undefined,
+        },
+        { status: 500 },
       );
     }
 
@@ -271,6 +292,15 @@ export async function handleNormalize29(
         const extracted = extractJsonObject(stripCodeFence(aiText));
         parsed = JSON.parse(extracted);
       } catch {
+        if (strictMode) {
+          return NextResponse.json(
+            {
+              error: '텍스트 분석 결과를 읽지 못했습니다.',
+              errorCode: 'AI_PARSE_FAILED',
+            },
+            { status: 502 },
+          );
+        }
         parsed = { orders: [] };
         fallbackReason = 'json_parse_failed';
       }
@@ -283,6 +313,17 @@ export async function handleNormalize29(
       .map((order: Record<string, string>) => collapseDuplicateFullLineDump(order, text));
 
     if (!Array.isArray(orders) || orders.length === 0) {
+      if (strictMode) {
+        const errorCode =
+          fallbackReason === 'json_parse_failed' ? 'AI_PARSE_FAILED' : 'AI_EMPTY_ORDERS';
+        const message =
+          errorCode === 'AI_PARSE_FAILED'
+            ? '텍스트 분석 결과를 읽지 못했습니다.'
+            : '주문 정보를 추출하지 못했습니다.';
+        console.warn('[AI Gateway] normalize-29 strict 실패:', { errorCode, promptRoute });
+        return NextResponse.json({ error: message, errorCode }, { status: 502 });
+      }
+
       console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 휴리스틱 fallback 행 생성');
       if (fallbackReason === 'none') {
         fallbackReason = 'empty_orders';
@@ -313,6 +354,17 @@ export async function handleNormalize29(
       error instanceof Error &&
       (error.name === 'AbortError' || /aborted|timeout/i.test(error.message));
     if (aborted) {
+      if (strictMode) {
+        console.warn('[AI Gateway] normalize-29 strict timeout');
+        return NextResponse.json(
+          {
+            error: '텍스트 분석 시간이 초과되었습니다.',
+            errorCode: 'AI_TIMEOUT',
+            meta: { promptRoute },
+          },
+          { status: 504 },
+        );
+      }
       console.warn('[AI Gateway] normalize-29 timeout → 휴리스틱 fallback');
       const orders = [
         normalizeOrderObject(buildNormalize29HeuristicFallbackRow(text)),
