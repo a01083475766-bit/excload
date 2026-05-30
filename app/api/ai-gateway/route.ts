@@ -17,6 +17,7 @@ import {
   buildNormalize29HeuristicFallbackRow,
   sanitizeNormalize29Order,
 } from '@/app/lib/heuristic-korean-order-line';
+import { normalizeNormalize29Order } from '@/app/lib/normalize-29/normalize-order-object';
 import {
   BASE_HEADERS,
 } from '@/app/pipeline/base/base-headers';
@@ -205,17 +206,7 @@ export async function handleNormalize29(
     return input;
   };
 
-  const normalizeOrderObject = (order: Record<string, any>): Record<string, string> => {
-    const normalized: Record<string, string> = {};
-    for (const header of BASE_HEADERS) {
-      const value = order?.[header];
-      normalized[header] = value == null ? '' : String(value).trim();
-    }
-    if (!normalized['수량']) {
-      normalized['수량'] = '1';
-    }
-    return normalized;
-  };
+  const normalizeOrderObject = normalizeNormalize29Order;
 
   const systemPrompt =
     promptRoute === 'core'

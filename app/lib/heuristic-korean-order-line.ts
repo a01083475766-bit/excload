@@ -109,18 +109,8 @@ export function buildNormalize29HeuristicFallbackRow(raw: string): Record<string
   return base;
 }
 
-/** handleNormalize29의 normalizeOrderObject와 동일 역할 */
-export function sanitizeNormalize29Order(order: Record<string, unknown>): Record<string, string> {
-  const normalized: Record<string, string> = {};
-  for (const header of BASE_HEADERS) {
-    const value = order?.[header];
-    normalized[header] = value == null ? '' : String(value).trim();
-  }
-  if (!normalized['수량']) {
-    normalized['수량'] = '1';
-  }
-  return normalized;
-}
+/** handleNormalize29·fallback 공통 — @/app/lib/normalize-29/normalize-order-object */
+export { normalizeNormalize29Order as sanitizeNormalize29Order } from '@/app/lib/normalize-29/normalize-order-object';
 
 /** AI가 수취인 비우고 긴 상품명만 준 덩어리일 때 1차 보정 */
 export function orderLooksLikeNormalizeFallbackBlob(order: Record<string, unknown>): boolean {

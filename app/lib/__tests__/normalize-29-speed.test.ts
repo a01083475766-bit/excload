@@ -34,6 +34,29 @@ describe('classifyNormalize29PromptRoute', () => {
     );
   });
 
+  it('배송비·택배비 단독 라벨 → full', () => {
+    expect(
+      classifyNormalize29PromptRoute('받는분 김철수 010-1111-2222 서울시 강남구 배송비 3000'),
+    ).toBe('full');
+    expect(
+      classifyNormalize29PromptRoute('받는분 김철수 010-1111-2222 택배비 3000 부산시 해운대구'),
+    ).toBe('full');
+    expect(classifyNormalize29PromptRoute('추가배송비 5000 받는분 홍길동')).toBe('full');
+    expect(classifyNormalize29PromptRoute('도서산간 3000원')).toBe('full');
+    expect(classifyNormalize29PromptRoute('제주배송비 6000')).toBe('full');
+  });
+
+  it('무료배송·제주 주소만 있는 단순 주문은 core 유지', () => {
+    expect(
+      classifyNormalize29PromptRoute('김영수 010-2222-3333 서울 강남구 무료배송 사과 1kg'),
+    ).toBe('core');
+    expect(
+      classifyNormalize29PromptRoute(
+        '홍길동 010-1234-5678 제주특별자치도 제주시 애월읍 사과',
+      ),
+    ).toBe('core');
+  });
+
   it('쿠팡·상품주문번호·결제·운임 키워드 → full', () => {
     expect(
       classifyNormalize29PromptRoute(
@@ -103,17 +126,20 @@ describe('sanitizeNormalize29Order (normalizeOrderObject 동일)', () => {
     expect(partial['수량']).toBe('1');
   });
 
-  it('null·undefined·숫자·객체를 문자열로 안전 변환', () => {
+  it('null·undefined·숫자·객체를 안전 변환 (plain object → "")', () => {
     const row = sanitizeNormalize29Order({
       받는사람: null,
       받는사람전화1: undefined,
       수량: 3 as unknown as string,
       상품명: { bad: true } as unknown as string,
+      배송메시지: ['문앞', '부재시'] as unknown as string,
     });
     expect(row['받는사람']).toBe('');
     expect(row['받는사람전화1']).toBe('');
     expect(row['수량']).toBe('3');
-    expect(row['상품명']).toBe('[object Object]');
+    expect(row['상품명']).toBe('');
+    expect(row['배송메시지']).toBe('문앞 부재시');
+    expect(row['상품명']).not.toContain('[object Object]');
     for (const header of BASE_HEADERS) {
       expect(typeof row[header]).toBe('string');
     }

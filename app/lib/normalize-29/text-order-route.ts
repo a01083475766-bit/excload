@@ -24,6 +24,23 @@ export const TEXT_ORDER_SIMPLE_CORE_HEADERS = [
 const MALL_OR_EXTENDED_MARKERS =
   /주문\s*(?:번호|ID|#)|제휴주문|상품주문번호|관리상품번호|판매상품번호|주문ID|쿠팡|네이버\s*주문|11번가|옥션|G마켓|스마트스토어|결제금액|결제구분|운임구분|주문배송비|구매확정|출고지시|센터코드|옵션코드|판매자할인|쿠폰할인|포인트|배송첨부|출고발송|택배사코드/i;
 
+/**
+ * 배송비·택배비 등 쇼핑몰 정산 라벨 (단독 "배송비 3000" 등 → full)
+ * - "무료배송"은 '배송비' 부분 문자열이 아니므로 제외됨
+ * - 주소 "제주특별자치도" 오탐 방지: bare "제주"는 쓰지 않고 제주+배송비 패턴만
+ */
+const SHIPPING_FEE_LABEL_MARKERS =
+  /(?:^|[\s\t,，|])배송비(?:\s*[:：]?\s*\d|\s+\d|[\d])|(?:^|[\s\t,，|])택배비(?:\s*[:：]?\s*\d|\s+\d|\s|$|[\d])|(?:^|[\s\t,，|])운송비(?:\s*[:：]?\s*\d|\s+\d|\s|$|[\d])|추가배송비|도서산간|제주\s*배송비|제주배송비/i;
+
+/** @internal 테스트·디버그용 */
+export function hasShippingFeeFullTrigger(text: string): boolean {
+  return SHIPPING_FEE_LABEL_MARKERS.test(text);
+}
+
+function hasMallOrExtendedFullTrigger(text: string): boolean {
+  return MALL_OR_EXTENDED_MARKERS.test(text) || SHIPPING_FEE_LABEL_MARKERS.test(text);
+}
+
 function countKoreanMobilePhones(text: string): number {
   const re = /01[016789](?:[-\s]?\d{3,4}[-\s]?\d{4}|\d{8})/g;
   return [...text.matchAll(re)].length;
@@ -45,7 +62,7 @@ export function classifyNormalize29PromptRoute(text: string): Normalize29PromptR
   if (!trimmed) return 'core';
 
   if (trimmed.length > 2500) return 'full';
-  if (MALL_OR_EXTENDED_MARKERS.test(trimmed)) return 'full';
+  if (hasMallOrExtendedFullTrigger(trimmed)) return 'full';
 
   const phoneCount = countKoreanMobilePhones(trimmed);
   const lines = trimmed.split(/\r?\n/).filter((line) => line.trim().length > 0);
