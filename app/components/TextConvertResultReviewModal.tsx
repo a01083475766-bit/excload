@@ -34,6 +34,27 @@ export function buildTextConvertReviewRows(
   });
 }
 
+function collectTableHeaders(rows: TextConvertReviewRow[]): string[] {
+  const seen = new Set<string>();
+  const headers: string[] = [];
+  for (const row of rows) {
+    for (const field of row.fields) {
+      if (seen.has(field.header)) continue;
+      seen.add(field.header);
+      headers.push(field.header);
+    }
+  }
+  return headers;
+}
+
+function getFieldValue(row: TextConvertReviewRow, header: string): string {
+  return row.fields.find((field) => field.header === header)?.value ?? '';
+}
+
+function rowHasField(row: TextConvertReviewRow, header: string): boolean {
+  return row.fields.some((field) => field.header === header);
+}
+
 interface TextConvertResultReviewModalProps {
   isOpen: boolean;
   originalText: string;
@@ -68,6 +89,7 @@ export function TextConvertResultReviewModal({
 
   const displayRows = isEditing ? editDraft : rows;
   const totalOrders = rows.length;
+  const tableHeaders = collectTableHeaders(rows);
 
   const handleStartEdit = () => {
     setEditDraft(structuredClone(rows));
@@ -81,16 +103,19 @@ export function TextConvertResultReviewModal({
 
   const handleFieldChange = (rowId: string, header: string, value: string) => {
     setEditDraft((prev) =>
-      prev.map((row) =>
-        row.rowId === rowId
-          ? {
-              ...row,
-              fields: row.fields.map((field) =>
-                field.header === header ? { ...field, value } : field,
-              ),
-            }
-          : row,
-      ),
+      prev.map((row) => {
+        if (row.rowId !== rowId) return row;
+        const hasField = row.fields.some((field) => field.header === header);
+        if (hasField) {
+          return {
+            ...row,
+            fields: row.fields.map((field) =>
+              field.header === header ? { ...field, value } : field,
+            ),
+          };
+        }
+        return { ...row, fields: [...row.fields, { header, value }] };
+      }),
     );
   };
 
@@ -125,7 +150,7 @@ export function TextConvertResultReviewModal({
       aria-labelledby="text-convert-review-title"
     >
       <div
-        className="bg-white rounded-lg shadow-lg w-full max-w-[640px] max-h-[90vh] flex flex-col"
+        className="bg-white rounded-lg shadow-lg w-full max-w-[920px] max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 pb-4 flex-shrink-0">
@@ -167,42 +192,66 @@ export function TextConvertResultReviewModal({
             <p className="text-xs font-medium text-gray-500 mb-1.5 flex-shrink-0">
               정리된 주문 ({totalOrders}건)
             </p>
-            <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
-              {displayRows.map((row, orderIndex) => (
-                <div key={row.rowId} className="px-3 py-3 bg-white">
-                  <p className="text-xs font-semibold text-gray-700 mb-2">주문 {orderIndex + 1}</p>
-                  {row.fields.length === 0 ? (
-                    <p className="text-sm text-gray-500">추출된 항목이 없습니다.</p>
-                  ) : (
-                    <table className="w-full text-sm border-collapse">
-                      <tbody>
-                        {row.fields.map((field) => (
-                          <tr key={`${row.rowId}-${field.header}`} className="border-b border-gray-100 last:border-0">
-                            <th className="align-top text-left font-medium text-gray-600 py-1.5 pr-3 w-[38%] break-words">
-                              {field.header}
-                            </th>
-                            <td className="align-top py-1.5 break-words">
-                              {isEditing ? (
+            {tableHeaders.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 px-3 py-4 text-sm text-gray-500">
+                추출된 항목이 없습니다.
+              </div>
+            ) : (
+              <div className="max-h-[320px] overflow-auto rounded-lg border border-gray-300">
+                <table className="min-w-full text-sm border-collapse">
+                  <thead className="sticky top-0 z-10 bg-gray-100">
+                    <tr>
+                      <th className="sticky left-0 z-20 min-w-[44px] border border-gray-300 bg-gray-100 px-2 py-2 text-center text-xs font-semibold text-gray-700 whitespace-nowrap">
+                        No.
+                      </th>
+                      {tableHeaders.map((header) => (
+                        <th
+                          key={header}
+                          className="min-w-[120px] max-w-[220px] border border-gray-300 px-2 py-2 text-left text-xs font-semibold text-gray-700 break-words leading-snug"
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayRows.map((row, orderIndex) => (
+                      <tr key={row.rowId} className="bg-white hover:bg-gray-50/80">
+                        <td className="sticky left-0 z-[1] border border-gray-300 bg-white px-2 py-1.5 text-center text-xs text-gray-600 whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
+                          {orderIndex + 1}
+                        </td>
+                        {tableHeaders.map((header) => {
+                          const value = getFieldValue(row, header);
+                          const editable = isEditing && rowHasField(row, header);
+
+                          return (
+                            <td
+                              key={`${row.rowId}-${header}`}
+                              className="min-w-[120px] max-w-[220px] border border-gray-300 px-2 py-1.5 align-top break-words text-gray-900"
+                            >
+                              {editable ? (
                                 <input
                                   type="text"
-                                  value={field.value}
+                                  value={value}
                                   onChange={(e) =>
-                                    handleFieldChange(row.rowId, field.header, e.target.value)
+                                    handleFieldChange(row.rowId, header, e.target.value)
                                   }
-                                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className="w-full min-w-[100px] rounded border border-gray-300 px-1.5 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
+                              ) : value ? (
+                                value
                               ) : (
-                                <span className="text-gray-900">{field.value}</span>
+                                <span className="text-gray-300">—</span>
                               )}
                             </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              ))}
-            </div>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
