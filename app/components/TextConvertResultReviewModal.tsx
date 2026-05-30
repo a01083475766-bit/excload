@@ -180,7 +180,7 @@ export function TextConvertResultReviewModal({
                 추출된 항목이 없습니다.
               </div>
             ) : (
-              <div className="max-h-[320px] overflow-auto rounded-lg border border-gray-300">
+              <div className="max-h-[320px] overflow-auto rounded-lg border border-gray-300 preview-scrollbar">
                 <table className="min-w-max w-full text-sm border-collapse">
                   <thead className="sticky top-0 z-10 bg-gray-100">
                     <tr>
