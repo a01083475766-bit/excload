@@ -181,16 +181,16 @@ export function TextConvertResultReviewModal({
               </div>
             ) : (
               <div className="max-h-[320px] overflow-auto rounded-lg border border-gray-300">
-                <table className="min-w-full text-sm border-collapse">
+                <table className="min-w-max w-full text-sm border-collapse">
                   <thead className="sticky top-0 z-10 bg-gray-100">
                     <tr>
-                      <th className="sticky left-0 z-20 min-w-[44px] border border-gray-300 bg-gray-100 px-2 py-2 text-center text-xs font-semibold text-gray-700 whitespace-nowrap">
+                      <th className="sticky left-0 z-20 min-w-[44px] border border-gray-300 bg-gray-100 px-2 py-2 text-center text-xs font-semibold text-gray-700 whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
                         No.
                       </th>
                       {tableHeaders.map((header) => (
                         <th
                           key={header}
-                          className="min-w-[120px] max-w-[220px] border border-gray-300 px-2 py-2 text-left text-xs font-semibold text-gray-700 break-words leading-snug"
+                          className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap"
                         >
                           {header}
                         </th>
@@ -210,7 +210,8 @@ export function TextConvertResultReviewModal({
                           return (
                             <td
                               key={`${row.rowId}-${header}`}
-                              className="min-w-[120px] max-w-[220px] border border-gray-300 px-2 py-1.5 align-top break-words text-gray-900"
+                              className="border border-gray-300 px-2 py-1.5 whitespace-nowrap text-gray-900"
+                              title={!editable && value ? value : undefined}
                             >
                               {editable ? (
                                 <input
@@ -219,7 +220,7 @@ export function TextConvertResultReviewModal({
                                   onChange={(e) =>
                                     handleFieldChange(row.rowId, header, e.target.value)
                                   }
-                                  className="w-full min-w-[100px] rounded border border-gray-300 px-1.5 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className="min-w-[120px] w-full rounded border border-gray-300 px-1.5 py-1 text-sm whitespace-nowrap focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
                               ) : value ? (
                                 value
