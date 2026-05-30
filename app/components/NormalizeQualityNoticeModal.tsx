@@ -43,7 +43,7 @@ export function NormalizeQualityNoticeModal({
           id="normalize-quality-notice-title"
           className={`text-lg font-semibold mb-3 ${isNetwork ? 'text-amber-900' : 'text-amber-900'}`}
         >
-          {isNetwork ? '서버에 연결하지 못했습니다' : '자동 정리 방식 안내'}
+          {isNetwork ? '서버에 연결하지 못했습니다' : '변환 결과를 확인해 주세요'}
         </h3>
         <div className="space-y-3 text-sm text-gray-700 leading-relaxed mb-6">
           {isNetwork ? (
@@ -60,17 +60,16 @@ export function NormalizeQualityNoticeModal({
           ) : (
             <>
               <p>
-                이번 변환은 <strong>서버의 세밀한 자동 분석을 쓰지 않고</strong>, 간단한
-                자동 규칙으로만 보조 처리되었을 수 있습니다. 연결 상태·설정에 따라 평소와
-                다른 결과가 나올 수 있습니다.
+                주문 정보가 여러 형식으로 섞여 있어, 일부 항목은 자동으로 정리되었을 수
+                있습니다.
               </p>
               <p>
-                <strong>미리보기·다운로드 전에</strong> 이름·전화·주소·상품이 맞는지 꼭
-                확인해 주세요.
+                <strong>미리보기에서 이름·전화·주소·상품</strong>이 맞는지 꼭 확인한 뒤
+                다운로드해 주세요.
               </p>
               <p className="text-gray-600">
-                정확도를 높이려면 인터넷이 안정적인 환경에서 같은 내용으로 다시 변환해 보시길
-                권장합니다.
+                빠진 항목이 있으면 미리보기에서 직접 수정하거나, 줄바꿈·탭으로 정리한 뒤
+                다시 변환해 보세요.
               </p>
             </>
           )}

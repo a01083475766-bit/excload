@@ -60,6 +60,11 @@ import {
   NormalizeQualityNoticeModal,
   isLikelyClientNetworkError,
 } from '@/app/components/NormalizeQualityNoticeModal';
+import {
+  TextConvertResultReviewModal,
+  buildTextConvertReviewRows,
+  type TextConvertReviewRow,
+} from '@/app/components/TextConvertResultReviewModal';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
@@ -365,6 +370,11 @@ export default function OrderConvertPage() {
   const [qualityNoticeModal, setQualityNoticeModal] = useState<
     'hidden' | 'heuristic' | 'network'
   >('hidden');
+  const [textConvertReviewModal, setTextConvertReviewModal] = useState<{
+    originalText: string;
+    rows: TextConvertReviewRow[];
+    showFallbackNotice: boolean;
+  } | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showTextConvertModal, setShowTextConvertModal] = useState(false);
@@ -1678,12 +1688,22 @@ export default function OrderConvertPage() {
           },
         });
 
-        handleUnifiedPipelinesCompleted(pipelineResult);
+        const appendResult = handleUnifiedPipelinesCompleted(pipelineResult);
+
+        if (appendResult) {
+          setTextConvertReviewModal({
+            originalText: trimmed,
+            rows: buildTextConvertReviewRows(
+              appendResult.newRowIds,
+              appendResult.previewRows,
+              appendResult.courierHeaders,
+              templateBridgeFile?.mappedBaseHeaders,
+            ),
+            showFallbackNotice: normalizeMeta.usedFallback,
+          });
+        }
 
         setTextInput('');
-        if (normalizeMeta.usedFallback) {
-          setQualityNoticeModal('heuristic');
-        }
       } else {
         setErrorMessageTextImage('텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.');
       }
@@ -1964,7 +1984,7 @@ export default function OrderConvertPage() {
 
   const handleUnifiedPipelinesCompleted = (result: UnifiedInputPipelineResult) => {
     if (!result.mergeResult) {
-      return;
+      return null;
     }
 
     // unknownHeaders 처리
@@ -2003,7 +2023,33 @@ export default function OrderConvertPage() {
     }, 3000);
 
     setCourierHeaders(mergedCourierHeaders);
+
+    return {
+      newRowIds,
+      previewRows: mergedPreviewRows,
+      courierHeaders: mergedCourierHeaders,
+    };
   };
+
+  const handleTextConvertReviewConfirm = useCallback(() => {
+    setTextConvertReviewModal(null);
+  }, []);
+
+  const handleTextConvertReviewApply = useCallback(
+    (overrides: Record<string, Record<string, string>>) => {
+      setUserOverrides((prev) => {
+        const next = { ...prev };
+        for (const [rowId, rowEdits] of Object.entries(overrides)) {
+          next[rowId] = {
+            ...(next[rowId] ?? {}),
+            ...rowEdits,
+          };
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   const handleDownloadPreview = async () => {
     if (!courierHeaders || courierHeaders.length === 0) {
@@ -3555,6 +3601,15 @@ export default function OrderConvertPage() {
         isOpen={qualityNoticeModal !== 'hidden'}
         variant={qualityNoticeModal === 'network' ? 'network' : 'heuristic'}
         onClose={() => setQualityNoticeModal('hidden')}
+      />
+
+      <TextConvertResultReviewModal
+        isOpen={textConvertReviewModal !== null}
+        originalText={textConvertReviewModal?.originalText ?? ''}
+        rows={textConvertReviewModal?.rows ?? []}
+        showFallbackNotice={textConvertReviewModal?.showFallbackNotice ?? false}
+        onConfirm={handleTextConvertReviewConfirm}
+        onApply={handleTextConvertReviewApply}
       />
 
       {/* 스크린샷 주문변환 모달 */}
