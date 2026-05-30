@@ -157,8 +157,11 @@ export function TextConvertResultReviewModal({
           <h3 id="text-convert-review-title" className="text-lg font-semibold text-gray-900 mb-1">
             변환 결과 확인
           </h3>
-          <p className="text-sm text-gray-600">
-            총 {totalOrders}건이 미리보기에 추가되었습니다. 내용을 확인해 주세요.
+          <p className="text-sm text-gray-600 leading-relaxed">
+            총 {totalOrders}건이 미리보기에 추가되었습니다.
+            <br />
+            아래 표는 붙여넣은 내용에서 추출·정리된 항목입니다. 미리보기에는 업로드 양식 전체가
+            그대로 반영됩니다.
           </p>
         </div>
 
@@ -277,17 +280,17 @@ export function TextConvertResultReviewModal({
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={onConfirm}
+                onClick={handleStartEdit}
                 className="flex-1 h-10 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                확인
+                수정하기
               </button>
               <button
                 type="button"
-                onClick={handleStartEdit}
+                onClick={onConfirm}
                 className="flex-1 h-10 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700"
               >
-                수정하기
+                확인
               </button>
             </div>
           )}
