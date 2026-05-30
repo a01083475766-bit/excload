@@ -1,5 +1,6 @@
 'use client';
 
+import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export type TextConvertReviewField = {
@@ -59,6 +60,8 @@ interface TextConvertResultReviewModalProps {
   isOpen: boolean;
   originalText: string;
   rows: TextConvertReviewRow[];
+  /** 사용량 API 반영 대기 중 — 확인·수정 버튼 잠금 */
+  pointsPending?: boolean;
   onConfirm: () => void;
   onApply: (overrides: Record<string, Record<string, string>>) => void;
 }
@@ -70,6 +73,7 @@ export function TextConvertResultReviewModal({
   isOpen,
   originalText,
   rows,
+  pointsPending = false,
   onConfirm,
   onApply,
 }: TextConvertResultReviewModalProps) {
@@ -240,19 +244,27 @@ export function TextConvertResultReviewModal({
         </div>
 
         <div className="p-6 pt-4 border-t border-gray-100 flex-shrink-0">
+          {pointsPending && (
+            <p className="mb-3 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              사용량 반영 중…
+            </p>
+          )}
           {isEditing ? (
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="flex-1 h-10 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled={pointsPending}
+                className="flex-1 h-10 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 취소
               </button>
               <button
                 type="button"
                 onClick={handleApplyToPreview}
-                className="flex-1 h-10 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700"
+                disabled={pointsPending}
+                className="flex-1 h-10 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 미리보기에 적용
               </button>
@@ -262,14 +274,16 @@ export function TextConvertResultReviewModal({
               <button
                 type="button"
                 onClick={handleStartEdit}
-                className="flex-1 h-10 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled={pointsPending}
+                className="flex-1 h-10 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 수정하기
               </button>
               <button
                 type="button"
                 onClick={onConfirm}
-                className="flex-1 h-10 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700"
+                disabled={pointsPending}
+                className="flex-1 h-10 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 확인
               </button>

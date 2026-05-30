@@ -376,6 +376,7 @@ export default function OrderConvertPage() {
     originalText: string;
     rows: TextConvertReviewRow[];
   } | null>(null);
+  const [textConvertPointsPending, setTextConvertPointsPending] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showTextConvertModal, setShowTextConvertModal] = useState(false);
@@ -1624,8 +1625,19 @@ export default function OrderConvertPage() {
   };
 
   // 텍스트 주문 변환 처리 (실제 변환 로직)
+  const rollbackTextConvertPreviewRows = useCallback((rowIds: string[]) => {
+    if (rowIds.length === 0) return;
+    const idSet = new Set(rowIds);
+    setPreviewRows((prev) => prev.filter((row) => !idSet.has(row.rowId)));
+    setNewRows((prev) => {
+      const updated = new Set(prev);
+      rowIds.forEach((id) => updated.delete(id));
+      return updated;
+    });
+  }, []);
+
   const handleTextConvert = async () => {
-    if (textConvertInFlightRef.current || isProcessingTextImage) {
+    if (textConvertInFlightRef.current || isProcessingTextImage || textConvertReviewModal !== null) {
       return;
     }
     setErrorMessageTextImage(null);
@@ -1692,28 +1704,35 @@ export default function OrderConvertPage() {
         return;
       }
 
-      setTextConvertStatusLabel('사용량 반영 중…');
-      const pointsDeducted = await usePoints(textLength, 'text');
-      if (!pointsDeducted) {
+      const appendResult = handleUnifiedPipelinesCompleted(pipelineResult);
+      if (!appendResult) {
+        setErrorMessageTextImage('텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.');
         return;
       }
 
-      const appendResult = handleUnifiedPipelinesCompleted(pipelineResult);
+      setTextInput('');
+      setTextConvertPointsPending(true);
+      setTextConvertReviewModal({
+        originalText: trimmed,
+        rows: buildTextConvertReviewRows(
+          appendResult.newRowIds,
+          appendResult.previewRows,
+          appendResult.courierHeaders,
+          templateBridgeFile?.mappedBaseHeaders,
+        ),
+      });
 
-      if (appendResult) {
-        setTextConvertReviewModal({
-          originalText: trimmed,
-          rows: buildTextConvertReviewRows(
-            appendResult.newRowIds,
-            appendResult.previewRows,
-            appendResult.courierHeaders,
-            templateBridgeFile?.mappedBaseHeaders,
-          ),
-        });
-        setTextInput('');
-      } else {
-        setErrorMessageTextImage('텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.');
-      }
+      const rowIdsToRollback = appendResult.newRowIds;
+      void (async () => {
+        const pointsDeducted = await usePoints(textLength, 'text');
+        if (!pointsDeducted) {
+          rollbackTextConvertPreviewRows(rowIdsToRollback);
+          setTextConvertReviewModal(null);
+          setTextConvertPointsPending(false);
+          return;
+        }
+        setTextConvertPointsPending(false);
+      })();
     } catch (error) {
       console.error('[OrderConvertPage] 텍스트 주문 변환 중 오류:', error);
       const noticeKind = resolveNormalizeQualityNotice(error, isLikelyClientNetworkError);
@@ -2043,6 +2062,7 @@ export default function OrderConvertPage() {
 
   const handleTextConvertReviewConfirm = useCallback(() => {
     setTextConvertReviewModal(null);
+    setTextConvertPointsPending(false);
   }, []);
 
   const handleTextConvertReviewApply = useCallback(
@@ -3617,6 +3637,7 @@ export default function OrderConvertPage() {
         isOpen={textConvertReviewModal !== null}
         originalText={textConvertReviewModal?.originalText ?? ''}
         rows={textConvertReviewModal?.rows ?? []}
+        pointsPending={textConvertPointsPending}
         onConfirm={handleTextConvertReviewConfirm}
         onApply={handleTextConvertReviewApply}
       />
