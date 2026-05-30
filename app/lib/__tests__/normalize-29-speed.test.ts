@@ -175,16 +175,16 @@ describe('sanitizeNormalize29Order (normalizeOrderObject 동일)', () => {
 });
 
 describe('getNormalize29AiCallParams', () => {
-  it('core: timeout 30s, max_tokens 2048', () => {
+  it('core: timeout 60s, max_tokens 2048', () => {
     expect(getNormalize29AiCallParams('core')).toEqual({
-      timeoutMs: 30_000,
+      timeoutMs: 60_000,
       maxTokens: 2048,
     });
   });
 
-  it('full: timeout 45s, max_tokens 8192', () => {
+  it('full: timeout 90s, max_tokens 8192', () => {
     expect(getNormalize29AiCallParams('full')).toEqual({
-      timeoutMs: 45_000,
+      timeoutMs: 90_000,
       maxTokens: 8192,
     });
   });

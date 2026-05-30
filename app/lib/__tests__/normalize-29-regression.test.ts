@@ -94,9 +94,9 @@ describe('normalize-29 회귀 — core 프롬프트·필드', () => {
 });
 
 describe('normalize-29 회귀 — core 속도 파라미터', () => {
-  it('core timeout·max_tokens는 확장 전과 동일 (30s / 2048)', () => {
+  it('core timeout·max_tokens는 확장 전보다 여유 있게 (60s / 2048)', () => {
     expect(getNormalize29AiCallParams('core')).toEqual({
-      timeoutMs: 30_000,
+      timeoutMs: 60_000,
       maxTokens: 2048,
     });
   });
