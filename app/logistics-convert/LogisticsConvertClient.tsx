@@ -71,7 +71,9 @@ import { Coins } from 'lucide-react';
 import {
   NormalizeQualityNoticeModal,
   isLikelyClientNetworkError,
+  type NormalizeQualityNoticeVariant,
 } from '@/app/components/NormalizeQualityNoticeModal';
+import { resolveNormalizeQualityNotice } from '@/app/lib/normalize-29/normalize29-error';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
@@ -1010,7 +1012,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [isProcessingTextImage, setIsProcessingTextImage] = useState(false);
   const [errorMessageTextImage, setErrorMessageTextImage] = useState<string | null>(null);
   const [qualityNoticeModal, setQualityNoticeModal] = useState<
-    'hidden' | 'heuristic' | 'network'
+    'hidden' | NormalizeQualityNoticeVariant
   >('hidden');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -3717,9 +3719,6 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         handleUnifiedPipelinesCompleted(pipelineResult);
 
         setTextInput('');
-        if (normalizeMeta.usedFallback) {
-          setQualityNoticeModal('heuristic');
-        }
       } else {
         setErrorMessageTextImage(
           trialMode
@@ -3729,8 +3728,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       }
     } catch (error) {
       console.error('[LogisticsConvertPage] 텍스트 물류 주문 변환 중 오류:', error);
-      if (isLikelyClientNetworkError(error)) {
-        setQualityNoticeModal('network');
+      const noticeKind = resolveNormalizeQualityNotice(error, isLikelyClientNetworkError);
+      if (noticeKind) {
+        setQualityNoticeModal(noticeKind);
       }
       setErrorMessageTextImage(
         error instanceof Error ? error.message : '텍스트를 변환하는 중 알 수 없는 오류가 발생했습니다.'
@@ -6411,7 +6411,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       <NormalizeQualityNoticeModal
         isOpen={qualityNoticeModal !== 'hidden'}
-        variant={qualityNoticeModal === 'network' ? 'network' : 'heuristic'}
+        variant={qualityNoticeModal === 'hidden' ? 'network' : qualityNoticeModal}
         onClose={() => setQualityNoticeModal('hidden')}
       />
 
