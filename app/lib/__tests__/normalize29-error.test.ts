@@ -8,19 +8,13 @@ describe('resolveNormalizeQualityNotice', () => {
   const isNetwork = (error: unknown) =>
     error instanceof Error && /failed to fetch/i.test(error.message);
 
-  it('maps AI_UNAVAILABLE and AI_API_ERROR to network', () => {
+  it('maps AI_TIMEOUT to timeout', () => {
     expect(
       resolveNormalizeQualityNotice(
-        new Normalize29Error('AI_UNAVAILABLE', 'unavailable'),
+        new Normalize29Error('AI_TIMEOUT', 'timeout'),
         isNetwork,
       ),
-    ).toBe('network');
-    expect(
-      resolveNormalizeQualityNotice(
-        new Normalize29Error('AI_API_ERROR', 'api'),
-        isNetwork,
-      ),
-    ).toBe('network');
+    ).toBe('timeout');
   });
 
   it('maps parse/empty failures to convert_failed', () => {

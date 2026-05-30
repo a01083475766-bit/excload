@@ -1662,7 +1662,7 @@ export default function OrderConvertPage() {
       }
 
       setTextConvertStatusLabel('주문 텍스트 분석 중…');
-      const adapterResult = await runTextToCleanInputAdapter(trimmed);
+      const adapterResult = await runTextToCleanInputAdapter(trimmed, { strict: true });
       const { normalizeMeta: _normalizeMeta, ...cleanInputFile } = adapterResult;
       if (!cleanInputFile.rows.length) {
         setQualityNoticeModal('convert_failed');

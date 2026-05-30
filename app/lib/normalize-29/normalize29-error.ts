@@ -1,4 +1,5 @@
 export type Normalize29ErrorCode =
+  | 'AI_TIMEOUT'
   | 'AI_PARSE_FAILED'
   | 'AI_EMPTY_ORDERS'
   | 'AI_UNAVAILABLE'
@@ -18,7 +19,7 @@ export function isNormalize29Error(error: unknown): error is Normalize29Error {
   return error instanceof Normalize29Error;
 }
 
-export type NormalizeQualityNoticeKind = 'network' | 'convert_failed';
+export type NormalizeQualityNoticeKind = 'network' | 'timeout' | 'convert_failed';
 
 export function resolveNormalizeQualityNotice(
   error: unknown,
@@ -26,7 +27,11 @@ export function resolveNormalizeQualityNotice(
 ): NormalizeQualityNoticeKind | null {
   if (isNetworkError(error)) return 'network';
   if (isNormalize29Error(error)) {
-    if (error.errorCode === 'AI_UNAVAILABLE' || error.errorCode === 'AI_API_ERROR') {
+    if (error.errorCode === 'AI_TIMEOUT') return 'timeout';
+    if (
+      error.errorCode === 'AI_UNAVAILABLE' ||
+      error.errorCode === 'AI_API_ERROR'
+    ) {
       return 'network';
     }
     return 'convert_failed';
