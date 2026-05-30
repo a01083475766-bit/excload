@@ -13,23 +13,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import {
-  buildNormalize29HeuristicFallbackRow,
-  sanitizeNormalize29Order,
-} from '@/app/lib/heuristic-korean-order-line';
 import { normalizeNormalize29Order } from '@/app/lib/normalize-29/normalize-order-object';
 import {
   BASE_HEADERS,
 } from '@/app/pipeline/base/base-headers';
 import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
-import { classifyNormalize29PromptRoute } from '@/app/lib/normalize-29/text-order-route';
-import {
-  buildNormalize29CoreSystemPrompt,
-  buildNormalize29FullSystemPrompt,
-} from '@/app/lib/normalize-29/prompts';
+import { buildNormalize29SystemPrompt } from '@/app/lib/normalize-29/prompts';
 import { getNormalize29AiCallParams } from '@/app/lib/normalize-29/ai-call-params';
 
 const enableAIDebugLog = process.env.AI_DEBUG_LOG === 'true';
+
+/** AI normalize-29: 대량 건·긴 응답 대기 (플랫폼 한도 내) */
+export const maxDuration = 300;
+export const runtime = 'nodejs';
 
 /** 클라이언트가 text 또는 originalText만 보내는 경우 모두 수용 */
 function resolveNormalize29InboundText(body: Record<string, unknown>): string {
@@ -108,52 +104,28 @@ export async function POST(request: NextRequest) {
     // AI 활성화 여부 확인
     if (process.env.NEXT_PUBLIC_AI_ENABLED !== 'true') {
       if (type === 'normalize-29') {
-        if (body.strict === true) {
-          return NextResponse.json(
-            {
-              error: '현재 분석 기능을 사용할 수 없습니다.',
-              errorCode: 'AI_UNAVAILABLE',
-            },
-            { status: 503 },
-          );
-        }
-        const fallbackText = resolveNormalize29InboundText(body);
-        const promptRoute = classifyNormalize29PromptRoute(fallbackText);
-        return NextResponse.json({
-          orders: [sanitizeNormalize29Order(buildNormalize29HeuristicFallbackRow(fallbackText))],
-          meta: {
-            usedFallback: true,
-            fallbackReason: 'ai_disabled',
-            promptRoute,
+        return NextResponse.json(
+          {
+            error: '현재 분석 기능을 사용할 수 없습니다.',
+            errorCode: 'AI_UNAVAILABLE',
           },
-        });
+          { status: 503 },
+        );
       }
       return NextResponse.json({ error: '현재 분석 기능을 사용할 수 없습니다.' }, { status: 400 });
     }
 
-    // 환경변수 확인 (normalize-29만 키 없을 때 휴리스틱 fallback으로 200 — 나머지 타입은 500)
+    // 환경변수 확인
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       if (type === 'normalize-29') {
-        if (body.strict === true) {
-          return NextResponse.json(
-            {
-              error: '시스템 설정 오류가 발생했습니다.',
-              errorCode: 'AI_UNAVAILABLE',
-            },
-            { status: 503 },
-          );
-        }
-        const fallbackText = resolveNormalize29InboundText(body);
-        const promptRoute = classifyNormalize29PromptRoute(fallbackText);
-        return NextResponse.json({
-          orders: [sanitizeNormalize29Order(buildNormalize29HeuristicFallbackRow(fallbackText))],
-          meta: {
-            usedFallback: true,
-            fallbackReason: 'no_openai_api_key',
-            promptRoute,
+        return NextResponse.json(
+          {
+            error: '시스템 설정 오류가 발생했습니다.',
+            errorCode: 'AI_UNAVAILABLE',
           },
-        });
+          { status: 503 },
+        );
       }
       return NextResponse.json(
         { error: '시스템 설정 오류가 발생했습니다.' },
@@ -205,10 +177,6 @@ export async function handleNormalize29(
     return NextResponse.json({ error: 'text is required' }, { status: 400 });
   }
 
-  const strictMode = body.strict === true;
-  const promptRoute = classifyNormalize29PromptRoute(text);
-  let fallbackReason: 'none' | 'json_parse_failed' | 'empty_orders' = 'none';
-
   const stripCodeFence = (input: string) =>
     input
       .replace(/^\s*```(?:json)?\s*/i, '')
@@ -225,42 +193,29 @@ export async function handleNormalize29(
   };
 
   const normalizeOrderObject = normalizeNormalize29Order;
-
-  const systemPrompt =
-    promptRoute === 'core'
-      ? buildNormalize29CoreSystemPrompt()
-      : buildNormalize29FullSystemPrompt();
-
+  const systemPrompt = buildNormalize29SystemPrompt();
   const apiUrl = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
   const model = process.env.AI_MODEL || 'gpt-4o-mini';
-  const { timeoutMs: aiTimeoutMs, maxTokens } = getNormalize29AiCallParams(promptRoute);
+  const { maxTokens } = getNormalize29AiCallParams();
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), aiTimeoutMs);
-    let response: Response;
-    try {
-      response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: text },
-          ],
-          temperature: 0,
-          max_tokens: maxTokens,
-          response_format: { type: 'json_object' },
-        }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: text },
+        ],
+        temperature: 0,
+        max_tokens: maxTokens,
+        response_format: { type: 'json_object' },
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -271,7 +226,7 @@ export async function handleNormalize29(
       return NextResponse.json(
         {
           error: '텍스트 분석에 실패했습니다.',
-          errorCode: strictMode ? 'AI_API_ERROR' : undefined,
+          errorCode: 'AI_API_ERROR',
         },
         { status: 500 },
       );
@@ -283,101 +238,63 @@ export async function handleNormalize29(
       console.log('[AI Gateway] normalize-29 raw response received');
     }
 
-    let parsed;
+    let parsed: { orders?: unknown };
     try {
-      const cleaned = stripCodeFence(aiText);
-      parsed = JSON.parse(cleaned);
+      parsed = JSON.parse(stripCodeFence(aiText));
     } catch {
       try {
-        const extracted = extractJsonObject(stripCodeFence(aiText));
-        parsed = JSON.parse(extracted);
+        parsed = JSON.parse(extractJsonObject(stripCodeFence(aiText)));
       } catch {
-        if (strictMode) {
-          return NextResponse.json(
-            {
-              error: '텍스트 분석 결과를 읽지 못했습니다.',
-              errorCode: 'AI_PARSE_FAILED',
-            },
-            { status: 502 },
-          );
-        }
-        parsed = { orders: [] };
-        fallbackReason = 'json_parse_failed';
+        console.warn('[AI Gateway] normalize-29 JSON parse failed');
+        return NextResponse.json(
+          {
+            error: '텍스트 분석 결과를 읽지 못했습니다.',
+            errorCode: 'AI_PARSE_FAILED',
+          },
+          { status: 502 },
+        );
       }
     }
 
     let orders = Array.isArray(parsed?.orders) ? parsed.orders : [];
     orders = orders
-      .filter((order: any) => order && typeof order === 'object' && !Array.isArray(order))
-      .map((order: Record<string, any>) => normalizeOrderObject(order))
+      .filter((order: unknown) => order && typeof order === 'object' && !Array.isArray(order))
+      .map((order: Record<string, unknown>) => normalizeOrderObject(order))
       .map((order: Record<string, string>) => collapseDuplicateFullLineDump(order, text));
 
     if (!Array.isArray(orders) || orders.length === 0) {
-      if (strictMode) {
-        const errorCode =
-          fallbackReason === 'json_parse_failed' ? 'AI_PARSE_FAILED' : 'AI_EMPTY_ORDERS';
-        const message =
-          errorCode === 'AI_PARSE_FAILED'
-            ? '텍스트 분석 결과를 읽지 못했습니다.'
-            : '주문 정보를 추출하지 못했습니다.';
-        console.warn('[AI Gateway] normalize-29 strict 실패:', { errorCode, promptRoute });
-        return NextResponse.json({ error: message, errorCode }, { status: 502 });
-      }
-
-      console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 휴리스틱 fallback 행 생성');
-      if (fallbackReason === 'none') {
-        fallbackReason = 'empty_orders';
-      }
-
-      orders = [normalizeOrderObject(buildNormalize29HeuristicFallbackRow(text))];
+      console.warn('[AI Gateway] normalize-29 empty orders');
+      return NextResponse.json(
+        {
+          error: '주문 정보를 추출하지 못했습니다.',
+          errorCode: 'AI_EMPTY_ORDERS',
+        },
+        { status: 502 },
+      );
     }
 
     if (enableAIDebugLog) {
       console.log('[AI Gateway] normalize-29 summary', {
         ordersCount: orders.length,
-        promptRoute,
-        usedFallback: fallbackReason !== 'none',
-        fallbackReason,
+        promptProfile: 'parcel',
       });
     }
 
     return NextResponse.json({
       orders,
       meta: {
-        usedFallback: fallbackReason !== 'none',
-        fallbackReason,
-        promptRoute,
+        usedFallback: false,
+        promptProfile: 'parcel',
       },
     });
   } catch (error) {
-    const aborted =
-      error instanceof Error &&
-      (error.name === 'AbortError' || /aborted|timeout/i.test(error.message));
-    if (aborted) {
-      if (strictMode) {
-        console.warn('[AI Gateway] normalize-29 strict timeout');
-        return NextResponse.json(
-          {
-            error: '텍스트 분석 시간이 초과되었습니다.',
-            errorCode: 'AI_TIMEOUT',
-            meta: { promptRoute },
-          },
-          { status: 504 },
-        );
-      }
-      console.warn('[AI Gateway] normalize-29 timeout → 휴리스틱 fallback');
-      const orders = [
-        normalizeOrderObject(buildNormalize29HeuristicFallbackRow(text)),
-      ];
-      return NextResponse.json({
-        orders,
-        meta: { usedFallback: true, fallbackReason: 'ai_timeout', promptRoute },
-      });
-    }
     console.error('[AI Gateway] normalize-29 error:', error);
     return NextResponse.json(
-      { error: 'normalize-29 failed' },
-      { status: 500 }
+      {
+        error: 'normalize-29 failed',
+        errorCode: 'AI_API_ERROR',
+      },
+      { status: 500 },
     );
   }
 }
