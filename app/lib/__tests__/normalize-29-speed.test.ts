@@ -18,6 +18,14 @@ describe('classifyNormalize29PromptRoute', () => {
     ).toBe('core');
   });
 
+  it('수취+보내는사람 2줄 단순 주문 → core', () => {
+    const text = [
+      '김영수 010-2222-3333 서울 강남구 테헤란로 123 2층 사시미 2팩',
+      '보내는사람 박대균 010-4508-5766 인천시 미추홀구 인주대로 94번길2 903호',
+    ].join('\n');
+    expect(classifyNormalize29PromptRoute(text)).toBe('core');
+  });
+
   it('탭 4열: 상품명|주소|전화|이름 → core', () => {
     expect(
       classifyNormalize29PromptRoute(
@@ -90,15 +98,18 @@ describe('classifyNormalize29PromptRoute', () => {
 });
 
 describe('buildNormalize29CoreSystemPrompt', () => {
-  it('13개 코어 필드만 안내', () => {
-    expect(TEXT_ORDER_SIMPLE_CORE_HEADERS).toHaveLength(13);
+  it('택배 core ~29 필드·발송인 규칙 안내', () => {
+    expect(TEXT_ORDER_SIMPLE_CORE_HEADERS).toHaveLength(29);
     const prompt = buildNormalize29CoreSystemPrompt();
     for (const header of TEXT_ORDER_SIMPLE_CORE_HEADERS) {
       expect(prompt).toContain(header);
     }
-    expect(prompt).toContain('열 순서 가정 금지');
+    expect(prompt).toContain('보내는사람');
+    expect(prompt).toContain('열 순서·줄 순서 가정 금지');
     expect(prompt).toContain('내용으로 판단');
-    expect(prompt).toContain('orders에 여러 건');
+    expect(prompt).toContain('새 주문(orders 추가)으로 분리하지 않는다');
+    expect(prompt).toContain('한 줄이 곧 한 주문이 아니다');
+    expect(prompt).not.toContain('줄마다 다른 수취인');
     expect(prompt).toContain('추출한 필드만 포함해도 된다');
   });
 });
@@ -113,6 +124,23 @@ describe('buildNormalize29FullSystemPrompt', () => {
 });
 
 describe('sanitizeNormalize29Order (normalizeOrderObject 동일)', () => {
+  it('core 부분 응답(수취+발송)도 BASE_HEADERS 전체·빈 문자열 보정', () => {
+    const partial = sanitizeNormalize29Order({
+      받는사람: '김영수',
+      받는사람전화1: '010-2222-3333',
+      받는사람주소1: '서울 강남구 테헤란로 123 2층',
+      상품명: '사시미',
+      수량: '2',
+      보내는사람: '박대균',
+      보내는사람전화1: '010-4508-5766',
+      보내는사람주소1: '인천시 미추홀구 인주대로 94번길2 903호',
+    });
+    expect(Object.keys(partial)).toHaveLength(BASE_HEADERS.length);
+    expect(partial['받는사람']).toBe('김영수');
+    expect(partial['보내는사람']).toBe('박대균');
+    expect(partial['수량']).toBe('2');
+  });
+
   it('core 부분 응답도 BASE_HEADERS 전체·빈 문자열 보정', () => {
     const partial = sanitizeNormalize29Order({
       받는사람: '김성훈',

@@ -4,8 +4,15 @@
 
 export type Normalize29PromptRoute = 'core' | 'full';
 
-/** 단순 텍스트 주문 AI가 채울 코어 필드 (서버에서 나머지 BASE_HEADERS는 "" 로 보정) */
+/** 택배 텍스트 주문 AI core 필드 (~29). 서버가 나머지 BASE_HEADERS는 "" 로 보정 */
 export const TEXT_ORDER_SIMPLE_CORE_HEADERS = [
+  '주문번호',
+  '보내는사람',
+  '보내는사람전화1',
+  '보내는사람전화2',
+  '보내는사람우편번호',
+  '보내는사람주소1',
+  '보내는사람주소2',
   '받는사람',
   '받는사람전화1',
   '받는사람전화2',
@@ -14,11 +21,20 @@ export const TEXT_ORDER_SIMPLE_CORE_HEADERS = [
   '받는사람주소2',
   '주문자',
   '주문자연락처',
+  '주문일시',
   '상품명',
+  '추가상품',
   '상품옵션',
   '상품옵션1',
   '수량',
   '배송메시지',
+  '상품별추가메시지',
+  '주문자추가메시지',
+  '운임구분',
+  '운임',
+  '운송장번호',
+  '택배사',
+  '내부메모',
 ] as const;
 
 const MALL_OR_EXTENDED_MARKERS =
