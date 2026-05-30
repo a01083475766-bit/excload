@@ -1,12 +1,12 @@
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
-import { enrichOrdersWithHeuristicLine } from '@/app/lib/heuristic-korean-order-line';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
-import { tryTextNormalizeWithoutAi } from '@/app/lib/text-normalize-fast-path';
 import type { InternalOrderFormat } from '@/app/lib/export/internalOrderFormat';
 
 export type TextNormalizeMeta = {
   usedFallback: boolean;
   fallbackReason?: string;
+  /** normalize-29 프롬프트 경로: core(단순·빠름) | full(복잡·전체필드) */
+  promptRoute?: 'core' | 'full';
 };
 
 /** 텍스트 → CleanInputFile + normalize-29 메타(폴백 여부). Stage2 전달 시 normalizeMeta는 제거하세요. */
@@ -20,11 +20,6 @@ export type TextToCleanInputAdapterResult = {
 export async function runTextToCleanInputAdapter(text: string): Promise<TextToCleanInputAdapterResult> {
   if (!text || text.trim() === '') {
     throw new Error('텍스트가 비어있습니다.');
-  }
-
-  const fast = tryTextNormalizeWithoutAi(text);
-  if (fast) {
-    return fast;
   }
 
   const response = await fetch('/api/ai-gateway', {
@@ -59,18 +54,9 @@ export async function runTextToCleanInputAdapter(text: string): Promise<TextToCl
   }
 
   const rawOrders = data.orders as Record<string, unknown>[];
-  const orders = enrichOrdersWithHeuristicLine(rawOrders, text.trim());
-  if (
-    dbg &&
-    rawOrders[0] &&
-    orders[0] &&
-    JSON.stringify(rawOrders[0]) !== JSON.stringify(orders[0])
-  ) {
-    console.log('[heuristic-korean-line] 한 줄 패턴 감지 → 받는사람·주소·전화·상품명 보정');
-  }
+  const orders = rawOrders;
 
   if (dbg) {
-    // 브라우저 콘솔에서 AI(또는 fallback)가 넣은 기준헤더 칸을 표로 확인 (디버그 시에만)
     orders.forEach((order: any, idx: number) => {
       const row: Record<string, string> = {};
       for (const h of BASE_HEADERS) {
@@ -101,6 +87,10 @@ export async function runTextToCleanInputAdapter(text: string): Promise<TextToCl
     fallbackReason:
       typeof data?.meta?.fallbackReason === 'string'
         ? data.meta.fallbackReason
+        : undefined,
+    promptRoute:
+      data?.meta?.promptRoute === 'core' || data?.meta?.promptRoute === 'full'
+        ? data.meta.promptRoute
         : undefined,
   };
 

@@ -1,6 +1,6 @@
 /**
- * 단순 한 줄 한국어 주문은 OpenAI normalize-29 없이 즉시 기준헤더 행으로 변환합니다.
- * (복수 전화번호·복잡한 쇼핑몰 붙여넣기는 기존 AI 경로 유지)
+ * 단순 한 줄 한국어 주문용 fast path (현재 텍스트 변환 경로에서는 미사용).
+ * normalize-29는 항상 AI를 호출하고, 휴리스틱은 서버 fallback(장애·타임아웃 등)에서만 사용합니다.
  */
 
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';

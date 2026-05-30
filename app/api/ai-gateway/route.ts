@@ -16,16 +16,17 @@ import { authOptions } from '@/app/lib/auth';
 import {
   buildNormalize29HeuristicFallbackRow,
   sanitizeNormalize29Order,
-  enrichNormalizedOrderWithHeuristicLine,
-  tryHeuristicSplitOneLineKoreanOrder,
 } from '@/app/lib/heuristic-korean-order-line';
 import {
   BASE_HEADERS,
-  BASE_HEADER_COUNT,
-  CORE_BASE_HEADER_COUNT,
-  buildNormalize29OrdersJsonExample,
 } from '@/app/pipeline/base/base-headers';
 import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
+import { classifyNormalize29PromptRoute } from '@/app/lib/normalize-29/text-order-route';
+import {
+  buildNormalize29CoreSystemPrompt,
+  buildNormalize29FullSystemPrompt,
+} from '@/app/lib/normalize-29/prompts';
+import { getNormalize29AiCallParams } from '@/app/lib/normalize-29/ai-call-params';
 
 const enableAIDebugLog = process.env.AI_DEBUG_LOG === 'true';
 
@@ -39,7 +40,8 @@ function resolveNormalize29InboundText(body: Record<string, unknown>): string {
 }
 
 /**
- * AI가 원문 전체를 받는사람주소1·상품명에 동일하게 넣은 경우 → 휴리스틱 분리 또는 내부메모로만 보관
+ * AI가 원문 전체를 받는사람주소1·상품명에 동일하게 넣은 경우 → 내부메모로만 보관
+ * (휴리스틱 분리는 서버 fallback 전용 — 정상 AI 응답 후처리에서는 사용하지 않음)
  */
 function collapseDuplicateFullLineDump(
   order: Record<string, string>,
@@ -50,16 +52,6 @@ function collapseDuplicateFullLineDump(
   const a = (order['받는사람주소1'] || '').trim();
   const p = (order['상품명'] || '').trim();
   if (a === p && a === u) {
-    const h = tryHeuristicSplitOneLineKoreanOrder(u);
-    if (h) {
-      return {
-        ...order,
-        받는사람: h.받는사람,
-        받는사람전화1: h.받는사람전화1,
-        받는사람주소1: h.받는사람주소1,
-        상품명: h.품명,
-      };
-    }
     const prevMemo = (order['내부메모'] || '').trim();
     return {
       ...order,
@@ -117,11 +109,13 @@ export async function POST(request: NextRequest) {
       // AI 비활성화여도 normalize-29는 최소 1건 fallback을 반환
       if (type === 'normalize-29') {
         const fallbackText = resolveNormalize29InboundText(body);
+        const promptRoute = classifyNormalize29PromptRoute(fallbackText);
         return NextResponse.json({
           orders: [sanitizeNormalize29Order(buildNormalize29HeuristicFallbackRow(fallbackText))],
           meta: {
             usedFallback: true,
             fallbackReason: 'ai_disabled',
+            promptRoute,
           },
         });
       }
@@ -133,11 +127,13 @@ export async function POST(request: NextRequest) {
     if (!apiKey) {
       if (type === 'normalize-29') {
         const fallbackText = resolveNormalize29InboundText(body);
+        const promptRoute = classifyNormalize29PromptRoute(fallbackText);
         return NextResponse.json({
           orders: [sanitizeNormalize29Order(buildNormalize29HeuristicFallbackRow(fallbackText))],
           meta: {
             usedFallback: true,
             fallbackReason: 'no_openai_api_key',
+            promptRoute,
           },
         });
       }
@@ -191,6 +187,7 @@ export async function handleNormalize29(
     return NextResponse.json({ error: 'text is required' }, { status: 400 });
   }
 
+  const promptRoute = classifyNormalize29PromptRoute(text);
   let fallbackReason: 'none' | 'json_parse_failed' | 'empty_orders' = 'none';
 
   const stripCodeFence = (input: string) =>
@@ -220,75 +217,14 @@ export async function handleNormalize29(
     return normalized;
   };
 
-  const ordersJsonExample = buildNormalize29OrdersJsonExample();
-
-  const auxiliaryCount = BASE_HEADER_COUNT - CORE_BASE_HEADER_COUNT;
-
-  const systemPrompt = `
-너는 한국어 주문 텍스트를 기준헤더 JSON으로 변환하는 파서다.
-전체 필드는 총 ${BASE_HEADER_COUNT}개이며(코어 ${CORE_BASE_HEADER_COUNT} / 확장 ${auxiliaryCount}),
-반드시 JSON 객체 1개만 반환한다. 설명/코드블록/주석 금지.
-
-[출력 형식 — 키 이름·개수는 아래 예시와 정확히 일치]
-${ordersJsonExample}
-
-[절대 규칙]
-1) 모든 필드를 반드시 포함한다.
-2) null/undefined/숫자형 금지. 모든 값은 문자열.
-3) 모르면 "" 사용.
-4) orders는 최소 1개 이상(빈 배열 금지).
-5) 원문에 없는 정보 생성 금지.
-
-[우선 추출 대상 (일반 주문 텍스트)]
-- 받는사람, 받는사람전화1, 받는사람주소1/2, 주문자, 주문자연락처
-- 상품명, 상품옵션, 상품옵션1, 수량
-- 배송메시지, 주문일시
-- 결제금액 (원문에 금액 라벨이 명확할 때)
-
-[핵심 추출 규칙]
-A. 수취인/주소
-- "수취인/받는분/이름" 계열 → 받는사람
-- "연락처/휴대폰/전화번호" 계열 → 받는사람전화1
-- 가장 긴 상세 주소를 받는사람주소1에 넣고, 동/호 등만 명확하면 받는사람주소2 사용.
-
-B. 상품/옵션/수량
-- 상품명에 주소/전화/배송요청 문구를 넣지 말 것.
-- 무게·용량·규격 단위(kg, g, L, ml 등)가 품명에 붙은 판매 단위면 상품명에 통째로 둔다.
-- 색상/사이즈/맛/모델명 등 선택 속성은 상품옵션(필요 시 상품옵션1).
-- 수량 미기재 시 "1".
-- 여러 품목은 "/"로 같은 순서로 정렬(상품명/옵션/수량 모두 일관성 유지).
-
-C. 배송메시지
-- "문앞/부재시/경비실/요청사항/배송요청" 계열 문구를 배송메시지에 넣는다.
-- 단순 채널 메타(예: 앱명/플랫폼 표식)처럼 보이면 배송메시지 대신 빈 값 우선.
-
-D. 결제/운임 분리 (중요)
-- 결제구분: 신용카드/가상계좌/포인트/후불 등 결제수단·결제형태.
-- 운임구분: 선불/착불/지불조건 등 택배 운임 지불 방식.
-- 주문배송비: 주문서/쇼핑몰에 표시된 배송비 금액.
-- 운임: 실제 물류·택배 계약 운임.
-- 위 네 필드는 서로 대체하지 말 것. 불명확하면 "".
-
-E. 확장 필드 보수 추출 (매우 중요)
-- 아래 계열은 라벨/키워드가 명확할 때만 채운다. 아니면 반드시 "".
-  - 주문 상태·식별자: 주문상태, 상품주문번호, 제휴주문번호, 관리상품번호, 판매상품번호, 주문ID
-  - 할인/정산: 판매자할인, 지원할인, 쿠폰명, 쿠폰할인, 포인트, 결제구분
-  - 배송 확장: 택배사, 택배사코드, 출고발송일, 배송완료일, 구매확정일자, 배송첨부파일
-  - 물류 보조: 상품코드, 옵션코드, 센터코드, 박스수량, 출고타입, 출고요청일, 출고지시사항
-- 라벨 없는 숫자/코드만 덩그러니 있으면 어떤 확장 필드에도 억지로 넣지 않는다.
-
-[주문 분리 규칙]
-- 이름+전화+주소 세트가 반복되거나 주소가 바뀌면 새 주문으로 분리.
-- 애매하면 1건으로 두되 필드 오염(주소를 상품명에 넣기 등) 금지.
-
-[정리 규칙]
-- 전화번호는 가능한 원문 형태 유지(예: 010-1234-5678).
-- 라벨 문자(예: "이름:", "주소:") 제거 후 공백 정리.
-`;
+  const systemPrompt =
+    promptRoute === 'core'
+      ? buildNormalize29CoreSystemPrompt()
+      : buildNormalize29FullSystemPrompt();
 
   const apiUrl = process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
   const model = process.env.AI_MODEL || 'gpt-4o-mini';
-  const aiTimeoutMs = Number(process.env.AI_NORMALIZE29_TIMEOUT_MS) || 45_000;
+  const { timeoutMs: aiTimeoutMs, maxTokens } = getNormalize29AiCallParams(promptRoute);
 
   try {
     const controller = new AbortController();
@@ -308,6 +244,7 @@ E. 확장 필드 보수 추출 (매우 중요)
             { role: 'user', content: text },
           ],
           temperature: 0,
+          max_tokens: maxTokens,
           response_format: { type: 'json_object' },
         }),
         signal: controller.signal,
@@ -352,8 +289,7 @@ E. 확장 필드 보수 추출 (매우 중요)
     orders = orders
       .filter((order: any) => order && typeof order === 'object' && !Array.isArray(order))
       .map((order: Record<string, any>) => normalizeOrderObject(order))
-      .map((order: Record<string, string>) => collapseDuplicateFullLineDump(order, text))
-      .map((order: Record<string, string>) => enrichNormalizedOrderWithHeuristicLine(order, text));
+      .map((order: Record<string, string>) => collapseDuplicateFullLineDump(order, text));
 
     if (!Array.isArray(orders) || orders.length === 0) {
       console.warn('[FALLBACK - NORMALIZE29] orders 비어있음 → 휴리스틱 fallback 행 생성');
@@ -367,6 +303,7 @@ E. 확장 필드 보수 추출 (매우 중요)
     if (enableAIDebugLog) {
       console.log('[AI Gateway] normalize-29 summary', {
         ordersCount: orders.length,
+        promptRoute,
         usedFallback: fallbackReason !== 'none',
         fallbackReason,
       });
@@ -377,6 +314,7 @@ E. 확장 필드 보수 추출 (매우 중요)
       meta: {
         usedFallback: fallbackReason !== 'none',
         fallbackReason,
+        promptRoute,
       },
     });
   } catch (error) {
@@ -390,7 +328,7 @@ E. 확장 필드 보수 추출 (매우 중요)
       ];
       return NextResponse.json({
         orders,
-        meta: { usedFallback: true, fallbackReason: 'ai_timeout' },
+        meta: { usedFallback: true, fallbackReason: 'ai_timeout', promptRoute },
       });
     }
     console.error('[AI Gateway] normalize-29 error:', error);
