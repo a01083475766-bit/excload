@@ -1233,7 +1233,7 @@ export default function MyPage() {
                         <p className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">회원 탈퇴</p>
                         <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
                           <li>계정 정보, 즐겨찾는 쇼핑몰, 포인트·결제 연동 정보가 삭제됩니다.</li>
-                          <li>진행 중인 Stripe 구독은 즉시 해지됩니다.</li>
+                          <li>진행중인 구독은 즉시 해지됩니다.</li>
                           <li>환불 신청이 검토 중이면 탈퇴할 수 없습니다.</li>
                           <li>브라우저에 저장된 변환 내역 등은 기기에서 직접 삭제해 주세요.</li>
                           <li>탈퇴 후 같은 이메일·휴대폰·기기로 재가입해도 무료 가입 보너스·월간 무료 지급은 다시 제공되지 않습니다.</li>
@@ -1242,7 +1242,7 @@ export default function MyPage() {
                         <button
                           type="button"
                           onClick={() => void openWithdrawModal()}
-                          className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-zinc-900 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                          className="rounded-lg border border-black bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-zinc-50 dark:border-black dark:bg-zinc-900 dark:text-black dark:hover:bg-zinc-800"
                         >
                           회원 탈퇴하기
                         </button>
