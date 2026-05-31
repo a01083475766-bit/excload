@@ -244,12 +244,17 @@ export function TextConvertResultReviewModal({
         </div>
 
         <div className="p-6 pt-4 border-t border-gray-100 flex-shrink-0">
-          {pointsPending && (
-            <p className="mb-3 flex items-center justify-center gap-1.5 text-xs text-gray-500">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              사용량 반영 중…
-            </p>
-          )}
+          <div
+            className="mb-3 flex h-6 items-center justify-center gap-1.5 text-xs text-gray-500"
+            aria-live="polite"
+          >
+            {pointsPending ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                <span>사용량 반영 중…</span>
+              </>
+            ) : null}
+          </div>
           {isEditing ? (
             <div className="flex gap-2">
               <button
