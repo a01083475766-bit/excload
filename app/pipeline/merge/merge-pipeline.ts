@@ -18,7 +18,11 @@ import type { TemplateBridgeFile } from '../template/types';
 import type { OrderStandardFile } from '../order/order-pipeline';
 import type { PreviewRow, MergePipelineResult, RunMergePipelineParams } from './types';
 import { applyFillOnly } from './apply-fill-only';
-import { sanitizeDeliveryMessage } from './sanitize-delivery-message';
+import {
+  enrichFixedInputByTemplate,
+  mergeDeliveryMessageValue,
+  resolveFixedValueForColumn,
+} from './resolve-fixed-input';
 import { validateMergeInputs, validatePreviewRow, logValidationResult, throwIfInvalid } from '../utils/validation';
 import { mergeOrderAndInvoiceStandardFiles } from '../invoice/merge-order-invoice-standard';
 
@@ -63,7 +67,8 @@ export async function runMergePipeline({
   throwIfInvalid(inputValidation, 'Stage3 Merge Pipeline - Input');
   
   const { courierHeaders, mappedBaseHeaders } = template;
-  
+  const enrichedFixedInput = enrichFixedInputByTemplate(fixedInput, template);
+
   // STEP 1. 입력 검증
   if (courierHeaders.length !== mappedBaseHeaders.length) {
     throw new Error(
@@ -89,15 +94,17 @@ export async function runMergePipeline({
         orderValue = String(standardRow[baseHeader] || '').trim();
       }
       
-      // FixedInput에서 고정값 가져오기 (courierHeader를 키로 사용)
-      const fixedValue = String(fixedInput[courierHeader] || '').trim();
-      
-      // Fill Only 원칙 적용
-      let finalValue = applyFillOnly(orderValue, fixedValue);
+      const fixedValue = resolveFixedValueForColumn(
+        enrichedFixedInput,
+        courierHeader,
+        baseHeader,
+      );
 
-      // 원본(Stage2)은 보존하고, 택배 업로드용 Stage3 배송메시지만 보수 정제(v1) 적용
-      if (baseHeader === '배송메시지' && finalValue) {
-        finalValue = sanitizeDeliveryMessage(finalValue);
+      let finalValue: string;
+      if (baseHeader === '배송메시지') {
+        finalValue = mergeDeliveryMessageValue(orderValue, fixedValue);
+      } else {
+        finalValue = applyFillOnly(orderValue, fixedValue);
       }
       
       // PreviewRow에 추가 (courierHeader 기준)

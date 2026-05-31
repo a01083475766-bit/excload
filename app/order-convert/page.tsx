@@ -96,6 +96,10 @@ import {
   writeLocalStorageForUser,
   removeLocalStorageForUser,
 } from '@/app/lib/scoped-local-storage';
+import {
+  deleteFixedHeaderEntry,
+  patchFixedHeaderEntry,
+} from '@/app/lib/fixed-header-values';
 
 /** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
 const PREVIEW_TOOLBAR_BTN =
@@ -3397,10 +3401,14 @@ export default function OrderConvertPage() {
                                 // 확인 버튼 클릭과 동일한 동작
                                 const headerName = header.name;
                                 const inputValue = headerInputValues[index] || '';
-                                setFixedHeaderValues(prev => ({
-                                  ...prev,
-                                  [headerName]: inputValue
-                                }));
+                                setFixedHeaderValues((prev) =>
+                                  patchFixedHeaderEntry(
+                                    prev,
+                                    headerName,
+                                    inputValue,
+                                    templateBridgeFile,
+                                  ),
+                                );
                                 setEditingHeaderIndex(null);
                               } else if (e.key === 'Escape') {
                                 // 취소 버튼 클릭과 동일한 동작
@@ -3414,10 +3422,14 @@ export default function OrderConvertPage() {
                               // 확인: 입력 모드 종료 및 fixedHeaderValues에 저장
                               const headerName = header.name;
                               const inputValue = headerInputValues[index] || '';
-                              setFixedHeaderValues(prev => ({
-                                ...prev,
-                                [headerName]: inputValue
-                              }));
+                              setFixedHeaderValues((prev) =>
+                                patchFixedHeaderEntry(
+                                  prev,
+                                  headerName,
+                                  inputValue,
+                                  templateBridgeFile,
+                                ),
+                              );
                               setEditingHeaderIndex(null);
                             }}
                             className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
@@ -3439,11 +3451,13 @@ export default function OrderConvertPage() {
                             onClick={() => {
                               // 삭제: fixedHeaderValues에서 해당 key 제거, headerInputValues에서 해당 항목 제거
                               const headerName = header.name;
-                              setFixedHeaderValues(prev => {
-                                const newValues = { ...prev };
-                                delete newValues[headerName];
-                                return newValues;
-                              });
+                              setFixedHeaderValues((prev) =>
+                                deleteFixedHeaderEntry(
+                                  prev,
+                                  headerName,
+                                  templateBridgeFile,
+                                ),
+                              );
                               setHeaderInputValues(prev => {
                                 const newValues = { ...prev };
                                 delete newValues[index];
