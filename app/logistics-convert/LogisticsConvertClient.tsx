@@ -74,6 +74,11 @@ import {
   type NormalizeQualityNoticeVariant,
 } from '@/app/components/NormalizeQualityNoticeModal';
 import { resolveNormalizeQualityNotice } from '@/app/lib/normalize-29/normalize29-error';
+import {
+  TextConvertResultReviewModal,
+  buildTextConvertReviewRows,
+  type TextConvertReviewRow,
+} from '@/app/components/TextConvertResultReviewModal';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
@@ -1014,6 +1019,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [qualityNoticeModal, setQualityNoticeModal] = useState<
     'hidden' | NormalizeQualityNoticeVariant
   >('hidden');
+  const [textConvertReviewModal, setTextConvertReviewModal] = useState<{
+    originalText: string;
+    rows: TextConvertReviewRow[];
+  } | null>(null);
+  const [textConvertPointsPending, setTextConvertPointsPending] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showTextConvertModal, setShowTextConvertModal] = useState(false);
@@ -1120,6 +1130,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [processingDots, setProcessingDots] = useState("");
   const [textProcessingDots, setTextProcessingDots] = useState("");
+  const [textConvertStatusLabel, setTextConvertStatusLabel] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   // 입력 방식 추적: 사용자가 어떤 방식으로 입력했는지 기록
   const [inputSourceType, setInputSourceType] = useState<'excel' | 'image' | 'text' | null>(null);
@@ -3651,8 +3662,19 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   };
 
   // 텍스트 물류 주문 변환 처리 (실제 변환 로직)
+  const rollbackTextConvertPreviewRows = useCallback((rowIds: string[]) => {
+    if (rowIds.length === 0) return;
+    const idSet = new Set(rowIds);
+    setPreviewRows((prev) => prev.filter((row) => !idSet.has(row.rowId)));
+    setNewRows((prev) => {
+      const updated = new Set(prev);
+      rowIds.forEach((id) => updated.delete(id));
+      return updated;
+    });
+  }, []);
+
   const handleTextConvert = async () => {
-    if (textConvertInFlightRef.current || isProcessingTextImage) {
+    if (textConvertInFlightRef.current || isProcessingTextImage || textConvertReviewModal !== null) {
       return;
     }
     setErrorMessageTextImage(null);
@@ -3689,54 +3711,98 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
     textConvertInFlightRef.current = true;
     setIsProcessingTextImage(true);
+    setTextConvertStatusLabel(null);
+    setStage2ChunkLabel(null);
     try {
-      const pointsDeducted = await usePoints(textLength, 'text');
-      if (!pointsDeducted) {
-        return;
-      }
-
       if (pendingImageOcrTextConvertRef.current) {
         pendingImageOcrTextConvertRef.current = false;
       } else {
         recordWorkspaceInput('text');
       }
 
+      setTextConvertStatusLabel('물류 주문 텍스트 분석 중…');
       const adapterResult = await runTextToCleanInputAdapter(trimmed);
-      const { normalizeMeta, ...cleanInputFile } = adapterResult;
-      if (cleanInputFile) {
-        const fileSessionId = crypto.randomUUID();
-        const pipelineResult = await runUnifiedInputOrderPipelines({
-          cleanInputFile: {
-            ...cleanInputFile,
-            headers: [...cleanInputFile.headers],
-            rows: cleanInputFile.rows.map((r) => [...r]),
-          },
-          templateBridgeFile,
-          fixedHeaderValues,
-          fileSessionId,
-        });
+      const { normalizeMeta: _normalizeMeta, ...cleanInputFile } = adapterResult;
+      if (!cleanInputFile.rows.length) {
+        setQualityNoticeModal('convert_failed');
+        return;
+      }
 
-        handleUnifiedPipelinesCompleted(pipelineResult);
+      const fileSessionId = crypto.randomUUID();
+      setTextConvertStatusLabel('물류 양식에 맞추는 중…');
+      const pipelineResult = await runUnifiedInputOrderPipelines({
+        cleanInputFile: {
+          ...cleanInputFile,
+          headers: [...cleanInputFile.headers],
+          rows: cleanInputFile.rows.map((r) => [...r]),
+        },
+        templateBridgeFile,
+        fixedHeaderValues,
+        fileSessionId,
+        onStage2ChunkProgress: (completed, total) => {
+          if (total > 1) {
+            setStage2ChunkLabel(`서버 변환 ${completed}/${total}`);
+          }
+        },
+      });
 
-        setTextInput('');
-      } else {
+      if (!pipelineResult.mergeResult) {
         setErrorMessageTextImage(
           trialMode
             ? '텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.'
             : '텍스트 물류 주문 변환에 실패했습니다. 다시 시도해주세요.',
         );
+        return;
       }
+
+      const appendResult = handleUnifiedPipelinesCompleted(pipelineResult);
+      if (!appendResult) {
+        setErrorMessageTextImage(
+          trialMode
+            ? '텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.'
+            : '텍스트 물류 주문 변환에 실패했습니다. 다시 시도해주세요.',
+        );
+        return;
+      }
+
+      setTextInput('');
+      setTextConvertPointsPending(true);
+      setTextConvertReviewModal({
+        originalText: trimmed,
+        rows: buildTextConvertReviewRows(
+          appendResult.newRowIds,
+          appendResult.previewRows,
+          appendResult.courierHeaders,
+          templateBridgeFile?.mappedBaseHeaders,
+        ),
+      });
+
+      const rowIdsToRollback = appendResult.newRowIds;
+      void (async () => {
+        const pointsDeducted = await usePoints(textLength, 'text');
+        if (!pointsDeducted) {
+          rollbackTextConvertPreviewRows(rowIdsToRollback);
+          setTextConvertReviewModal(null);
+          setTextConvertPointsPending(false);
+          return;
+        }
+        setTextConvertPointsPending(false);
+      })();
     } catch (error) {
       console.error('[LogisticsConvertPage] 텍스트 물류 주문 변환 중 오류:', error);
       const noticeKind = resolveNormalizeQualityNotice(error, isLikelyClientNetworkError);
       if (noticeKind) {
         setQualityNoticeModal(noticeKind);
+        setErrorMessageTextImage(null);
+      } else {
+        setErrorMessageTextImage(
+          error instanceof Error ? error.message : '텍스트를 변환하는 중 알 수 없는 오류가 발생했습니다.',
+        );
       }
-      setErrorMessageTextImage(
-        error instanceof Error ? error.message : '텍스트를 변환하는 중 알 수 없는 오류가 발생했습니다.'
-      );
     } finally {
       setIsProcessingTextImage(false);
+      setTextConvertStatusLabel(null);
+      setStage2ChunkLabel(null);
       textConvertInFlightRef.current = false;
     }
   };
@@ -4001,7 +4067,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   const handleUnifiedPipelinesCompleted = (result: UnifiedInputPipelineResult) => {
     if (!result.mergeResult) {
-      return;
+      return null;
     }
 
     // unknownHeaders 처리
@@ -4050,7 +4116,34 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     }, 3000);
 
     setCourierHeaders(mergedCourierHeaders);
+
+    return {
+      newRowIds,
+      previewRows: projectedPreviewRows,
+      courierHeaders: mergedCourierHeaders,
+    };
   };
+
+  const handleTextConvertReviewConfirm = useCallback(() => {
+    setTextConvertReviewModal(null);
+    setTextConvertPointsPending(false);
+  }, []);
+
+  const handleTextConvertReviewApply = useCallback(
+    (overrides: Record<string, Record<string, string>>) => {
+      setUserOverrides((prev) => {
+        const next = { ...prev };
+        for (const [rowId, rowEdits] of Object.entries(overrides)) {
+          next[rowId] = {
+            ...(next[rowId] ?? {}),
+            ...rowEdits,
+          };
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   const handleDownloadPreview = async () => {
     // 체험판: 양식·데이터 여부와 관계없이 상세 안내 모달 (다른 검증 알림이 뜨지 않도록)
@@ -4644,7 +4737,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                       {isProcessingTextImage ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>변환 중{textProcessingDots}</span>
+                          <span>
+                            {textConvertStatusLabel ??
+                              stage2ChunkLabel ??
+                              `변환 중${textProcessingDots}`}
+                          </span>
                         </>
                       ) : trialMode ? (
                         '텍스트로 주문 변환'
@@ -6407,6 +6504,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       <RequiresAccountOrderModal
         open={requiresAccountModalOpen}
         onClose={() => setRequiresAccountModalOpen(false)}
+      />
+
+      <TextConvertResultReviewModal
+        isOpen={textConvertReviewModal !== null}
+        originalText={textConvertReviewModal?.originalText ?? ''}
+        rows={textConvertReviewModal?.rows ?? []}
+        pointsPending={textConvertPointsPending}
+        onConfirm={handleTextConvertReviewConfirm}
+        onApply={handleTextConvertReviewApply}
       />
 
       <NormalizeQualityNoticeModal
