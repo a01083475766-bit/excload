@@ -4996,9 +4996,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <div
                   ref={previewScrollContainerRef}
                   onScroll={handlePreviewScroll}
-                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar ${trialMode ? '' : 'preview-scrollbar-emerald'} ${
-                      trialMode ? 'select-none' : ''
-                    }`}
+                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar ${trialMode ? '' : 'preview-scrollbar-emerald'} preview-table-no-copy`}
+                    onCopy={(e) => {
+                      const t = e.target;
+                      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
+                      e.preventDefault();
+                    }}
                   >
                     <table className="min-w-max text-sm border border-gray-300 border-collapse">
                       <thead className="bg-gray-50 sticky top-0 z-20">

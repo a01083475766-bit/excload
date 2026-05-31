@@ -98,7 +98,7 @@ function OrderConvertPreviewTableRowInner({
             >
               <input
                 autoFocus
-                className="w-full h-full border-0 p-0 bg-transparent outline-none text-sm"
+                className="w-full h-full border-0 p-0 bg-transparent outline-none text-sm select-text"
                 style={{ minHeight: '1.25rem' }}
                 value={localEditingValue}
                 onChange={(e) => onEditingInputChange(e.target.value)}

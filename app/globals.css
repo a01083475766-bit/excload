@@ -170,6 +170,18 @@ body {
   background: #60a5fa; /* blue-400 - hover 시 조금 더 진한 파란색 */
 }
 
+/* 미리보기·텍스트 변환 검토 표: 드래그 선택(복사) 방지. 셀 편집 input/textarea는 예외 */
+.preview-table-no-copy {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.preview-table-no-copy input,
+.preview-table-no-copy textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* 3PL 미리보기 스크롤바: 크기는 동일, 색상만 보라 계열 */
 .preview-scrollbar-purple::-webkit-scrollbar {
   width: 24px;

@@ -184,7 +184,14 @@ export function TextConvertResultReviewModal({
                 추출된 항목이 없습니다.
               </div>
             ) : (
-              <div className="max-h-[320px] overflow-auto rounded-lg border border-gray-300 preview-scrollbar">
+              <div
+                className="max-h-[320px] overflow-auto rounded-lg border border-gray-300 preview-scrollbar preview-table-no-copy"
+                onCopy={(e) => {
+                  const t = e.target;
+                  if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
+                  e.preventDefault();
+                }}
+              >
                 <table className="min-w-max w-full text-sm border-collapse">
                   <thead className="sticky top-0 z-10 bg-gray-100">
                     <tr>
@@ -224,7 +231,7 @@ export function TextConvertResultReviewModal({
                                   onChange={(e) =>
                                     handleFieldChange(row.rowId, header, e.target.value)
                                   }
-                                  className="min-w-[120px] w-full rounded border border-gray-300 px-1.5 py-1 text-sm whitespace-nowrap focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className="min-w-[120px] w-full rounded border border-gray-300 px-1.5 py-1 text-sm whitespace-nowrap select-text focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
                               ) : value ? (
                                 value
