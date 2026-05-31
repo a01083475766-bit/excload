@@ -62,6 +62,13 @@ import {
   type NormalizeQualityNoticeVariant,
 } from '@/app/components/NormalizeQualityNoticeModal';
 import { resolveNormalizeQualityNotice } from '@/app/lib/normalize-29/normalize29-error';
+import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
+import { FREE_TEXT_INPUT_MAX_CHARS } from '@/app/lib/plan-limits';
+import {
+  buildPreviewDownloadAoA,
+  buildPreviewDownloadFileName,
+  createPreviewDownloadWorkbook,
+} from '@/app/lib/excel/preview-download-xlsx';
 import {
   TextConvertResultReviewModal,
   buildTextConvertReviewRows,
@@ -1874,29 +1881,28 @@ export default function OrderConvertPage() {
       },
     );
 
-    // 디버그: 개인통관번호(PCCC) 값이 Stage2(OrderStandardFile)에 실제로 들어가는지 확인
-    // (콘솔에서 Stage2 값/Stage3 미리보기 값을 바로 대조할 수 있게 PCCC만 최소 로그)
-    try {
-      const pcccBaseHeader = '개인통관번호';
-      const includes =
-        Array.isArray(stage2Result?.baseHeaders) &&
-        stage2Result.baseHeaders.includes(pcccBaseHeader);
-      const row0 = String(stage2Result?.rows?.[0]?.[pcccBaseHeader] ?? '');
+    if (isExcloudPipelineDebugClient()) {
+      try {
+        const pcccBaseHeader = '개인통관번호';
+        const includes =
+          Array.isArray(stage2Result?.baseHeaders) &&
+          stage2Result.baseHeaders.includes(pcccBaseHeader);
+        const row0 = String(stage2Result?.rows?.[0]?.[pcccBaseHeader] ?? '');
 
-       
-      console.log(
-        `[EXCLOAD][DEBUG][PCCC] Stage2 baseHeadersHas=${includes} row0=${row0}`
-      );
+        console.log(
+          `[EXCLOAD][DEBUG][PCCC] Stage2 baseHeadersHas=${includes} row0=${row0}`,
+        );
 
-      if (typeof window !== 'undefined') {
-        (window as any).__EXCLOUD_PCCC_STAGE2 = {
-          baseHeadersHas: includes,
-          row0,
-          rowsCount: stage2Result?.rows?.length ?? 0,
-        };
+        if (typeof window !== 'undefined') {
+          (window as any).__EXCLOUD_PCCC_STAGE2 = {
+            baseHeadersHas: includes,
+            row0,
+            rowsCount: stage2Result?.rows?.length ?? 0,
+          };
+        }
+      } catch {
+        // 로그 실패는 무시
       }
-    } catch {
-      // 로그 실패는 무시
     }
 
     // Stage2 완료 직후 상태 설정
@@ -1924,38 +1930,37 @@ export default function OrderConvertPage() {
         fixedInput: fixedHeaderValues,
       });
 
-      // 디버그: 개인통관번호(PCCC) 값이 Stage3 미리보기(=previewRows)로도 넘어오는지 확인
-      try {
-        const pcccCourierHeader =
-          stage3Result?.courierHeaders?.find((h) =>
-            /개인통관번호|PCCC/i.test(String(h))
-          ) ?? null;
-        const previewRow0 =
-          pcccCourierHeader
+      if (isExcloudPipelineDebugClient()) {
+        try {
+          const pcccCourierHeader =
+            stage3Result?.courierHeaders?.find((h) =>
+              /개인통관번호|PCCC/i.test(String(h)),
+            ) ?? null;
+          const previewRow0 = pcccCourierHeader
             ? String(stage3Result?.previewRows?.[0]?.[pcccCourierHeader] ?? '')
             : '';
 
-        const idx = pcccCourierHeader
-          ? templateBridgeFile.courierHeaders.indexOf(pcccCourierHeader)
-          : -1;
-        const mappedBaseHeader =
-          idx >= 0 ? templateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
+          const idx = pcccCourierHeader
+            ? templateBridgeFile.courierHeaders.indexOf(pcccCourierHeader)
+            : -1;
+          const mappedBaseHeader =
+            idx >= 0 ? templateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
 
-         
-        console.log(
-          `[EXCLOAD][DEBUG][PCCC] Stage3 courierHeader=${pcccCourierHeader} mappedBase=${mappedBaseHeader} previewRow0=${previewRow0}`
-        );
+          console.log(
+            `[EXCLOAD][DEBUG][PCCC] Stage3 courierHeader=${pcccCourierHeader} mappedBase=${mappedBaseHeader} previewRow0=${previewRow0}`,
+          );
 
-        if (typeof window !== 'undefined') {
-          (window as any).__EXCLOUD_PCCC_STAGE3 = {
-            courierHeader: pcccCourierHeader,
-            mappedBase: mappedBaseHeader,
-            previewRow0,
-            previewRowsCount: stage3Result?.previewRows?.length ?? 0,
-          };
+          if (typeof window !== 'undefined') {
+            (window as any).__EXCLOUD_PCCC_STAGE3 = {
+              courierHeader: pcccCourierHeader,
+              mappedBase: mappedBaseHeader,
+              previewRow0,
+              previewRowsCount: stage3Result?.previewRows?.length ?? 0,
+            };
+          }
+        } catch {
+          // 로그 실패는 무시
         }
-      } catch {
-        // 로그 실패는 무시
       }
       
       // previewRows 상단 prepend 구조 적용
@@ -2092,65 +2097,34 @@ export default function OrderConvertPage() {
       return;
     }
 
-    // 엑셀 다운로드 실행 직전 사용량 체크 (FREE 플랜만)
     if (user?.plan === 'FREE') {
-      // 사용자 정보 확인
       if (!user) {
         alert('로그인이 필요합니다.');
         router.push('/auth/login');
         return;
       }
-      
-      // 사용량 부족 체크 (무료 플랜 다운로드 1회 최대 1,000포인트, 잔여가 적으면 전액 차감)
       if (user.points < 1) {
         alert(buildInsufficientPointsMessage(user.plan, user.nextPointDate ?? user.lastMonthlyGrant ?? null));
         return;
       }
-      
-      // 사용량 차감 (무료 다운로드 1회 기준 1,000 포인트, 잔여가 적으면 전액 소진)
-      const pointsDeducted = await usePoints(1000, 'download');
-      if (!pointsDeducted) {
-        return; // 사용량 부족으로 차단
-      }
     }
-    // PRO / YEARLY 플랜은 다운로드 차감 없음
 
-    // 다운로드 시작 상태
     setDownloadStatus("processing");
 
-    // 다음 이벤트 루프로 넘겨 UI 먼저 반응
-    setTimeout(() => {
-      try {
-        // 1. 헤더 생성
-        const excelHeaders = courierHeaders;
+    try {
+      const excelData = buildPreviewDownloadAoA(courierHeaders, sortedRows, userOverrides);
+      const wb = createPreviewDownloadWorkbook(excelData);
+      const fileName = buildPreviewDownloadFileName();
 
-        // 2. 데이터 생성 (중요: sortedRows 기준)
-        const excelRows = sortedRows.map((rowWithId) => {
-          return courierHeaders.map((header) => {
-            return (
-              userOverrides[rowWithId.rowId]?.[header] ??
-              rowWithId.data[header] ??
-              ""
-            );
-          });
-        });
+      if (user?.plan === 'FREE') {
+        const pointsDeducted = await usePoints(1000, 'download');
+        if (!pointsDeducted) {
+          setDownloadStatus("idle");
+          return;
+        }
+      }
 
-        const excelData = [excelHeaders, ...excelRows];
-
-        // 3. 엑셀 파일 생성
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(excelData);
-        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-
-        const now = new Date();
-        const yy = String(now.getFullYear()).slice(-2);
-        const month = now.getMonth() + 1;
-        const day = now.getDate();
-        const hour = now.getHours();
-        const minute = String(now.getMinutes()).padStart(2, '0');
-        const fileName = `엑클로드주문정리 ${yy}년${month}월${day}일${hour}시${minute}분.xlsx`;
-
-        XLSX.writeFile(wb, fileName);
+      XLSX.writeFile(wb, fileName);
 
         // 히스토리 세션 저장
         try {
@@ -2252,12 +2226,11 @@ export default function OrderConvertPage() {
           clearWorkspaceInputTracking();
           setSelectedImage(null); // 이미지 초기화
         }, 3000);
-
-      } catch (error) {
-        console.error("다운로드 오류:", error);
-        setDownloadStatus("idle");
-      }
-    }, 0);
+    } catch (error) {
+      console.error("다운로드 오류:", error);
+      alert('다운로드 파일을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setDownloadStatus("idle");
+    }
   };
 
   const applyFullPreviewWorkspaceReset = useCallback(() => {
@@ -2537,9 +2510,8 @@ export default function OrderConvertPage() {
                       onChange={(e) => {
                         const newValue = e.target.value;
                         pendingImageOcrTextConvertRef.current = false;
-                        // 무료 회원 텍스트 입력 제한 (10000자)
-                        if (user?.plan === 'FREE' && newValue.length > 10000) {
-                          alert('무료 회원은 최대 10,000자까지 입력할 수 있습니다.');
+                        if (user?.plan === 'FREE' && newValue.length > FREE_TEXT_INPUT_MAX_CHARS) {
+                          alert(`무료 회원은 최대 ${FREE_TEXT_INPUT_MAX_CHARS.toLocaleString('ko-KR')}자까지 입력할 수 있습니다.`);
                           return;
                         }
                         setTextInput(newValue);

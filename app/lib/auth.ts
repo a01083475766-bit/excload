@@ -36,6 +36,8 @@ const kakaoClientSecret = process.env.KAKAO_CLIENT_SECRET?.trim();
 const naverClientId = process.env.NAVER_CLIENT_ID?.trim();
 const naverClientSecret = process.env.NAVER_CLIENT_SECRET?.trim();
 const enableAuthPerfLog = process.env.NEXTAUTH_DEBUG_PERF === 'true';
+const isAuthVerboseLog =
+  process.env.NODE_ENV === 'development' || process.env.NEXTAUTH_DEBUG === 'true';
 
 function perfNowMs() {
   return Date.now();
@@ -87,7 +89,7 @@ export const authOptions: NextAuthOptions = {
             const adminPasswordMatch = await compare(credentials.password, AKMAN_ADMIN_BCRYPT_HASH);
 
             if (!adminPasswordMatch) {
-              console.log('[Auth] AKMAN PASSWORD MISMATCH');
+              if (isAuthVerboseLog) console.log('[Auth] AKMAN PASSWORD MISMATCH');
               return null;
             }
 
@@ -119,7 +121,7 @@ export const authOptions: NextAuthOptions = {
               console.error('[Auth] AKMAN UPSERT FAILED (login allowed):', dbError);
             }
 
-            console.log('[Auth] AKMAN LOGIN SUCCESS');
+            if (isAuthVerboseLog) console.log('[Auth] AKMAN LOGIN SUCCESS');
             return {
               id: adminId,
               email: AKMAN_ADMIN_EMAIL,
@@ -141,20 +143,22 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
-          console.log('[Auth] LOGIN ATTEMPT', {
-            userFound: !!user,
-            hasPasswordHash: !!user?.passwordHash,
-            emailVerified: Boolean(user?.emailVerified),
-          });
+          if (isAuthVerboseLog) {
+            console.log('[Auth] LOGIN ATTEMPT', {
+              userFound: !!user,
+              hasPasswordHash: !!user?.passwordHash,
+              emailVerified: Boolean(user?.emailVerified),
+            });
+          }
 
           if (!user) {
-            console.log('[Auth] USER NOT FOUND');
+            if (isAuthVerboseLog) console.log('[Auth] USER NOT FOUND');
             return null;
           }
 
           // 보안: 이메일 인증 전 계정은 로그인 차단
           if (!user.emailVerified) {
-            console.log('[Auth] EMAIL NOT VERIFIED - LOGIN BLOCKED');
+            if (isAuthVerboseLog) console.log('[Auth] EMAIL NOT VERIFIED - LOGIN BLOCKED');
             return null;
           }
 
@@ -167,14 +171,15 @@ export const authOptions: NextAuthOptions = {
           const { compare } = await import('bcryptjs');
           const passwordMatch = await compare(credentials.password, storedHash);
           
-          console.log('[Auth] PASSWORD CHECK', {
-            hasStoredHash: !!user.passwordHash,
-            storedHashLength: user.passwordHash?.length,
-            passwordMatch,
-          });
-          
+          if (isAuthVerboseLog) {
+            console.log('[Auth] PASSWORD CHECK', {
+              hasStoredHash: !!user.passwordHash,
+              passwordMatch,
+            });
+          }
+
           if (passwordMatch) {
-            console.log('[Auth] LOGIN SUCCESS');
+            if (isAuthVerboseLog) console.log('[Auth] LOGIN SUCCESS');
             try {
               await prisma.user.update({
                 where: { id: user.id },
@@ -190,7 +195,7 @@ export const authOptions: NextAuthOptions = {
             };
           }
 
-          console.log('[Auth] PASSWORD MISMATCH');
+          if (isAuthVerboseLog) console.log('[Auth] PASSWORD MISMATCH');
           return null;
         } catch (error) {
           console.error('[Auth] 사용자 인증 오류:', error);

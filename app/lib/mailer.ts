@@ -12,10 +12,10 @@ export interface SignupVerificationMailPayload {
   expireMinutes: number;
 }
 
+const isMailerDevLog = process.env.NODE_ENV === 'development';
+
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY;
-  // 운영 비밀키 원문 노출 방지를 위해 값 자체 대신 설정 여부만 로그로 남긴다.
-  console.log('RESEND_API_KEY:', apiKey ? '[SET]' : undefined);
   if (!apiKey) {
     return null;
   }
@@ -27,18 +27,17 @@ function getEmailFromAddress() {
 }
 
 export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPayload) {
-  console.log('MAILER FUNCTION START');
-  console.log('RESEND_API_KEY:', process.env.RESEND_API_KEY ? 'SET' : 'UNDEFINED');
-  console.log('EMAIL_FROM:', process.env.EMAIL_FROM);
   const resend = getResendClient();
   const from = getEmailFromAddress();
   if (!resend || !from) {
-    console.warn('[Password Reset Mail] skipped: missing RESEND_API_KEY or EMAIL_FROM');
+    if (isMailerDevLog) {
+      console.warn('[Password Reset Mail] skipped: missing RESEND_API_KEY or EMAIL_FROM');
+    }
     return { sent: false, reason: 'MAIL_CONFIG_MISSING' as const };
   }
 
   try {
-    console.log('SENDING EMAIL NOW');
+    if (isMailerDevLog) console.log('[Password Reset Mail] sending');
     const subject = '[엑클로드] 비밀번호 재설정 인증코드 안내';
     const html = `
 <div style="font-family: Arial, sans-serif; line-height:1.6; color:#333;">
@@ -90,10 +89,9 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
       '본 메일은 발신전용으로 회신이 불가합니다.',
     ].join('\n');
 
-    console.log('[Password Reset Mail] send() called:', {
-      to: payload.email,
-      from,
-    });
+    if (isMailerDevLog) {
+      console.log('[Password Reset Mail] send() called (recipient redacted in prod)');
+    }
     await resend.emails.send({
       from,
       to: payload.email,

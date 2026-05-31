@@ -21,6 +21,7 @@ import type { CleanInputFile } from '../preprocess/types';
 import { validateCleanInputFile, validateOrderStandardFile, logValidationResult, throwIfInvalid } from '../utils/validation';
 import type { MappingResult } from '../template/map-template-to-base';
 import { mapTemplateToBase } from '../template/map-template-to-base';
+import { coerceStage2CellValue } from '@/app/lib/excel/coerce-excel-phone';
 
 /**
  * 기준헤더 배열 (고정)
@@ -185,7 +186,7 @@ export async function run(
         
         // 먼저 비어있지 않은 값 찾기
         for (const idx of sourceIndices) {
-          const value = String(row[idx] || '').trim();
+          const value = coerceStage2CellValue(row[idx], baseHeader);
           if (value) {
             // 원본 헤더 이름 확인 (우선순위: "상품명" > "상품명1" > "상품명2" 등)
             const originalHeader = headers[idx];
@@ -223,7 +224,7 @@ export async function run(
         const nonEmptyDistinct = [
           ...new Set(
             sourceIndices
-              .map((idx) => String(row[idx] || '').trim())
+              .map((idx) => coerceStage2CellValue(row[idx], baseHeader))
               .filter((v) => v.length > 0)
           ),
         ];
@@ -240,8 +241,10 @@ export async function run(
         if (selectedValue) {
           transformedRow[baseHeader] = selectedValue;
         } else {
-          const value = row[sourceIndices[0]] || '';
-          transformedRow[baseHeader] = String(value);
+          transformedRow[baseHeader] = coerceStage2CellValue(
+            row[sourceIndices[0]],
+            baseHeader,
+          );
         }
       } else {
         // 매핑되지 않은 기준헤더는 빈 문자열

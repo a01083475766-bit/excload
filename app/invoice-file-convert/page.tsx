@@ -30,6 +30,11 @@ import {
   readFirstSheetMatrixFromArrayBuffer,
 } from '@/app/lib/excel/sheet-header';
 import { formatPhoneDisplay } from '@/app/utils/format-phone';
+import {
+  buildPreviewDownloadAoA,
+  buildPreviewDownloadFileName,
+  createPreviewDownloadWorkbook,
+} from '@/app/lib/excel/preview-download-xlsx';
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
@@ -1699,65 +1704,34 @@ export default function InvoiceFileConvertPage() {
       return;
     }
 
-    // 엑셀 다운로드 실행 직전 사용량 체크 (FREE 플랜만)
     if (user?.plan === 'FREE') {
-      // 사용자 정보 확인
       if (!user) {
         alert('로그인이 필요합니다.');
         router.push('/auth/login');
         return;
       }
-      
-      // 사용량 부족 체크 (무료 플랜 다운로드 1회 최대 1,000포인트, 잔여가 적으면 전액 차감)
       if (user.points < 1) {
         alert(buildInsufficientPointsMessage(user.plan, user.nextPointDate ?? user.lastMonthlyGrant ?? null));
         return;
       }
-      
-      // 사용량 차감 (무료 다운로드 1회 기준 1,000 포인트, 잔여가 적으면 전액 소진)
-      const pointsDeducted = await usePoints(1000, 'download');
-      if (!pointsDeducted) {
-        return; // 사용량 부족으로 차단
-      }
     }
-    // PRO / YEARLY 플랜은 다운로드 차감 없음
 
-    // 다운로드 시작 상태
     setDownloadStatus("processing");
 
-    // 다음 이벤트 루프로 넘겨 UI 먼저 반응
-    setTimeout(() => {
-      try {
-        // 1. 헤더 생성
-        const excelHeaders = courierHeaders;
+    try {
+      const excelData = buildPreviewDownloadAoA(courierHeaders, sortedRows, userOverrides);
+      const wb = createPreviewDownloadWorkbook(excelData);
+      const fileName = buildPreviewDownloadFileName(new Date(), '엑클로드송장정리');
 
-        // 2. 데이터 생성 (중요: sortedRows 기준)
-        const excelRows = sortedRows.map((rowWithId) => {
-          return courierHeaders.map((header) => {
-            return (
-              userOverrides[rowWithId.rowId]?.[header] ??
-              rowWithId.data[header] ??
-              ""
-            );
-          });
-        });
+      if (user?.plan === 'FREE') {
+        const pointsDeducted = await usePoints(1000, 'download');
+        if (!pointsDeducted) {
+          setDownloadStatus("idle");
+          return;
+        }
+      }
 
-        const excelData = [excelHeaders, ...excelRows];
-
-        // 3. 엑셀 파일 생성
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(excelData);
-        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-
-        const now = new Date();
-        const yy = String(now.getFullYear()).slice(-2);
-        const month = now.getMonth() + 1;
-        const day = now.getDate();
-        const hour = now.getHours();
-        const minute = String(now.getMinutes()).padStart(2, '0');
-        const fileName = `엑클로드송장정리 ${yy}년${month}월${day}일${hour}시${minute}분.xlsx`;
-
-        XLSX.writeFile(wb, fileName);
+      XLSX.writeFile(wb, fileName);
 
         // 히스토리 세션 저장
         try {
@@ -1860,12 +1834,11 @@ export default function InvoiceFileConvertPage() {
           unlockedOrderBufferRef.current = null;
           unlockedInvoiceBufferRef.current = null;
         }, 3000);
-
-      } catch (error) {
-        console.error("다운로드 오류:", error);
-        setDownloadStatus("idle");
-      }
-    }, 0);
+    } catch (error) {
+      console.error("다운로드 오류:", error);
+      alert('다운로드 파일을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setDownloadStatus("idle");
+    }
   };
 
   const applyInvoicePreviewWorkspaceReset = useCallback(() => {
