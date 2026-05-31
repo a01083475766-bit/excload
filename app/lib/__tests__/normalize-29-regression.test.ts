@@ -19,12 +19,13 @@ describe('normalize-29 회귀 — 단일 프롬프트·필드', () => {
     }
   });
 
-  it('프롬프트: 보내는사람 줄 ≠ 새 주문, 탭·다건 규칙', () => {
+  it('프롬프트: 보내는사람 게이트·탭·다건 미합침 규칙', () => {
     const prompt = buildNormalize29SystemPrompt();
-    expect(prompt).toContain('보내는사람');
-    expect(prompt).toContain('새 주문으로 분리하지 않는다');
+    expect(prompt).toContain('보내는사람* — 게이트');
+    expect(prompt).toContain('새 주문 아님');
     expect(prompt).toContain('탭');
-    expect(prompt).toContain('orders 여러 건');
+    expect(prompt).toContain('합치지 않음');
+    expect(prompt).toContain('라벨 없이 보내는사람*로 복사 금지');
   });
 
   it('회귀 케이스 텍스트는 라우팅 없이 동일 프롬프트 대상', () => {

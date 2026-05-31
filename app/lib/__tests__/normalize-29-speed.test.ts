@@ -12,10 +12,12 @@ describe('normalize-29 단일 프롬프트', () => {
 
   it('buildNormalize29SystemPrompt는 parcel 필드·규칙 포함', () => {
     const prompt = buildNormalize29SystemPrompt();
-    expect(prompt).toContain('보내는사람');
+    expect(prompt).toContain('보내는사람* — 게이트');
     expect(prompt).toContain('받는사람');
-    expect(prompt).toContain('orders 배열');
+    expect(prompt).toContain('{"orders":[]}');
+    expect(prompt).toContain('억지 1건 금지');
     expect(prompt).toContain('탭');
+    expect(prompt).toContain('합치지 않음');
     expect(prompt).not.toMatch(/core|full/i);
   });
 
