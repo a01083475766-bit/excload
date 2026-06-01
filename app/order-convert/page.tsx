@@ -205,6 +205,10 @@ function isDummyTemplateCell(cellValue: string | undefined): boolean {
   return allPatterns.some(pattern => pattern.test(value));
 }
 
+type PendingOrderUpload =
+  | { kind: 'excel'; file: File }
+  | { kind: 'image'; file: File };
+
 const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean => {
   if (template === null) return false;
   if (!Array.isArray(template.headers)) return false;
@@ -320,6 +324,7 @@ export default function OrderConvertPage() {
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [settingsCheckOverlayOpen, setSettingsCheckOverlayOpen] = useState(false);
+  const pendingOrderUploadsRef = useRef<PendingOrderUpload[]>([]);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
   const [noTemplateModalType, setNoTemplateModalType] = useState<'fixed-input' | 'convert'>('fixed-input');
   const [isTemplateChangeReuploadModalOpen, setIsTemplateChangeReuploadModalOpen] = useState(false);
@@ -457,18 +462,76 @@ export default function OrderConvertPage() {
     onUploadCancel: clearUploadedExcelForUnlock,
   });
 
+  const settingsCheckOverlayMessage = useMemo(() => {
+    if (authStatus === 'loading' || (isLoading && !user)) {
+      return '회원 정보를 확인하는 중입니다.';
+    }
+    return '설정 정보를 확인하는 중입니다.';
+  }, [authStatus, isLoading, user]);
+
   const ensureLoggedInForOrderInput = useCallback((): boolean => {
     if (user) return true;
-    if (isLoading) return false;
+    if (authStatus === 'loading' || isLoading) {
+      setSettingsCheckOverlayOpen(true);
+      return false;
+    }
     setRequiresAccountModalOpen(true);
     return false;
-  }, [user, isLoading]);
+  }, [user, isLoading, authStatus]);
+
+  /** 회원·설정 복원 전 파일 업로드는 대기열에 넣고 오버레이 표시 */
+  const queueOrderInputUntilReady = useCallback(
+    (item: PendingOrderUpload): boolean => {
+      if (user && authAssetsReady && workspaceStorageHydrated) {
+        return true;
+      }
+      if (!user && authStatus !== 'loading' && !isLoading) {
+        setRequiresAccountModalOpen(true);
+        return false;
+      }
+      pendingOrderUploadsRef.current.push(item);
+      setSettingsCheckOverlayOpen(true);
+      return false;
+    },
+    [user, authAssetsReady, workspaceStorageHydrated, authStatus, isLoading],
+  );
 
   useEffect(() => {
-    if (!isFormStatusChecking) {
-      setSettingsCheckOverlayOpen(false);
+    if (!authAssetsReady || !workspaceStorageHydrated) return;
+
+    if (!user) {
+      if (authStatus === 'unauthenticated') {
+        pendingOrderUploadsRef.current = [];
+        setSettingsCheckOverlayOpen(false);
+      }
+      return;
     }
-  }, [isFormStatusChecking]);
+
+    const queue = pendingOrderUploadsRef.current.splice(0);
+    if (queue.length === 0) {
+      setSettingsCheckOverlayOpen(false);
+      return;
+    }
+
+    setSettingsCheckOverlayOpen(false);
+
+    for (const item of queue) {
+      if (item.kind === 'excel') {
+        if (!isValidCourierTemplate(courierUploadTemplate)) {
+          setNoTemplateModalType('convert');
+          setIsNoTemplateModalOpen(true);
+          continue;
+        }
+        if (!uploadedFileMeta.some((f) => f.name === item.file.name && f.size === item.file.size)) {
+          setUploadedExcelFile(item.file);
+          void parseExcelFile(item.file);
+        }
+      } else {
+        void handleImageFileSelect(item.file);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 복원 직후 1회 재시도
+  }, [authAssetsReady, workspaceStorageHydrated, user, authStatus, courierUploadTemplate]);
 
   /** 양식 복원 대기 중: 등록 모달 대신 오버레이만. 완료 후 없으면 등록 모달 */
   const ensureCourierTemplateReady = useCallback(
@@ -720,6 +783,8 @@ export default function OrderConvertPage() {
         clearAllPreviewWorkspacesForScope(prevScopeUserId);
         void clearWorkspaceFiles('order-convert', prevScopeUserId);
       }
+      pendingOrderUploadsRef.current = [];
+
       if (!guestToUserLogin) {
       isCancelledRef.current = true;
       setPreviewRows([]);
@@ -1301,6 +1366,7 @@ export default function OrderConvertPage() {
         
       // 엑셀·암호 ZIP 파일 처리
       if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
+        if (!queueOrderInputUntilReady({ kind: 'excel', file })) return;
         if (!ensureCourierTemplateReady('convert')) return;
         if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
           setUploadedExcelFile(file);
@@ -1310,6 +1376,7 @@ export default function OrderConvertPage() {
       // 이미지 파일 처리 (이미지 변환)
       else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || 
                fileType.startsWith('image/')) {
+        if (!queueOrderInputUntilReady({ kind: 'image', file })) return;
         handleImageFileSelect(file);
       }
       });
@@ -1809,6 +1876,7 @@ export default function OrderConvertPage() {
       
       // 엑셀 파일 처리
       if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
+        if (!queueOrderInputUntilReady({ kind: 'excel', file })) return;
         if (!ensureCourierTemplateReady('convert')) return;
         if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
           setUploadedExcelFile(file);
@@ -1818,6 +1886,7 @@ export default function OrderConvertPage() {
       // 이미지 파일 처리 (이미지 변환)
       else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || 
                fileType.startsWith('image/')) {
+        if (!queueOrderInputUntilReady({ kind: 'image', file })) return;
         handleImageFileSelect(file);
       }
       else {
@@ -2273,7 +2342,10 @@ export default function OrderConvertPage() {
 
   return (
     <>
-      <WorkspaceSettingsCheckingOverlay open={settingsCheckOverlayOpen} />
+      <WorkspaceSettingsCheckingOverlay
+        open={settingsCheckOverlayOpen}
+        message={settingsCheckOverlayMessage}
+      />
 
       {/* 삭제 확인 모달 */}
       <BundleShippingModal
