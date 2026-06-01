@@ -115,6 +115,11 @@ import {
   pruneFixedInputToCourierKeys,
 } from '@/app/lib/fixed-header-values';
 import {
+  registerOrderSnapshotsForPreviewChunk,
+  pruneOrderSnapshotsForRowIds,
+} from '@/app/lib/order-standard-row-snapshot';
+import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-preview';
+import {
   TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
   TRIAL_EXTRA_SAMPLE_FORMATS,
   TRIAL_SEED_FORMAT_IDS,
@@ -993,6 +998,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
   const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>({});
   const [currentFilePreviewData, setCurrentFilePreviewData] = useState<any[]>([]);
   const [orderStandardFile, setOrderStandardFile] = useState<any | null>(null);
+  /** 미리보기 rowId → Stage2 표준 행 (고정입력 변경 시 Fill Only 재적용) */
+  const [orderStandardRowsByRowId, setOrderStandardRowsByRowId] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const fixedInputAtModalOpenRef = useRef<Record<string, string>>({});
   const [templateBridgeFile, setTemplateBridgeFile] = useState<TemplateBridgeFile | null>(null);
   const [previewRows, setPreviewRows] = useState<PreviewRowWithId[]>([]);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -1455,6 +1465,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     void clearWorkspaceFiles('logistics-convert', userId);
     resetBundleShippingUi();
     setPreviewRows([]);
+    setOrderStandardRowsByRowId({});
     resetProductCodeColumnToggle();
     setUserOverrides({});
     setSortConfig(null);
@@ -1602,6 +1613,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       const deletedSet = new Set(payload.deletedRowIds);
       setPreviewRows((prev) => prev.filter((row) => !deletedSet.has(row.rowId)));
+      setOrderStandardRowsByRowId((prev) =>
+        pruneOrderSnapshotsForRowIds(prev, deletedSet),
+      );
       setUserOverrides((prev) => {
         const next = { ...prev };
         for (const id of payload.deletedRowIds) {
@@ -1742,6 +1756,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       if (!guestToUserLogin) {
       isCancelledRef.current = true;
       setPreviewRows([]);
+      setOrderStandardRowsByRowId({});
       setCourierHeaders([]);
       setOrderStandardFile(null);
       setTemplateBridgeFile(null);
@@ -1838,6 +1853,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   const handleLogisticsTemplateBridgeChanged = useCallback(() => {
     setPreviewRows([]);
+    setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
     resetProductCodeColumnToggle();
     setColumnCodeMappingSnapshots({});
@@ -3337,11 +3353,42 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
   const handleOpenSenderModal = () => {
     if (!ensureCourierTemplateReady('fixed-input')) return;
+    fixedInputAtModalOpenRef.current = { ...fixedHeaderValues };
     setIsSenderModalOpen(true);
   };
 
+  const applyFixedInputChangeToPreview = useCallback(() => {
+    if (!templateBridgeFile || previewRows.length === 0) return;
+
+    const headers =
+      courierHeaders.length > 0
+        ? courierHeaders
+        : templateBridgeFile.courierHeaders;
+
+    const reapplied = reapplyFixedInputToPreviewRows({
+      previewRows,
+      orderSnapshotsByRowId: orderStandardRowsByRowId,
+      template: templateBridgeFile,
+      fixedInput: fixedHeaderValues,
+      previousFixedInput: fixedInputAtModalOpenRef.current,
+      userOverrides,
+    });
+
+    const { rows } = computeAutoColumnMappingApply(reapplied, headers, userId);
+    setPreviewRows(rows);
+  }, [
+    templateBridgeFile,
+    previewRows,
+    orderStandardRowsByRowId,
+    fixedHeaderValues,
+    userOverrides,
+    courierHeaders,
+    userId,
+  ]);
+
   const handleCloseSenderModal = () => {
     setIsSenderModalOpen(false);
+    applyFixedInputChangeToPreview();
   };
 
   const handleCloseNoTemplateModal = () => {
@@ -3718,6 +3765,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     if (rowIds.length === 0) return;
     const idSet = new Set(rowIds);
     setPreviewRows((prev) => prev.filter((row) => !idSet.has(row.rowId)));
+    setOrderStandardRowsByRowId((prev) => pruneOrderSnapshotsForRowIds(prev, idSet));
     setNewRows((prev) => {
       const updated = new Set(prev);
       rowIds.forEach((id) => updated.delete(id));
@@ -4079,6 +4127,13 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           prev,
         ),
       );
+      setOrderStandardRowsByRowId((prev) =>
+        registerOrderSnapshotsForPreviewChunk(
+          prev,
+          newRowIds,
+          stage2Result.rows ?? [],
+        ),
+      );
       
       // 새로 생성된 행을 newRows에 추가
       setNewRows(prev => {
@@ -4154,6 +4209,14 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
         newPreviewChunk,
         mergedCourierHeaders,
         prev,
+      ),
+    );
+    setOrderStandardFile(result.orderStandardFile);
+    setOrderStandardRowsByRowId((prev) =>
+      registerOrderSnapshotsForPreviewChunk(
+        prev,
+        newRowIds,
+        result.orderStandardFile?.rows ?? [],
       ),
     );
     
@@ -4373,8 +4436,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
               <button
                 className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                 onClick={() => {
-                  setPreviewRows(prev =>
-                    prev.filter(row => !selectedRows.includes(row.rowId))
+                  const deleted = selectedRows;
+                  setPreviewRows((prev) =>
+                    prev.filter((row) => !deleted.includes(row.rowId)),
+                  );
+                  setOrderStandardRowsByRowId((prev) =>
+                    pruneOrderSnapshotsForRowIds(prev, deleted),
                   );
                   setSelectedRows([]);
                   setIsDeleteModalOpen(false);
@@ -6474,8 +6541,8 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500">
                     {trialMode
-                      ? '설정된 고정 입력 값은 미리보기·변환 결과에 반영됩니다. 엑셀 다운로드는 정식 서비스에서 이용할 수 있습니다.'
-                      : '설정된 고정 입력 값은 물류센터 업로드 파일 다운로드 시 자동으로 입력됩니다.'}
+                      ? '설정된 고정 입력 값은 확인 시 미리보기·변환 결과에 반영됩니다. 엑셀 다운로드는 정식 서비스에서 이용할 수 있습니다.'
+                      : '설정된 고정 입력 값은 확인 시 미리보기에 반영되며, 다운로드 파일에도 동일하게 적용됩니다.'}
                   </p>
                 </div>
               )}

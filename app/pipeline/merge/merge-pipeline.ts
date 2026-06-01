@@ -17,12 +17,8 @@
 import type { TemplateBridgeFile } from '../template/types';
 import type { OrderStandardFile } from '../order/order-pipeline';
 import type { PreviewRow, MergePipelineResult, RunMergePipelineParams } from './types';
-import { applyFillOnly } from './apply-fill-only';
-import {
-  enrichFixedInputByTemplate,
-  mergeDeliveryMessageValue,
-  resolveFixedValueForColumn,
-} from './resolve-fixed-input';
+import { buildPreviewRowFromStandardRow } from './build-preview-row';
+import { enrichFixedInputByTemplate } from './resolve-fixed-input';
 import { validateMergeInputs, validatePreviewRow, logValidationResult, throwIfInvalid } from '../utils/validation';
 import { mergeOrderAndInvoiceStandardFiles } from '../invoice/merge-order-invoice-standard';
 
@@ -80,36 +76,13 @@ export async function runMergePipeline({
   const previewRows: PreviewRow[] = [];
   
   for (let rowIndex = 0; rowIndex < stage3Source.rows.length; rowIndex++) {
-    const standardRow = stage3Source.rows[rowIndex];
-    const previewRow: PreviewRow = {};
-    
-    // courierHeaders 순서대로 반복
-    for (let i = 0; i < courierHeaders.length; i++) {
-      const courierHeader = courierHeaders[i];
-      const baseHeader = mappedBaseHeaders[i];
-      
-      // baseHeader가 매핑된 경우 표준값 가져오기
-      let orderValue = '';
-      if (baseHeader && baseHeader in standardRow) {
-        orderValue = String(standardRow[baseHeader] || '').trim();
-      }
-      
-      const fixedValue = resolveFixedValueForColumn(
-        enrichedFixedInput,
-        courierHeader,
-        baseHeader,
-      );
-
-      let finalValue: string;
-      if (baseHeader === '배송메시지') {
-        finalValue = mergeDeliveryMessageValue(orderValue, fixedValue);
-      } else {
-        finalValue = applyFillOnly(orderValue, fixedValue);
-      }
-      
-      // PreviewRow에 추가 (courierHeader 기준)
-      previewRow[courierHeader] = finalValue;
-    }
+    const standardRow = stage3Source.rows[rowIndex] as Record<string, string>;
+    const previewRow = buildPreviewRowFromStandardRow(
+      standardRow,
+      template,
+      fixedInput,
+      enrichedFixedInput,
+    );
     
     // 각 PreviewRow 검증 (첫 번째 행만 상세 검증)
     if (rowIndex === 0) {

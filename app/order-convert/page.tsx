@@ -101,6 +101,11 @@ import {
   patchFixedHeaderEntry,
   pruneFixedInputToCourierKeys,
 } from '@/app/lib/fixed-header-values';
+import {
+  registerOrderSnapshotsForPreviewChunk,
+  pruneOrderSnapshotsForRowIds,
+} from '@/app/lib/order-standard-row-snapshot';
+import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-preview';
 
 /** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
 const PREVIEW_TOOLBAR_BTN =
@@ -341,6 +346,11 @@ export default function OrderConvertPage() {
   const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>({});
   const [currentFilePreviewData, setCurrentFilePreviewData] = useState<any[]>([]);
   const [orderStandardFile, setOrderStandardFile] = useState<any | null>(null);
+  /** 미리보기 rowId → Stage2 표준 행 (고정입력 변경 시 Fill Only 재적용) */
+  const [orderStandardRowsByRowId, setOrderStandardRowsByRowId] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const fixedInputAtModalOpenRef = useRef<Record<string, string>>({});
   const [templateBridgeFile, setTemplateBridgeFile] = useState<TemplateBridgeFile | null>(null);
   const [previewRows, setPreviewRows] = useState<PreviewRowWithId[]>([]);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -660,6 +670,9 @@ export default function OrderConvertPage() {
 
       const deletedSet = new Set(payload.deletedRowIds);
       setPreviewRows((prev) => prev.filter((row) => !deletedSet.has(row.rowId)));
+      setOrderStandardRowsByRowId((prev) =>
+        pruneOrderSnapshotsForRowIds(prev, deletedSet),
+      );
       setUserOverrides((prev) => {
         const next = { ...prev };
         for (const id of payload.deletedRowIds) {
@@ -789,6 +802,7 @@ export default function OrderConvertPage() {
       if (!guestToUserLogin) {
       isCancelledRef.current = true;
       setPreviewRows([]);
+      setOrderStandardRowsByRowId({});
       setCourierHeaders([]);
       setOrderStandardFile(null);
       setTemplateBridgeFile(null);
@@ -884,6 +898,7 @@ export default function OrderConvertPage() {
 
   const handleTemplateBridgeChanged = useCallback(() => {
     setPreviewRows([]);
+    setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
   }, []);
 
@@ -1351,13 +1366,34 @@ export default function OrderConvertPage() {
 
   const handleOpenSenderModal = () => {
     if (!ensureCourierTemplateReady('fixed-input')) return;
-
+    fixedInputAtModalOpenRef.current = { ...fixedHeaderValues };
     // 택배 업로드 양식이 있는 경우 고정 입력 헤더 설정 모달 열기
     setIsSenderModalOpen(true);
   };
 
+  const applyFixedInputChangeToPreview = useCallback(() => {
+    if (!templateBridgeFile || previewRows.length === 0) return;
+    setPreviewRows(
+      reapplyFixedInputToPreviewRows({
+        previewRows,
+        orderSnapshotsByRowId: orderStandardRowsByRowId,
+        template: templateBridgeFile,
+        fixedInput: fixedHeaderValues,
+        previousFixedInput: fixedInputAtModalOpenRef.current,
+        userOverrides,
+      }),
+    );
+  }, [
+    templateBridgeFile,
+    previewRows,
+    orderStandardRowsByRowId,
+    fixedHeaderValues,
+    userOverrides,
+  ]);
+
   const handleCloseSenderModal = () => {
     setIsSenderModalOpen(false);
+    applyFixedInputChangeToPreview();
   };
 
   const handleCloseNoTemplateModal = () => {
@@ -1725,6 +1761,7 @@ export default function OrderConvertPage() {
     if (rowIds.length === 0) return;
     const idSet = new Set(rowIds);
     setPreviewRows((prev) => prev.filter((row) => !idSet.has(row.rowId)));
+    setOrderStandardRowsByRowId((prev) => pruneOrderSnapshotsForRowIds(prev, idSet));
     setNewRows((prev) => {
       const updated = new Set(prev);
       rowIds.forEach((id) => updated.delete(id));
@@ -2063,6 +2100,9 @@ export default function OrderConvertPage() {
         })),
         ...prev
       ]);
+      setOrderStandardRowsByRowId((prev) =>
+        registerOrderSnapshotsForPreviewChunk(prev, newRowIds, stage2Result.rows ?? []),
+      );
       
       // 새로 생성된 행을 newRows에 추가
       setNewRows(prev => {
@@ -2130,6 +2170,14 @@ export default function OrderConvertPage() {
       })),
       ...prev,
     ]);
+    setOrderStandardFile(result.orderStandardFile);
+    setOrderStandardRowsByRowId((prev) =>
+      registerOrderSnapshotsForPreviewChunk(
+        prev,
+        newRowIds,
+        result.orderStandardFile?.rows ?? [],
+      ),
+    );
     
     // 새로 생성된 행을 newRows에 추가
     setNewRows(prev => {
@@ -2300,6 +2348,7 @@ export default function OrderConvertPage() {
 
           // 🔥 기존 초기화 유지
           setPreviewRows([]);
+          setOrderStandardRowsByRowId({});
           setUserOverrides({});
           setSortConfig(null);
           setUnknownHeadersWarning([]);
@@ -2329,6 +2378,7 @@ export default function OrderConvertPage() {
     void clearWorkspaceFiles('order-convert', storageUserId);
     resetBundleShippingUi();
     setPreviewRows([]);
+    setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
     setUserOverrides({});
     setSortConfig(null);
@@ -2398,8 +2448,12 @@ export default function OrderConvertPage() {
               <button
                 className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                 onClick={() => {
-                  setPreviewRows(prev =>
-                    prev.filter(row => !selectedRows.includes(row.rowId))
+                  const deleted = selectedRows;
+                  setPreviewRows((prev) =>
+                    prev.filter((row) => !deleted.includes(row.rowId)),
+                  );
+                  setOrderStandardRowsByRowId((prev) =>
+                    pruneOrderSnapshotsForRowIds(prev, deleted),
                   );
                   setSelectedRows([]);
                   setIsDeleteModalOpen(false);
@@ -3626,7 +3680,7 @@ export default function OrderConvertPage() {
                       ))}
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                    설정된 고정 입력 값은 택배 업로드 파일 다운로드 시 자동으로 입력됩니다.
+                    설정된 고정 입력 값은 확인 시 미리보기에 반영되며, 다운로드 파일에도 동일하게 적용됩니다.
                   </p>
                 </div>
               )}
