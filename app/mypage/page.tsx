@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   ChevronDown,
   UserX,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 import { formatPhoneDisplay, formatPhoneForInput } from '@/app/utils/format-phone';
@@ -120,6 +122,7 @@ export default function MyPage() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawRequiresPassword, setWithdrawRequiresPassword] = useState(true);
   const [withdrawPassword, setWithdrawPassword] = useState('');
+  const [showWithdrawPassword, setShowWithdrawPassword] = useState(false);
   const [withdrawConfirmText, setWithdrawConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
@@ -154,6 +157,7 @@ export default function MyPage() {
       console.error('[MyPage] 탈퇴 확인 정보 조회 실패:', error);
     }
     setWithdrawPassword('');
+    setShowWithdrawPassword(false);
     setWithdrawConfirmText('');
     setShowWithdrawModal(true);
   };
@@ -1342,13 +1346,28 @@ export default function MyPage() {
                 <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   비밀번호 확인
                 </label>
-                <input
-                  type="password"
-                  value={withdrawPassword}
-                  onChange={(e) => setWithdrawPassword(e.target.value)}
-                  placeholder="현재 비밀번호"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                />
+                <div className="relative">
+                  <input
+                    type={showWithdrawPassword ? 'text' : 'password'}
+                    value={withdrawPassword}
+                    onChange={(e) => setWithdrawPassword(e.target.value)}
+                    placeholder="현재 비밀번호"
+                    autoComplete="current-password"
+                    className="w-full rounded-lg border border-zinc-300 py-2 pl-3 pr-10 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowWithdrawPassword((prev) => !prev)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                    aria-label={showWithdrawPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                  >
+                    {showWithdrawPassword ? (
+                      <EyeOff className="h-5 w-5" aria-hidden />
+                    ) : (
+                      <Eye className="h-5 w-5" aria-hidden />
+                    )}
+                  </button>
+                </div>
               </div>
             ) : (
               <div>
