@@ -48,6 +48,7 @@ export async function executeTossBillingCharge(params: {
       pendingPlanApplyAt: true,
       cancelAtPeriodEnd: true,
       subscriptionStatus: true,
+      nextPointDate: true,
     },
   });
 
