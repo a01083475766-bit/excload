@@ -1,0 +1,10 @@
+# Vercel Cron (UTC) — excload 토스 정기 갱신
+#
+# Path: /api/cron/toss-subscription-renew
+# Schedule in vercel.json: "0 18 * * *"
+#
+# UTC 18:00 daily = KST 03:00 next calendar day (Korea UTC+9, no DST)
+# Example: UTC 2026-06-01 18:00 = KST 2026-06-02 03:00
+#
+# Requires Production env: CRON_SECRET, TOSS_SECRET_KEY
+# Vercel sends: Authorization: Bearer <CRON_SECRET> when CRON_SECRET is set

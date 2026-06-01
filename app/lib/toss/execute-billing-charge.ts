@@ -74,6 +74,15 @@ export async function executeTossBillingCharge(params: {
     if (user.cancelAtPeriodEnd) {
       return { ok: false, error: '해지 예약된 구독입니다.', code: 'CANCEL_SCHEDULED', httpStatus: 400 };
     }
+    const renewalNow = new Date();
+    if (user.nextPointDate && user.nextPointDate.getTime() > renewalNow.getTime()) {
+      return {
+        ok: false,
+        error: '다음 갱신일 전입니다.',
+        code: 'RENEWAL_NOT_DUE',
+        httpStatus: 409,
+      };
+    }
   } else if (params.planType) {
     if (user.plan === 'PRO' || user.plan === 'YEARLY') {
       return {

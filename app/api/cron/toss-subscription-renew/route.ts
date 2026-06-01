@@ -1,6 +1,11 @@
 /**
  * 토스 빌링 정기 갱신 (예약 플랜 반영 포함)
- * Authorization: Bearer {CRON_SECRET}
+ *
+ * Vercel Cron: HTTP GET + Authorization: Bearer {CRON_SECRET}
+ * (env 이름이 CRON_SECRET이면 Vercel이 Bearer를 자동 주입)
+ * 수동 검증: POST 동일 경로·동일 헤더
+ *
+ * 스케줄: vercel.json — 0 18 * * * (UTC) ≈ 매일 03:00 KST
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
@@ -8,17 +13,17 @@ import { executeTossBillingCharge } from '@/app/lib/toss/execute-billing-charge'
 import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
 import { applyGraceExpiryIfNeeded } from '@/app/lib/subscription/payment-failure';
 
-function authorizeCron(request: NextRequest): boolean {
+/** 동시 cron·중복 호출 시 한 건만 토스 API까지 진행 */
+const TOSS_RENEW_LOCK_MS = 60_000;
+
+export function authorizeCron(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return false;
   const auth = request.headers.get('authorization') || '';
   return auth === `Bearer ${secret}`;
 }
 
-export async function POST(request: NextRequest) {
-  if (!authorizeCron(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+async function runTossSubscriptionRenew() {
 
   const secretKey = process.env.TOSS_SECRET_KEY?.trim();
   if (!secretKey) {
@@ -68,16 +73,57 @@ export async function POST(request: NextRequest) {
 
     if (!isPaidDbPlan(user.plan)) continue;
 
-    const outcome = await executeTossBillingCharge({
-      userId: user.id,
-      secretKey,
-      isRenewal: true,
+    const lockUntil = new Date(Date.now() + TOSS_RENEW_LOCK_MS);
+    const gotLock = await prisma.user.updateMany({
+      where: {
+        id: user.id,
+        cancelAtPeriodEnd: false,
+        OR: [{ nextPointDate: null }, { nextPointDate: { lte: now } }],
+        AND: [
+          {
+            OR: [
+              { tossChargeCooldownUntil: null },
+              { tossChargeCooldownUntil: { lt: now } },
+            ],
+          },
+        ],
+      },
+      data: { tossChargeCooldownUntil: lockUntil },
     });
-    results.push({
-      userId: user.id,
-      ok: outcome.ok,
-      error: outcome.ok ? undefined : outcome.error,
-    });
+
+    if (gotLock.count === 0) {
+      results.push({
+        userId: user.id,
+        ok: false,
+        error: 'RENEWAL_SKIP_LOCKED_OR_NOT_DUE',
+      });
+      continue;
+    }
+
+    try {
+      const outcome = await executeTossBillingCharge({
+        userId: user.id,
+        secretKey,
+        isRenewal: true,
+      });
+      results.push({
+        userId: user.id,
+        ok: outcome.ok,
+        error: outcome.ok ? undefined : outcome.error,
+      });
+      if (!outcome.ok) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { tossChargeCooldownUntil: null },
+        });
+      }
+    } catch (e) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { tossChargeCooldownUntil: null },
+      });
+      throw e;
+    }
   }
 
   const succeeded = results.filter((r) => r.ok).length;
@@ -90,4 +136,19 @@ export async function POST(request: NextRequest) {
     failed,
     results,
   });
+}
+
+export async function POST(request: NextRequest) {
+  if (!authorizeCron(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return runTossSubscriptionRenew();
+}
+
+/** Vercel Cron 기본 메서드 */
+export async function GET(request: NextRequest) {
+  if (!authorizeCron(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return runTossSubscriptionRenew();
 }
