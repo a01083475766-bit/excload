@@ -916,6 +916,15 @@ function writeTrialPointsToStorage(value: number): void {
   sessionStorage.setItem(TRIAL_POINTS_STORAGE_KEY, String(Math.max(0, value)));
 }
 
+/** 체험 텍스트 변환 2,000(글자 수) 소진 후 안내 */
+const TRIAL_TEXT_QUOTA_EXHAUSTED_MESSAGE =
+  '무료체험 텍스트 변환 사용량(2,000)을 모두 사용했습니다. 이제 체험으로 텍스트 변환은 이용할 수 없습니다. 회원가입 후 계속 이용해 주세요.';
+
+function formatTrialTextQuotaShortfall(remaining: number, textLength: number): string {
+  if (remaining <= 0) return TRIAL_TEXT_QUOTA_EXHAUSTED_MESSAGE;
+  return `무료체험 텍스트 변환 사용량이 부족합니다. (입력 ${textLength.toLocaleString('ko-KR')}자 · 잔여 ${remaining.toLocaleString('ko-KR')}자) 짧게 입력하거나 회원가입 후 이용해 주세요.`;
+}
+
 /** public 폴더의 체험용 기본 물류 업로드 양식 (등록 없이 미리보기 가능하도록) */
 const TRIAL_DEFAULT_TEMPLATE_PUBLIC_PATH = '/trial-default-upload-template.xlsx';
 
@@ -1122,6 +1131,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     if (!trialMode) return;
     setTrialPoints(readTrialPointsFromStorage());
   }, [trialMode]);
+
+  const trialRemainingTextQuota = trialMode
+    ? (trialPoints ?? readTrialPointsFromStorage())
+    : null;
+  const isTrialTextConvertExhausted =
+    trialMode && (trialRemainingTextQuota ?? 0) <= 0;
 
   // 사용자 정보 가져오기 (컴포넌트 마운트 시). 체험판은 비로그인 전제라 호출 시 401이 콘솔에 찍히므로 생략
   useEffect(() => {
@@ -3590,9 +3605,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       if (type === 'download') return false;
       const current = readTrialPointsFromStorage();
       if (current < amount) {
-        alert(
-          '체험용 사용량이 부족합니다.\u000a텍스트는 글자 수만큼 차감됩니다. 회원가입 후 정식 서비스를 이용해 주세요.',
-        );
+        alert(formatTrialTextQuotaShortfall(current, amount));
         return false;
       }
       const next = current - amount;
@@ -3702,10 +3715,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
     if (trialMode) {
       const tp = trialPoints ?? readTrialPointsFromStorage();
+      if (tp <= 0) {
+        setErrorMessageTextImage(TRIAL_TEXT_QUOTA_EXHAUSTED_MESSAGE);
+        return;
+      }
       if (tp < textLength) {
-        setErrorMessageTextImage(
-          '체험용 사용량이 부족합니다. (텍스트는 글자 수만큼 차감됩니다) 짧게 입력하거나 회원가입 후 이용해 주세요.',
-        );
+        setErrorMessageTextImage(formatTrialTextQuotaShortfall(tp, textLength));
         return;
       }
     } else {
@@ -4486,7 +4501,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   }
                   className={`order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none ${trialMode ? 'ex-tooltip-target' : ''}`}
                 >
-                  무료체험으로 기본 기능을 편하게 익혀보세요. 사용법이 어렵지 않습니다.
+                  무료체험으로 엑셀·파일 변환은 계속 이용할 수 있습니다. 텍스트 변환은 2,000자(글자 수 차감)까지 이용 가능합니다.
                 </p>
               )}
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
@@ -4494,7 +4509,9 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                   <div
                     data-ex-tooltip={
                       trialMode
-                        ? '텍스트 변환은 입력 글자 수만큼 사용량이 차감됩니다.'
+                        ? isTrialTextConvertExhausted
+                          ? TRIAL_TEXT_QUOTA_EXHAUSTED_MESSAGE
+                          : '텍스트 변환만 입력 글자 수만큼 차감됩니다. 엑셀·파일 변환은 체험에서 별도 제한이 없습니다.'
                         : undefined
                     }
                     className={`${trialMode ? 'ex-tooltip-target' : ''} trial-usage-badge flex h-[38px] w-full min-w-0 items-center justify-end rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-3 text-white shadow-md shadow-emerald-600/30 sm:w-[200px]`}
@@ -4714,7 +4731,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                           setShowTextConvertModal(true);
                         }
                       }}
-                      disabled={needsAccount || isProcessingTextImage || !textInput.trim()}
+                      disabled={
+                        needsAccount ||
+                        isProcessingTextImage ||
+                        !textInput.trim() ||
+                        isTrialTextConvertExhausted
+                      }
                     >
                       {isProcessingTextImage ? (
                         <>
@@ -4731,6 +4753,11 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                         '텍스트 물류 주문 변환'
                       )}
                     </button>
+                    {trialMode && isTrialTextConvertExhausted && (
+                      <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+                        {TRIAL_TEXT_QUOTA_EXHAUSTED_MESSAGE}
+                      </p>
+                    )}
                     {errorMessageTextImage && (
                       <p className="text-xs text-red-600">
                         {errorMessageTextImage}

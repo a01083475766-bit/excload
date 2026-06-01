@@ -1,6 +1,10 @@
-/** 체험판 남용 완화 — 브라우저·IP 각각 상한 (우회 가능, 부담만 증가) */
+/**
+ * 체험판 IP·브라우저 진입 한도 (가입 후·다계정 어뷰즈 완화용).
+ * 랜딩 무료체험(/excload, /trial)에는 TrialAccessGate를 쓰지 않습니다.
+ * 체험 텍스트 변환 한도는 브라우저 sessionStorage 2,000(글자 수 차감)으로만 제한합니다.
+ */
 
-/** `false`면 브라우저·IP 한도·카운트 없음. 다시 켤 때 `true`로 변경. */
+/** `false`면 TrialAccessGate·/api/trial/allow IP 카운트 비활성. */
 export const TRIAL_ACCESS_LIMITS_ENABLED = true;
 
 export const TRIAL_ACCESS_MAX_PER_BROWSER = 5;
