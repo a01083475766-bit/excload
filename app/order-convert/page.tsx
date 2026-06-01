@@ -99,6 +99,7 @@ import {
 import {
   deleteFixedHeaderEntry,
   patchFixedHeaderEntry,
+  pruneFixedInputToCourierKeys,
 } from '@/app/lib/fixed-header-values';
 
 /** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
@@ -1014,19 +1015,36 @@ export default function OrderConvertPage() {
     inputSourceType,
   ]);
 
+  const orderTemplateCourierHeaderKey =
+    templateBridgeFile?.courierHeaders?.join('\x1e') ?? '';
+  useEffect(() => {
+    if (!templateBridgeFile?.courierHeaders?.length) return;
+    setFixedHeaderValues((prev) => {
+      const pruned = pruneFixedInputToCourierKeys(prev, templateBridgeFile);
+      if (Object.keys(pruned).length === Object.keys(prev).length) {
+        const same = Object.keys(pruned).every((k) => pruned[k] === prev[k]);
+        if (same && Object.keys(prev).every((k) => k in pruned)) return prev;
+      }
+      return pruned;
+    });
+  }, [orderTemplateCourierHeaderKey, templateBridgeFile]);
+
   // fixedHeaderValues를 localStorage에 저장 (복원 후에만 저장해 계정 전환 시 오쓰기 방지)
   useEffect(() => {
     if (typeof window === 'undefined' || !courierStorageHydratedRef.current || !authAssetsReady) return;
+    const toStore = templateBridgeFile
+      ? pruneFixedInputToCourierKeys(fixedHeaderValues, templateBridgeFile)
+      : fixedHeaderValues;
     try {
       writeLocalStorageForUser(
         ORDER_CONVERT_KEYS.fixedHeaders,
         storageUserId,
-        JSON.stringify(fixedHeaderValues),
+        JSON.stringify(toStore),
       );
     } catch (error) {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
-  }, [fixedHeaderValues, storageUserId, authAssetsReady]);
+  }, [fixedHeaderValues, storageUserId, authAssetsReady, templateBridgeFile]);
 
   // 점 애니메이션 처리 (파일 처리용)
   useEffect(() => {

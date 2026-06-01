@@ -112,6 +112,7 @@ import {
 import {
   deleteFixedHeaderEntry,
   patchFixedHeaderEntry,
+  pruneFixedInputToCourierKeys,
 } from '@/app/lib/fixed-header-values';
 import {
   TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
@@ -1975,12 +1976,31 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     inputSourceType,
   ]);
 
+  // 양식 변경 시 모달에 없는 기준헤더-only 잔여 키 제거 (예: 배송메시지1 삭제 후 배송메시지 키만 남은 경우)
+  const templateCourierHeaderKey = templateBridgeFile?.courierHeaders?.join('\x1e') ?? '';
+  useEffect(() => {
+    if (!templateBridgeFile?.courierHeaders?.length) return;
+    setFixedHeaderValues((prev) => {
+      const pruned = pruneFixedInputToCourierKeys(prev, templateBridgeFile);
+      if (Object.keys(pruned).length === Object.keys(prev).length) {
+        const same = Object.keys(pruned).every(
+          (k) => pruned[k] === prev[k],
+        );
+        if (same && Object.keys(prev).every((k) => k in pruned)) return prev;
+      }
+      return pruned;
+    });
+  }, [templateCourierHeaderKey, templateBridgeFile]);
+
   // fixedHeaderValues 저장 (복원 후)
   useEffect(() => {
     if (typeof window === 'undefined' || !logisticsCourierHydratedRef.current) return;
+    const toStore = templateBridgeFile
+      ? pruneFixedInputToCourierKeys(fixedHeaderValues, templateBridgeFile)
+      : fixedHeaderValues;
     if (trialMode) {
       try {
-        localStorage.setItem(TRIAL_LOGISTICS_FIXED_KEY, JSON.stringify(fixedHeaderValues));
+        localStorage.setItem(TRIAL_LOGISTICS_FIXED_KEY, JSON.stringify(toStore));
       } catch (error) {
         console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
       }
@@ -1991,12 +2011,12 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       writeLocalStorageForUser(
         LOGISTICS_MAIN_KEYS.fixedHeaders,
         userId,
-        JSON.stringify(fixedHeaderValues),
+        JSON.stringify(toStore),
       );
     } catch (error) {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
-  }, [fixedHeaderValues, trialMode, authAssetsReady, userId]);
+  }, [fixedHeaderValues, trialMode, authAssetsReady, userId, templateBridgeFile]);
 
   // 물류 상품코드 매핑 목록·선택 복원 (3PL과 동일 패턴)
   useEffect(() => {

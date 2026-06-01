@@ -1,3 +1,4 @@
+import type { FixedInput } from '@/app/pipeline/merge/types';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 
 function bridgeBaseHeaderForCourier(
@@ -30,6 +31,30 @@ export function patchFixedHeaderEntry(
     next[baseHeader] = value;
   }
   return next;
+}
+
+/**
+ * 고정입력 모달에 보이는 값만 유지합니다.
+ * 예전에 patch로만 남은 `배송메시지`(기준헤더 키)는 택배 열 `배송메시지1` 삭제 후에도
+ * Stage3에 섞이지 않도록 현재 양식의 택배 헤더명 키만 남깁니다.
+ */
+export function pruneFixedInputToCourierKeys(
+  fixedInput: FixedInput,
+  template: TemplateBridgeFile | null,
+): FixedInput {
+  if (!template?.courierHeaders?.length) {
+    return { ...fixedInput };
+  }
+  const out: FixedInput = {};
+  for (const courierHeader of template.courierHeaders) {
+    const key = String(courierHeader ?? '').trim();
+    if (!key) continue;
+    const value = String(fixedInput[key] ?? '').trim();
+    if (value) {
+      out[key] = value;
+    }
+  }
+  return out;
 }
 
 /** 고정 입력 삭제 시 택배·기준헤더 키를 함께 제거합니다. */

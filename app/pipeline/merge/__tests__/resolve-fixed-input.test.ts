@@ -14,12 +14,20 @@ describe('enrichFixedInputByTemplate', () => {
     unknownHeaders: [],
   };
 
-  it('기준헤더 키만 저장된 고정값을 다른 택배 열명에도 채운다', () => {
+  it('모달(택배 열)에 등록된 고정값만 같은 기준헤더 계열 열에 복제한다', () => {
+    const enriched = enrichFixedInputByTemplate(
+      { 배송요청사항: '문앞에두세요' },
+      template,
+    );
+    expect(enriched['배송요청사항']).toBe('문앞에두세요');
+  });
+
+  it('모달에서 지운 뒤 남은 기준헤더 키만으로는 적용하지 않는다', () => {
     const enriched = enrichFixedInputByTemplate(
       { 배송메시지: '문앞에두세요' },
       template,
     );
-    expect(enriched['배송요청사항']).toBe('문앞에두세요');
+    expect(enriched['배송요청사항']).toBeUndefined();
   });
 });
 
@@ -42,10 +50,10 @@ describe('mergeDeliveryMessageValue', () => {
 });
 
 describe('resolveFixedValueForColumn', () => {
-  it('택배 헤더 키가 없으면 기준헤더 키로 조회한다', () => {
+  it('택배 헤더 키로만 조회한다', () => {
     expect(
       resolveFixedValueForColumn(
-        { 배송메시지: '문앞' },
+        { 배송요청사항: '문앞', 배송메시지: '무시됨' },
         '배송요청사항',
         '배송메시지',
       ),

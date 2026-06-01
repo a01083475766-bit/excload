@@ -5,23 +5,23 @@
  * - 배송메시지: 정제 후 빈 문자열이면 메타만 있던 주문으로 보고 고정값 fallback
  */
 
-import { BASE_HEADERS } from '../base/base-headers';
 import type { TemplateBridgeFile } from '../template/types';
 import type { FixedInput } from './types';
+import { pruneFixedInputToCourierKeys } from '@/app/lib/fixed-header-values';
 import { applyFillOnly } from './apply-fill-only';
 import { sanitizeDeliveryMessage } from './sanitize-delivery-message';
 
-const BASE_HEADER_SET = new Set<string>(BASE_HEADERS);
-
 /**
- * 현재 TemplateBridge 기준으로 고정값을 기준헤더 단위로 풀어,
- * 같은 기준헤더에 매핑된 모든 택배 열에 값을 채웁니다.
+ * 고정입력 모달에 등록된 택배 열 이름만 Stage3에 반영합니다.
+ * 같은 기준헤더에 매핑된 여러 택배 열(예: 배송메시지1·배송요청사항)은
+ * 모달에서 하나라도 설정된 경우에만 해당 기준헤더 계열 열에 복제합니다.
  */
 export function enrichFixedInputByTemplate(
   fixedInput: FixedInput,
   template: TemplateBridgeFile,
 ): FixedInput {
-  const out: FixedInput = { ...fixedInput };
+  const scoped = pruneFixedInputToCourierKeys(fixedInput, template);
+  const out: FixedInput = { ...scoped };
   const byBase = new Map<string, string>();
 
   const { courierHeaders, mappedBaseHeaders } = template;
@@ -29,21 +29,9 @@ export function enrichFixedInputByTemplate(
   for (let i = 0; i < courierHeaders.length; i++) {
     const courierHeader = courierHeaders[i];
     const baseHeader = mappedBaseHeaders[i];
-    const fromCourier = String(fixedInput[courierHeader] ?? '').trim();
-    const fromBase =
-      baseHeader && BASE_HEADER_SET.has(baseHeader)
-        ? String(fixedInput[baseHeader] ?? '').trim()
-        : '';
-    const value = fromCourier || fromBase;
+    const value = String(scoped[courierHeader] ?? '').trim();
     if (baseHeader && value && !byBase.has(baseHeader)) {
       byBase.set(baseHeader, value);
-    }
-  }
-
-  for (const [key, raw] of Object.entries(fixedInput)) {
-    const value = String(raw ?? '').trim();
-    if (value && BASE_HEADER_SET.has(key) && !byBase.has(key)) {
-      byBase.set(key, value);
     }
   }
 
@@ -56,27 +44,16 @@ export function enrichFixedInputByTemplate(
     }
   }
 
-  for (const [baseHeader, value] of byBase) {
-    if (!String(out[baseHeader] ?? '').trim()) {
-      out[baseHeader] = value;
-    }
-  }
-
   return out;
 }
 
-/** 택배 열·기준헤더 키 모두에서 고정값 조회 */
+/** 택배 열 키 기준 고정값 (enrichFixedInputByTemplate 이후 사용) */
 export function resolveFixedValueForColumn(
   fixedInput: FixedInput,
   courierHeader: string,
-  baseHeader: string | null,
+  _baseHeader: string | null,
 ): string {
-  const fromCourier = String(fixedInput[courierHeader] ?? '').trim();
-  if (fromCourier) return fromCourier;
-  if (baseHeader) {
-    return String(fixedInput[baseHeader] ?? '').trim();
-  }
-  return '';
+  return String(fixedInput[courierHeader] ?? '').trim();
 }
 
 /**
