@@ -54,8 +54,9 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const allowAnonymousTrial = await allowAnonymousByTrialIpRecord(request);
+    const isTrialRequest = request.headers.get('x-excload-trial') === '1';
 
-    if (!session && !allowAnonymousTrial) {
+    if (!session && !allowAnonymousTrial && !isTrialRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

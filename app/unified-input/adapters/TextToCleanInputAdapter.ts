@@ -5,6 +5,7 @@ import {
   type Normalize29ErrorCode,
 } from '@/app/lib/normalize-29/normalize29-error';
 import type { InternalOrderFormat } from '@/app/lib/export/internalOrderFormat';
+import { withTrialApiHeaders } from '@/app/lib/trial-page-context';
 
 export type TextNormalizeMeta = {
   usedFallback: boolean;
@@ -41,9 +42,9 @@ export async function runTextToCleanInputAdapter(
 
   const response = await fetch('/api/ai-gateway', {
     method: 'POST',
-    headers: {
+    headers: withTrialApiHeaders({
       'Content-Type': 'application/json',
-    },
+    }),
     body: JSON.stringify({
       type: 'normalize-29',
       text,

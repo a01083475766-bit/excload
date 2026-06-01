@@ -18,6 +18,7 @@ import { getHeaderAliasDictionary } from '@/app/lib/header-alias-cache';
 import { prisma } from '@/app/lib/prisma';
 import { isExcloudPipelineDebugMapping } from '@/app/lib/excloud-pipeline-debug';
 import { refineMappedBaseHeadersCouriers } from './refine-mapped-base-headers';
+import { withTrialApiHeaders } from '@/app/lib/trial-page-context';
 
 /**
  * 매핑 결과 인터페이스
@@ -225,9 +226,9 @@ export async function mapTemplateToBase(
 
         const response = await fetch('/api/ai-gateway', {
           method: 'POST',
-          headers: {
+          headers: withTrialApiHeaders({
             'Content-Type': 'application/json',
-          },
+          }),
           body: JSON.stringify(payload),
         });
         

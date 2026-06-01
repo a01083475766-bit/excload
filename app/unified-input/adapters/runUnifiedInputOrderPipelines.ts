@@ -21,6 +21,7 @@ import type { MergePipelineResult, FixedInput } from '@/app/pipeline/merge/types
 import { runMergePipeline } from '@/app/pipeline/merge/merge-pipeline';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
 import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
+import { isTrialPageContext } from '@/app/lib/trial-page-context';
 
 export interface UnifiedInputPipelineParams {
   /** Stage0/1을 거치지 않고 생성된 CleanInputFile 확장 타입 */
@@ -59,8 +60,7 @@ export async function runUnifiedInputOrderPipelines(
     fileSessionId,
     onStage2ChunkProgress,
   } = params;
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-  const isTrialContext = pathname === '/' || pathname.startsWith('/excload') || pathname.startsWith('/trial');
+  const isTrialContext = isTrialPageContext();
 
   // Stage2: Order Pipeline 실행 (대용량 시 행 청크 순차 호출)
   const orderStandardFile = await fetchOrderPipelineStage2(
