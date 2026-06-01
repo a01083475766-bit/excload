@@ -120,6 +120,7 @@ import {
   buildTrialBridgeFile,
   isTrialSeedFormatId,
   repairTrialBridgeFileIfNeeded,
+  trialBridgeNeedsAliasRefresh,
 } from '@/app/logistics-convert/trial-sample-formats';
 import {
   BundleShippingModal,
@@ -1690,16 +1691,15 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
           if (needsPcccMigration) {
             localStorage.removeItem(TRIAL_LOGISTICS_BRIDGE_KEY);
             setTemplateBridgeFile(null);
-          } else if (!parsed.baseHeaders?.length) {
+          } else {
             const activeTemplate = loadCourierUploadTemplate(true, null);
-            const columnOrder = activeTemplate?.headers
-              ?.filter((h) => h.name?.trim())
-              .map((h) => h.name) ?? parsed.courierHeaders ?? [];
+            const columnOrder =
+              activeTemplate?.headers
+                ?.filter((h) => h.name?.trim())
+                .map((h) => h.name) ?? parsed.courierHeaders ?? [];
             const repaired = repairTrialBridgeFileIfNeeded(columnOrder, parsed);
             setTemplateBridgeFile(repaired);
             localStorage.setItem(TRIAL_LOGISTICS_BRIDGE_KEY, JSON.stringify(repaired));
-          } else {
-            setTemplateBridgeFile(parsed);
           }
         } else {
           setTemplateBridgeFile(null);
@@ -3053,12 +3053,20 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
 
       if (existingIndex >= 0) {
         const existing = formats[existingIndex];
-        if (!existing.bridgeFile?.baseHeaders?.length) {
+        const nextBridge = buildTrialBridgeFile(spec.headers);
+        const prevBridge = existing.bridgeFile;
+        const mappingChanged =
+          !prevBridge ||
+          trialBridgeNeedsAliasRefresh(prevBridge) ||
+          JSON.stringify(prevBridge.mappedBaseHeaders) !==
+            JSON.stringify(nextBridge.mappedBaseHeaders);
+
+        if (mappingChanged) {
           formats[existingIndex] = {
             ...existing,
             columnOrder: spec.headers,
             displayName: spec.displayName,
-            bridgeFile,
+            bridgeFile: nextBridge,
             protectedFromDeletion: true,
           };
           changed = true;
@@ -3941,6 +3949,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
 
     const stage2Result = await fetchOrderPipelineStage2(cleanInputFile, newOrderSessionId, {
+      trialHeader: trialMode,
       onChunkProgress: (completed, total) => {
         if (total > 1) {
           setStage2ChunkLabel(`서버 변환 ${completed}/${total}`);

@@ -174,15 +174,59 @@ export function buildTrialBridgeFile(headers: string[]): TemplateBridgeFile {
   };
 }
 
-/** 예전에 저장된 bridge(baseHeaders 빈 배열) 보정 */
+/** 별칭 사전 보강 후, 예전에 null이던 열을 다시 매핑할 수 있는지 검사 */
+export function trialBridgeNeedsAliasRefresh(bridgeFile: TemplateBridgeFile): boolean {
+  const courierHeaders = bridgeFile.courierHeaders ?? [];
+  if (courierHeaders.length === 0) return false;
+
+  const fresh = mapTrialHeadersToBridge(courierHeaders);
+  const mapped = bridgeFile.mappedBaseHeaders ?? [];
+
+  for (let i = 0; i < courierHeaders.length; i++) {
+    const label = courierHeaders[i]?.trim();
+    if (!label) continue;
+    if (!mapped[i] && fresh.mappedBaseHeaders[i]) return true;
+  }
+  return false;
+}
+
+/** 현재 ALIAS_DICTIONARY 기준으로 mappedBaseHeaders만 다시 계산 */
+export function refreshTrialBridgeMappings(bridgeFile: TemplateBridgeFile): TemplateBridgeFile {
+  const courierHeaders = (bridgeFile.courierHeaders ?? []).filter((h) => h?.trim());
+  const fresh = buildTrialBridgeFile(courierHeaders);
+  return {
+    ...bridgeFile,
+    baseHeaders: fresh.baseHeaders,
+    courierHeaders: fresh.courierHeaders,
+    mappedBaseHeaders: fresh.mappedBaseHeaders,
+    unknownHeaders: fresh.unknownHeaders,
+  };
+}
+
+/**
+ * 체험 localStorage bridge 보정
+ * - baseHeaders 비어 있음 → 재생성
+ * - 별칭 추가로 이전에 null이던 열이 매핑 가능 → mappedBaseHeaders 갱신
+ */
 export function repairTrialBridgeFileIfNeeded(
   columnOrder: string[],
   bridgeFile: TemplateBridgeFile | undefined,
 ): TemplateBridgeFile {
-  if (bridgeFile?.baseHeaders?.length) {
-    return bridgeFile;
+  const headersFromOrder = columnOrder.filter((h) => h?.trim());
+  const headers =
+    headersFromOrder.length > 0
+      ? headersFromOrder
+      : (bridgeFile?.courierHeaders ?? []).filter((h) => h?.trim());
+
+  if (!bridgeFile?.baseHeaders?.length) {
+    return buildTrialBridgeFile(headers);
   }
-  return buildTrialBridgeFile(columnOrder);
+
+  if (trialBridgeNeedsAliasRefresh(bridgeFile)) {
+    return refreshTrialBridgeMappings(bridgeFile);
+  }
+
+  return bridgeFile;
 }
 
 export function buildCourierTemplateFromHeaders(headers: string[]): TrialCourierUploadTemplate {
