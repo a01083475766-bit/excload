@@ -22,6 +22,8 @@ export interface User {
   monthlyPoints?: number;
   lastMonthlyGrant?: string | null;
   nextPointDate?: string | null;
+  /** DB User.createdAt (가입일) */
+  createdAt?: string | null;
 }
 
 interface UserStoreState {
@@ -87,6 +89,7 @@ export const useUserStore = create<UserStoreState>()(
                   monthlyPoints: data.user.monthlyPoints,
                   lastMonthlyGrant: data.user.lastMonthlyGrant,
                   nextPointDate: data.user.nextPointDate,
+                  createdAt: data.user.createdAt ?? null,
                 },
               });
 

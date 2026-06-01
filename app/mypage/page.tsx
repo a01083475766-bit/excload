@@ -677,8 +677,13 @@ export default function MyPage() {
   const safeUser = user!;
   const userName = (safeUser.name || safeUser.email.split('@')[0] || '사용자').trim();
   
-  // 가입일은 임시로 현재 날짜 사용 (실제로는 API에서 가져와야 함)
-  const joinDate = new Date().toISOString().split('T')[0];
+  const joinDateLabel = safeUser.createdAt
+    ? new Date(safeUser.createdAt).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+    : '-';
 
   return (
     <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen">
@@ -754,7 +759,7 @@ export default function MyPage() {
               </div>
 
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-                프로필 화면에서 계정 정보와 결제 정보를 한 번에 확인할 수 있습니다.
+                프로필에서 계정 정보를, 아래 결제 정보에서 구독·결제 내역을 확인할 수 있습니다.
               </div>
 
               <Link
@@ -850,58 +855,6 @@ export default function MyPage() {
                         </button>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                      <Calendar className="w-4 h-4" />
-                      <span>가입일: {joinDate}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                      <span>플랜: {getPlanName(safeUser.plan)}</span>
-                    </div>
-                    
-                    {hasPaidPlan ? (
-                      <div className="space-y-2">
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {subscriptionState.cancelAtPeriodEnd
-                            ? `해지 예약 상태 · 서비스 이용 종료일 ${currentPeriodEndText ?? '-'}`
-                            : `정기결제 활성 · 다음 결제 예정일 ${currentPeriodEndText ?? '-'}`}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={handleSubscriptionToggle}
-                            disabled={isUpdatingSubscription}
-                            className={`px-6 py-3 rounded-lg transition-colors text-sm font-semibold ${
-                              subscriptionState.cancelAtPeriodEnd
-                                ? 'border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                                : 'border border-rose-300 text-rose-700 hover:bg-rose-50'
-                            } disabled:opacity-60 disabled:cursor-not-allowed`}
-                          >
-                            {isUpdatingSubscription
-                              ? '처리 중...'
-                              : subscriptionState.cancelAtPeriodEnd
-                                ? '해지 예약 취소'
-                                : '정기결제 해지 예약'}
-                          </button>
-                          <button
-                            onClick={handleRefundRequest}
-                            disabled={isRequestingRefund || refundState.hasPendingRefund}
-                            className="px-6 py-3 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            {isRequestingRefund
-                              ? '확인 중...'
-                              : refundState.hasPendingRefund
-                                ? '환불 신청 완료'
-                                : '환불 신청하기'}
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                          {refundState.hasPendingRefund
-                            ? `환불 신청이 접수되어 검토 중입니다${refundState.createdAt ? ` (${new Date(refundState.createdAt).toLocaleDateString('ko-KR')} 접수)` : ''}. 신청 시점에 잔여 사용량은 차감(보류) 처리됩니다.`
-                            : '환불은 신청 접수 후 정책 기준에 따라 검토·처리되며, 신청 시점에 잔여 사용량은 차감(보류) 처리됩니다. 결과는 회신 이메일로 안내됩니다.'}
-                        </p>
-                      </div>
-                    ) : null}
                   </div>
                 </div>
 
@@ -941,6 +894,17 @@ export default function MyPage() {
                 </h2>
                 
                 <div className="space-y-6">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 shrink-0" aria-hidden />
+                      <span>가입일: {joinDateLabel}</span>
+                    </div>
+                    <span className="hidden sm:inline text-zinc-300 dark:text-zinc-600" aria-hidden>
+                      ·
+                    </span>
+                    <span>플랜: {getPlanName(safeUser.plan)}</span>
+                  </div>
+
                   <div className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -999,6 +963,51 @@ export default function MyPage() {
                         </button>
                       )}
                     </div>
+
+                    {hasPaidPlan ? (
+                      <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 space-y-2">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {subscriptionState.cancelAtPeriodEnd
+                            ? `해지 예약 상태 · 서비스 이용 종료일 ${currentPeriodEndText ?? '-'}`
+                            : `정기결제 활성 · 다음 결제 예정일 ${currentPeriodEndText ?? '-'}`}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={handleSubscriptionToggle}
+                            disabled={isUpdatingSubscription}
+                            className={`px-6 py-3 rounded-lg transition-colors text-sm font-semibold ${
+                              subscriptionState.cancelAtPeriodEnd
+                                ? 'border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                                : 'border border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                            } disabled:opacity-60 disabled:cursor-not-allowed`}
+                          >
+                            {isUpdatingSubscription
+                              ? '처리 중...'
+                              : subscriptionState.cancelAtPeriodEnd
+                                ? '해지 예약 취소'
+                                : '정기결제 해지 예약'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRefundRequest}
+                            disabled={isRequestingRefund || refundState.hasPendingRefund}
+                            className="px-6 py-3 rounded-lg border border-blue-300 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {isRequestingRefund
+                              ? '확인 중...'
+                              : refundState.hasPendingRefund
+                                ? '환불 신청 완료'
+                                : '환불 신청하기'}
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          {refundState.hasPendingRefund
+                            ? `환불 신청이 접수되어 검토 중입니다${refundState.createdAt ? ` (${new Date(refundState.createdAt).toLocaleDateString('ko-KR')} 접수)` : ''}. 신청 시점에 잔여 사용량은 차감(보류) 처리됩니다.`
+                            : '환불은 신청 접수 후 정책 기준에 따라 검토·처리되며, 신청 시점에 잔여 사용량은 차감(보류) 처리됩니다. 결과는 회신 이메일로 안내됩니다.'}
+                        </p>
+                      </div>
+                    ) : null}
 
                     <div className="mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-700">
                       <button
