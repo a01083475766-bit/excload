@@ -47,6 +47,7 @@ import {
 } from '@/app/lib/history-input-sources';
 import { useUserStore } from '@/app/store/userStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
+import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
@@ -76,6 +77,12 @@ import {
   deleteFixedHeaderEntry,
   patchFixedHeaderEntry,
 } from '@/app/lib/fixed-header-values';
+import {
+  registerOrderSnapshotsForPreviewChunk,
+  pruneOrderSnapshotsForRowIds,
+} from '@/app/lib/order-standard-row-snapshot';
+import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-preview';
+import { mergeOrderAndInvoiceStandardFiles } from '@/app/pipeline/invoice/merge-order-invoice-standard';
 type PreviewRowWithId = {
   rowId: string;
   data: PreviewRow;
@@ -315,7 +322,13 @@ export default function InvoiceFileConvertPage() {
   // ※ 데이터 적용 원칙: 주문 데이터에 보내는 사람 정보가 있으면 → 그 값 우선, 고정 입력 값은 fallback 용도, 주문 원본 데이터는 절대 수정하지 않음
   const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>({});
   const [currentFilePreviewData, setCurrentFilePreviewData] = useState<any[]>([]);
-  const [orderStandardFile, setOrderStandardFile] = useState<any | null>(null);
+  const [orderStandardFile, setOrderStandardFile] = useState<OrderStandardFile | null>(null);
+  const [invoiceStandardFile, setInvoiceStandardFile] = useState<OrderStandardFile | null>(null);
+  /** 미리보기 rowId → Stage3 입력 표준 행 (세션 복원 시 고정입력 재적용용) */
+  const [orderStandardRowsByRowId, setOrderStandardRowsByRowId] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const fixedInputAtModalOpenRef = useRef<Record<string, string>>({});
   const [templateBridgeFile, setTemplateBridgeFile] = useState<TemplateBridgeFile | null>(null);
   const [previewRows, setPreviewRows] = useState<PreviewRowWithId[]>([]);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -664,8 +677,10 @@ export default function InvoiceFileConvertPage() {
       }
       if (!guestToUserLogin) {
       setPreviewRows([]);
+      setOrderStandardRowsByRowId({});
       setCourierHeaders([]);
       setOrderStandardFile(null);
+      setInvoiceStandardFile(null);
       setTemplateBridgeFile(null);
       setUploadedExcelFile(null);
       setCourierInvoiceFile(null);
@@ -744,6 +759,7 @@ export default function InvoiceFileConvertPage() {
 
   const handleInvoiceTemplateBridgeChanged = useCallback(() => {
     setPreviewRows([]);
+    setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
     setPreviewReady(false);
     setConversionProgress(0);
@@ -1210,12 +1226,59 @@ export default function InvoiceFileConvertPage() {
       return;
     }
 
+    fixedInputAtModalOpenRef.current = { ...fixedHeaderValues };
     // 택배 업로드 양식이 있는 경우 고정 입력 헤더 설정 모달 열기
     setIsSenderModalOpen(true);
   };
 
+  const applyFixedInputChangeToPreview = useCallback(async () => {
+    if (!templateBridgeFile || previewRows.length === 0) return;
+
+    if (orderStandardFile && invoiceStandardFile) {
+      const stage3Result = await runMergePipeline({
+        template: templateBridgeFile,
+        orderData: orderStandardFile,
+        invoiceData: invoiceStandardFile,
+        fixedInput: fixedHeaderValues,
+      });
+
+      setPreviewRows((prev) => {
+        const prevIds = prev.map((r) => r.rowId);
+        return stage3Result.previewRows.map((row, index) => {
+          const rowId = prevIds[index] ?? crypto.randomUUID();
+          const overrideRow = userOverrides[rowId];
+          return {
+            rowId,
+            data: overrideRow ? { ...row, ...overrideRow } : row,
+          };
+        });
+      });
+      return;
+    }
+
+    setPreviewRows(
+      reapplyFixedInputToPreviewRows({
+        previewRows,
+        orderSnapshotsByRowId: orderStandardRowsByRowId,
+        template: templateBridgeFile,
+        fixedInput: fixedHeaderValues,
+        previousFixedInput: fixedInputAtModalOpenRef.current,
+        userOverrides,
+      }),
+    );
+  }, [
+    templateBridgeFile,
+    previewRows,
+    orderStandardFile,
+    invoiceStandardFile,
+    fixedHeaderValues,
+    orderStandardRowsByRowId,
+    userOverrides,
+  ]);
+
   const handleCloseSenderModal = () => {
     setIsSenderModalOpen(false);
+    void applyFixedInputChangeToPreview();
   };
 
   const handleCloseNoTemplateModal = () => {
@@ -1533,11 +1596,14 @@ export default function InvoiceFileConvertPage() {
     setPreviewReady(false);
     setConversionProgress(5);
     setPreviewRows([]);
+    setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
     setSelectedRows([]);
     setNewRows(new Set());
     setUserOverrides({});
     setUnknownHeadersWarning([]);
+    setOrderStandardFile(null);
+    setInvoiceStandardFile(null);
     if (previewRevealTimeoutRef.current) {
       window.clearTimeout(previewRevealTimeoutRef.current);
       previewRevealTimeoutRef.current = null;
@@ -1585,6 +1651,7 @@ export default function InvoiceFileConvertPage() {
 
       // Stage2에는 파일별 표준화 결과만 유지합니다.
       setOrderStandardFile(orderStage2);
+      setInvoiceStandardFile(invoiceStage2);
 
       const bridgeNow = templateBridgeFileRef.current;
       if (bridgeNow) {
@@ -1597,6 +1664,17 @@ export default function InvoiceFileConvertPage() {
         });
 
         const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
+        const stage3Source = mergeOrderAndInvoiceStandardFiles(
+          orderStage2,
+          invoiceStage2,
+        );
+        setOrderStandardRowsByRowId((prev) =>
+          registerOrderSnapshotsForPreviewChunk(
+            prev,
+            newRowIds,
+            stage3Source.rows ?? [],
+          ),
+        );
         setConversionProgress(95);
         setPreviewRows(
           stage3Result.previewRows.map((row, index) => ({
@@ -1816,10 +1894,13 @@ export default function InvoiceFileConvertPage() {
 
           // 🔥 기존 초기화 유지
           setPreviewRows([]);
+          setOrderStandardRowsByRowId({});
           setUserOverrides({});
           setSortConfig(null);
           setUnknownHeadersWarning([]);
           setSelectedFileName(null);
+          setOrderStandardFile(null);
+          setInvoiceStandardFile(null);
 
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
@@ -1849,6 +1930,7 @@ export default function InvoiceFileConvertPage() {
     clearPreviewWorkspace('invoice-file-convert', storageUserId);
     void clearWorkspaceFiles('invoice-file-convert', storageUserId);
     setPreviewRows([]);
+    setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
     setUserOverrides({});
     setSortConfig(null);
@@ -1858,6 +1940,7 @@ export default function InvoiceFileConvertPage() {
     setEditingCell(null);
     setActiveCell(null);
     setOrderStandardFile(null);
+    setInvoiceStandardFile(null);
     setCurrentFilePreviewData([]);
     setUploadedExcelFile(null);
     setCourierInvoiceFile(null);
@@ -1914,8 +1997,12 @@ export default function InvoiceFileConvertPage() {
               <button
                 className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                 onClick={() => {
-                  setPreviewRows(prev =>
-                    prev.filter(row => !selectedRows.includes(row.rowId))
+                  const deleted = selectedRows;
+                  setPreviewRows((prev) =>
+                    prev.filter((row) => !deleted.includes(row.rowId)),
+                  );
+                  setOrderStandardRowsByRowId((prev) =>
+                    pruneOrderSnapshotsForRowIds(prev, deleted),
                   );
                   setSelectedRows([]);
                   setIsDeleteModalOpen(false);
@@ -2912,19 +2999,18 @@ export default function InvoiceFileConvertPage() {
         </div>
       )}
 
-      {/* 고정 입력 정보 설정 모달 */}
-      {isSenderModalOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={handleCloseSenderModal}
-        >
-          <div
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[88vh] sm:h-[84vh] flex flex-col p-4 sm:p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* 고정 입력 정보 설정 모달 — 배경 클릭·뒤 페이지 조작 차단 */}
+      <WorkspaceBlockingModalOverlay
+        open={isSenderModalOpen}
+        aria-labelledby="fixed-input-modal-title"
+      >
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[88vh] sm:h-[84vh] flex flex-col p-4 sm:p-6">
             {/* 모달 헤더 */}
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+              <h2
+                id="fixed-input-modal-title"
+                className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+              >
                 고정 입력 정보 설정
               </h2>
               <button
@@ -3140,7 +3226,7 @@ export default function InvoiceFileConvertPage() {
                       ))}
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                    설정된 고정 입력 값은 택배 업로드 파일 다운로드 시 자동으로 입력됩니다.
+                    설정된 고정 입력 값은 확인 시 미리보기에 반영되며, 다운로드 파일에도 동일하게 적용됩니다.
                   </p>
                 </div>
               )}
@@ -3156,8 +3242,7 @@ export default function InvoiceFileConvertPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </WorkspaceBlockingModalOverlay>
 
       {/* 다운로드 상태 모달 */}
       {downloadStatus !== "idle" && (

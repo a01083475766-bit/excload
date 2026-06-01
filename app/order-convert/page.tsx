@@ -31,6 +31,7 @@ import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2'
 import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { useHistoryStore } from '@/app/store/historyStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
+import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
@@ -3452,19 +3453,18 @@ export default function OrderConvertPage() {
         </div>
       )}
 
-      {/* 고정 입력 정보 설정 모달 */}
-      {isSenderModalOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={handleCloseSenderModal}
-        >
-          <div
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[88vh] sm:h-[84vh] flex flex-col p-4 sm:p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* 고정 입력 정보 설정 모달 — 배경 클릭·뒤 페이지 조작 차단 */}
+      <WorkspaceBlockingModalOverlay
+        open={isSenderModalOpen}
+        aria-labelledby="fixed-input-modal-title"
+      >
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[88vh] sm:h-[84vh] flex flex-col p-4 sm:p-6">
             {/* 모달 헤더 */}
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+              <h2
+                id="fixed-input-modal-title"
+                className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+              >
                 고정 입력 정보 설정
               </h2>
               <button
@@ -3696,8 +3696,7 @@ export default function OrderConvertPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </WorkspaceBlockingModalOverlay>
 
       {/* 텍스트 주문 변환 안내 모달 */}
       {showTextConvertModal && (
