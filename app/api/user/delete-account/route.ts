@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
+import { DeleteUserAccountError } from '@/app/lib/delete-user-account';
 import {
-  DeleteUserAccountError,
-  deleteUserAccountById,
-} from '@/app/lib/delete-user-account';
+  softWithdrawUserAccount,
+  WITHDRAW_GRACE_DAYS,
+} from '@/app/lib/account-withdrawal';
 
 interface DeleteAccountBody {
   password?: string;
@@ -83,11 +84,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const deleted = await deleteUserAccountById(user.id);
+    const withdrawn = await softWithdrawUserAccount(user.id);
 
     return NextResponse.json({
       success: true,
-      message: `${deleted.email} 계정이 탈퇴 처리되었습니다.`,
+      message: `${withdrawn.email} 계정이 탈퇴 처리되었습니다. ${WITHDRAW_GRACE_DAYS}일 이내 로그인·재가입 시 복구할 수 있으며, 잔여 사용량은 유지됩니다.`,
+      purgeAt: withdrawn.purgeAt,
+      graceDays: WITHDRAW_GRACE_DAYS,
     });
   } catch (error) {
     if (error instanceof DeleteUserAccountError) {

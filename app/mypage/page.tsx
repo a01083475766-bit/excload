@@ -162,7 +162,10 @@ export default function MyPage() {
     if (isDeletingAccount) return;
 
     const ok = window.confirm(
-      '정말 탈퇴하시겠습니까?\n탈퇴 후 계정·즐겨찾기·결제 연동 정보가 삭제되며, 같은 이메일로 다시 가입할 수 있습니다.',
+      '정말 탈퇴하시겠습니까?\n\n' +
+        '· 탈퇴 직후에는 로그인·서비스 이용이 중단됩니다.\n' +
+        '· 7일 이내 같은 계정으로 로그인하거나 재가입하면 복구되며, 잔여 사용량이 유지됩니다.\n' +
+        '· 7일이 지나면 계정·데이터가 영구 삭제됩니다.',
     );
     if (!ok) return;
 
@@ -1241,12 +1244,15 @@ export default function MyPage() {
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">회원 탈퇴</p>
                         <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
-                          <li>계정 정보, 즐겨찾는 쇼핑몰, 포인트·결제 연동 정보가 삭제됩니다.</li>
-                          <li>진행중인 구독은 즉시 해지됩니다.</li>
+                          <li>탈퇴 직후 로그인·서비스 이용이 중단됩니다. 진행 중인 구독은 해지됩니다.</li>
+                          <li>
+                            <strong>7일 유예:</strong> 기간 안에 로그인하거나 같은 이메일로 재가입하면 계정이
+                            복구되고, 잔여 사용량·설정이 유지됩니다.
+                          </li>
+                          <li>7일이 지나면 계정·즐겨찾기·결제 기록 등이 영구 삭제되며, 이후 재가입 시 무료 가입
+                            보너스·월간 무료 지급은 다시 제공되지 않을 수 있습니다.</li>
                           <li>환불 신청이 검토 중이면 탈퇴할 수 없습니다.</li>
                           <li>브라우저에 저장된 변환 내역 등은 기기에서 직접 삭제해 주세요.</li>
-                          <li>탈퇴 후 같은 이메일·휴대폰·기기로 재가입해도 무료 가입 보너스·월간 무료 지급은 다시 제공되지 않습니다.</li>
-                          <li>탈퇴 후 같은 이메일로 다시 가입할 수 있습니다.</li>
                         </ul>
                         <button
                           type="button"
@@ -1327,7 +1333,8 @@ export default function MyPage() {
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-zinc-900">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">회원 탈퇴</h3>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-              탈퇴하면 계정과 연동된 서버 데이터가 삭제됩니다. 되돌릴 수 없습니다.
+              탈퇴 직후 이용이 중단됩니다. 7일 안에 로그인·재가입으로 복구할 수 있으며, 잔여 사용량이
+              유지됩니다. 7일이 지나면 데이터가 영구 삭제됩니다.
             </p>
 
             {withdrawRequiresPassword ? (

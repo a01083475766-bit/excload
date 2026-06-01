@@ -139,7 +139,9 @@ export const authOptions: NextAuthOptions = {
               email: true,
               passwordHash: true,
               name: true,
-              emailVerified: true, // 이메일 인증 상태 확인
+              emailVerified: true,
+              deletedAt: true,
+              purgeAt: true,
             },
           });
 
@@ -179,6 +181,23 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (passwordMatch) {
+            if (user.deletedAt) {
+              const { isWithinWithdrawGrace, reactivateWithdrawnUser } = await import(
+                '@/app/lib/account-withdrawal'
+              );
+              if (!isWithinWithdrawGrace(user)) {
+                if (isAuthVerboseLog) console.log('[Auth] WITHDRAW GRACE EXPIRED');
+                return null;
+              }
+              try {
+                await reactivateWithdrawnUser(user.id);
+                if (isAuthVerboseLog) console.log('[Auth] WITHDRAW REACTIVATED ON LOGIN');
+              } catch (reactivateError) {
+                console.error('[Auth] WITHDRAW REACTIVATE FAILED:', reactivateError);
+                return null;
+              }
+            }
+
             if (isAuthVerboseLog) console.log('[Auth] LOGIN SUCCESS');
             try {
               await prisma.user.update({
@@ -289,17 +308,30 @@ export const authOptions: NextAuthOptions = {
 
           const existingUser = await prisma.user.findUnique({
             where: { email: tokenEmail },
-            select: { id: true, name: true },
+            select: { id: true, name: true, deletedAt: true, purgeAt: true },
           });
 
           if (existingUser) {
-            const ensuredUser = await prisma.user.update({
-              where: { email: tokenEmail },
-              data: updateData,
-              select: { id: true, name: true },
-            });
-            token.id = ensuredUser.id;
-            token.name = ensuredUser.name ?? token.name;
+            if (existingUser.deletedAt) {
+              const { isWithinWithdrawGrace, reactivateWithdrawnUser } = await import(
+                '@/app/lib/account-withdrawal'
+              );
+              if (!isWithinWithdrawGrace(existingUser)) {
+                token.error = 'WithdrawExpired';
+              } else {
+                await reactivateWithdrawnUser(existingUser.id);
+              }
+            }
+
+            if (token.error !== 'WithdrawExpired') {
+              const ensuredUser = await prisma.user.update({
+                where: { email: tokenEmail },
+                data: updateData,
+                select: { id: true, name: true },
+              });
+              token.id = ensuredUser.id;
+              token.name = ensuredUser.name ?? token.name;
+            }
           } else {
             const ensuredUser = await prisma.user.create({
               data: {
@@ -333,6 +365,9 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      if (token.error === 'WithdrawExpired') {
+        return null as unknown as typeof session;
+      }
       if (session.user) {
         session.user.id = token.id as string;
         session.user.email = token.email as string;

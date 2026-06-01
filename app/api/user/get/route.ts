@@ -15,6 +15,7 @@ import {
   syncUserIpAndAbuseScore,
   tryGrantInitialFreeBenefits,
 } from '@/app/lib/user-access-guard';
+import { isWithinWithdrawGrace, WITHDRAW_GRACE_DAYS } from '@/app/lib/account-withdrawal';
 
 /**
  * GET /api/user/get
@@ -48,6 +49,8 @@ export async function GET(request: NextRequest) {
           nextPointDate: true,
           createdAt: true,
           updatedAt: true,
+          deletedAt: true,
+          purgeAt: true,
         },
       });
 
@@ -55,6 +58,28 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(
           { error: '사용자를 찾을 수 없습니다.' },
           { status: 404 }
+        );
+      }
+
+      if (user.deletedAt) {
+        if (isWithinWithdrawGrace(user)) {
+          return NextResponse.json(
+            {
+              error: `탈퇴 처리된 계정입니다. ${WITHDRAW_GRACE_DAYS}일 이내 로그인·재가입 시 복구할 수 있습니다.`,
+              code: 'ACCOUNT_WITHDRAWN',
+              purgeAt: user.purgeAt?.toISOString() ?? null,
+              canRestore: true,
+            },
+            { status: 403 },
+          );
+        }
+        return NextResponse.json(
+          {
+            error: '탈퇴 유예 기간이 지난 계정입니다.',
+            code: 'ACCOUNT_WITHDRAWN_EXPIRED',
+            canRestore: false,
+          },
+          { status: 403 },
         );
       }
 
@@ -74,6 +99,8 @@ export async function GET(request: NextRequest) {
           nextPointDate: true,
           createdAt: true,
           updatedAt: true,
+          deletedAt: true,
+          purgeAt: true,
         },
       });
 
@@ -81,6 +108,28 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(
           { error: '사용자를 찾을 수 없습니다.' },
           { status: 404 }
+        );
+      }
+
+      if (freshUser.deletedAt) {
+        if (isWithinWithdrawGrace(freshUser)) {
+          return NextResponse.json(
+            {
+              error: `탈퇴 처리된 계정입니다. ${WITHDRAW_GRACE_DAYS}일 이내 로그인·재가입 시 복구할 수 있습니다.`,
+              code: 'ACCOUNT_WITHDRAWN',
+              purgeAt: freshUser.purgeAt?.toISOString() ?? null,
+              canRestore: true,
+            },
+            { status: 403 },
+          );
+        }
+        return NextResponse.json(
+          {
+            error: '탈퇴 유예 기간이 지난 계정입니다.',
+            code: 'ACCOUNT_WITHDRAWN_EXPIRED',
+            canRestore: false,
+          },
+          { status: 403 },
         );
       }
 

@@ -43,10 +43,10 @@ async function cancelActiveStripeSubscriptions(userId: string): Promise<void> {
 }
 
 /**
- * 사용자 계정 및 연관 DB 데이터 삭제.
- * 관리자 삭제·회원 자진 탈퇴 공통 처리.
+ * 계정·연관 데이터 영구 삭제 + 탈퇴 지문 기록.
+ * 관리자 삭제·유예 만료 후 cron purge 에서 사용.
  */
-export async function deleteUserAccountById(userId: string): Promise<{ email: string }> {
+export async function hardDeleteUserAccountById(userId: string): Promise<{ email: string }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -75,7 +75,7 @@ export async function deleteUserAccountById(userId: string): Promise<{ email: st
 
   if (pendingRefund) {
     throw new DeleteUserAccountError(
-      '환불 신청이 진행 중입니다. 처리 완료 후 탈퇴해 주세요.',
+      '환불 신청이 진행 중입니다. 처리 완료 후 삭제할 수 있습니다.',
       400,
     );
   }
@@ -89,6 +89,7 @@ export async function deleteUserAccountById(userId: string): Promise<{ email: st
   });
 
   await prisma.$transaction([
+    prisma.userFavoriteMall.deleteMany({ where: { userId } }),
     prisma.userFavoriteMallUrlSeen.deleteMany({ where: { userId } }),
     prisma.subscription.deleteMany({ where: { userId } }),
     prisma.pointHistory.deleteMany({ where: { userId } }),
@@ -102,3 +103,6 @@ export async function deleteUserAccountById(userId: string): Promise<{ email: st
 
   return { email: user.email };
 }
+
+/** @deprecated hardDeleteUserAccountById 사용. 관리자 API 호환용 별칭 */
+export const deleteUserAccountById = hardDeleteUserAccountById;

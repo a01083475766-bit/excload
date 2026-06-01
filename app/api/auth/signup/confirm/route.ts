@@ -4,6 +4,7 @@ import { hashResetCode, PASSWORD_RESET_MAX_ATTEMPTS } from '@/app/lib/password-r
 import { getClientIp } from '@/app/lib/client-ip';
 import { finalizeSignupFreeBenefits } from '@/app/lib/user-access-guard';
 import { isSignupBonusBlocked } from '@/app/lib/free-benefit-fingerprint';
+import { isWithinWithdrawGrace } from '@/app/lib/account-withdrawal';
 
 interface SignupConfirmBody {
   email?: string;
@@ -60,9 +61,40 @@ export async function POST(request: NextRequest) {
       const result = await prisma.$transaction(async (tx) => {
         const existingByEmail = await tx.user.findUnique({
           where: { email: verification.email },
-          select: { id: true },
+          select: { id: true, deletedAt: true, purgeAt: true },
         });
         if (existingByEmail) {
+          if (isWithinWithdrawGrace(existingByEmail)) {
+            const existingByPhone = await tx.user.findUnique({
+              where: { phone: verification.phone },
+              select: { id: true },
+            });
+            if (existingByPhone && existingByPhone.id !== existingByEmail.id) {
+              throw new Error('PHONE_ALREADY_EXISTS');
+            }
+
+            const reactivated = await tx.user.update({
+              where: { id: existingByEmail.id },
+              data: {
+                deletedAt: null,
+                purgeAt: null,
+                phone: verification.phone,
+                passwordHash: verification.passwordHash,
+                emailVerified: new Date(),
+                deviceId: verification.deviceId || null,
+                signupProvider: 'CREDENTIALS',
+                lastLoginProvider: 'CREDENTIALS',
+              },
+              select: { id: true, email: true },
+            });
+
+            await tx.signupVerification.update({
+              where: { email },
+              data: { usedAt: now },
+            });
+
+            return { ...reactivated, reactivatedWithinGrace: true as const };
+          }
           throw new Error('EMAIL_ALREADY_EXISTS');
         }
         const existingByPhone = await tx.user.findUnique({
@@ -98,19 +130,24 @@ export async function POST(request: NextRequest) {
           data: { usedAt: now },
         });
 
-        return newUser;
+        return { ...newUser, reactivatedWithinGrace: false as const };
       });
 
-      const benefitResult = await finalizeSignupFreeBenefits({
-        userId: result.id,
-        email: verification.email,
-        phone: verification.phone,
-        deviceId: verification.deviceId,
-        clientIp: getClientIp(request),
-        fingerprintBlocked,
-      });
+      const benefitResult =
+        result.reactivatedWithinGrace
+          ? { granted: false, abuseFlag: false }
+          : await finalizeSignupFreeBenefits({
+              userId: result.id,
+              email: verification.email,
+              phone: verification.phone,
+              deviceId: verification.deviceId,
+              clientIp: getClientIp(request),
+              fingerprintBlocked,
+            });
 
-      let message = '회원가입이 완료되었습니다.';
+      let message = result.reactivatedWithinGrace
+        ? '탈퇴 유예 기간 내 재가입으로 계정이 복구되었습니다. 잔여 사용량과 설정이 유지됩니다.'
+        : '회원가입이 완료되었습니다.';
       if (!benefitResult.granted) {
         if (benefitResult.abuseFlag) {
           message =

@@ -68,6 +68,11 @@ model User {
   paymentRetryCount      Int       @default(0)
   gracePeriodUntil       DateTime?
 
+  /// 회원 탈퇴(유예) 시각. null 이면 활성 계정.
+  deletedAt              DateTime?
+  /// 영구 삭제 예정 시각 (탈퇴 후 7일 등). purgeAt 경과 시 cron 이 hard delete.
+  purgeAt                DateTime?
+
   pointHistory     PointHistory[]
   subscriptions   Subscription[]
   favoriteMalls   UserFavoriteMall[]
