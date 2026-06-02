@@ -306,7 +306,12 @@ export default function OrderConvertPage() {
   const updatePoints = useUserStore((state) => state.updatePoints);
   /** 로그인 시 계정별 localStorage 분리 (/api/user/get 의 id 와 동일) */
   const storageUserId = user?.userId ?? null;
-  const { status: authStatus } = useSession();
+  const { data: session, status: authStatus } = useSession();
+  /** 온보딩·양식 존재 판단용 — DB(/api/user/get) 대기 없이 NextAuth session.user.id 우선 */
+  const templateStorageUserId =
+    authStatus === 'authenticated' && session?.user?.id
+      ? String(session.user.id)
+      : storageUserId;
   const authAssetsReady = useAuthAssetsReady();
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
   const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
@@ -1406,22 +1411,29 @@ export default function OrderConvertPage() {
   };
 
   const readTemplateOnboardingSuppressUntil = useCallback((): number | null => {
-    const raw = readLocalStorageWithLegacyMigrate(TEMPLATE_ONBOARDING_SUPPRESS_KEY, storageUserId);
+    const raw = readLocalStorageWithLegacyMigrate(
+      TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+      templateStorageUserId,
+    );
     if (!raw) return null;
     const parsed = Number(raw);
     if (!Number.isFinite(parsed)) return null;
     return parsed;
-  }, [storageUserId]);
+  }, [templateStorageUserId]);
 
   const writeTemplateOnboardingSuppressUntil = useCallback(
     (expiresAt: number | null) => {
       if (expiresAt === null) {
-        removeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, storageUserId);
+        removeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, templateStorageUserId);
         return;
       }
-      writeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, storageUserId, String(expiresAt));
+      writeLocalStorageForUser(
+        TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+        templateStorageUserId,
+        String(expiresAt),
+      );
     },
-    [storageUserId],
+    [templateStorageUserId],
   );
 
   const handleCloseTemplateOnboardingModal = useCallback(() => {
@@ -1447,13 +1459,18 @@ export default function OrderConvertPage() {
     handleOpenCourierTemplateModal();
   };
 
-  useEffect(() => {
-    if (isFormStatusChecking) return;
-    if (!user || authStatus !== 'authenticated') {
+  // DB·전체 LS 복원 대기 없이, session.user.id 기준 localStorage만 동기 판단
+  useLayoutEffect(() => {
+    if (authStatus !== 'authenticated' || !templateStorageUserId) {
       setIsTemplateOnboardingModalOpen(false);
       return;
     }
-    if (isValidCourierTemplate(courierUploadTemplate)) {
+
+    const hasTemplate =
+      isValidCourierTemplate(courierUploadTemplate) ||
+      isValidCourierTemplate(loadCourierUploadTemplate(templateStorageUserId));
+
+    if (hasTemplate) {
       setIsTemplateOnboardingModalOpen(false);
       setDismissedTemplateGuideThisVisit(false);
       return;
@@ -1471,9 +1488,8 @@ export default function OrderConvertPage() {
 
     setIsTemplateOnboardingModalOpen(true);
   }, [
-    isFormStatusChecking,
-    user,
     authStatus,
+    templateStorageUserId,
     courierUploadTemplate,
     dismissedTemplateGuideThisVisit,
     readTemplateOnboardingSuppressUntil,
