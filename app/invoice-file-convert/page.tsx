@@ -110,6 +110,9 @@ interface RecentExcelFormat {
   bridgeFile?: TemplateBridgeFile;
 }
 
+const TEMPLATE_ONBOARDING_SUPPRESS_KEY =
+  'invoiceFileConvert_template_onboarding_suppress_until_v1';
+
 const isSenderColumn = (headerName: string): boolean => {
   const normalized = headerName.toLowerCase().trim();
   const senderKeywords = ['보내는사람', '송화인', '발송인', '출고자'];
@@ -284,7 +287,11 @@ export default function InvoiceFileConvertPage() {
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
   const storageUserId = user?.userId ?? null;
-  const { status: authStatus } = useSession();
+  const { data: session, status: authStatus } = useSession();
+  const templateStorageUserId =
+    authStatus === 'authenticated' && session?.user?.id
+      ? String(session.user.id)
+      : storageUserId;
   const authAssetsReady = useAuthAssetsReady();
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
   const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
@@ -310,6 +317,9 @@ export default function InvoiceFileConvertPage() {
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
+  const [isTemplateOnboardingModalOpen, setIsTemplateOnboardingModalOpen] = useState(false);
+  const [dontShowTemplateGuideForWeek, setDontShowTemplateGuideForWeek] = useState(false);
+  const [dismissedTemplateGuideThisVisit, setDismissedTemplateGuideThisVisit] = useState(false);
   const [isTemplateChangeReuploadModalOpen, setIsTemplateChangeReuploadModalOpen] = useState(false);
   const templateModalBaselineFormatIdRef = useRef<string | null>(null);
   const hadOrderWorkBeforeTemplateModalRef = useRef(false);
@@ -1289,6 +1299,85 @@ export default function InvoiceFileConvertPage() {
     setIsNoTemplateModalOpen(false);
     handleOpenCourierTemplateModal();
   };
+
+  const readTemplateOnboardingSuppressUntil = useCallback((): number | null => {
+    const raw = readLocalStorageWithLegacyMigrate(
+      TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+      templateStorageUserId,
+    );
+    if (!raw) return null;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return null;
+    return parsed;
+  }, [templateStorageUserId]);
+
+  const writeTemplateOnboardingSuppressUntil = useCallback(
+    (expiresAt: number | null) => {
+      if (expiresAt === null) {
+        removeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, templateStorageUserId);
+        return;
+      }
+      writeLocalStorageForUser(
+        TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+        templateStorageUserId,
+        String(expiresAt),
+      );
+    },
+    [templateStorageUserId],
+  );
+
+  const handleCloseTemplateOnboardingModal = useCallback(() => {
+    if (dontShowTemplateGuideForWeek) {
+      const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+      writeTemplateOnboardingSuppressUntil(Date.now() + oneWeekMs);
+    } else {
+      writeTemplateOnboardingSuppressUntil(null);
+      setDismissedTemplateGuideThisVisit(true);
+    }
+    setIsTemplateOnboardingModalOpen(false);
+    setDontShowTemplateGuideForWeek(false);
+  }, [dontShowTemplateGuideForWeek, writeTemplateOnboardingSuppressUntil]);
+
+  const handleGoTemplateRegistrationFromOnboarding = useCallback(() => {
+    setIsTemplateOnboardingModalOpen(false);
+    setDontShowTemplateGuideForWeek(false);
+    handleOpenCourierTemplateModal();
+  }, []);
+
+  useLayoutEffect(() => {
+    if (authStatus !== 'authenticated' || !templateStorageUserId) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
+    const hasTemplate =
+      isValidCourierTemplate(courierUploadTemplate) ||
+      isValidCourierTemplate(loadCourierUploadTemplate(templateStorageUserId));
+
+    if (hasTemplate) {
+      setIsTemplateOnboardingModalOpen(false);
+      setDismissedTemplateGuideThisVisit(false);
+      return;
+    }
+    if (dismissedTemplateGuideThisVisit) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
+    const suppressUntil = readTemplateOnboardingSuppressUntil();
+    if (suppressUntil && suppressUntil > Date.now()) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
+    setIsTemplateOnboardingModalOpen(true);
+  }, [
+    authStatus,
+    templateStorageUserId,
+    courierUploadTemplate,
+    dismissedTemplateGuideThisVisit,
+    readTemplateOnboardingSuppressUntil,
+  ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -2944,6 +3033,66 @@ export default function InvoiceFileConvertPage() {
                 className="flex-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-100 h-11 rounded-lg font-medium transition-colors"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 사용자 온보딩: 템플릿 미등록 안내 */}
+      {isTemplateOnboardingModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={handleCloseTemplateOnboardingModal}
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[620px] flex flex-col p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+                먼저 양식 등록이 필요합니다
+              </h2>
+              <button
+                onClick={handleCloseTemplateOnboardingModal}
+                className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                aria-label="안내 닫기"
+              >
+                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+              </button>
+            </div>
+
+            <div className="mb-5">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                이 기기에는 등록된 택배 업로드 양식이 없습니다.
+                <br />
+                송장 변환을 시작하려면{' '}
+                <span className="font-semibold">택배 업로드 양식 등록</span>을 먼저 진행해 주세요.
+              </p>
+            </div>
+
+            <label className="mb-5 flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 select-none">
+              <input
+                type="checkbox"
+                checked={dontShowTemplateGuideForWeek}
+                onChange={(e) => setDontShowTemplateGuideForWeek(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              7일 동안 보지 않기
+            </label>
+
+            <div className="flex gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+              <button
+                onClick={handleCloseTemplateOnboardingModal}
+                className="flex-1 px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                확인
+              </button>
+              <button
+                onClick={handleGoTemplateRegistrationFromOnboarding}
+                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
+              >
+                지금 등록하기
               </button>
             </div>
           </div>
