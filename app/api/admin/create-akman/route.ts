@@ -112,8 +112,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'akman 계정 생성 실패',
-        details: error instanceof Error ? error.stack : undefined,
+        error: 'akman 계정 생성 실패',
       },
       { status: 500 }
     );

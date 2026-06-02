@@ -111,6 +111,7 @@ import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-pr
 /** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
 const PREVIEW_TOOLBAR_BTN =
   'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
+const TEMPLATE_ONBOARDING_SUPPRESS_KEY = 'orderConvert_template_onboarding_suppress_until_v1';
 
 interface CourierUploadHeader {
   name: string;
@@ -334,6 +335,9 @@ export default function OrderConvertPage() {
   const pendingOrderUploadsRef = useRef<PendingOrderUpload[]>([]);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
   const [noTemplateModalType, setNoTemplateModalType] = useState<'fixed-input' | 'convert'>('fixed-input');
+  const [isTemplateOnboardingModalOpen, setIsTemplateOnboardingModalOpen] = useState(false);
+  const [dontShowTemplateGuideForWeek, setDontShowTemplateGuideForWeek] = useState(false);
+  const [dismissedTemplateGuideThisVisit, setDismissedTemplateGuideThisVisit] = useState(false);
   const [isTemplateChangeReuploadModalOpen, setIsTemplateChangeReuploadModalOpen] = useState(false);
   const templateModalBaselineFormatIdRef = useRef<string | null>(null);
   const hadOrderWorkBeforeTemplateModalRef = useRef(false);
@@ -1401,10 +1405,79 @@ export default function OrderConvertPage() {
     setIsNoTemplateModalOpen(false);
   };
 
+  const readTemplateOnboardingSuppressUntil = useCallback((): number | null => {
+    const raw = readLocalStorageWithLegacyMigrate(TEMPLATE_ONBOARDING_SUPPRESS_KEY, storageUserId);
+    if (!raw) return null;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return null;
+    return parsed;
+  }, [storageUserId]);
+
+  const writeTemplateOnboardingSuppressUntil = useCallback(
+    (expiresAt: number | null) => {
+      if (expiresAt === null) {
+        removeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, storageUserId);
+        return;
+      }
+      writeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, storageUserId, String(expiresAt));
+    },
+    [storageUserId],
+  );
+
+  const handleCloseTemplateOnboardingModal = useCallback(() => {
+    if (dontShowTemplateGuideForWeek) {
+      const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+      writeTemplateOnboardingSuppressUntil(Date.now() + oneWeekMs);
+    } else {
+      writeTemplateOnboardingSuppressUntil(null);
+      setDismissedTemplateGuideThisVisit(true);
+    }
+    setIsTemplateOnboardingModalOpen(false);
+    setDontShowTemplateGuideForWeek(false);
+  }, [dontShowTemplateGuideForWeek, writeTemplateOnboardingSuppressUntil]);
+
+  const handleGoTemplateRegistrationFromOnboarding = useCallback(() => {
+    setIsTemplateOnboardingModalOpen(false);
+    setDontShowTemplateGuideForWeek(false);
+    handleOpenCourierTemplateModal();
+  }, []);
+
   const handleOpenCourierTemplateFromNoTemplateModal = () => {
     setIsNoTemplateModalOpen(false);
     handleOpenCourierTemplateModal();
   };
+
+  useEffect(() => {
+    if (isFormStatusChecking) return;
+    if (!user || authStatus !== 'authenticated') {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+    if (isValidCourierTemplate(courierUploadTemplate)) {
+      setIsTemplateOnboardingModalOpen(false);
+      setDismissedTemplateGuideThisVisit(false);
+      return;
+    }
+    if (dismissedTemplateGuideThisVisit) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
+    const suppressUntil = readTemplateOnboardingSuppressUntil();
+    if (suppressUntil && suppressUntil > Date.now()) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
+    setIsTemplateOnboardingModalOpen(true);
+  }, [
+    isFormStatusChecking,
+    user,
+    authStatus,
+    courierUploadTemplate,
+    dismissedTemplateGuideThisVisit,
+    readTemplateOnboardingSuppressUntil,
+  ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -3447,6 +3520,65 @@ export default function OrderConvertPage() {
                 className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
               >
                 택배 업로드 양식 등록하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 사용자 온보딩: 템플릿 미등록 안내 */}
+      {isTemplateOnboardingModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={handleCloseTemplateOnboardingModal}
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[620px] flex flex-col p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+                먼저 양식 등록이 필요합니다
+              </h2>
+              <button
+                onClick={handleCloseTemplateOnboardingModal}
+                className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                aria-label="안내 닫기"
+              >
+                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+              </button>
+            </div>
+
+            <div className="mb-5">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                이 기기에는 등록된 택배 업로드 양식이 없습니다.
+                <br />
+                주문 변환을 시작하려면 <span className="font-semibold">택배 업로드 양식 등록</span>을 먼저 진행해 주세요.
+              </p>
+            </div>
+
+            <label className="mb-5 flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 select-none">
+              <input
+                type="checkbox"
+                checked={dontShowTemplateGuideForWeek}
+                onChange={(e) => setDontShowTemplateGuideForWeek(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              7일 동안 보지 않기
+            </label>
+
+            <div className="flex gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+              <button
+                onClick={handleCloseTemplateOnboardingModal}
+                className="flex-1 px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                확인
+              </button>
+              <button
+                onClick={handleGoTemplateRegistrationFromOnboarding}
+                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
+              >
+                지금 등록하기
               </button>
             </div>
           </div>

@@ -3,8 +3,10 @@ import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-preview';
 
 const template: TemplateBridgeFile = {
+  baseHeaders: ['받는사람', '보내는사람', '배송메시지'],
   courierHeaders: ['받는분성명', '보내는분성명', '배송메시지1'],
   mappedBaseHeaders: ['받는사람', '보내는사람', '배송메시지'],
+  unknownHeaders: [],
 };
 
 describe('reapplyFixedInputToPreviewRows', () => {
@@ -62,8 +64,10 @@ describe('reapplyFixedInputToPreviewRows', () => {
         [rowId]: { 보내는사람: '' },
       },
       template: {
+        baseHeaders: ['보내는사람'],
         courierHeaders: ['보내는분성명'],
         mappedBaseHeaders: ['보내는사람'],
+        unknownHeaders: [],
       },
       fixedInput: { 보내는분성명: '김철수' },
       previousFixedInput: { 보내는분성명: '홍길동' },
@@ -88,8 +92,10 @@ describe('reapplyFixedInputToPreviewRows', () => {
       previewRows,
       orderSnapshotsByRowId: {},
       template: {
+        baseHeaders: ['받는사람', '보내는사람'],
         courierHeaders: ['받는분성명', '보내는분성명'],
         mappedBaseHeaders: ['받는사람', '보내는사람'],
+        unknownHeaders: [],
       },
       fixedInput: { 보내는분성명: '김철수' },
       previousFixedInput: { 보내는분성명: '홍길동' },

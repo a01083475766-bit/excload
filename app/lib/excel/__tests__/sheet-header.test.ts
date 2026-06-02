@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest';
 import * as XLSX from 'xlsx';
-import fs from 'fs';
 import {
   clipWorksheetToPopulatedRange,
   computePopulatedSheetRange,
@@ -30,12 +29,14 @@ describe('sheet-header populated range', () => {
   });
 
   test('inflated !ref: matrix read returns only populated rows', () => {
-    const fixture =
-      'c:/Users/my pc/OneDrive/Desktop/주문파일 - 복사본100 - 복사본.xlsx';
-    if (!fs.existsSync(fixture)) return;
-
-    const buf = fs.readFileSync(fixture);
-    const arrayBuf = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['이름', '전화'],
+      ['홍길동', '01012345678'],
+    ]);
+    ws['!ref'] = 'A1:C1048476';
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const arrayBuf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
 
     const matrix = readFirstSheetMatrixFromArrayBuffer(arrayBuf);
     expect(matrix.length).toBeLessThan(20);

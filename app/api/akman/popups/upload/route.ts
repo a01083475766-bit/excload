@@ -6,6 +6,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 export const runtime = 'nodejs';
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
+const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const MIME_TO_EXTENSION: Record<string, '.jpg' | '.png' | '.webp'> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +29,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '이미지 파일이 필요합니다.' }, { status: 400 });
     }
 
+    const mimeType = file.type?.toLowerCase() ?? '';
+    if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+      return NextResponse.json(
+        { error: 'JPEG, PNG, WEBP 이미지 파일만 업로드할 수 있습니다.' },
+        { status: 400 }
+      );
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: '이미지 크기는 5MB 이하여야 합니다.' },
+        { status: 400 }
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -31,7 +53,16 @@ export async function POST(req: NextRequest) {
       (file as any).name && typeof (file as any).name === 'string'
         ? (file as any).name as string
         : 'popup.png';
-    const ext = path.extname(originalName) || '.png';
+    const extractedExt = path.extname(originalName).toLowerCase();
+    if (extractedExt && !ALLOWED_EXTENSIONS.has(extractedExt)) {
+      return NextResponse.json(
+        { error: '허용되지 않는 파일 확장자입니다.' },
+        { status: 400 }
+      );
+    }
+    const ext = (extractedExt && ALLOWED_EXTENSIONS.has(extractedExt)
+      ? extractedExt
+      : MIME_TO_EXTENSION[mimeType]) ?? '.png';
     const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
 
     const filePath = path.join(uploadsDir, safeName);
