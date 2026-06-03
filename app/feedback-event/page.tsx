@@ -16,10 +16,9 @@ type BoardPost = {
   isMine?: boolean;
   featureLabel: string;
   resultLabel: string;
-  excerpt: string;
-  publicConsent?: boolean;
-  trialGranted?: boolean;
-  hasSystemReply?: boolean;
+  publicConsent: boolean;
+  excerpt: string | null;
+  canOpen: boolean;
   createdAt: string;
 };
 
@@ -28,7 +27,7 @@ function FeedbackBoardInner() {
   const from = searchParams?.get('from');
   const { status } = useSession();
   const { data, loading: statusLoading, isEventActive } = useFeedbackEventStatus(true);
-  const [publicPosts, setPublicPosts] = useState<BoardPost[]>([]);
+  const [boardPosts, setBoardPosts] = useState<BoardPost[]>([]);
   const [boardLoading, setBoardLoading] = useState(true);
 
   const loadBoard = useCallback(async () => {
@@ -43,7 +42,7 @@ function FeedbackBoardInner() {
       window.clearTimeout(timeout);
       const json = await res.json();
       if (res.ok && json.success) {
-        setPublicPosts(json.publicPosts ?? []);
+        setBoardPosts(json.boardPosts ?? json.publicPosts ?? []);
       }
     } finally {
       setBoardLoading(false);
@@ -110,16 +109,16 @@ function FeedbackBoardInner() {
         <FeedbackEventIntro data={data} from={from} />
 
         <section>
-          <h2 className="text-lg font-semibold text-zinc-900 mb-3">공개 피드백</h2>
+          <h2 className="text-lg font-semibold text-zinc-900 mb-3">남겨주신 의견들</h2>
           <p className="text-xs text-zinc-500 mb-3">
-            작성 시 「공개 게시판에 함께 보여 주세요」에 동의한 글만 표시됩니다.
+            공개 글은 내용이 보이고, 비공개 글은 내용 없이 함께 표시됩니다.
           </p>
 
           {boardLoading ? (
             <p className="text-sm text-zinc-500 py-8 text-center">목록 불러오는 중…</p>
-          ) : publicPosts.length === 0 ? (
+          ) : boardPosts.length === 0 ? (
             <div className="bg-white rounded-xl border border-zinc-200 px-6 py-12 text-center text-sm text-zinc-500">
-              아직 공개된 피드백이 없습니다.
+              아직 남겨진 의견이 없습니다.
               <br />
               첫 번째 후기를 남겨 주세요.
             </div>
@@ -137,7 +136,7 @@ function FeedbackBoardInner() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {publicPosts.map((p) => (
+                  {boardPosts.map((p) => (
                     <tr key={p.id} className="hover:bg-zinc-50">
                       <td className="px-4 py-3 text-zinc-500 whitespace-nowrap align-top">
                         {formatDate(p.createdAt)}
@@ -149,14 +148,24 @@ function FeedbackBoardInner() {
                         {p.featureLabel}
                       </td>
                       <td className="px-4 py-3 align-top">
-                        <Link
-                          href={`/feedback-event/${p.id}`}
-                          className="text-zinc-800 hover:text-blue-600 line-clamp-2"
-                        >
-                          {p.excerpt}
-                        </Link>
+                        {p.publicConsent && p.excerpt ?
+                          <Link
+                            href={`/feedback-event/${p.id}`}
+                            className="text-zinc-800 hover:text-blue-600 line-clamp-2"
+                          >
+                            {p.excerpt}
+                          </Link>
+                        : p.canOpen ?
+                          <Link
+                            href={`/feedback-event/${p.id}`}
+                            className="text-zinc-400 hover:text-blue-600"
+                          >
+                            비공개
+                          </Link>
+                        : <span className="text-zinc-400">비공개</span>}
                         <span className="block sm:hidden text-xs text-zinc-400 mt-0.5">
                           {p.resultLabel}
+                          {!p.publicConsent && ' · 비공개'}
                         </span>
                       </td>
                     </tr>

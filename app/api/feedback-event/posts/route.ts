@@ -9,24 +9,35 @@ import {
   maskFeedbackAuthor,
 } from '@/app/lib/feedback-event/labels';
 
-function mapPublicPost(
+function mapBoardPost(
   p: {
     id: string;
     userId: string;
     featureUsed: string;
     conversionResult: string;
     content: string;
+    publicConsent: boolean;
     createdAt: Date;
   },
   myUserId: string | null,
 ) {
+  const isMine = myUserId === p.userId;
+  const excerpt =
+    p.publicConsent ?
+      p.content.length > 120 ?
+        `${p.content.slice(0, 120)}…`
+      : p.content
+    : null;
+
   return {
     id: p.id,
     authorLabel: maskFeedbackAuthor(p.userId),
-    isMine: myUserId === p.userId,
+    isMine,
     featureLabel: getFeedbackFeatureLabel(p.featureUsed),
     resultLabel: getFeedbackResultLabel(p.conversionResult),
-    excerpt: p.content.length > 120 ? `${p.content.slice(0, 120)}…` : p.content,
+    publicConsent: p.publicConsent,
+    excerpt,
+    canOpen: p.publicConsent || isMine,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -105,8 +116,7 @@ export async function GET(request: NextRequest) {
       myUserId = u?.id ?? null;
     }
 
-    const publicPosts = await prisma.feedbackSubmission.findMany({
-      where: { publicConsent: true },
+    const boardPosts = await prisma.feedbackSubmission.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
       select: {
@@ -115,6 +125,7 @@ export async function GET(request: NextRequest) {
         featureUsed: true,
         conversionResult: true,
         content: true,
+        publicConsent: true,
         createdAt: true,
       },
     });
@@ -128,7 +139,7 @@ export async function GET(request: NextRequest) {
         month: 'long',
         day: 'numeric',
       }),
-      publicPosts: publicPosts.map((p) => mapPublicPost(p, myUserId)),
+      boardPosts: boardPosts.map((p) => mapBoardPost(p, myUserId)),
     });
   } catch (error) {
     console.error('[FeedbackEventPosts]', error);
