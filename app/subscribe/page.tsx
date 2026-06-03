@@ -9,6 +9,7 @@ import { runAfterTossChargeResponse } from '@/app/lib/toss/after-charge-client';
 import { dbPlanToIntervalKey, getPlanDisplayName } from '@/app/lib/subscription/plan-change';
 import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import { hasProEntitlementClient } from '@/app/lib/feedback-event/client';
+import { FeedbackTrialActiveBanner } from '@/app/components/feedback-event/FeedbackTrialActiveBanner';
 
 import Link from 'next/link';
 import { Shield, Lock } from 'lucide-react';
@@ -375,12 +376,11 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
           hasProEntitlementClient(user.plan, user.feedbackTrialEndsAt) &&
           !hasPaidPlan &&
           user.feedbackTrialEndsAt && (
-            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100">
-              오픈 피드백 이벤트 PRO 체험 중입니다. (
-              {new Date(user.feedbackTrialEndsAt).toLocaleDateString('ko-KR', {
-                timeZone: 'Asia/Seoul',
-              })}
-              까지) 종료 후 자동 결제 없이 FREE로 전환됩니다.
+            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-950/40">
+              <FeedbackTrialActiveBanner
+                endsAt={user.feedbackTrialEndsAt}
+                className="text-sm text-emerald-900 dark:text-emerald-100"
+              />
             </div>
           )}
 

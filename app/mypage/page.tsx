@@ -19,6 +19,7 @@ import {
 import { useUserStore } from '@/app/store/userStore';
 import { formatPhoneDisplay, formatPhoneForInput } from '@/app/utils/format-phone';
 import { FAVORITE_MALLS_KEY, removeLocalStorageForUser } from '@/app/lib/scoped-local-storage';
+import { FeedbackTrialActiveBanner } from '@/app/components/feedback-event/FeedbackTrialActiveBanner';
 
 interface SubscriptionState {
   status: string | null;
@@ -709,22 +710,10 @@ export default function MyPage() {
           new Date(user.feedbackTrialEndsAt).getTime() > Date.now() &&
           user.plan === 'FREE' && (
             <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
-              <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                오픈 피드백 이벤트 PRO 체험 중
-              </p>
-              <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-200">
-                {new Date(user.feedbackTrialEndsAt).toLocaleDateString('ko-KR', {
-                  timeZone: 'Asia/Seoul',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-                까지 PRO 사용량(400,000)이 적용됩니다. 체험 종료 후 자동 결제 없이 무료 플랜으로
-                돌아갑니다.{' '}
-                <Link href="/subscribe?plan=monthly" className="underline font-medium">
-                  구독하기
-                </Link>
-              </p>
+              <FeedbackTrialActiveBanner
+                endsAt={user.feedbackTrialEndsAt}
+                className="text-sm text-emerald-900 dark:text-emerald-100"
+              />
             </div>
           )}
 

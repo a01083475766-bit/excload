@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { FeedbackEventStatusPayload } from '@/app/components/feedback-event/useFeedbackEventStatus';
+import { FeedbackTrialActiveBanner } from '@/app/components/feedback-event/FeedbackTrialActiveBanner';
 
 type Props = {
   data: FeedbackEventStatusPayload | null;
@@ -46,12 +47,7 @@ export function FeedbackEventIntro({ data, from }: Props) {
 
       {trialActive && trialEnds && (
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          현재 피드백 이벤트 PRO 체험 중입니다. (
-          {new Date(trialEnds).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}까지) 체험
-          종료 후 자동 결제 없이 FREE 플랜으로 전환됩니다.{' '}
-          <Link href="/subscribe?plan=monthly" className="underline font-medium">
-            구독하기
-          </Link>
+          <FeedbackTrialActiveBanner endsAt={trialEnds} />
         </div>
       )}
 
