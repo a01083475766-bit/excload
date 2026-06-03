@@ -10,6 +10,9 @@ import {
   maskFeedbackAuthor,
 } from '@/app/lib/feedback-event/labels';
 
+/** 공개 게시판 초기 노출 건수 (더보기·페이지네이션은 추후) */
+const PUBLIC_BOARD_TAKE = 20;
+
 function feedbackExcerpt(content: string, max = 120): string {
   return content.length > max ? `${content.slice(0, max)}…` : content;
 }
@@ -121,7 +124,7 @@ export async function GET(request: NextRequest) {
 
     const boardPosts = await prisma.feedbackSubmission.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: PUBLIC_BOARD_TAKE,
       select: {
         id: true,
         userId: true,

@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -89,14 +88,6 @@ export default function MainNav() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const user = useUserStore((state) => state.user);
-  const fetchUser = useUserStore((state) => state.fetchUser);
-
-  /** Google OAuth 등으로 세션만 있고 Zustand가 비어 있는 경우 스토어를 채움 */
-  useEffect(() => {
-    if (status === 'authenticated') {
-      void fetchUser();
-    }
-  }, [status, fetchUser]);
 
   const emailForRole = user?.email ?? session?.user?.email ?? null;
   const isLoggedIn = status === 'authenticated' || !!user;

@@ -15,7 +15,6 @@ import { clearAllWorkspaceFilesInTab } from '@/app/lib/workspace-order-files-idb
 export default function StoreInitializer() {
   const { status, data: session } = useSession();
   const setHistoryUserId = useHistoryStore((state) => state.setHistoryUserId);
-  const loadSessions = useHistoryStore((state) => state.loadSessions);
   const clearSessionsInMemory = useHistoryStore((state) => state.clearSessionsInMemory);
   const syncUploadedFilesMetadataScope = useUploadedFilesStore((state) => state.syncUploadedFilesMetadataScope);
   const fetchUser = useUserStore((state) => state.fetchUser);
@@ -38,7 +37,6 @@ export default function StoreInitializer() {
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id) {
       setHistoryUserId(session.user.id);
-      loadSessions();
     }
     if (status === 'unauthenticated') {
       setHistoryUserId(null);
@@ -53,7 +51,6 @@ export default function StoreInitializer() {
     status,
     session?.user?.id,
     setHistoryUserId,
-    loadSessions,
     clearSessionsInMemory,
   ]);
 

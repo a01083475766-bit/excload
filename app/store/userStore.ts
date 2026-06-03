@@ -38,6 +38,9 @@ interface UserStoreState {
   grantMonthlyPoints: () => Promise<void>;
 }
 
+/** 동시에 fetchUser가 여러 곳에서 호출될 때 /api/user/get 중복 방지 */
+let fetchUserInFlight: Promise<void> | null = null;
+
 export const useUserStore = create<UserStoreState>()(
   persist(
     (set, get) => ({
@@ -68,49 +71,60 @@ export const useUserStore = create<UserStoreState>()(
       },
 
       fetchUser: async () => {
-        const hadUser = Boolean(get().user);
-        if (!hadUser) {
-          set({ isLoading: true });
+        if (fetchUserInFlight) {
+          return fetchUserInFlight;
         }
-        try {
-          const response = await fetch('/api/user/get', {
-            credentials: 'include',
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.user) {
-              set({
-                user: {
-                  userId: data.user.id,
-                  email: data.user.email,
-                  name: data.user.name,
-                  phone: data.user.phone,
-                  plan: data.user.plan,
-                  points: data.user.points,
-                  lastLoginProvider: data.user.lastLoginProvider,
-                  monthlyPoints: data.user.monthlyPoints,
-                  lastMonthlyGrant: data.user.lastMonthlyGrant,
-                  nextPointDate: data.user.nextPointDate,
-                  createdAt: data.user.createdAt ?? null,
-                  feedbackTrialEndsAt: data.user.feedbackTrialEndsAt ?? null,
-                  feedbackTrialUsed: data.user.feedbackTrialUsed ?? false,
-                },
-              });
 
-              // 사용자 정보 조회 후 자동으로 월간 사용량 제공 확인
-              await get().grantMonthlyPoints();
+        const run = async () => {
+          const hadUser = Boolean(get().user);
+          if (!hadUser) {
+            set({ isLoading: true });
+          }
+          try {
+            const response = await fetch('/api/user/get', {
+              credentials: 'include',
+            });
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.user) {
+                set({
+                  user: {
+                    userId: data.user.id,
+                    email: data.user.email,
+                    name: data.user.name,
+                    phone: data.user.phone,
+                    plan: data.user.plan,
+                    points: data.user.points,
+                    lastLoginProvider: data.user.lastLoginProvider,
+                    monthlyPoints: data.user.monthlyPoints,
+                    lastMonthlyGrant: data.user.lastMonthlyGrant,
+                    nextPointDate: data.user.nextPointDate,
+                    createdAt: data.user.createdAt ?? null,
+                    feedbackTrialEndsAt: data.user.feedbackTrialEndsAt ?? null,
+                    feedbackTrialUsed: data.user.feedbackTrialUsed ?? false,
+                  },
+                });
+
+                // 사용자 정보 조회 후 자동으로 월간 사용량 제공 확인
+                await get().grantMonthlyPoints();
+              } else {
+                set({ user: null });
+              }
             } else {
               set({ user: null });
             }
-          } else {
+          } catch (error) {
+            console.error('[User Store] 사용자 정보 조회 실패:', error);
             set({ user: null });
+          } finally {
+            set({ isLoading: false });
           }
-        } catch (error) {
-          console.error('[User Store] 사용자 정보 조회 실패:', error);
-          set({ user: null });
-        } finally {
-          set({ isLoading: false });
-        }
+        };
+
+        fetchUserInFlight = run().finally(() => {
+          fetchUserInFlight = null;
+        });
+        return fetchUserInFlight;
       },
 
       grantMonthlyPoints: async () => {
