@@ -1,4 +1,5 @@
 import { prisma } from '@/app/lib/prisma';
+import { invalidatePublicPostDetailCache } from '@/app/lib/feedback-event/public-post-detail-cache';
 
 const PUBLIC_BOARD_TAKE = 20;
 const CACHE_MS = 60_000;
@@ -23,6 +24,7 @@ let anonymousPayloadCache: {
 export function invalidatePublicBoardCache(): void {
   rowsCache = null;
   anonymousPayloadCache = null;
+  invalidatePublicPostDetailCache();
 }
 
 export async function getPublicBoardRows(): Promise<PublicBoardRow[]> {

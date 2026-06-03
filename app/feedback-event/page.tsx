@@ -177,6 +177,7 @@ function FeedbackBoardInner() {
                         {p.canOpen && p.excerpt ?
                           <Link
                             href={`/feedback-event/${p.id}`}
+                            prefetch
                             className="text-zinc-800 hover:text-blue-600 line-clamp-2"
                           >
                             {!p.publicConsent && (
@@ -187,6 +188,7 @@ function FeedbackBoardInner() {
                         : p.canOpen ?
                           <Link
                             href={`/feedback-event/${p.id}`}
+                            prefetch
                             className="text-zinc-400 hover:text-blue-600"
                           >
                             비공개

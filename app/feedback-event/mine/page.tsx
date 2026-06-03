@@ -112,6 +112,7 @@ export default function FeedbackMinePage() {
               <Link
                 key={p.id}
                 href={`/feedback-event/${p.id}`}
+                prefetch
                 className="block px-4 py-3 hover:bg-zinc-50 transition-colors"
               >
                 <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 mb-1">

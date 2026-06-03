@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import { prisma } from '@/app/lib/prisma';
 import { invalidateAnonymousStatusCache } from '@/app/lib/feedback-event/anonymous-status-cache';
 import { invalidatePublicBoardCache } from '@/app/lib/feedback-event/public-board-cache';
+import { invalidatePublicPostDetailCache } from '@/app/lib/feedback-event/public-post-detail-cache';
 
 /** 피드백 글·첨부 파일 삭제. 없으면 false */
 export async function deleteFeedbackSubmissionById(id: string): Promise<boolean> {
@@ -23,6 +24,7 @@ export async function deleteFeedbackSubmissionById(id: string): Promise<boolean>
 
   await prisma.feedbackSubmission.delete({ where: { id } });
   invalidatePublicBoardCache();
+  invalidatePublicPostDetailCache(id);
   invalidateAnonymousStatusCache();
   return true;
 }
