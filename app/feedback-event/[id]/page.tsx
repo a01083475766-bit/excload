@@ -28,11 +28,21 @@ export default function FeedbackPostDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setError('잘못된 주소입니다.');
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/feedback-event/posts/${id}`, { credentials: 'include' });
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 12_000);
+        const res = await fetch(`/api/feedback-event/posts/${id}`, {
+          credentials: 'include',
+          signal: controller.signal,
+        });
+        window.clearTimeout(timeout);
         const json = await res.json();
         if (cancelled) return;
         if (!res.ok) {
@@ -41,7 +51,7 @@ export default function FeedbackPostDetailPage() {
         }
         setPost(json.post);
       } catch {
-        if (!cancelled) setError('글을 불러오지 못했습니다.');
+        if (!cancelled) setError('글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
       } finally {
         if (!cancelled) setLoading(false);
       }

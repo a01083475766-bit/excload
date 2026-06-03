@@ -8,7 +8,18 @@ export type FeedbackEventConfig = {
   isActive: boolean;
 };
 
+let configCache: { data: FeedbackEventConfig; at: number } | null = null;
+const CONFIG_CACHE_MS = 30_000;
+
 export async function getFeedbackEventConfig(): Promise<FeedbackEventConfig> {
+  if (configCache && Date.now() - configCache.at < CONFIG_CACHE_MS) {
+    const now = Date.now();
+    return {
+      ...configCache.data,
+      isActive: configCache.data.isEnabled && configCache.data.endsAt.getTime() > now,
+    };
+  }
+
   let row = await prisma.feedbackEventSettings.findUnique({
     where: { id: 'default' },
   });
@@ -26,11 +37,13 @@ export async function getFeedbackEventConfig(): Promise<FeedbackEventConfig> {
   const now = Date.now();
   const isActive = row.isEnabled && row.endsAt.getTime() > now;
 
-  return {
+  const result: FeedbackEventConfig = {
     isEnabled: row.isEnabled,
     endsAt: row.endsAt,
     isActive,
   };
+  configCache = { data: result, at: Date.now() };
+  return result;
 }
 
 export function formatFeedbackEventEndLabel(endsAt: Date): string {

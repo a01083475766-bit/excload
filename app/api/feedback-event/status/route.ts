@@ -5,7 +5,6 @@ import { prisma } from '@/app/lib/prisma';
 import { formatFeedbackEventEndLabel, getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
 import {
   expireFeedbackTrialIfNeeded,
-  hasProEntitlement,
   isFeedbackTrialActive,
 } from '@/app/lib/feedback-event/entitlement';
 import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
@@ -50,34 +49,26 @@ export async function GET() {
       });
 
       if (user) {
-        await expireFeedbackTrialIfNeeded(user.id);
-        const fresh = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: {
-            plan: true,
-            feedbackTrialUsed: true,
-            feedbackTrialEndsAt: true,
-            feedbackPopupSeenAt: true,
-          },
-        });
-
-        if (fresh) {
-          const isPaid = isPaidDbPlan(fresh.plan);
-          const trialActive = isFeedbackTrialActive(fresh.feedbackTrialEndsAt);
-          const entitled = hasProEntitlement(fresh);
-          userState = {
-            loggedIn: true,
-            plan: fresh.plan,
-            feedbackTrialUsed: fresh.feedbackTrialUsed,
-            feedbackTrialActive: trialActive,
-            feedbackTrialEndsAt: fresh.feedbackTrialEndsAt?.toISOString() ?? null,
-            feedbackPopupSeen: !!fresh.feedbackPopupSeenAt,
-            hasProEntitlement: entitled,
-            isPaid,
-            canSubmitForTrial:
-              config.isActive && !isPaid && !fresh.feedbackTrialUsed,
-          };
+        let trialEndsAt = user.feedbackTrialEndsAt;
+        if (trialEndsAt && !isFeedbackTrialActive(trialEndsAt)) {
+          await expireFeedbackTrialIfNeeded(user.id);
+          trialEndsAt = null;
         }
+
+        const isPaid = isPaidDbPlan(user.plan);
+        const trialActive = isFeedbackTrialActive(trialEndsAt);
+        const entitled = isPaid || trialActive;
+        userState = {
+          loggedIn: true,
+          plan: user.plan,
+          feedbackTrialUsed: user.feedbackTrialUsed,
+          feedbackTrialActive: trialActive,
+          feedbackTrialEndsAt: trialEndsAt?.toISOString() ?? null,
+          feedbackPopupSeen: !!user.feedbackPopupSeenAt,
+          hasProEntitlement: entitled,
+          isPaid,
+          canSubmitForTrial: config.isActive && !isPaid && !user.feedbackTrialUsed,
+        };
       }
     }
 

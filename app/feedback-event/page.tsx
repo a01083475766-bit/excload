@@ -4,7 +4,6 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useUserStore } from '@/app/store/userStore';
 import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import { FeedbackEventIntro } from '@/app/components/feedback-event/FeedbackEventIntro';
 import { PenLine, MessageSquare } from 'lucide-react';
@@ -26,20 +25,21 @@ function FeedbackBoardInner() {
   const searchParams = useSearchParams();
   const from = searchParams?.get('from');
   const { status } = useSession();
-  const fetchUser = useUserStore((s) => s.fetchUser);
-  const { data, loading, isEventActive } = useFeedbackEventStatus(true);
+  const { data, loading: statusLoading, isEventActive } = useFeedbackEventStatus(true);
   const [publicPosts, setPublicPosts] = useState<BoardPost[]>([]);
   const [myPosts, setMyPosts] = useState<BoardPost[]>([]);
   const [boardLoading, setBoardLoading] = useState(true);
 
-  useEffect(() => {
-    if (status === 'authenticated') void fetchUser();
-  }, [status, fetchUser]);
-
   const loadBoard = useCallback(async () => {
     setBoardLoading(true);
     try {
-      const res = await fetch('/api/feedback-event/posts', { credentials: 'include' });
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 12_000);
+      const res = await fetch('/api/feedback-event/posts', {
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      window.clearTimeout(timeout);
       const json = await res.json();
       if (res.ok && json.success) {
         setPublicPosts(json.publicPosts ?? []);
@@ -62,15 +62,7 @@ function FeedbackBoardInner() {
       day: '2-digit',
     });
 
-  if (loading) {
-    return (
-      <div className="min-h-[40vh] flex items-center justify-center text-zinc-500">
-        불러오는 중…
-      </div>
-    );
-  }
-
-  if (!isEventActive) {
+  if (!statusLoading && !isEventActive) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold text-zinc-900 mb-4">오픈 피드백 이벤트</h1>
