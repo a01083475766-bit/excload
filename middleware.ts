@@ -62,6 +62,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /feedback-event 오픈 피드백 이벤트
+  if (pathname.startsWith('/feedback-event')) {
+    return NextResponse.next();
+  }
+
   // /contact 경로는 허용
   if (pathname.startsWith('/contact')) {
     return NextResponse.next();
@@ -148,6 +153,11 @@ export async function middleware(request: NextRequest) {
     if (!isAdminEmail(email)) {
       return NextResponse.redirect(new URL('/excload', request.url));
     }
+    return NextResponse.next();
+  }
+
+  // public/uploads (피드백 첨부 등)
+  if (pathname.startsWith('/uploads')) {
     return NextResponse.next();
   }
 
