@@ -19,7 +19,6 @@ import {
   Gift,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
-import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 
 /**
  * 클라이언트에서 관리자 이메일인지 확인
@@ -92,7 +91,6 @@ export default function MainNav() {
   const emailForRole = user?.email ?? session?.user?.email ?? null;
   const isLoggedIn = status === 'authenticated' || !!user;
   const isAdmin = emailForRole && isAdminEmailClient(emailForRole);
-  const { isEventActive } = useFeedbackEventStatus(true);
 
   const adminMenuItem: MenuItem = { href: '/akman', label: '관리자페이지', icon: Shield };
   const feedbackEventMenuItem: MenuItem = {
@@ -103,9 +101,8 @@ export default function MainNav() {
   const primaryMenuForUser = primaryMenuItems.filter(
     (item) => item.href !== '/history' || isLoggedIn,
   );
-  const primaryWithEvent = isEventActive
-    ? [...primaryMenuForUser, feedbackEventMenuItem]
-    : primaryMenuForUser;
+  /** status API 없이 항상 노출 — 종료 여부는 피드백 페이지에서만 확인 */
+  const primaryWithEvent = [...primaryMenuForUser, feedbackEventMenuItem];
   const displayPrimaryItems = isAdmin ? [adminMenuItem, ...primaryWithEvent] : primaryWithEvent;
 
   const isLogoActive = pathname === '/excload' || pathname === '/';

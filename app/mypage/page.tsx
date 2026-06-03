@@ -74,7 +74,7 @@ interface PointUsageHistoryItem {
 
 export default function MyPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const user = useUserStore((state) => state.user);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const clearUser = useUserStore((state) => state.clearUser);
@@ -126,7 +126,8 @@ export default function MyPage() {
   const [showWithdrawPassword, setShowWithdrawPassword] = useState(false);
   const [withdrawConfirmText, setWithdrawConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+
   // 세션이 확인된 뒤 사용자 정보 동기화
   useEffect(() => {
     if (status === 'authenticated' && !user && !isLoading) {
@@ -224,9 +225,10 @@ export default function MyPage() {
   }, [status, user, isLoading, router]);
 
   useEffect(() => {
-    if (!user) return;
+    if (status !== 'authenticated') return;
     const loadSubscriptionState = async () => {
       try {
+        setIsLoadingSubscription(true);
         const response = await fetch('/api/user/subscription-status', {
           credentials: 'include',
         });
@@ -248,13 +250,15 @@ export default function MyPage() {
         }
       } catch (error) {
         console.error('[MyPage] 구독 상태 조회 실패:', error);
+      } finally {
+        setIsLoadingSubscription(false);
       }
     };
     loadSubscriptionState();
-  }, [user]);
+  }, [status]);
 
   useEffect(() => {
-    if (!user) return;
+    if (status !== 'authenticated') return;
     const loadPointGrantHistory = async () => {
       try {
         setIsLoadingPointGrantHistory(true);
@@ -283,10 +287,10 @@ export default function MyPage() {
       }
     };
     loadPointGrantHistory();
-  }, [user]);
+  }, [status]);
 
   useEffect(() => {
-    if (!user) return;
+    if (status !== 'authenticated') return;
     const loadPointUsageHistory = async () => {
       try {
         setIsLoadingPointUsageHistory(true);
@@ -315,10 +319,10 @@ export default function MyPage() {
       }
     };
     loadPointUsageHistory();
-  }, [user]);
+  }, [status]);
 
   useEffect(() => {
-    if (!user) return;
+    if (status !== 'authenticated') return;
     const loadRefundState = async () => {
       try {
         const response = await fetch('/api/user/refund-status', {
@@ -335,10 +339,10 @@ export default function MyPage() {
       }
     };
     loadRefundState();
-  }, [user]);
+  }, [status]);
 
   useEffect(() => {
-    if (!user) return;
+    if (status !== 'authenticated') return;
     const loadPaymentHistory = async () => {
       try {
         setIsLoadingPaymentHistory(true);
@@ -370,10 +374,10 @@ export default function MyPage() {
       }
     };
     loadPaymentHistory();
-  }, [user]);
+  }, [status]);
 
   useEffect(() => {
-    if (!user) return;
+    if (status !== 'authenticated') return;
     const loadTossCardState = async () => {
       try {
         const response = await fetch('/api/toss/card', {
@@ -393,7 +397,7 @@ export default function MyPage() {
       }
     };
     loadTossCardState();
-  }, [user]);
+  }, [status]);
 
   // 플랜 타입을 한글로 변환
   const getPlanName = (plan: string) => {
@@ -425,7 +429,13 @@ export default function MyPage() {
     ? new Date(subscriptionState.currentPeriodEnd).toLocaleDateString('ko-KR')
     : null;
 
-  const hasPaidPlan = !!user && (user.plan === 'PRO' || user.plan === 'YEARLY');
+  const accountReady = !!user;
+  const accountEmail = user?.email ?? session?.user?.email ?? '';
+  const subscribePlanParam = user?.plan === 'YEARLY' ? 'yearly' : 'monthly';
+  const hasPaidPlan = accountReady && (user.plan === 'PRO' || user.plan === 'YEARLY');
+  const isSessionLoading = status === 'loading';
+  const isRedirectingToLogin =
+    status === 'unauthenticated' && !isLoading && !user;
 
   const handleRetryPayment = async () => {
     try {
@@ -663,35 +673,19 @@ export default function MyPage() {
     }
   };
 
-  // 사용자 정보가 없으면 로딩 표시
-  // 로그아웃 직후: 세션은 unauthenticated인데 본문이 한 틱 렌더되면 user가 null이라 크래시 → 동일하게 스피너
-  if (
-    status === 'loading' ||
-    isLoading ||
-    (status === 'authenticated' && !user) ||
-    (status === 'unauthenticated' && !user)
-  ) {
-    return (
-      <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-zinc-600 dark:text-zinc-400">사용자 정보를 불러오는 중...</p>
-        </div>
-      </div>
-    );
-  }
+  const userName = accountReady
+    ? (user.name || user.email.split('@')[0] || '사용자').trim()
+    : accountEmail
+      ? (accountEmail.split('@')[0] || '사용자')
+      : '불러오는 중…';
 
-  // 이메일에서 이름 추출 (이메일 앞부분 사용) — 이후 JSX는 user 존재를 전제로 함
-  const safeUser = user!;
-  const userName = (safeUser.name || safeUser.email.split('@')[0] || '사용자').trim();
-  
-  const joinDateLabel = safeUser.createdAt
-    ? new Date(safeUser.createdAt).toLocaleDateString('ko-KR', {
+  const joinDateLabel = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('ko-KR', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
       })
-    : '-';
+    : '—';
 
   return (
     <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen">
@@ -705,6 +699,16 @@ export default function MyPage() {
             계정 정보와 설정을 관리할 수 있습니다.
           </p>
         </div>
+
+        {isSessionLoading && (
+          <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">로그인 정보 확인 중…</p>
+        )}
+        {isRedirectingToLogin && (
+          <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">로그인 페이지로 이동합니다…</p>
+        )}
+        {!accountReady && status === 'authenticated' && (isLoading || !user) && (
+          <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">계정 정보 불러오는 중…</p>
+        )}
 
         {user?.feedbackTrialEndsAt &&
           new Date(user.feedbackTrialEndsAt).getTime() > Date.now() &&
@@ -740,7 +744,7 @@ export default function MyPage() {
                     type="button"
                     onClick={() =>
                       router.push(
-                        `/subscribe?plan=${safeUser.plan === 'YEARLY' ? 'yearly' : 'monthly'}`
+                        `/subscribe?plan=${subscribePlanParam}`
                       )
                     }
                     className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition-colors"
@@ -773,7 +777,7 @@ export default function MyPage() {
                   {userName}
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {safeUser.email}
+                  {accountEmail || '불러오는 중…'}
                 </p>
               </div>
 
@@ -841,7 +845,7 @@ export default function MyPage() {
                       </label>
                       <input
                         type="email"
-                        defaultValue={safeUser.email}
+                        defaultValue={accountEmail}
                         disabled
                         className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 cursor-not-allowed"
                       />
@@ -887,22 +891,30 @@ export default function MyPage() {
                   </p>
 
                   <div className="rounded-xl border border-blue-200/80 dark:border-blue-800/60 overflow-hidden">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 py-8 bg-blue-50 dark:bg-blue-950/30">
-                      <div>
-                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                          잔여 사용량
+                    {accountReady ? (
+                      <>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 py-8 bg-blue-50 dark:bg-blue-950/30">
+                          <div>
+                            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                              잔여 사용량
+                            </p>
+                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+                              {getPlanName(user.plan)} 플랜 · 현재 이용 가능
+                            </p>
+                          </div>
+                          <p className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-right">
+                            {user.points.toLocaleString()}
+                          </p>
+                        </div>
+                        <p className="px-6 py-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 border-t border-blue-200/60 dark:border-blue-800/40">
+                          {getUsageHint(user.plan)}
                         </p>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
-                          {getPlanName(safeUser.plan)} 플랜 · 현재 이용 가능
-                        </p>
-                      </div>
-                      <p className="text-4xl sm:text-5xl font-bold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-right">
-                        {safeUser.points.toLocaleString()}
+                      </>
+                    ) : (
+                      <p className="px-6 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                        잔여 사용량 불러오는 중…
                       </p>
-                    </div>
-                    <p className="px-6 py-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 border-t border-blue-200/60 dark:border-blue-800/40">
-                      {getUsageHint(safeUser.plan)}
-                    </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -921,14 +933,23 @@ export default function MyPage() {
                     <span className="hidden sm:inline text-zinc-300 dark:text-zinc-600" aria-hidden>
                       ·
                     </span>
-                    <span>플랜: {getPlanName(safeUser.plan)}</span>
+                    <span>
+                      플랜:{' '}
+                      {accountReady ? getPlanName(user.plan) : isLoadingSubscription ? '불러오는 중…' : '—'}
+                    </span>
                   </div>
 
                   <div className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="font-semibold text-zinc-900 dark:text-zinc-100">현재 플랜</p>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">{getPlanName(safeUser.plan)}</p>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          {accountReady
+                            ? getPlanName(user.plan)
+                            : isLoadingSubscription
+                              ? '불러오는 중…'
+                              : '—'}
+                        </p>
                         {hasPaidPlan && currentPeriodEndText && (
                           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                             다음 결제 예정일: {currentPeriodEndText}
@@ -964,7 +985,7 @@ export default function MyPage() {
                         type="button"
                         onClick={() =>
                           router.push(
-                            `/subscribe?plan=${safeUser.plan === 'YEARLY' ? 'monthly' : 'yearly'}`
+                            `/subscribe?plan=${user?.plan === 'YEARLY' ? 'monthly' : 'yearly'}`
                           )
                         }
                         className="w-full px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
@@ -1246,7 +1267,8 @@ export default function MyPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => router.push(`/subscribe?plan=${safeUser.plan === 'YEARLY' ? 'yearly' : 'monthly'}`)}
+                        onClick={() => router.push(`/subscribe?plan=${subscribePlanParam}`)}
+                        disabled={!accountReady}
                         className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         {tossCardState.hasBillingKey ? '카드 변경' : '카드 등록'}

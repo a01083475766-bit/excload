@@ -85,18 +85,6 @@ function FeedbackBoardInner() {
       day: '2-digit',
     });
 
-  if (!statusLoading && !isEventActive) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-zinc-900 mb-4">피드백 이벤트</h1>
-        <p className="text-zinc-600 mb-6">현재 피드백 이벤트 접수 기간이 아닙니다.</p>
-        <Link href="/pricing" className="text-blue-600 underline">
-          가격 플랜 보기
-        </Link>
-      </div>
-    );
-  }
-
   const writeHref =
     status === 'authenticated'
       ? '/feedback-event/write'
@@ -129,6 +117,15 @@ function FeedbackBoardInner() {
             </Link>
           </div>
         </div>
+
+        {!statusLoading && !isEventActive && (
+          <div className="mb-6 rounded-xl border border-zinc-200 bg-white px-4 py-4 text-center text-sm text-zinc-600">
+            <p className="mb-2">현재 피드백 이벤트 접수 기간이 아닙니다.</p>
+            <Link href="/pricing" className="text-blue-600 underline">
+              가격 플랜 보기
+            </Link>
+          </div>
+        )}
 
         <FeedbackEventIntro data={data} from={from} />
 
@@ -223,15 +220,20 @@ function FeedbackBoardInner() {
   );
 }
 
+function FeedbackPageShell() {
+  return (
+    <div className="bg-zinc-50 min-h-screen py-10 px-4">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-1">피드백 이벤트</h1>
+        <p className="text-sm text-zinc-500">이용 후기·개선 의견 게시판</p>
+      </div>
+    </div>
+  );
+}
+
 export default function FeedbackEventPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-[40vh] flex items-center justify-center text-zinc-500">
-          불러오는 중…
-        </div>
-      }
-    >
+    <Suspense fallback={<FeedbackPageShell />}>
       <FeedbackBoardInner />
     </Suspense>
   );
