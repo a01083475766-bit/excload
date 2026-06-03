@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 import { isAdminEmail } from '@/app/lib/admin-auth';
+import { deleteFeedbackSubmissionById } from '@/app/lib/feedback-event/delete-submission';
 import {
   getFeedbackFeatureLabel,
   getFeedbackResultLabel,
@@ -59,6 +60,7 @@ export async function GET(_request: Request, ctx: RouteCtx) {
         id: post.id,
         isMine,
         isAdminViewer: isAdmin && !isMine,
+        canDelete: isAdmin,
         authorLabel: isMine ? '나' : maskFeedbackAuthor(post.userId),
         featureLabel: getFeedbackFeatureLabel(post.featureUsed),
         resultLabel: getFeedbackResultLabel(post.conversionResult),
@@ -74,5 +76,25 @@ export async function GET(_request: Request, ctx: RouteCtx) {
   } catch (error) {
     console.error('[FeedbackEventPostDetail]', error);
     return NextResponse.json({ error: '조회 실패' }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: Request, ctx: RouteCtx) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+      return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 });
+    }
+
+    const { id } = await ctx.params;
+    const deleted = await deleteFeedbackSubmissionById(id);
+    if (!deleted) {
+      return NextResponse.json({ error: '글을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[FeedbackEventPostDELETE]', error);
+    return NextResponse.json({ error: '삭제에 실패했습니다.' }, { status: 500 });
   }
 }

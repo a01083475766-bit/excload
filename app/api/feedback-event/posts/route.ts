@@ -39,6 +39,7 @@ function mapBoardPost(
     publicConsent: p.publicConsent,
     excerpt: canViewContent ? feedbackExcerpt(p.content) : null,
     canOpen: canViewContent,
+    canDelete: isAdmin,
     createdAt: p.createdAt.toISOString(),
   };
 }

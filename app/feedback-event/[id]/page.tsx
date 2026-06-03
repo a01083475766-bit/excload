@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 
 type PostDetail = {
   id: string;
   isMine: boolean;
   isAdminViewer?: boolean;
+  canDelete?: boolean;
   authorLabel: string;
   featureLabel: string;
   resultLabel: string;
@@ -23,10 +24,33 @@ type PostDetail = {
 
 export default function FeedbackPostDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = typeof params?.id === 'string' ? params.id : '';
   const [post, setPost] = useState<PostDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = useCallback(async () => {
+    if (!id || !confirm('이 피드백을 삭제할까요? 복구할 수 없습니다.')) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/feedback-event/posts/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.error || '삭제에 실패했습니다.');
+        setDeleting(false);
+        return;
+      }
+      router.replace('/feedback-event');
+    } catch {
+      alert('삭제 중 오류가 발생했습니다.');
+      setDeleting(false);
+    }
+  }, [id, router]);
 
   useEffect(() => {
     if (!id) {
@@ -103,7 +127,8 @@ export default function FeedbackPostDetailPage() {
 
         <article className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
           <header className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/80">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 mb-2">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
               <span className="font-medium text-zinc-700">{post.authorLabel}</span>
               <span>·</span>
               <span>{dateLabel}</span>
@@ -116,6 +141,18 @@ export default function FeedbackPostDetailPage() {
               {post.isAdminViewer && (
                 <span className="rounded bg-amber-100 text-amber-900 px-2 py-0.5">관리자 열람</span>
               )}
+            </div>
+            {post.canDelete && (
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => void handleDelete()}
+                className="inline-flex items-center gap-1.5 shrink-0 text-xs font-medium text-red-600 hover:text-red-800 border border-red-200 hover:border-red-300 rounded-lg px-3 py-1.5 bg-white disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                {deleting ? '삭제 중…' : '삭제'}
+              </button>
+            )}
             </div>
             <p className="text-sm text-zinc-600">
               {post.featureLabel} · {post.resultLabel}

@@ -19,6 +19,7 @@ type BoardPost = {
   publicConsent: boolean;
   excerpt: string | null;
   canOpen: boolean;
+  canDelete?: boolean;
   createdAt: string;
 };
 
@@ -54,6 +55,27 @@ function FeedbackBoardInner() {
   useEffect(() => {
     void loadBoard();
   }, [loadBoard]);
+
+  const handleDeletePost = useCallback(
+    async (postId: string) => {
+      if (!confirm('이 피드백을 삭제할까요? 복구할 수 없습니다.')) return;
+      try {
+        const res = await fetch(`/api/feedback-event/posts/${postId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          alert(json.error || '삭제에 실패했습니다.');
+          return;
+        }
+        await loadBoard();
+      } catch {
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    },
+    [loadBoard],
+  );
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('ko-KR', {
@@ -137,6 +159,9 @@ function FeedbackBoardInner() {
                       기능
                     </th>
                     <th className="px-4 py-2.5 font-medium">내용</th>
+                    {viewerIsAdmin && (
+                      <th className="px-4 py-2.5 font-medium w-[72px] text-center">관리</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -175,6 +200,17 @@ function FeedbackBoardInner() {
                           {!p.publicConsent && ' · 비공개'}
                         </span>
                       </td>
+                      {viewerIsAdmin && (
+                        <td className="px-4 py-3 align-top text-center">
+                          <button
+                            type="button"
+                            onClick={() => void handleDeletePost(p.id)}
+                            className="text-xs text-red-600 hover:text-red-800 font-medium whitespace-nowrap"
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
