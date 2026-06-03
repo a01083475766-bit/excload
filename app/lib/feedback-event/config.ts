@@ -9,7 +9,7 @@ export type FeedbackEventConfig = {
 };
 
 let configCache: { data: FeedbackEventConfig; at: number } | null = null;
-const CONFIG_CACHE_MS = 30_000;
+const CONFIG_CACHE_MS = 60_000;
 
 export async function getFeedbackEventConfig(): Promise<FeedbackEventConfig> {
   if (configCache && Date.now() - configCache.at < CONFIG_CACHE_MS) {

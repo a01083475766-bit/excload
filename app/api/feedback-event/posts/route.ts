@@ -5,28 +5,26 @@ import { prisma } from '@/app/lib/prisma';
 import { isAdminEmail } from '@/app/lib/admin-auth';
 import { getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
 import {
+  getCachedAnonymousPublicPayload,
+  getPublicBoardRows,
+  invalidatePublicBoardCache,
+  PUBLIC_BOARD_CACHE_SECONDS,
+  setCachedAnonymousPublicPayload,
+  type PublicBoardRow,
+} from '@/app/lib/feedback-event/public-board-cache';
+import {
   getFeedbackFeatureLabel,
   getFeedbackResultLabel,
   maskFeedbackAuthor,
 } from '@/app/lib/feedback-event/labels';
-
-/** 공개 게시판 초기 노출 건수 (더보기·페이지네이션은 추후) */
-const PUBLIC_BOARD_TAKE = 20;
+import { createFeedbackPerfLogger } from '@/app/lib/feedback-event/perf-log';
 
 function feedbackExcerpt(content: string, max = 120): string {
   return content.length > max ? `${content.slice(0, max)}…` : content;
 }
 
 function mapBoardPost(
-  p: {
-    id: string;
-    userId: string;
-    featureUsed: string;
-    conversionResult: string;
-    content: string;
-    publicConsent: boolean;
-    createdAt: Date;
-  },
+  p: PublicBoardRow,
   myUserId: string | null,
   isAdmin: boolean,
 ) {
@@ -69,21 +67,31 @@ function mapMyPost(p: {
   };
 }
 
+const ANON_POSTS_CACHE_HEADERS = {
+  'Cache-Control': `public, s-maxage=${PUBLIC_BOARD_CACHE_SECONDS}, stale-while-revalidate=120`,
+};
+
 export async function GET(request: NextRequest) {
+  const perf = createFeedbackPerfLogger('posts');
   try {
     const scope = request.nextUrl.searchParams.get('scope') ?? 'public';
-    const config = await getFeedbackEventConfig();
 
     if (scope === 'mine') {
       const session = await getServerSession(authOptions);
+      perf.mark('session');
       if (!session?.user?.email) {
         return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
       }
 
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true },
-      });
+      const [config, user] = await Promise.all([
+        getFeedbackEventConfig(),
+        prisma.user.findUnique({
+          where: { email: session.user.email },
+          select: { id: true },
+        }),
+      ]);
+      perf.mark('config+user');
+
       if (!user) {
         return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
       }
@@ -103,6 +111,8 @@ export async function GET(request: NextRequest) {
           createdAt: true,
         },
       });
+      perf.mark('mine-query');
+      perf.flush({ scope: 'mine' });
 
       return NextResponse.json({
         success: true,
@@ -111,45 +121,54 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const session = await getServerSession(authOptions);
+    const [config, session, boardRows] = await Promise.all([
+      getFeedbackEventConfig(),
+      getServerSession(authOptions),
+      getPublicBoardRows(),
+    ]);
+    perf.mark('config+session+boardRows');
+
     const isAdmin = isAdminEmail(session?.user?.email);
-    let myUserId: string | null = null;
-    if (session?.user?.email) {
-      const u = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true },
-      });
-      myUserId = u?.id ?? null;
+    const myUserId = session?.user?.id ?? null;
+    const isAnonymousViewer = !session?.user?.email && !myUserId;
+
+    if (isAnonymousViewer) {
+      const cached = getCachedAnonymousPublicPayload();
+      if (cached) {
+        perf.mark('anon-payload-cache-hit');
+        perf.flush({ scope: 'public', cached: true });
+        return NextResponse.json(cached, { headers: ANON_POSTS_CACHE_HEADERS });
+      }
     }
 
-    const boardPosts = await prisma.feedbackSubmission.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: PUBLIC_BOARD_TAKE,
-      select: {
-        id: true,
-        userId: true,
-        featureUsed: true,
-        conversionResult: true,
-        content: true,
-        publicConsent: true,
-        createdAt: true,
-      },
+    const endsAtLabel = config.endsAt.toLocaleDateString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     });
 
-    return NextResponse.json({
+    const payload = {
       success: true,
       eventActive: config.isActive,
-      endsAtLabel: config.endsAt.toLocaleDateString('ko-KR', {
-        timeZone: 'Asia/Seoul',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }),
+      endsAtLabel,
       viewerIsAdmin: isAdmin,
-      boardPosts: boardPosts.map((p) => mapBoardPost(p, myUserId, isAdmin)),
-    });
+      boardPosts: boardRows.map((p) => mapBoardPost(p, myUserId, isAdmin)),
+    };
+
+    if (isAnonymousViewer) {
+      setCachedAnonymousPublicPayload(payload);
+      perf.mark('anon-payload-cache-miss');
+    }
+
+    perf.flush({ scope: 'public', cached: false, rows: boardRows.length });
+    return NextResponse.json(
+      payload,
+      isAnonymousViewer ? { headers: ANON_POSTS_CACHE_HEADERS } : undefined,
+    );
   } catch (error) {
     console.error('[FeedbackEventPosts]', error);
+    perf.flush({ error: true });
     return NextResponse.json({ error: '목록을 불러오지 못했습니다.' }, { status: 500 });
   }
 }

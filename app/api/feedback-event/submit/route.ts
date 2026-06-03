@@ -19,6 +19,8 @@ import {
   hasProEntitlement,
   isFeedbackTrialActive,
 } from '@/app/lib/feedback-event/entitlement';
+import { invalidateAnonymousStatusCache } from '@/app/lib/feedback-event/anonymous-status-cache';
+import { invalidatePublicBoardCache } from '@/app/lib/feedback-event/public-board-cache';
 import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
 import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 import path from 'path';
@@ -145,6 +147,9 @@ export async function POST(request: NextRequest) {
         systemReply,
       },
     });
+
+    invalidatePublicBoardCache();
+    invalidateAnonymousStatusCache();
 
     return NextResponse.json({
       success: true,
