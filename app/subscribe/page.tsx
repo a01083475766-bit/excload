@@ -363,8 +363,8 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
                 무료 플랜
               </Link>
               으로 변환·다운로드를 체험해 보신 뒤,{' '}
-              <Link href="/feedback-event?from=subscribe" className="font-medium underline">
-                피드백 이벤트
+              <Link href="/feedback-event" className="font-medium underline">
+                피드백 이벤트 게시판
               </Link>
               로 30일 PRO 체험(계정당 1회)을 받을 수 있습니다. 체험 후에도 구독 없이 무료로 이용할 수
               있습니다.

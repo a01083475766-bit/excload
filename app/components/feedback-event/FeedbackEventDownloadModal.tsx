@@ -56,7 +56,7 @@ export default function FeedbackEventDownloadModal({ open, endsAtLabel, onClose 
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           <Link
-            href="/feedback-event"
+            href="/feedback-event/write"
             onClick={handleClose}
             className="flex-1 rounded-lg bg-amber-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-amber-700"
           >

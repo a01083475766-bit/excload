@@ -7,11 +7,16 @@ import {
   FEEDBACK_CONVERSION_RESULTS,
   FEEDBACK_FEATURES,
   MIN_FEEDBACK_CONTENT_LENGTH,
+  FEEDBACK_REPLY_ALREADY_USED_TRIAL,
+  FEEDBACK_REPLY_DURING_TRIAL,
+  FEEDBACK_REPLY_GENERIC,
+  FEEDBACK_REPLY_PAID_USER,
 } from '@/app/lib/feedback-event/constants';
 import {
   buildTrialSystemReply,
   grantFeedbackTrial,
   hasProEntitlement,
+  isFeedbackTrialActive,
 } from '@/app/lib/feedback-event/entitlement';
 import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
 import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
@@ -119,12 +124,16 @@ export async function POST(request: NextRequest) {
       trialEndsAt = granted.endsAt;
       systemReply = buildTrialSystemReply(granted.endsAt);
     } else if (isPaid) {
-      systemReply = '피드백이 접수되었습니다. (유료 플랜 이용 중이므로 PRO 체험권은 제공되지 않습니다.)';
+      systemReply = FEEDBACK_REPLY_PAID_USER;
+    } else if (
+      user.feedbackTrialUsed &&
+      isFeedbackTrialActive(user.feedbackTrialEndsAt)
+    ) {
+      systemReply = FEEDBACK_REPLY_DURING_TRIAL;
     } else if (user.feedbackTrialUsed) {
-      systemReply =
-        '피드백이 접수되었습니다. (이미 오픈 피드백 이벤트 PRO 체험을 사용한 계정입니다. 계정당 1회만 적용됩니다.)';
+      systemReply = FEEDBACK_REPLY_ALREADY_USED_TRIAL;
     } else {
-      systemReply = '피드백이 접수되었습니다.';
+      systemReply = FEEDBACK_REPLY_GENERIC;
     }
 
     const submission = await prisma.feedbackSubmission.create({

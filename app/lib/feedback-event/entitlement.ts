@@ -40,7 +40,11 @@ export function buildTrialSystemReply(endsAt: Date): string {
     month: 'long',
     day: 'numeric',
   });
-  return `피드백이 접수되어 오픈 피드백 이벤트 PRO 체험이 시작되었습니다. (${label}까지, 계정당 1회) 체험 종료 후 자동 결제 없이 무료 플랜으로 돌아갑니다.`;
+  return (
+    `소중한 의견 감사합니다. 피드백이 접수되었고, 오픈 피드백 이벤트 PRO 체험이 시작되었습니다.\n\n` +
+    `${label}까지 PRO 기능을 이용하실 수 있습니다. (계정당 1회) ` +
+    `체험 종료 후에는 자동 결제 없이 무료 플랜으로 돌아갑니다.`
+  );
 }
 
 export async function grantFeedbackTrial(userId: string): Promise<{ endsAt: Date }> {
