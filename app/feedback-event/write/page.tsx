@@ -2,109 +2,128 @@
 
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useState } from 'react';
 import { useUserStore } from '@/app/store/userStore';
 import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
-import { FeedbackEventIntro } from '@/app/components/feedback-event/FeedbackEventIntro';
+import { readFeedbackStatusCache, clearFeedbackStatusCache } from '@/app/lib/feedback-event/status-cache';
 import {
   FEEDBACK_CONVERSION_RESULTS,
   FEEDBACK_FEATURES,
+  FEEDBACK_SELECT_VALUE,
+  isValidFeedbackConversionResult,
+  isValidFeedbackFeature,
   MIN_FEEDBACK_CONTENT_LENGTH,
 } from '@/app/lib/feedback-event/constants';
 import { PenLine, ArrowLeft } from 'lucide-react';
 
+type PostVisibility = 'public' | 'private';
+
 function FeedbackWriteInner() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const from = searchParams?.get('from');
   const { status } = useSession();
-  const fetchUser = useUserStore((s) => s.fetchUser);
-  const { data, loading, refresh, isEventActive } = useFeedbackEventStatus(true);
+  const user = useUserStore((s) => s.user);
+  const setUser = useUserStore((s) => s.setUser);
+  const { data, loading: statusLoading, refresh } = useFeedbackEventStatus(true);
 
-  const [featureUsed, setFeatureUsed] = useState('order-convert');
-  const [conversionResult, setConversionResult] = useState('good');
+  const eventActive =
+    data?.event.isActive ?? readFeedbackStatusCache()?.event.isActive ?? true;
+
+  const [featureUsed, setFeatureUsed] = useState(FEEDBACK_SELECT_VALUE);
+  const [conversionResult, setConversionResult] = useState(FEEDBACK_SELECT_VALUE);
   const [content, setContent] = useState('');
-  const [publicConsent, setPublicConsent] = useState(false);
+  const [visibility, setVisibility] = useState<PostVisibility | null>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [systemReply, setSystemReply] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (status === 'authenticated') void fetchUser();
-  }, [status, fetchUser]);
 
   const handleSubmit = useCallback(async () => {
     if (status !== 'authenticated') {
       router.push(`/auth/login?callbackUrl=${encodeURIComponent('/feedback-event/write')}`);
       return;
     }
-    if (!isEventActive) {
+    if (!eventActive) {
       alert('피드백 이벤트 접수 기간이 종료되었습니다.');
+      return;
+    }
+    if (!isValidFeedbackFeature(featureUsed)) {
+      alert('사용한 기능을 선택해 주세요.');
+      return;
+    }
+    if (!isValidFeedbackConversionResult(conversionResult)) {
+      alert('변환 결과를 선택해 주세요.');
       return;
     }
     if (content.trim().length < MIN_FEEDBACK_CONTENT_LENGTH) {
       alert(`내용을 ${MIN_FEEDBACK_CONTENT_LENGTH}자 이상 입력해 주세요.`);
       return;
     }
+    if (!visibility) {
+      alert('공개 또는 비공개를 선택해 주세요.');
+      return;
+    }
 
     setSubmitting(true);
-    setSystemReply(null);
 
     try {
       const form = new FormData();
       form.append('featureUsed', featureUsed);
       form.append('conversionResult', conversionResult);
       form.append('content', content.trim());
-      form.append('publicConsent', publicConsent ? 'true' : 'false');
+      form.append('publicConsent', visibility === 'public' ? 'true' : 'false');
       if (attachment) form.append('attachment', attachment);
 
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 30_000);
       const res = await fetch('/api/feedback-event/submit', {
         method: 'POST',
         credentials: 'include',
         body: form,
+        signal: controller.signal,
       });
+      window.clearTimeout(timeout);
       const json = await res.json();
       if (!res.ok) {
         alert(json.error || '제출에 실패했습니다.');
+        setSubmitting(false);
         return;
       }
 
-      await fetchUser();
-      await refresh();
+      if (json.trialGranted && json.trialEndsAt && user) {
+        setUser({
+          ...user,
+          points: typeof json.points === 'number' ? json.points : user.points,
+          feedbackTrialEndsAt: json.trialEndsAt,
+          feedbackTrialUsed: true,
+        });
+      }
+
+      clearFeedbackStatusCache();
+      void refresh();
 
       if (json.submissionId) {
-        router.push(`/feedback-event/${json.submissionId}`);
+        router.replace(`/feedback-event/${json.submissionId}`);
         return;
       }
-      router.push('/feedback-event');
+      router.replace('/feedback-event');
     } catch {
-      alert('제출 중 오류가 발생했습니다.');
-    } finally {
+      alert('제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       setSubmitting(false);
     }
   }, [
     status,
     router,
-    isEventActive,
+    eventActive,
     content,
     featureUsed,
     conversionResult,
-    publicConsent,
+    visibility,
     attachment,
-    fetchUser,
+    user,
+    setUser,
     refresh,
   ]);
 
-  if (loading) {
-    return (
-      <div className="min-h-[40vh] flex items-center justify-center text-zinc-500">
-        불러오는 중…
-      </div>
-    );
-  }
-
-  if (!isEventActive) {
+  if (!statusLoading && !eventActive) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold text-zinc-900 mb-4">피드백 작성</h1>
@@ -132,7 +151,13 @@ function FeedbackWriteInner() {
           피드백 작성하기
         </h1>
 
-        <FeedbackEventIntro data={data} from={from} />
+        <p className="text-sm text-zinc-500 mb-6">
+          이벤트 안내·PRO 체험 상태는{' '}
+          <Link href="/feedback-event" className="text-blue-600 underline">
+            게시판 목록
+          </Link>
+          에서 확인할 수 있습니다.
+        </p>
 
         <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-5 shadow-sm">
           <div>
@@ -142,6 +167,9 @@ function FeedbackWriteInner() {
               onChange={(e) => setFeatureUsed(e.target.value)}
               className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm"
             >
+              <option value={FEEDBACK_SELECT_VALUE} disabled>
+                선택
+              </option>
               {FEEDBACK_FEATURES.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label}
@@ -157,6 +185,9 @@ function FeedbackWriteInner() {
               onChange={(e) => setConversionResult(e.target.value)}
               className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm"
             >
+              <option value={FEEDBACK_SELECT_VALUE} disabled>
+                선택
+              </option>
               {FEEDBACK_CONVERSION_RESULTS.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
@@ -192,23 +223,26 @@ function FeedbackWriteInner() {
             </p>
           </div>
 
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={publicConsent}
-              onChange={(e) => setPublicConsent(e.target.checked)}
-              className="mt-1"
-            />
-            <span className="text-sm text-zinc-700">
-              (선택) 이 글을 공개 게시판에 함께 보여 주세요. 동의한 글만 목록에 노출됩니다.
-            </span>
-          </label>
-
-          {systemReply && (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900 whitespace-pre-line leading-relaxed">
-              {systemReply}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-6 pt-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={visibility === 'public'}
+                onChange={() => setVisibility('public')}
+                className="h-4 w-4"
+              />
+              <span className="text-sm font-medium text-zinc-800">공개</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={visibility === 'private'}
+                onChange={() => setVisibility('private')}
+                className="h-4 w-4"
+              />
+              <span className="text-sm font-medium text-zinc-800">비공개</span>
+            </label>
+          </div>
 
           <button
             type="button"

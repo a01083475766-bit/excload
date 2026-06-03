@@ -4,8 +4,9 @@ import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 import { getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
 import {
-  FEEDBACK_CONVERSION_RESULTS,
-  FEEDBACK_FEATURES,
+  FEEDBACK_TRIAL_POINTS,
+  isValidFeedbackConversionResult,
+  isValidFeedbackFeature,
   MIN_FEEDBACK_CONTENT_LENGTH,
   FEEDBACK_REPLY_ALREADY_USED_TRIAL,
   FEEDBACK_REPLY_DURING_TRIAL,
@@ -26,14 +27,6 @@ import crypto from 'crypto';
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.xlsx', '.xls', '.csv']);
-
-function isValidFeature(v: string): boolean {
-  return FEEDBACK_FEATURES.some((f) => f.value === v);
-}
-
-function isValidResult(v: string): boolean {
-  return FEEDBACK_CONVERSION_RESULTS.some((r) => r.value === v);
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,8 +49,11 @@ export async function POST(request: NextRequest) {
     const content = String(form.get('content') ?? '').trim();
     const publicConsent = form.get('publicConsent') === 'true' || form.get('publicConsent') === 'on';
 
-    if (!isValidFeature(featureUsed) || !isValidResult(conversionResult)) {
-      return NextResponse.json({ error: '필수 항목을 올바르게 선택해 주세요.' }, { status: 400 });
+    if (!isValidFeedbackFeature(featureUsed)) {
+      return NextResponse.json({ error: '사용한 기능을 선택해 주세요.' }, { status: 400 });
+    }
+    if (!isValidFeedbackConversionResult(conversionResult)) {
+      return NextResponse.json({ error: '변환 결과를 선택해 주세요.' }, { status: 400 });
     }
 
     if (content.length < MIN_FEEDBACK_CONTENT_LENGTH) {
@@ -155,6 +151,7 @@ export async function POST(request: NextRequest) {
       submissionId: submission.id,
       trialGranted,
       trialEndsAt: trialEndsAt?.toISOString() ?? null,
+      points: trialGranted ? FEEDBACK_TRIAL_POINTS : undefined,
       systemReply,
     });
   } catch (error) {

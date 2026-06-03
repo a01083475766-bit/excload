@@ -26,3 +26,12 @@ export function writeFeedbackStatusCache(data: FeedbackEventStatusPayload): void
     /* ignore quota */
   }
 }
+
+export function clearFeedbackStatusCache(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}

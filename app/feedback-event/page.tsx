@@ -8,6 +8,8 @@ import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedb
 import { FeedbackEventIntro } from '@/app/components/feedback-event/FeedbackEventIntro';
 import { PenLine, MessageSquare } from 'lucide-react';
 
+const PUBLIC_POSTS_URL = '/api/feedback-event/posts?scope=public';
+
 type BoardPost = {
   id: string;
   authorLabel: string;
@@ -27,7 +29,6 @@ function FeedbackBoardInner() {
   const { status } = useSession();
   const { data, loading: statusLoading, isEventActive } = useFeedbackEventStatus(true);
   const [publicPosts, setPublicPosts] = useState<BoardPost[]>([]);
-  const [myPosts, setMyPosts] = useState<BoardPost[]>([]);
   const [boardLoading, setBoardLoading] = useState(true);
 
   const loadBoard = useCallback(async () => {
@@ -35,7 +36,7 @@ function FeedbackBoardInner() {
     try {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 12_000);
-      const res = await fetch('/api/feedback-event/posts', {
+      const res = await fetch(PUBLIC_POSTS_URL, {
         credentials: 'include',
         signal: controller.signal,
       });
@@ -43,7 +44,6 @@ function FeedbackBoardInner() {
       const json = await res.json();
       if (res.ok && json.success) {
         setPublicPosts(json.publicPosts ?? []);
-        setMyPosts(json.myPosts ?? []);
       }
     } finally {
       setBoardLoading(false);
@@ -87,50 +87,27 @@ function FeedbackBoardInner() {
             <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-1">오픈 피드백 이벤트</h1>
             <p className="text-sm text-zinc-500">이용 후기·개선 의견 게시판</p>
           </div>
-          <Link
-            href={writeHref}
-            className="inline-flex items-center justify-center gap-2 shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm"
-          >
-            <PenLine className="h-4 w-4" aria-hidden />
-            작성하기
-          </Link>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {status === 'authenticated' && (
+              <Link
+                href="/feedback-event/mine"
+                className="inline-flex items-center justify-center gap-2 border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 font-semibold px-5 py-2.5 rounded-lg text-sm"
+              >
+                <MessageSquare className="h-4 w-4" aria-hidden />
+                내가 작성한 글
+              </Link>
+            )}
+            <Link
+              href={writeHref}
+              className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm"
+            >
+              <PenLine className="h-4 w-4" aria-hidden />
+              작성하기
+            </Link>
+          </div>
         </div>
 
         <FeedbackEventIntro data={data} from={from} />
-
-        {status === 'authenticated' && myPosts.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold text-zinc-900 mb-3 flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-blue-600" aria-hidden />
-              내가 작성한 글
-            </h2>
-            <div className="bg-white rounded-xl border border-zinc-200 divide-y divide-zinc-100 overflow-hidden">
-              {myPosts.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/feedback-event/${p.id}`}
-                  className="block px-4 py-3 hover:bg-zinc-50 transition-colors"
-                >
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 mb-1">
-                    <span>{formatDate(p.createdAt)}</span>
-                    <span>{p.featureLabel}</span>
-                    <span className="text-zinc-400">·</span>
-                    <span>{p.resultLabel}</span>
-                    {p.publicConsent && (
-                      <span className="rounded bg-blue-50 text-blue-700 px-1.5 py-0.5">공개</span>
-                    )}
-                    {p.hasSystemReply && (
-                      <span className="rounded bg-amber-50 text-amber-800 px-1.5 py-0.5">
-                        운영 안내
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-zinc-800 line-clamp-2">{p.excerpt}</p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
 
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 mb-3">공개 피드백</h2>
@@ -189,10 +166,6 @@ function FeedbackBoardInner() {
             </div>
           )}
         </section>
-
-        <p className="mt-8 text-center text-sm text-zinc-500">
-          비공개로 작성한 글은 본인만 「내가 작성한 글」에서 확인할 수 있습니다.
-        </p>
       </div>
     </div>
   );
