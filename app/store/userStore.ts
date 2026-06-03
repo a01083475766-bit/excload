@@ -24,6 +24,8 @@ export interface User {
   nextPointDate?: string | null;
   /** DB User.createdAt (가입일) */
   createdAt?: string | null;
+  feedbackTrialEndsAt?: string | null;
+  feedbackTrialUsed?: boolean;
 }
 
 interface UserStoreState {
@@ -90,6 +92,8 @@ export const useUserStore = create<UserStoreState>()(
                   lastMonthlyGrant: data.user.lastMonthlyGrant,
                   nextPointDate: data.user.nextPointDate,
                   createdAt: data.user.createdAt ?? null,
+                  feedbackTrialEndsAt: data.user.feedbackTrialEndsAt ?? null,
+                  feedbackTrialUsed: data.user.feedbackTrialUsed ?? false,
                 },
               });
 

@@ -11,6 +11,7 @@ import { authOptions } from '@/app/lib/auth';
 import { addOneMonthKeepingDay } from '@/app/lib/add-one-month-keeping-day';
 import { isMonthlyFreeGrantBlocked } from '@/app/lib/free-benefit-fingerprint';
 import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
+import { isFeedbackTrialActive } from '@/app/lib/feedback-event/entitlement';
 
 /**
  * POST /api/user/grant-monthly-points
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
           points: true,
           nextPointDate: true,
           createdAt: true,
+          feedbackTrialEndsAt: true,
           isBlocked: true,
           abuseFlag: true,
           blockReason: true,
@@ -78,6 +80,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: false,
           message: 'FREE 플랜만 월간 사용량 제공 대상입니다',
+          alreadyGranted: true,
+        });
+      }
+
+      if (isFeedbackTrialActive(user.feedbackTrialEndsAt, now)) {
+        return NextResponse.json({
+          success: false,
+          message: '피드백 이벤트 PRO 체험 중에는 무료 월간 사용량이 제공되지 않습니다.',
           alreadyGranted: true,
         });
       }

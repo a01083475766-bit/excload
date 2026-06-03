@@ -46,6 +46,9 @@ import {
   type InputSourceCounts,
 } from '@/app/lib/history-input-sources';
 import { useUserStore } from '@/app/store/userStore';
+import { shouldChargeDownloadPoints, hasProEntitlementClient } from '@/app/lib/feedback-event/client';
+import FeedbackEventDownloadModal from '@/app/components/feedback-event/FeedbackEventDownloadModal';
+import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
@@ -283,6 +286,8 @@ const saveRecentExcelFormat = (
 export default function InvoiceFileConvertPage() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
+  const { data: feedbackEventStatus } = useFeedbackEventStatus(true);
+  const [feedbackEventPopupOpen, setFeedbackEventPopupOpen] = useState(false);
   const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
@@ -1462,9 +1467,10 @@ export default function InvoiceFileConvertPage() {
   const buildInsufficientPointsMessage = (
     plan: 'FREE' | 'PRO' | 'YEARLY',
     nextPointDate?: string | null,
+    feedbackTrialEndsAt?: string | null,
   ): string => {
     const nextDateLabel = formatNextRechargeDate(nextPointDate);
-    if (plan === 'FREE') {
+    if (!hasProEntitlementClient(plan, feedbackTrialEndsAt)) {
       return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다리거나 플랜 업그레이드 후 이용해 주세요.`;
     }
     return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다려 주세요.`;
@@ -1875,14 +1881,21 @@ export default function InvoiceFileConvertPage() {
       return;
     }
 
-    if (user?.plan === 'FREE') {
-      if (!user) {
-        alert('로그인이 필요합니다.');
-        router.push('/auth/login');
-        return;
-      }
+    if (!user) {
+      alert('로그인이 필요합니다.');
+      router.push('/auth/login');
+      return;
+    }
+
+    if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt)) {
       if (user.points < 1) {
-        alert(buildInsufficientPointsMessage(user.plan, user.nextPointDate ?? user.lastMonthlyGrant ?? null));
+        alert(
+          buildInsufficientPointsMessage(
+            user.plan,
+            user.nextPointDate ?? user.lastMonthlyGrant ?? null,
+            user.feedbackTrialEndsAt,
+          ),
+        );
         return;
       }
     }
@@ -1894,7 +1907,7 @@ export default function InvoiceFileConvertPage() {
       const wb = createPreviewDownloadWorkbook(excelData);
       const fileName = buildPreviewDownloadFileName(new Date(), '엑클로드송장정리');
 
-      if (user?.plan === 'FREE') {
+      if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt)) {
         const pointsDeducted = await usePoints(1000, 'download');
         if (!pointsDeducted) {
           setDownloadStatus("idle");
@@ -1973,6 +1986,17 @@ export default function InvoiceFileConvertPage() {
 
         setDownloadModalFileName(fileName);
         setDownloadStatus("done");
+
+        const ev = feedbackEventStatus;
+        if (
+          ev?.event.isActive &&
+          user &&
+          shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt) &&
+          !ev.user.feedbackPopupSeen &&
+          !ev.user.feedbackTrialUsed
+        ) {
+          setFeedbackEventPopupOpen(true);
+        }
 
         setTimeout(() => {
           setDownloadStatus("idle");
@@ -3427,6 +3451,12 @@ export default function InvoiceFileConvertPage() {
           </div>
         </div>
       )}
+
+      <FeedbackEventDownloadModal
+        open={feedbackEventPopupOpen}
+        endsAtLabel={feedbackEventStatus?.event.endsAtLabel ?? ''}
+        onClose={() => setFeedbackEventPopupOpen(false)}
+      />
     </div>
     </>
   );

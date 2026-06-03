@@ -65,6 +65,9 @@ import {
 import { resolveNormalizeQualityNotice } from '@/app/lib/normalize-29/normalize29-error';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
 import { FREE_TEXT_INPUT_MAX_CHARS } from '@/app/lib/plan-limits';
+import { shouldChargeDownloadPoints, hasProEntitlementClient } from '@/app/lib/feedback-event/client';
+import FeedbackEventDownloadModal from '@/app/components/feedback-event/FeedbackEventDownloadModal';
+import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import {
   buildPreviewDownloadAoA,
   buildPreviewDownloadFileName,
@@ -301,6 +304,8 @@ const saveRecentExcelFormat = (
 export default function OrderConvertPage() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
+  const { data: feedbackEventStatus } = useFeedbackEventStatus(true);
+  const [feedbackEventPopupOpen, setFeedbackEventPopupOpen] = useState(false);
   const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
@@ -1765,9 +1770,10 @@ export default function OrderConvertPage() {
   const buildInsufficientPointsMessage = (
     plan: 'FREE' | 'PRO' | 'YEARLY',
     nextPointDate?: string | null,
+    feedbackTrialEndsAt?: string | null,
   ): string => {
     const nextDateLabel = formatNextRechargeDate(nextPointDate);
-    if (plan === 'FREE') {
+    if (!hasProEntitlementClient(plan, feedbackTrialEndsAt)) {
       return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다리거나 플랜 업그레이드 후 이용해 주세요.`;
     }
     return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다려 주세요.`;
@@ -2326,16 +2332,23 @@ export default function OrderConvertPage() {
       return;
     }
 
-    if (user?.plan === 'FREE') {
-      if (!user) {
-        alert('로그인이 필요합니다.');
-        router.push('/auth/login');
-        return;
-      }
+    if (user && shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt)) {
       if (user.points < 1) {
-        alert(buildInsufficientPointsMessage(user.plan, user.nextPointDate ?? user.lastMonthlyGrant ?? null));
+        alert(
+          buildInsufficientPointsMessage(
+            user.plan,
+            user.nextPointDate ?? user.lastMonthlyGrant ?? null,
+            user.feedbackTrialEndsAt,
+          ),
+        );
         return;
       }
+    }
+
+    if (!user) {
+      alert('로그인이 필요합니다.');
+      router.push('/auth/login');
+      return;
     }
 
     setDownloadStatus("processing");
@@ -2345,7 +2358,7 @@ export default function OrderConvertPage() {
       const wb = createPreviewDownloadWorkbook(excelData);
       const fileName = buildPreviewDownloadFileName();
 
-      if (user?.plan === 'FREE') {
+      if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt)) {
         const pointsDeducted = await usePoints(1000, 'download');
         if (!pointsDeducted) {
           setDownloadStatus("idle");
@@ -2428,6 +2441,17 @@ export default function OrderConvertPage() {
 
         setDownloadModalFileName(fileName);
         setDownloadStatus("done");
+
+        const ev = feedbackEventStatus;
+        if (
+          ev?.event.isActive &&
+          user &&
+          shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt) &&
+          !ev.user.feedbackPopupSeen &&
+          !ev.user.feedbackTrialUsed
+        ) {
+          setFeedbackEventPopupOpen(true);
+        }
 
         setTimeout(() => {
           setDownloadStatus("idle");
@@ -2748,7 +2772,11 @@ export default function OrderConvertPage() {
                       onChange={(e) => {
                         const newValue = e.target.value;
                         pendingImageOcrTextConvertRef.current = false;
-                        if (user?.plan === 'FREE' && newValue.length > FREE_TEXT_INPUT_MAX_CHARS) {
+                        if (
+                          user &&
+                          !hasProEntitlementClient(user.plan, user.feedbackTrialEndsAt) &&
+                          newValue.length > FREE_TEXT_INPUT_MAX_CHARS
+                        ) {
                           alert(`무료 회원은 최대 ${FREE_TEXT_INPUT_MAX_CHARS.toLocaleString('ko-KR')}자까지 입력할 수 있습니다.`);
                           return;
                         }
@@ -4124,6 +4152,12 @@ export default function OrderConvertPage() {
           </div>
         </div>
       )}
+
+      <FeedbackEventDownloadModal
+        open={feedbackEventPopupOpen}
+        endsAtLabel={feedbackEventStatus?.event.endsAtLabel ?? ''}
+        onClose={() => setFeedbackEventPopupOpen(false)}
+      />
     </div>
     </>
   );

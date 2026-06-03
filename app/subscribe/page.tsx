@@ -7,6 +7,8 @@
 import { useUserStore } from '@/app/store/userStore';
 import { runAfterTossChargeResponse } from '@/app/lib/toss/after-charge-client';
 import { dbPlanToIntervalKey, getPlanDisplayName } from '@/app/lib/subscription/plan-change';
+import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
+import { hasProEntitlementClient } from '@/app/lib/feedback-event/client';
 
 import Link from 'next/link';
 import { Shield, Lock } from 'lucide-react';
@@ -80,6 +82,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   const tossAmount = planKey === 'yearly' ? 40000 : 4000;
   const tossOrderName = planKey === 'yearly' ? 'EXCLOAD YEARLY 구독' : 'EXCLOAD PRO 구독';
   const subscribeButtonLabel = '구독 시작하기';
+  const { data: feedbackEventStatus, isEventActive } = useFeedbackEventStatus(true);
 
   const currentPlanKey = user?.plan ? dbPlanToIntervalKey(user.plan) : null;
   const hasPaidPlan = user?.plan === 'PRO' || user?.plan === 'YEARLY';
@@ -348,6 +351,38 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
             </p>
           )}
         </header>
+
+        {isEventActive &&
+          authStatus === 'authenticated' &&
+          user &&
+          !hasPaidPlan &&
+          feedbackEventStatus?.user.canSubmitForTrial && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+              먼저{' '}
+              <Link href="/order-convert" className="font-medium underline">
+                무료 플랜
+              </Link>
+              으로 변환·다운로드를 체험해 보신 뒤,{' '}
+              <Link href="/feedback-event?from=subscribe" className="font-medium underline">
+                피드백 이벤트
+              </Link>
+              로 30일 PRO 체험(계정당 1회)을 받을 수 있습니다. 체험 후에도 구독 없이 무료로 이용할 수
+              있습니다.
+            </div>
+          )}
+
+        {user &&
+          hasProEntitlementClient(user.plan, user.feedbackTrialEndsAt) &&
+          !hasPaidPlan &&
+          user.feedbackTrialEndsAt && (
+            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100">
+              오픈 피드백 이벤트 PRO 체험 중입니다. (
+              {new Date(user.feedbackTrialEndsAt).toLocaleDateString('ko-KR', {
+                timeZone: 'Asia/Seoul',
+              })}
+              까지) 종료 후 자동 결제 없이 FREE로 전환됩니다.
+            </div>
+          )}
 
         <div className="rounded-[10px] bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200/80 dark:border-zinc-800 overflow-hidden">
           <section className="p-5 border-b border-zinc-100 dark:border-zinc-800">

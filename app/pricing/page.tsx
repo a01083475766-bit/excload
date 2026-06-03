@@ -6,6 +6,7 @@
 
 import { Check, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { PricingPlanCta } from '@/app/pricing/PricingPlanCta';
 
 export default function PricingPage() {
   const plans = [
@@ -158,15 +159,7 @@ export default function PricingPage() {
                 </ul>
               </div>
               
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.href = `/subscribe?plan=${encodeURIComponent(plan.planKey)}`;
-                }}
-                className="w-full text-center px-6 py-3 rounded-lg font-semibold transition-colors bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {`${plan.name} 시작하기`}
-              </button>
+              <PricingPlanCta planKey={plan.planKey} planName={plan.name} />
             </div>
           ))}
         </div>

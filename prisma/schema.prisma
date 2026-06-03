@@ -73,9 +73,15 @@ model User {
   /// 영구 삭제 예정 시각 (탈퇴 후 7일 등). purgeAt 경과 시 cron 이 hard delete.
   purgeAt                DateTime?
 
+  /// 오픈 피드백 이벤트 PRO 체험 (유료 plan 과 분리)
+  feedbackTrialEndsAt   DateTime?
+  feedbackTrialUsed     Boolean   @default(false)
+  feedbackPopupSeenAt   DateTime?
+
   pointHistory     PointHistory[]
   subscriptions   Subscription[]
   favoriteMalls   UserFavoriteMall[]
+  feedbackSubmissions FeedbackSubmission[]
 }
 
 model EmailVerificationToken {
@@ -256,6 +262,34 @@ model Subscription {
   updatedAt          DateTime @updatedAt
 
   user               User @relation(fields: [userId], references: [id])
+}
+
+/// 오픈 피드백 이벤트 기간·활성 (id=default 단일 행)
+model FeedbackEventSettings {
+  id        String   @id @default("default")
+  endsAt    DateTime
+  isEnabled Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+/// 피드백 이벤트 제출 (체험권은 계정당 1회, 제출 시 자동 부여)
+model FeedbackSubmission {
+  id               String   @id @default(cuid())
+  userId           String
+  featureUsed      String
+  conversionResult String
+  content          String   @db.Text
+  publicConsent    Boolean  @default(false)
+  attachmentName   String?
+  attachmentUrl    String?
+  trialGranted     Boolean  @default(false)
+  systemReply      String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([publicConsent, createdAt])
 }
 
 model PopupCampaign {

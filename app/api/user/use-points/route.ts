@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
+import { hasProEntitlement } from '@/app/lib/feedback-event/entitlement';
 
 interface UsePointsRequest {
   amount: number;
@@ -61,6 +62,8 @@ export async function POST(request: NextRequest) {
           plan: true,
           points: true,
           nextPointDate: true,
+          feedbackTrialEndsAt: true,
+          feedbackTrialUsed: true,
           isBlocked: true,
           abuseFlag: true,
           blockReason: true,
@@ -76,6 +79,21 @@ export async function POST(request: NextRequest) {
 
       const blockedResponse = serviceBlockedResponse(user);
       if (blockedResponse) return blockedResponse;
+
+      if (type === 'download' && hasProEntitlement(user)) {
+        return NextResponse.json({
+          success: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            plan: user.plan as 'FREE' | 'PRO' | 'YEARLY',
+            points: user.points,
+            nextPointDate: user.nextPointDate?.toISOString() ?? null,
+          },
+          usedAmount: 0,
+          reason: 'PRO_엑셀다운로드_무제한',
+        });
+      }
 
       if (user.points < 1) {
         return NextResponse.json(

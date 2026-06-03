@@ -1,0 +1,155 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
+import { prisma } from '@/app/lib/prisma';
+import { getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
+import {
+  FEEDBACK_CONVERSION_RESULTS,
+  FEEDBACK_FEATURES,
+  MIN_FEEDBACK_CONTENT_LENGTH,
+} from '@/app/lib/feedback-event/constants';
+import {
+  buildTrialSystemReply,
+  grantFeedbackTrial,
+  hasProEntitlement,
+} from '@/app/lib/feedback-event/entitlement';
+import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
+import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
+import path from 'path';
+import fs from 'fs/promises';
+import crypto from 'crypto';
+
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const ALLOWED_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.xlsx', '.xls', '.csv']);
+
+function isValidFeature(v: string): boolean {
+  return FEEDBACK_FEATURES.some((f) => f.value === v);
+}
+
+function isValidResult(v: string): boolean {
+  return FEEDBACK_CONVERSION_RESULTS.some((r) => r.value === v);
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const config = await getFeedbackEventConfig();
+    if (!config.isActive) {
+      return NextResponse.json(
+        { error: '피드백 이벤트 접수 기간이 종료되었습니다.' },
+        { status: 403 },
+      );
+    }
+
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    const form = await request.formData();
+    const featureUsed = String(form.get('featureUsed') ?? '').trim();
+    const conversionResult = String(form.get('conversionResult') ?? '').trim();
+    const content = String(form.get('content') ?? '').trim();
+    const publicConsent = form.get('publicConsent') === 'true' || form.get('publicConsent') === 'on';
+
+    if (!isValidFeature(featureUsed) || !isValidResult(conversionResult)) {
+      return NextResponse.json({ error: '필수 항목을 올바르게 선택해 주세요.' }, { status: 400 });
+    }
+
+    if (content.length < MIN_FEEDBACK_CONTENT_LENGTH) {
+      return NextResponse.json(
+        { error: `내용을 ${MIN_FEEDBACK_CONTENT_LENGTH}자 이상 입력해 주세요.` },
+        { status: 400 },
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        plan: true,
+        feedbackTrialUsed: true,
+        feedbackTrialEndsAt: true,
+        isBlocked: true,
+        abuseFlag: true,
+        blockReason: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    const blockedResponse = serviceBlockedResponse(user);
+    if (blockedResponse) return blockedResponse;
+
+    let attachmentName: string | null = null;
+    let attachmentUrl: string | null = null;
+    const fileField = form.get('attachment');
+    if (fileField && typeof fileField !== 'string' && fileField.size > 0) {
+      if (fileField.size > MAX_ATTACHMENT_BYTES) {
+        return NextResponse.json({ error: '첨부 파일은 5MB 이하만 가능합니다.' }, { status: 400 });
+      }
+      const ext = path.extname(fileField.name).toLowerCase();
+      if (!ALLOWED_EXT.has(ext)) {
+        return NextResponse.json(
+          { error: '첨부는 이미지·엑셀·CSV 파일만 가능합니다.' },
+          { status: 400 },
+        );
+      }
+      const buf = Buffer.from(await fileField.arrayBuffer());
+      const safeName = `${crypto.randomUUID()}${ext}`;
+      const dir = path.join(process.cwd(), 'public', 'uploads', 'feedback');
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, safeName), buf);
+      attachmentName = fileField.name;
+      attachmentUrl = `/uploads/feedback/${safeName}`;
+    }
+
+    const isPaid = isPaidDbPlan(user.plan);
+    const shouldGrantTrial =
+      !isPaid && !user.feedbackTrialUsed && !hasProEntitlement(user);
+
+    let trialGranted = false;
+    let systemReply: string | null = null;
+    let trialEndsAt: Date | null = null;
+
+    if (shouldGrantTrial) {
+      const granted = await grantFeedbackTrial(user.id);
+      trialGranted = true;
+      trialEndsAt = granted.endsAt;
+      systemReply = buildTrialSystemReply(granted.endsAt);
+    } else if (isPaid) {
+      systemReply = '피드백이 접수되었습니다. (유료 플랜 이용 중이므로 PRO 체험권은 제공되지 않습니다.)';
+    } else if (user.feedbackTrialUsed) {
+      systemReply =
+        '피드백이 접수되었습니다. (이미 오픈 피드백 이벤트 PRO 체험을 사용한 계정입니다. 계정당 1회만 적용됩니다.)';
+    } else {
+      systemReply = '피드백이 접수되었습니다.';
+    }
+
+    const submission = await prisma.feedbackSubmission.create({
+      data: {
+        userId: user.id,
+        featureUsed,
+        conversionResult,
+        content,
+        publicConsent,
+        attachmentName,
+        attachmentUrl,
+        trialGranted,
+        systemReply,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      submissionId: submission.id,
+      trialGranted,
+      trialEndsAt: trialEndsAt?.toISOString() ?? null,
+      systemReply,
+    });
+  } catch (error) {
+    console.error('[FeedbackEventSubmit]', error);
+    return NextResponse.json({ error: '제출 처리 중 오류가 발생했습니다.' }, { status: 500 });
+  }
+}
