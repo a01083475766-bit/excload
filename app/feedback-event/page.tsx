@@ -88,7 +88,7 @@ function FeedbackBoardInner() {
   if (!statusLoading && !isEventActive) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-zinc-900 mb-4">오픈 피드백 이벤트</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 mb-4">피드백 이벤트</h1>
         <p className="text-zinc-600 mb-6">현재 피드백 이벤트 접수 기간이 아닙니다.</p>
         <Link href="/pricing" className="text-blue-600 underline">
           가격 플랜 보기
@@ -107,7 +107,7 @@ function FeedbackBoardInner() {
       <div className="max-w-3xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-1">오픈 피드백 이벤트</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-1">피드백 이벤트</h1>
             <p className="text-sm text-zinc-500">이용 후기·개선 의견 게시판</p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
