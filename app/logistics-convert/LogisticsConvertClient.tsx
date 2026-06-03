@@ -5112,30 +5112,32 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
                 {unknownHeadersWarning.length > 0 && (
                   <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg text-sm text-amber-800 mx-6 mb-4">
                     <p className="font-semibold mb-2">
-                      ⚠ 일부 항목을 자동으로 인식하지 못했습니다.
+                      자동변환에 적용하지 못한 헤더가 있습니다.
                     </p>
 
                     <p className="mb-2">
-                      {trialMode
-                        ? '업로드한 파일의 항목 이름이 일반적인 주문 엑셀 양식과 달라 일부 데이터가 자동으로 분류되지 않았습니다.'
-                        : '업로드한 파일의 항목 이름이 일반적인 물류센터 양식과 달라 일부 데이터가 자동으로 분류되지 않았습니다.'}
+                      파일의 일부 헤더를 어느 항목에 사용해야 할지 판단하지 못했습니다.
                     </p>
 
                     <div className="mb-2 text-emerald-600 font-semibold text-base">
-                      [인식되지 않은 항목]
-                    </div>
-
-                    <div className="text-xs mb-2">
-                      (주문 엑셀 파일의 보내는분 / 받는분 / 주소 / 상품 등의 항목)
+                      자동 변환되지 않은 헤더
                     </div>
 
                     <div className="mb-3 text-emerald-600 font-semibold text-base">
                       {unknownHeadersWarning.join(', ')}
                     </div>
 
+                    <p className="mb-3">
+                      이 헤더의 정보들이 필요한 정보라면 미리보기에서 확인 후 수정해 주세요.
+                      <br />
+                      {trialMode
+                        ? '비어있거나 꼭 필요한 정보가 아니라면 그대로 결과를 확인하셔도 됩니다.'
+                        : '비어있거나 꼭 필요한 정보가 아니라면 그대로 다운로드하셔도 됩니다.'}
+                    </p>
+
                     <div className="text-xs text-amber-700 leading-relaxed">
-                      <strong>이렇게 해결할 수 있습니다</strong><br />
-                      • 항목 이름을 상품명 / 수량 / 주소 등 일반적인 이름으로 수정 후 다시 업로드<br />
+                      <strong>이렇게 해결할 수 있습니다.</strong><br />
+                      • 파일에서 헤더 이름을 상품명 / 수량 / 주소 등 일반적인 이름으로 수정 후 다시 업로드<br />
                       {trialMode
                         ? '• 또는 아래 미리보기에서 직접 수정해 결과를 확인하세요 (체험판에서는 다운로드되지 않습니다)'
                         : '• 또는 아래 미리보기에서 직접 수정 후 다운로드'}
