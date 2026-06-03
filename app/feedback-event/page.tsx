@@ -28,6 +28,7 @@ function FeedbackBoardInner() {
   const { status } = useSession();
   const { data, loading: statusLoading, isEventActive } = useFeedbackEventStatus(true);
   const [boardPosts, setBoardPosts] = useState<BoardPost[]>([]);
+  const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
   const [boardLoading, setBoardLoading] = useState(true);
 
   const loadBoard = useCallback(async () => {
@@ -43,6 +44,7 @@ function FeedbackBoardInner() {
       const json = await res.json();
       if (res.ok && json.success) {
         setBoardPosts(json.boardPosts ?? json.publicPosts ?? []);
+        setViewerIsAdmin(Boolean(json.viewerIsAdmin));
       }
     } finally {
       setBoardLoading(false);
@@ -111,7 +113,9 @@ function FeedbackBoardInner() {
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 mb-3">남겨주신 의견들</h2>
           <p className="text-xs text-zinc-500 mb-3">
-            공개 글은 내용이 보이고, 비공개 글은 내용 없이 함께 표시됩니다.
+            {viewerIsAdmin ?
+              '관리자: 비공개 글 내용·첨부도 확인할 수 있습니다.'
+            : '공개 글은 내용이 보이고, 비공개 글은 내용 없이 함께 표시됩니다.'}
           </p>
 
           {boardLoading ? (
@@ -148,11 +152,14 @@ function FeedbackBoardInner() {
                         {p.featureLabel}
                       </td>
                       <td className="px-4 py-3 align-top">
-                        {p.publicConsent && p.excerpt ?
+                        {p.canOpen && p.excerpt ?
                           <Link
                             href={`/feedback-event/${p.id}`}
                             className="text-zinc-800 hover:text-blue-600 line-clamp-2"
                           >
+                            {!p.publicConsent && (
+                              <span className="text-xs text-amber-700 mr-1.5">[비공개]</span>
+                            )}
                             {p.excerpt}
                           </Link>
                         : p.canOpen ?

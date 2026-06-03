@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
+import { isAdminEmail } from '@/app/lib/admin-auth';
 import { getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
 import {
   getFeedbackFeatureLabel,
   getFeedbackResultLabel,
   maskFeedbackAuthor,
 } from '@/app/lib/feedback-event/labels';
+
+function feedbackExcerpt(content: string, max = 120): string {
+  return content.length > max ? `${content.slice(0, max)}…` : content;
+}
 
 function mapBoardPost(
   p: {
@@ -20,14 +25,10 @@ function mapBoardPost(
     createdAt: Date;
   },
   myUserId: string | null,
+  isAdmin: boolean,
 ) {
   const isMine = myUserId === p.userId;
-  const excerpt =
-    p.publicConsent ?
-      p.content.length > 120 ?
-        `${p.content.slice(0, 120)}…`
-      : p.content
-    : null;
+  const canViewContent = p.publicConsent || isMine || isAdmin;
 
   return {
     id: p.id,
@@ -36,8 +37,8 @@ function mapBoardPost(
     featureLabel: getFeedbackFeatureLabel(p.featureUsed),
     resultLabel: getFeedbackResultLabel(p.conversionResult),
     publicConsent: p.publicConsent,
-    excerpt,
-    canOpen: p.publicConsent || isMine,
+    excerpt: canViewContent ? feedbackExcerpt(p.content) : null,
+    canOpen: canViewContent,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -107,6 +108,7 @@ export async function GET(request: NextRequest) {
     }
 
     const session = await getServerSession(authOptions);
+    const isAdmin = isAdminEmail(session?.user?.email);
     let myUserId: string | null = null;
     if (session?.user?.email) {
       const u = await prisma.user.findUnique({
@@ -139,7 +141,8 @@ export async function GET(request: NextRequest) {
         month: 'long',
         day: 'numeric',
       }),
-      boardPosts: boardPosts.map((p) => mapBoardPost(p, myUserId)),
+      viewerIsAdmin: isAdmin,
+      boardPosts: boardPosts.map((p) => mapBoardPost(p, myUserId, isAdmin)),
     });
   } catch (error) {
     console.error('[FeedbackEventPosts]', error);

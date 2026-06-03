@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
+import { isAdminEmail } from '@/app/lib/admin-auth';
 import {
   getFeedbackFeatureLabel,
   getFeedbackResultLabel,
@@ -45,24 +46,28 @@ export async function GET(_request: Request, ctx: RouteCtx) {
     }
 
     const isMine = myUserId === post.userId;
-    if (!post.publicConsent && !isMine) {
+    const isAdmin = isAdminEmail(session?.user?.email);
+    if (!post.publicConsent && !isMine && !isAdmin) {
       return NextResponse.json({ error: '비공개 글입니다.' }, { status: 403 });
     }
+
+    const canViewStaffFields = isMine || isAdmin;
 
     return NextResponse.json({
       success: true,
       post: {
         id: post.id,
         isMine,
+        isAdminViewer: isAdmin && !isMine,
         authorLabel: isMine ? '나' : maskFeedbackAuthor(post.userId),
         featureLabel: getFeedbackFeatureLabel(post.featureUsed),
         resultLabel: getFeedbackResultLabel(post.conversionResult),
         content: post.content,
         publicConsent: post.publicConsent,
-        attachmentName: isMine ? post.attachmentName : null,
-        attachmentUrl: isMine ? post.attachmentUrl : null,
-        trialGranted: isMine ? post.trialGranted : false,
-        systemReply: isMine ? post.systemReply : null,
+        attachmentName: canViewStaffFields ? post.attachmentName : null,
+        attachmentUrl: canViewStaffFields ? post.attachmentUrl : null,
+        trialGranted: canViewStaffFields ? post.trialGranted : false,
+        systemReply: canViewStaffFields ? post.systemReply : null,
         createdAt: post.createdAt.toISOString(),
       },
     });

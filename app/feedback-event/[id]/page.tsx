@@ -8,6 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 type PostDetail = {
   id: string;
   isMine: boolean;
+  isAdminViewer?: boolean;
   authorLabel: string;
   featureLabel: string;
   resultLabel: string;
@@ -106,11 +107,14 @@ export default function FeedbackPostDetailPage() {
               <span className="font-medium text-zinc-700">{post.authorLabel}</span>
               <span>·</span>
               <span>{dateLabel}</span>
-              {post.publicConsent && (
+              {post.publicConsent ?
                 <span className="rounded bg-blue-100 text-blue-800 px-2 py-0.5">공개</span>
-              )}
+              : <span className="rounded bg-zinc-200 text-zinc-700 px-2 py-0.5">비공개</span>}
               {post.isMine && (
                 <span className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5">내 글</span>
+              )}
+              {post.isAdminViewer && (
+                <span className="rounded bg-amber-100 text-amber-900 px-2 py-0.5">관리자 열람</span>
               )}
             </div>
             <p className="text-sm text-zinc-600">
@@ -122,7 +126,7 @@ export default function FeedbackPostDetailPage() {
             {post.content}
           </div>
 
-          {post.isMine && post.attachmentUrl && post.attachmentName && (
+          {(post.isMine || post.isAdminViewer) && post.attachmentUrl && post.attachmentName && (
             <div className="px-6 pb-4 text-sm">
               <span className="text-zinc-500">첨부: </span>
               <a
@@ -136,7 +140,7 @@ export default function FeedbackPostDetailPage() {
             </div>
           )}
 
-          {post.isMine && post.systemReply && (
+          {(post.isMine || post.isAdminViewer) && post.systemReply && (
             <div className="mx-6 mb-6 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900 whitespace-pre-line leading-relaxed">
               <p className="font-semibold text-amber-950 mb-2">운영 안내</p>
               {post.systemReply}
