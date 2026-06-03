@@ -51,8 +51,8 @@ export const FEEDBACK_REPLY_ALREADY_USED_TRIAL = FEEDBACK_REPLY_NO_ADDITIONAL_TR
 
 /** 유료 플랜 이용 중 */
 export const FEEDBACK_REPLY_PAID_USER =
-  '소중한 의견 잘 받았습니다. 감사합니다.\n\n' +
-  '현재 유료 플랜을 이용 중이셔서 PRO 체험권은 별도로 제공되지 않습니다. ' +
+  '소중한 의견 감사합니다.\n\n' +
+  '유료 플랜 이용 중으로 PRO 체험권은 제공되지 않는 점 양해 부탁드립니다.\n' +
   '피드백 내용은 정상 접수되었습니다.';
 
 /** 일반 접수 (체험 미해당 등) */

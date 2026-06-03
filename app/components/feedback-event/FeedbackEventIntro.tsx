@@ -63,8 +63,10 @@ export function FeedbackEventIntro({ data, from }: Props) {
       )}
 
       {data?.user.isPaid && (
-        <div className="mb-4 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
-          유료 플랜 이용 중입니다. 피드백은 작성 가능하나 PRO 체험권은 제공되지 않습니다.
+        <div className="mb-4 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700 leading-relaxed">
+          유료 플랜 이용 중으로 PRO 체험권은 제공되지 않는 점 양해 부탁드립니다.
+          <br />
+          소중한 의견 감사합니다.
         </div>
       )}
     </>
