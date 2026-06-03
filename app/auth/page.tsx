@@ -11,7 +11,11 @@
 
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { signIn, useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import {
+  getPostLoginPath,
+  isAuthPathname,
+} from '@/app/lib/auth/post-login-redirect';
 import Link from 'next/link';
 import { Mail, Lock, LogIn, UserPlus, Loader2, Eye, EyeOff, Smartphone, X, Search } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
@@ -35,11 +39,13 @@ function AuthPageSuspenseFallback() {
 
 function AuthPageContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const params = searchParams ?? new URLSearchParams();
   const { status } = useSession();
   const fetchUser = useUserStore((state) => state.fetchUser);
   const storeUser = useUserStore((state) => state.user);
+  const postLoginRedirectedRef = useRef(false);
   
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -97,16 +103,25 @@ function AuthPageContent() {
     }
   }, [params]);
 
+  const redirectAfterAuth = () => {
+    if (postLoginRedirectedRef.current) return;
+    postLoginRedirectedRef.current = true;
+    router.replace(getPostLoginPath(params));
+  };
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      postLoginRedirectedRef.current = false;
+    }
+  }, [status]);
+
+  // 로그인 완료 후에도 /auth 에 머무를 때만 이동 (다른 메뉴로 먼저 간 경우 택배로 끌어오지 않음)
   useEffect(() => {
     if (status !== 'authenticated') return;
-
-    const rawCallback = params.get('callbackUrl');
-    if (rawCallback?.startsWith('/') && !rawCallback.startsWith('//')) {
-      router.replace(rawCallback);
-      return;
-    }
-    router.replace('/order-convert');
-  }, [status, router, params]);
+    if (!isAuthPathname(pathname)) return;
+    redirectAfterAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- redirectAfterAuth는 params·router만 사용
+  }, [status, pathname]);
 
   useEffect(() => {
     if (storeUser?.lastLoginProvider === 'GOOGLE') {
@@ -226,9 +241,7 @@ function AuthPageContent() {
       } else {
         // 로그인 성공 시 사용자 정보 가져오기
         await fetchUser();
-        // 택배 주문변환으로 리다이렉트
-        router.push('/order-convert');
-        router.refresh();
+        redirectAfterAuth();
       }
     } catch (err) {
       setError('로그인 중 오류가 발생했습니다.');
@@ -374,8 +387,7 @@ function AuthPageContent() {
         setError('회원가입은 완료되었지만 자동 로그인에 실패했습니다. 로그인해주세요.');
       } else {
         await fetchUser();
-        router.push('/order-convert');
-        router.refresh();
+        redirectAfterAuth();
       }
     } catch {
       setError('인증코드 확인 중 오류가 발생했습니다.');

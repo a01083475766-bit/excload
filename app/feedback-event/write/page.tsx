@@ -29,6 +29,16 @@ function FeedbackWriteInner() {
   const eventActive =
     data?.event.isActive ?? readFeedbackStatusCache()?.event.isActive ?? true;
 
+  const cachedUser = readFeedbackStatusCache()?.user;
+  const noAdditionalTrial =
+    status === 'authenticated' &&
+    (data?.user.isPaid ??
+      cachedUser?.isPaid ??
+      data?.user.feedbackTrialUsed ??
+      cachedUser?.feedbackTrialUsed ??
+      user?.feedbackTrialUsed ??
+      false);
+
   const [featureUsed, setFeatureUsed] = useState(FEEDBACK_SELECT_VALUE);
   const [conversionResult, setConversionResult] = useState(FEEDBACK_SELECT_VALUE);
   const [content, setContent] = useState('');
@@ -146,18 +156,17 @@ function FeedbackWriteInner() {
           게시판 목록
         </Link>
 
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-2 flex items-center gap-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-6 flex items-center gap-2">
           <PenLine className="h-7 w-7 text-blue-600" aria-hidden />
           피드백 작성하기
         </h1>
 
-        <p className="text-sm text-zinc-500 mb-6">
-          이벤트 안내·PRO 체험 상태는{' '}
-          <Link href="/feedback-event" className="text-blue-600 underline">
-            게시판 목록
-          </Link>
-          에서 확인할 수 있습니다.
-        </p>
+        {noAdditionalTrial && (
+          <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 leading-relaxed">
+            PRO 30일 체험 혜택은 <strong>계정당 1회</strong>입니다. 추가로 남기신 피드백에도
+            체험 기간이 다시 제공되지는 않으며, 의견은 정상적으로 접수됩니다.
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-5 shadow-sm">
           <div>

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
+import { getPostLoginPath } from '@/app/lib/auth/post-login-redirect';
 
 function SocialLoadingContent() {
   const router = useRouter();
@@ -25,7 +26,7 @@ function SocialLoadingContent() {
           // ignore localStorage failures
         }
       }
-      router.replace('/order-convert');
+      router.replace(getPostLoginPath(params));
       return;
     }
 
