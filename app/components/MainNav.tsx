@@ -142,7 +142,8 @@ export default function MainNav() {
             const Icon = item.icon;
             const isActive =
               pathname === item.href ||
-              (item.href === '/akman' && pathname?.startsWith('/akman/'));
+              (item.href === '/akman' &&
+                (pathname?.startsWith('/akman/') || pathname?.startsWith('/admin/')));
 
             return (
               <Link

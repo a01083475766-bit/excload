@@ -132,8 +132,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /akman — 관리자 UI (로그인 + 관리자 이메일만 허용, API는 각 route에서 동일 검증)
-  if (pathname.startsWith('/akman')) {
+  // /akman · /admin — 관리자 UI (로그인 + 관리자 이메일만 허용, API는 각 route에서 동일 검증)
+  if (pathname.startsWith('/akman') || pathname.startsWith('/admin')) {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,

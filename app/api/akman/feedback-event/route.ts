@@ -7,6 +7,7 @@ import { DEFAULT_FEEDBACK_EVENT_ENDS_AT } from '@/app/lib/feedback-event/constan
 import {
   formatFeedbackEventEndLabel,
   getFeedbackEventConfig,
+  invalidateFeedbackEventConfigCache,
 } from '@/app/lib/feedback-event/config';
 
 export async function GET() {
@@ -85,6 +86,7 @@ export async function PATCH(request: NextRequest) {
       update: data,
     });
 
+    invalidateFeedbackEventConfigCache();
     const config = await getFeedbackEventConfig();
 
     return NextResponse.json({

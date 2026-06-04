@@ -66,7 +66,16 @@ export default function GlobalPopupManager() {
   const [loaded, setLoaded] = useState(false);
   const pathname = usePathname();
 
+  const isAdminPath =
+    pathname?.startsWith('/akman') || pathname?.startsWith('/admin');
+
   useEffect(() => {
+    if (isAdminPath) {
+      setPopups([]);
+      setLoaded(true);
+      return;
+    }
+
     const fetchPopups = async () => {
       try {
         const res = await fetch('/api/popups/active');
@@ -111,7 +120,7 @@ export default function GlobalPopupManager() {
     };
 
     fetchPopups();
-  }, [pathname]);
+  }, [pathname, isAdminPath]);
 
   if (!loaded || popups.length === 0) return null;
 
