@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
+import { isReservedNickname, RESERVED_NICKNAME_MESSAGE } from '@/app/lib/reserved-nickname';
 
 interface UpdateNicknameBody {
   nickname?: string;
@@ -22,6 +23,10 @@ export async function POST(request: NextRequest) {
         { error: '닉네임은 2자 이상 20자 이하로 입력해주세요.' },
         { status: 400 }
       );
+    }
+
+    if (isReservedNickname(nickname)) {
+      return NextResponse.json({ error: RESERVED_NICKNAME_MESSAGE }, { status: 400 });
     }
 
     const updated = await prisma.user.update({
