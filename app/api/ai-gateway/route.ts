@@ -20,6 +20,7 @@ import {
 import { isExcloudPipelineDebugServer } from '@/app/lib/excloud-pipeline-debug';
 import { buildNormalize29SystemPrompt } from '@/app/lib/normalize-29/prompts';
 import { getNormalize29AiCallParams } from '@/app/lib/normalize-29/ai-call-params';
+import { enrichOrdersWithLabeledSender } from '@/app/lib/normalize-29/enrich-sender-from-labeled-lines';
 
 const enableAIDebugLog = process.env.AI_DEBUG_LOG === 'true';
 
@@ -261,6 +262,7 @@ export async function handleNormalize29(
       .filter((order: unknown) => order && typeof order === 'object' && !Array.isArray(order))
       .map((order: Record<string, unknown>) => normalizeOrderObject(order))
       .map((order: Record<string, string>) => collapseDuplicateFullLineDump(order, text));
+    orders = enrichOrdersWithLabeledSender(orders, text);
 
     if (!Array.isArray(orders) || orders.length === 0) {
       console.warn('[AI Gateway] normalize-29 empty orders');
