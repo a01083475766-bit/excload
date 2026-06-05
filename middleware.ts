@@ -17,8 +17,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
-  // 검색엔진 등록용 정적 메타 (HTML 리다이렉트 방지)
-  if (pathname === '/sitemap.xml' || pathname === '/robots.txt') {
+  // 검색엔진 등록용 정적 메타·소유확인 파일 (HTML 리다이렉트 방지)
+  if (
+    pathname === '/sitemap.xml' ||
+    pathname === '/robots.txt' ||
+    pathname === '/googlea00102bac7fd96b2.html'
+  ) {
     return NextResponse.next();
   }
 
