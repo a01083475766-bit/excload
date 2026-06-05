@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
+  SITE_URL,
+  buildOpenGraph,
+} from "./lib/seo-metadata";
 import "./globals.css";
 import MainNav from "./components/MainNav";
 import AuthProviders from "./components/AuthProviders";
@@ -19,11 +25,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "엑클로드",
-  description: "엑셀 주문 변환 서비스",
+  metadataBase: new URL(SITE_URL),
+  title: DEFAULT_TITLE,
+  description: DEFAULT_DESCRIPTION,
   icons: {
     icon: "/favicon.png",
   },
+  openGraph: buildOpenGraph(DEFAULT_TITLE, DEFAULT_DESCRIPTION, "/"),
   verification: {
     other: {
       "naver-site-verification": "fd86a20c43229de14d33cf798a4f86706b09a326",

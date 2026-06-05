@@ -90,6 +90,10 @@ export default function PricingPage() {
           <p className="text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
             당신의 비즈니스에 맞는 플랜을 선택하세요
           </p>
+          <p className="mt-4 text-sm sm:text-base text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+            엑클로드(EXCLOAD)는 주문 엑셀 변환, 송장 파일 변환, 물류 주문 변환을 하나의 서비스에서
+            이용할 수 있습니다. 택배 엑셀 변환·물류 업로드 양식 변환에 맞는 요금을 확인해 보세요.
+          </p>
         </div>
 
         {/* 플랜 카드 */}

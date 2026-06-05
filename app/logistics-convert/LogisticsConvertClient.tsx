@@ -4689,6 +4689,17 @@ export function LogisticsConvertClient({
         <div className={trialMode ? 'trial-focus-outline' : ''}>
         {/* Hero 섹션 - 세로 흐름 구조 */}
         <section className="relative pt-1 pb-3">
+          {!trialMode ? (
+            <>
+              <h1 className="mb-2 text-center text-lg font-semibold text-gray-900 sm:text-xl">
+                물류주문변환
+              </h1>
+              <p className="mb-3 text-center text-sm leading-relaxed text-gray-600 px-2">
+                3PL·물류센터 양식에 맞게 주문 데이터를 변환할 수 있습니다.
+                물류 업로드 엑셀 양식에 맞춰 주문·배송 정보를 정리합니다.
+              </p>
+            </>
+          ) : null}
           <div className="flex flex-col gap-2 lg:gap-3">
             {/* 좌·우 200px + 가운데 flex-1 · 체험은 호박 박스 대신 이 줄에 안내 문구 */}
             <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">

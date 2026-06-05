@@ -44,6 +44,13 @@ export default function UserGuidePage() {
   return (
     <div className="pt-1.5 pb-8 bg-zinc-50 dark:bg-black">
       <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
+        <h1 className="mb-3 text-center text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+          엑클로드(EXCLOAD) 사용가이드
+        </h1>
+        <p className="mb-4 text-center text-sm leading-relaxed text-gray-600 px-2">
+          택배주문변환, 물류주문변환, 송장파일변환 기능을 단계별로 안내합니다.
+          주문 엑셀 변환·택배 엑셀 변환·물류 주문 변환 흐름을 미리 살펴볼 수 있습니다.
+        </p>
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50/80 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
           각 위치에 마우스를 올리시면 기능 설명을 드리는 사용가이드입니다. 익숙하지 않은 용어 안내도 포함했습니다
           (실제 변환 및 기능은 적용되지 않습니다).

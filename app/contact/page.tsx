@@ -162,6 +162,10 @@ export default function ContactPage() {
           <p className="text-lg text-zinc-600 dark:text-zinc-400">
             궁금한 점이 있으시면 언제든지 문의해주세요.
           </p>
+          <p className="mt-3 text-sm sm:text-base text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+            엑클로드(EXCLOAD) 주문 엑셀 변환, 송장 파일 변환, 물류 주문 변환, 택배 엑셀 변환 서비스
+            이용·요금·기능에 대한 문의를 남겨 주세요.
+          </p>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             내용을 확인 후 입력하신 이메일로 연락드립니다.
           </p>

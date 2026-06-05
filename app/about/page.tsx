@@ -3,18 +3,22 @@
  * ⚠️ EXCLOAD CONSTITUTION — 마케팅/안내 페이지는 파이프라인과 독립합니다.
  */
 import Link from 'next/link';
+import { PAGE_SEO } from '@/app/lib/seo-metadata';
+
+export const metadata = PAGE_SEO.about;
 
 export default function AboutPage() {
   return (
     <div className="max-w-[900px] mx-auto py-20 px-6">
       <div className="text-center">
         <h1 className="text-3xl font-bold mb-6">
-          주문 데이터를 자동으로 변환하는 EXCLOAD
+          주문 데이터를 자동으로 변환하는 엑클로드(EXCLOAD)
         </h1>
 
-        <p className="text-gray-600 mb-10">
-          텍스트, 엑셀, 이미지 주문을 업로드하면
-          택배사 및 3PL 업로드용 엑셀 파일로 자동 변환됩니다.
+        <p className="text-gray-600 mb-10 leading-relaxed">
+          엑클로드(EXCLOAD)는 쇼핑몰 주문 엑셀, 송장 파일, 물류 주문 데이터를 택배사·물류 양식에 맞게
+          변환해주는 주문/배송 업무 자동화 서비스입니다. 텍스트, 엑셀, 이미지로 받은 주문을
+          택배 엑셀 변환·물류 주문 변환·송장 파일 변환으로 정리할 수 있습니다.
         </p>
 
         <div className="space-y-4 text-left max-w-xl mx-auto mb-16">

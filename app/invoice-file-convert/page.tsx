@@ -2164,6 +2164,13 @@ export default function InvoiceFileConvertPage() {
       <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
         <section className="relative pt-1 pb-3">
+          <h1 className="mb-2 text-center text-lg font-semibold text-gray-900 sm:text-xl">
+            송장파일변환
+          </h1>
+          <p className="mb-3 text-center text-sm leading-relaxed text-gray-600 px-2">
+            택배사에서 내려받은 송장번호 파일을 주문 데이터와 맞춰 정리할 수 있습니다.
+            주문 엑셀과 송장 엑셀을 합쳐 쇼핑몰·택배 송장 업로드 양식으로 변환합니다.
+          </p>
           <div className="flex flex-col gap-2 lg:gap-3">
             {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (택배주문변환과 동일 레이아웃) */}
             <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">

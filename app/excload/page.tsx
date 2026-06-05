@@ -226,7 +226,8 @@ export default function HomePage() {
         <section className="blue-unified-theme pt-8 pb-8 lg:pt-12 lg:pb-12">
           <div className="flex flex-col gap-0">
             <p className="mb-6 mx-auto max-w-5xl text-center text-base sm:text-lg font-medium leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all] md:mb-8">
-              엑클로드는 택배 업로드 파일을 간편하게 만들어주는 서비스입니다.
+              엑클로드(EXCLOAD)는 쇼핑몰 주문 엑셀, 송장 파일, 물류 주문 데이터를 택배사·물류 양식에 맞게
+              변환해주는 주문/배송 업무 자동화 서비스입니다.
             </p>
             <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-sm dark:border-blue-900 dark:bg-blue-950/30 md:p-5 lg:p-6">
               <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
