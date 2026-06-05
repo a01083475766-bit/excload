@@ -940,7 +940,14 @@ function formatTrialTextQuotaShortfall(remaining: number, textLength: number): s
 /** public 폴더의 체험용 기본 물류 업로드 양식 (등록 없이 미리보기 가능하도록) */
 const TRIAL_DEFAULT_TEMPLATE_PUBLIC_PATH = '/trial-default-upload-template.xlsx';
 
-export function LogisticsConvertClient({ trialMode = false }: { trialMode?: boolean }) {
+export function LogisticsConvertClient({
+  trialMode = false,
+  landingEmbed = false,
+}: {
+  trialMode?: boolean;
+  /** 홈 랜딩(/excload) 임베드 — 파란 테마·포털 모달 색상 통일 */
+  landingEmbed?: boolean;
+}) {
   const router = useRouter();
   const [isDesktopHoverDevice, setIsDesktopHoverDevice] = useState(false);
   const [floatingTooltip, setFloatingTooltip] = useState<{
@@ -6496,6 +6503,7 @@ export function LogisticsConvertClient({ trialMode = false }: { trialMode?: bool
       <WorkspaceBlockingModalOverlay
         open={isSenderModalOpen}
         aria-labelledby="fixed-input-modal-title"
+        themeWrapperClassName={landingEmbed ? 'blue-unified-theme' : ''}
       >
           <div
             className={`${trialMode ? 'trial-sender-modal' : ''} bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[88vh] sm:h-[84vh] flex flex-col p-4 sm:p-6`}

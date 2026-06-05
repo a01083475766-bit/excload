@@ -400,21 +400,59 @@ body {
   text-align: left;
 }
 
-/* 홈 랜딩(데모+체험) 색상 통일: 파란 계열 */
-.blue-unified-theme [class*="text-emerald-"] {
+/* 홈 랜딩(데모+체험) 색상 통일: 파란 계열
+   ※ bg-emerald-50 등 연한 톤은 진한 파랑으로 바꾸지 않도록 shade별로 분리 */
+.blue-unified-theme [class*="text-emerald-400"] {
+  color: #60a5fa !important; /* blue-400 */
+}
+
+.blue-unified-theme [class*="text-emerald-600"],
+.blue-unified-theme [class*="text-emerald-700"],
+.blue-unified-theme [class*="text-emerald-500"] {
   color: #2563eb !important; /* blue-600 */
 }
 
-.blue-unified-theme [class*="bg-emerald-"] {
+.blue-unified-theme [class~="bg-emerald-50"],
+.blue-unified-theme [class*="bg-emerald-50/"],
+.blue-unified-theme [class*="hover:bg-emerald-50"]:hover,
+.blue-unified-theme [class*=":bg-emerald-50"] {
+  background-color: #eff6ff !important; /* blue-50 */
+}
+
+.blue-unified-theme [class*="bg-emerald-100"],
+.blue-unified-theme [class*="hover:bg-emerald-100"]:hover {
+  background-color: #dbeafe !important; /* blue-100 */
+}
+
+.blue-unified-theme [class*="bg-emerald-950"] {
+  background-color: rgb(23 37 84 / 0.35) !important; /* blue-950/35 */
+}
+
+.blue-unified-theme [class*="bg-emerald-500"],
+.blue-unified-theme [class*="bg-emerald-600"] {
   background-color: #2563eb !important; /* blue-600 */
 }
 
-.blue-unified-theme [class*="hover:bg-emerald-"]:hover {
+.blue-unified-theme [class*="bg-emerald-700"],
+.blue-unified-theme [class*="hover:bg-emerald-700"]:hover {
   background-color: #1d4ed8 !important; /* blue-700 */
 }
 
-.blue-unified-theme [class*="border-emerald-"] {
+.blue-unified-theme [class*="hover:bg-emerald-400"]:hover {
+  background-color: #60a5fa !important; /* blue-400 */
+}
+
+.blue-unified-theme [class*="border-emerald-200"] {
+  border-color: #bfdbfe !important; /* blue-200 */
+}
+
+.blue-unified-theme [class*="border-emerald-400"],
+.blue-unified-theme [class*="border-emerald-500"] {
   border-color: #3b82f6 !important; /* blue-500 */
+}
+
+.blue-unified-theme [class*="border-emerald-800"] {
+  border-color: #1e40af !important; /* blue-800 */
 }
 
 .blue-unified-theme [class*="ring-emerald-"] {
@@ -481,28 +519,28 @@ body {
   background: rgba(239, 246, 255, 0.32); /* blue-50 */
 }
 
-/* 무료체험 고정입력 모달: 선택/확인 색상 톤 다운 */
-.blue-unified-theme .trial-sender-modal .trial-modal-soft-selected {
+/* 무료체험 고정입력 모달: 선택/확인 색상 톤 다운 (body 포털에서도 적용) */
+.trial-sender-modal .trial-modal-soft-selected {
   background-color: #eff6ff !important; /* blue-50 */
   border-color: #bfdbfe !important; /* blue-200 */
   color: #1f2937 !important;
 }
 
-.blue-unified-theme .trial-sender-modal .trial-modal-soft-selected:hover {
+.trial-sender-modal .trial-modal-soft-selected:hover {
   background-color: #dbeafe !important; /* blue-100 */
 }
 
-.blue-unified-theme .trial-sender-modal .trial-modal-check-dot {
+.trial-sender-modal .trial-modal-check-dot {
   background-color: #60a5fa !important; /* blue-400 */
   border-color: #ffffff !important;
 }
 
-.blue-unified-theme .trial-sender-modal .trial-modal-primary {
+.trial-sender-modal .trial-modal-primary {
   background-color: #3b82f6 !important; /* blue-500 */
   color: #ffffff !important;
 }
 
-.blue-unified-theme .trial-sender-modal .trial-modal-primary:hover {
+.trial-sender-modal .trial-modal-primary:hover {
   background-color: #2563eb !important; /* blue-600 */
 }
 

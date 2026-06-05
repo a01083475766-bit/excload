@@ -11,6 +11,8 @@ type WorkspaceBlockingModalOverlayProps = {
   onBackdropClick?: () => void;
   zIndexClass?: string;
   overlayClassName?: string;
+  /** body 포털 루트에 붙는 테마 class (예: blue-unified-theme) */
+  themeWrapperClassName?: string;
   /** 내부 패널(모달 본문)에 붙는 className */
   panelClassName?: string;
   'aria-labelledby'?: string;
@@ -28,6 +30,7 @@ export function WorkspaceBlockingModalOverlay({
   onBackdropClick,
   zIndexClass = 'z-[60]',
   overlayClassName = '',
+  themeWrapperClassName = '',
   panelClassName = '',
   'aria-labelledby': ariaLabelledby,
   'aria-describedby': ariaDescribedby,
@@ -45,7 +48,7 @@ export function WorkspaceBlockingModalOverlay({
 
   const overlay = (
     <div
-      className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 ${overlayClassName}`}
+      className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 ${themeWrapperClassName} ${overlayClassName}`}
       role="presentation"
       onClick={closeOnBackdropClick ? onBackdropClick : undefined}
     >
