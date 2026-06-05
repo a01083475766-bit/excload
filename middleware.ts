@@ -17,6 +17,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
+  // 검색엔진 등록용 정적 메타 (HTML 리다이렉트 방지)
+  if (pathname === '/sitemap.xml' || pathname === '/robots.txt') {
+    return NextResponse.next();
+  }
+
   // 랜딩 UI는 app/excload/page.tsx 단일 소스. 루트 `/`는 파일 하단에서 /excload로 리다이렉트.
   if (pathname.startsWith('/excload')) {
     return NextResponse.next();
