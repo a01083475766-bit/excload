@@ -33,6 +33,7 @@ export const metadata: Metadata = {
   },
   openGraph: buildOpenGraph(DEFAULT_TITLE, DEFAULT_DESCRIPTION, "/"),
   verification: {
+    google: "google-site-verification: googlea00102bac7fd96b2.html",
     other: {
       "naver-site-verification": "fd86a20c43229de14d33cf798a4f86706b09a326",
     },
