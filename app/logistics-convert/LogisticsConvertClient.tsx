@@ -6420,7 +6420,7 @@ export function LogisticsConvertClient({
 
             <div className="mb-5">
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                이 기기에는 등록된 물류센터 업로드 양식이 없습니다.
+                등록된 물류센터 업로드 양식이 없습니다.
                 <br />
                 물류 주문 변환을 시작하려면{' '}
                 <span className="font-semibold">물류센터 업로드 양식 등록</span>을 먼저 진행해 주세요.
