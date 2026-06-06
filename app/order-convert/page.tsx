@@ -2625,7 +2625,7 @@ export default function OrderConvertPage() {
           </p>
           <div className="flex flex-col gap-2 lg:gap-3">
             {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (한쪽만 있을 때는 반대쪽 빈 슬롯으로 대칭) */}
-            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
+            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
                 <button
                   type="button"
@@ -2635,9 +2635,6 @@ export default function OrderConvertPage() {
                   즐겨찾는 쇼핑몰
                 </button>
               </div>
-              <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
-                엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 택배 업로드 파일로 자동 변환합니다.
-              </p>
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
                 {user ? (
                   <div className="flex h-[38px] w-full min-w-0 items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white shadow-md sm:w-[200px]">

@@ -4701,8 +4701,10 @@ export function LogisticsConvertClient({
             </>
           ) : null}
           <div className="flex flex-col gap-2 lg:gap-3">
-            {/* 좌·우 200px + 가운데 flex-1 · 체험은 호박 박스 대신 이 줄에 안내 문구 */}
-            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
+            {/* 좌·우 200px · 체험 모드는 가운데 안내 문구 유지 */}
+            <div
+              className={`flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2 ${trialMode ? '' : 'sm:justify-between'}`}
+            >
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
                 {trialMode ? (
                   <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
@@ -4716,11 +4718,7 @@ export function LogisticsConvertClient({
                   </button>
                 )}
               </div>
-              {!trialMode ? (
-                <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
-                  엑셀 파일, 텍스트, 이미지로 전달된 주문 정보를 불러와 물류 업로드 파일로 자동 변환합니다.
-                </p>
-              ) : (
+              {!trialMode ? null : (
                 <p
                   data-ex-tooltip={
                     trialMode

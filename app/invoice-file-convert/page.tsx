@@ -2173,7 +2173,7 @@ export default function InvoiceFileConvertPage() {
           </p>
           <div className="flex flex-col gap-2 lg:gap-3">
             {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (택배주문변환과 동일 레이아웃) */}
-            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2">
+            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
                 <button
                   type="button"
@@ -2183,9 +2183,6 @@ export default function InvoiceFileConvertPage() {
                   즐겨찾는 쇼핑몰
                 </button>
               </div>
-              <p className="order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none">
-                송장파일변환 — 주문 엑셀 파일과 송장 엑셀 파일을 등록하여 쇼핑몰 송장 업로드 양식에 맞게 변환합니다.
-              </p>
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
                 {user ? (
                   <div className="flex h-[38px] w-full min-w-0 items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white shadow-md sm:w-[200px]">
