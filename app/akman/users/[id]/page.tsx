@@ -13,7 +13,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 interface PointHistory {
@@ -62,6 +62,8 @@ const providerLabel = (provider?: string | null) => {
 
 export default function UserDetailPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const adminHome = pathname?.startsWith('/admin') ? '/admin' : '/akman';
   const params = useParams();
   const userId = typeof params?.id === 'string' ? params.id : '';
   const [user, setUser] = useState<UserDetail | null>(null);
@@ -70,7 +72,7 @@ export default function UserDetailPage() {
   // 사용자 상세 정보 조회
   const fetchUserDetail = async () => {
     try {
-      const response = await fetch(`/api/akman/users/${userId}`);
+      const response = await fetch(`/api/akman/users/${encodeURIComponent(userId)}`);
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
@@ -78,12 +80,12 @@ export default function UserDetailPage() {
         router.push('/');
       } else if (response.status === 404) {
         alert('사용자를 찾을 수 없습니다.');
-        router.push('/akman');
+        router.push(adminHome);
       }
     } catch (error) {
       console.error('[User Detail Page] 사용자 조회 실패:', error);
       alert('사용자 정보를 불러오는데 실패했습니다.');
-      router.push('/akman');
+      router.push(adminHome);
     } finally {
       setLoading(false);
     }
@@ -182,7 +184,7 @@ export default function UserDetailPage() {
 
       if (response.ok && data.success) {
         alert(data.message || '사용자가 삭제되었습니다.');
-        router.push('/akman');
+        router.push(adminHome);
       } else {
         alert(data.error || '사용자 삭제에 실패했습니다.');
       }
@@ -204,7 +206,7 @@ export default function UserDetailPage() {
     return (
       <div style={{ padding: '40px', fontFamily: 'system-ui, sans-serif', textAlign: 'center' }}>
         <p>사용자를 찾을 수 없습니다.</p>
-        <Link href="/akman" style={{ color: '#0066cc', textDecoration: 'none' }}>
+        <Link href={adminHome} style={{ color: '#0066cc', textDecoration: 'none' }}>
           관리자 페이지로 돌아가기
         </Link>
       </div>
@@ -215,7 +217,7 @@ export default function UserDetailPage() {
     <div style={{ padding: '40px', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ marginBottom: '20px' }}>
         <Link
-          href="/akman"
+          href={adminHome}
           style={{
             color: '#0066cc',
             textDecoration: 'none',

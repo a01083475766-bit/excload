@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface AkmanStats {
   totalUsers: number;
@@ -102,6 +102,8 @@ const menuCard: React.CSSProperties = {
 
 export default function AkmanClient() {
   const router = useRouter();
+  const pathname = usePathname();
+  const adminHome = pathname?.startsWith('/admin') ? '/admin' : '/akman';
   const [stats, setStats] = useState<AkmanStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -153,7 +155,7 @@ export default function AkmanClient() {
   const goUser = () => {
     const id = userIdInput.trim();
     if (!id) return;
-    router.push(`/akman/users/${encodeURIComponent(id)}`);
+    router.push(`${adminHome}/users/${encodeURIComponent(id)}`);
   };
 
   const fmt = (n: number) => n.toLocaleString('ko-KR');
@@ -484,7 +486,7 @@ export default function AkmanClient() {
                 {users.map((u) => (
                   <div
                     key={u.id}
-                    onClick={() => router.push(`/akman/users/${encodeURIComponent(u.id)}`)}
+                    onClick={() => router.push(`${adminHome}/users/${encodeURIComponent(u.id)}`)}
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '1.8fr 1fr 90px 90px 90px 110px 110px 90px',
@@ -531,14 +533,14 @@ export default function AkmanClient() {
           </div>
         )}
 
-        <div style={{ fontWeight: 600, marginBottom: '10px' }}>사용자 상세 (ID)</div>
+        <div style={{ fontWeight: 600, marginBottom: '10px' }}>사용자 상세 (ID · 이메일 · 전화번호)</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
           <input
             type="text"
             value={userIdInput}
             onChange={(e) => setUserIdInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && goUser()}
-            placeholder="사용자 ID (cuid)"
+            placeholder="cuid, 이메일, 또는 전화번호"
             style={{
               flex: '1 1 220px',
               padding: '10px 12px',

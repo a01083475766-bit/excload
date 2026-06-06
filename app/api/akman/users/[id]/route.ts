@@ -11,9 +11,42 @@ import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 import { isAdminEmail } from '@/app/lib/admin-auth';
 
+async function findUserByIdentifier(identifier: string) {
+  const trimmed = identifier.trim();
+  if (!trimmed) return null;
+
+  const include = {
+    pointHistory: {
+      orderBy: { createdAt: 'desc' as const },
+    },
+  };
+
+  const byId = await prisma.user.findUnique({ where: { id: trimmed }, include });
+  if (byId) return byId;
+
+  if (trimmed.includes('@')) {
+    const byEmail = await prisma.user.findUnique({
+      where: { email: trimmed.toLowerCase() },
+      include,
+    });
+    if (byEmail) return byEmail;
+  }
+
+  const normalizedPhone = trimmed.replace(/[^0-9]/g, '');
+  if (normalizedPhone.length >= 10) {
+    const byPhone = await prisma.user.findUnique({
+      where: { phone: normalizedPhone },
+      include,
+    });
+    if (byPhone) return byPhone;
+  }
+
+  return null;
+}
+
 /**
  * GET /api/akman/users/[id]
- * 관리자가 사용자 상세 정보 조회
+ * 관리자가 사용자 상세 정보 조회 (cuid · 이메일 · 전화번호)
  */
 export async function GET(
   _request: NextRequest,
@@ -37,26 +70,16 @@ export async function GET(
       );
     }
 
-    const { id: userId } = await params;
+    const { id: identifier } = await params;
 
-    if (!userId) {
+    if (!identifier) {
       return Response.json(
         { success: false, message: 'User ID가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    // 사용자 상세 정보 조회
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        pointHistory: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
-      },
-    });
+    const user = await findUserByIdentifier(identifier);
 
     if (!user) {
       return Response.json(
@@ -64,6 +87,8 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    const userId = user.id;
 
     // 결제 내역 조회 (Payment 모델이 있을 경우)
     let payments: any[] = [];
