@@ -457,23 +457,40 @@ export default function UserDetailPage() {
             -1000
           </button>
           {user.plan === 'FREE' && (
-            <>
-              <input
-                type="number"
-                min={1}
-                max={24}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                flexWrap: 'wrap',
+                padding: '8px 12px',
+                backgroundColor: '#e8f4f8',
+                borderRadius: '6px',
+                border: '1px solid #b8dce8',
+              }}
+            >
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c5460' }}>
+                PRO 혜택
+              </span>
+              <select
                 value={trialMonths}
                 onChange={(e) => setTrialMonths(Number(e.target.value))}
                 disabled={trialSubmitting}
                 style={{
-                  width: '64px',
-                  padding: '8px',
+                  padding: '8px 10px',
                   fontSize: '14px',
                   border: '1px solid #ced4da',
                   borderRadius: '4px',
+                  minWidth: '88px',
                 }}
                 aria-label="PRO 혜택 개월 수"
-              />
+              >
+                {Array.from({ length: 24 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>
+                    {m}개월
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={handleGrantProTrial}
                 disabled={trialSubmitting}
@@ -489,7 +506,7 @@ export default function UserDetailPage() {
                   opacity: trialSubmitting ? 0.7 : 1,
                 }}
               >
-                PRO +N개월
+                +{trialMonths}개월 부여
               </button>
               {user.adminTrialEndsAt &&
                 new Date(user.adminTrialEndsAt).getTime() > Date.now() && (
@@ -509,7 +526,10 @@ export default function UserDetailPage() {
                     PRO 혜택 취소
                   </button>
                 )}
-            </>
+              <span style={{ fontSize: '12px', color: '#666', width: '100%' }}>
+                목록에서 개월 수를 고른 뒤 한 번만 누르면 해당 개월만큼 부여·연장됩니다.
+              </span>
+            </div>
           )}
           {(user.plan === 'PRO' || user.plan === 'YEARLY') && (
             <button
