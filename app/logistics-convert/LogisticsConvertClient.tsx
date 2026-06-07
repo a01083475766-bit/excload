@@ -3768,9 +3768,10 @@ export function LogisticsConvertClient({
     plan: 'FREE' | 'PRO' | 'YEARLY',
     nextPointDate?: string | null,
     feedbackTrialEndsAt?: string | null,
+    adminTrialEndsAt?: string | null,
   ): string => {
     const nextDateLabel = formatNextRechargeDate(nextPointDate);
-    if (!hasProEntitlementClient(plan, feedbackTrialEndsAt)) {
+    if (!hasProEntitlementClient(plan, feedbackTrialEndsAt, adminTrialEndsAt)) {
       return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다리거나 플랜 업그레이드 후 이용해 주세요.`;
     }
     return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다려 주세요.`;
@@ -3814,7 +3815,14 @@ export function LogisticsConvertClient({
 
     // 사용량 부족 확인
     if (currentUser.points < 1) {
-      alert(buildInsufficientPointsMessage(currentUser.plan, currentUser.nextPointDate ?? currentUser.lastMonthlyGrant ?? null));
+      alert(
+        buildInsufficientPointsMessage(
+          currentUser.plan,
+          currentUser.nextPointDate ?? currentUser.lastMonthlyGrant ?? null,
+          currentUser.feedbackTrialEndsAt,
+          currentUser.adminTrialEndsAt,
+        ),
+      );
       return false;
     }
 
@@ -3838,6 +3846,8 @@ export function LogisticsConvertClient({
             buildInsufficientPointsMessage(
               currentUser.plan,
               (data.nextPointDate as string | null | undefined) ?? currentUser.nextPointDate ?? currentUser.lastMonthlyGrant ?? null,
+              currentUser.feedbackTrialEndsAt,
+              currentUser.adminTrialEndsAt,
             ),
           );
           return false;
@@ -4391,13 +4401,14 @@ export function LogisticsConvertClient({
       return;
     }
 
-    if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt)) {
+    if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt)) {
       if (user.points < 1) {
         alert(
           buildInsufficientPointsMessage(
             user.plan,
             user.nextPointDate ?? user.lastMonthlyGrant ?? null,
             user.feedbackTrialEndsAt,
+            user.adminTrialEndsAt,
           ),
         );
         return;
@@ -4411,7 +4422,7 @@ export function LogisticsConvertClient({
       const wb = createPreviewDownloadWorkbook(excelData);
       const fileName = buildPreviewDownloadFileName();
 
-      if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt)) {
+      if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt)) {
         const pointsDeducted = await usePoints(1000, 'download');
         if (!pointsDeducted) {
           setDownloadStatus("idle");
@@ -4500,7 +4511,7 @@ export function LogisticsConvertClient({
           !trialMode &&
           ev?.event.isActive &&
           user &&
-          shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt) &&
+          shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt) &&
           !ev.user.feedbackPopupSeen &&
           !ev.user.feedbackTrialUsed
         ) {
@@ -4927,7 +4938,7 @@ export function LogisticsConvertClient({
                         pendingImageOcrTextConvertRef.current = false;
                         if (
                           user &&
-                          !hasProEntitlementClient(user.plan, user.feedbackTrialEndsAt) &&
+                          !hasProEntitlementClient(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt) &&
                           newValue.length > FREE_TEXT_INPUT_MAX_CHARS
                         ) {
                           alert(`무료 회원은 최대 ${FREE_TEXT_INPUT_MAX_CHARS.toLocaleString('ko-KR')}자까지 입력할 수 있습니다.`);

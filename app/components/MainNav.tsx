@@ -20,20 +20,6 @@ import {
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
-/**
- * 클라이언트에서 관리자 이메일인지 확인
- * (서버 환경 변수는 클라이언트에서 접근 불가하므로 하드코딩된 이메일만 체크)
- */
-function isAdminEmailClient(email: string | null | undefined): boolean {
-  if (!email) return false;
-
-  return (
-    email === 'akman' ||
-    email === 'akman@excload.com' ||
-    email === 'a01083475766@gmail.com'
-  );
-}
-
 interface MenuItem {
   href: string;
   label: string;
@@ -88,9 +74,8 @@ export default function MainNav() {
   const { data: session, status } = useSession();
   const user = useUserStore((state) => state.user);
 
-  const emailForRole = user?.email ?? session?.user?.email ?? null;
   const isLoggedIn = status === 'authenticated' || !!user;
-  const isAdmin = emailForRole && isAdminEmailClient(emailForRole);
+  const isAdmin = session?.user?.isAdmin === true;
 
   const adminMenuItem: MenuItem = { href: '/akman', label: '관리자페이지', icon: Shield };
   const feedbackEventMenuItem: MenuItem = {

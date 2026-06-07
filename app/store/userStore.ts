@@ -26,6 +26,7 @@ export interface User {
   createdAt?: string | null;
   feedbackTrialEndsAt?: string | null;
   feedbackTrialUsed?: boolean;
+  adminTrialEndsAt?: string | null;
 }
 
 interface UserStoreState {
@@ -102,6 +103,7 @@ export const useUserStore = create<UserStoreState>()(
                     createdAt: data.user.createdAt ?? null,
                     feedbackTrialEndsAt: data.user.feedbackTrialEndsAt ?? null,
                     feedbackTrialUsed: data.user.feedbackTrialUsed ?? false,
+                    adminTrialEndsAt: data.user.adminTrialEndsAt ?? null,
                   },
                 });
 

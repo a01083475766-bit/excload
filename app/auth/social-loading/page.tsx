@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
-import { getPostLoginPath } from '@/app/lib/auth/post-login-redirect';
+import { getPostLoginPath, navigatePostLogin } from '@/app/lib/auth/post-login-redirect';
 
 function SocialLoadingContent() {
   const router = useRouter();
@@ -26,7 +26,7 @@ function SocialLoadingContent() {
           // ignore localStorage failures
         }
       }
-      router.replace(getPostLoginPath(params));
+      navigatePostLogin(getPostLoginPath(params), router);
       return;
     }
 

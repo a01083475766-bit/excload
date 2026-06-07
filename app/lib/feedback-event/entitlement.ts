@@ -1,10 +1,12 @@
 import { prisma } from '@/app/lib/prisma';
+import { isAdminTrialActive } from '@/app/lib/admin-pro-trial';
 import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
 import { FEEDBACK_TRIAL_DAYS, FEEDBACK_TRIAL_POINTS } from './constants';
 
 export type UserEntitlementFields = {
   plan: string;
   feedbackTrialEndsAt: Date | null;
+  adminTrialEndsAt?: Date | null;
   feedbackTrialUsed: boolean;
 };
 
@@ -13,10 +15,11 @@ export function isFeedbackTrialActive(endsAt: Date | null | undefined, now = new
   return endsAt.getTime() > now.getTime();
 }
 
-/** 유료 PRO/YEARLY 또는 피드백 이벤트 PRO 체험 중 */
+/** 유료 PRO/YEARLY 또는 피드백·관리자 PRO 체험 중 */
 export function hasProEntitlement(user: UserEntitlementFields, now = new Date()): boolean {
   if (isPaidDbPlan(user.plan)) return true;
-  return isFeedbackTrialActive(user.feedbackTrialEndsAt, now);
+  if (isFeedbackTrialActive(user.feedbackTrialEndsAt, now)) return true;
+  return isAdminTrialActive(user.adminTrialEndsAt, now);
 }
 
 export async function expireFeedbackTrialIfNeeded(userId: string): Promise<void> {

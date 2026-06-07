@@ -7,6 +7,37 @@ export function getPostLoginPath(searchParams: URLSearchParams | null): string {
   return '/order-convert';
 }
 
+/** middleware getToken 검증이 필요한 경로 — 클라이언트 replace 대신 full navigation 권장 */
+export function requiresMiddlewareSession(path: string): boolean {
+  return (
+    path.startsWith('/akman') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/history')
+  );
+}
+
+/** 미인증 시 통합 로그인(/auth) URL — /auth/login 2-hop 제거 */
+export function buildAuthLoginRedirectUrl(origin: string, callbackPath: string): string {
+  const url = new URL('/auth', origin);
+  url.searchParams.set('mode', 'login');
+  if (callbackPath) {
+    url.searchParams.set('callbackUrl', callbackPath);
+  }
+  return url.toString();
+}
+
+/** 로그인 직후 이동 — middleware 보호 경로는 document navigation으로 쿠키·호스트 일치 */
+export function navigatePostLogin(
+  path: string,
+  router: { replace: (href: string) => void },
+): void {
+  if (typeof window !== 'undefined' && requiresMiddlewareSession(path)) {
+    window.location.assign(path);
+    return;
+  }
+  router.replace(path);
+}
+
 /** 통합 인증 UI가 떠 있는 경로인지 (여기서만 자동 이동) */
 export function isAuthPathname(pathname: string | null | undefined): boolean {
   if (!pathname) return false;

@@ -10,6 +10,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import KakaoProvider from 'next-auth/providers/kakao';
 import NaverProvider from 'next-auth/providers/naver';
+import { isAdminEmail } from '@/app/lib/admin-auth';
 
 // redirect_uri 조립 시 끝 슬래시가 있으면 OAuth 토큰 교환 단계에서 실패할 수 있음
 (() => {
@@ -362,6 +363,9 @@ export const authOptions: NextAuthOptions = {
         hasUser: Boolean(user),
         hasAccount: Boolean(account),
       });
+      if (tokenEmail) {
+        token.isAdmin = isAdminEmail(tokenEmail);
+      }
       return token;
     },
     async session({ session, token }) {
@@ -372,6 +376,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
+        session.user.isAdmin = Boolean(token.isAdmin);
       }
       return session;
     },

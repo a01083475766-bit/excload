@@ -78,6 +78,9 @@ model User {
   feedbackTrialUsed     Boolean   @default(false)
   feedbackPopupSeenAt   DateTime?
 
+  /// 관리자 수동 PRO 혜택 (plan=FREE 유지, 만료 시 PRO 권한만 종료)
+  adminTrialEndsAt      DateTime?
+
   pointHistory     PointHistory[]
   subscriptions   Subscription[]
   favoriteMalls   UserFavoriteMall[]

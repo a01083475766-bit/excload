@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
           points: true,
           nextPointDate: true,
           feedbackTrialEndsAt: true,
+          adminTrialEndsAt: true,
           feedbackTrialUsed: true,
           isBlocked: true,
           abuseFlag: true,

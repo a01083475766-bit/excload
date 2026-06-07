@@ -17,6 +17,7 @@ import {
 } from '@/app/lib/user-access-guard';
 import { isWithinWithdrawGrace, WITHDRAW_GRACE_DAYS } from '@/app/lib/account-withdrawal';
 import { expireFeedbackTrialIfNeeded } from '@/app/lib/feedback-event/entitlement';
+import { expireAdminTrialIfNeeded } from '@/app/lib/admin-pro-trial';
 
 /**
  * GET /api/user/get
@@ -87,6 +88,7 @@ export async function GET(request: NextRequest) {
       await syncUserIpAndAbuseScore(user.id, getClientIp(request));
       await tryGrantInitialFreeBenefits(user.id);
       await expireFeedbackTrialIfNeeded(user.id);
+      await expireAdminTrialIfNeeded(user.id);
 
       const freshUser = await prisma.user.findUnique({
         where: { id: user.id },
@@ -105,6 +107,7 @@ export async function GET(request: NextRequest) {
           purgeAt: true,
           feedbackTrialEndsAt: true,
           feedbackTrialUsed: true,
+          adminTrialEndsAt: true,
         },
       });
 
@@ -154,6 +157,7 @@ export async function GET(request: NextRequest) {
           updatedAt: freshUser.updatedAt.toISOString(),
           feedbackTrialEndsAt: freshUser.feedbackTrialEndsAt?.toISOString() ?? null,
           feedbackTrialUsed: freshUser.feedbackTrialUsed,
+          adminTrialEndsAt: freshUser.adminTrialEndsAt?.toISOString() ?? null,
         },
       });
     } catch (dbError) {

@@ -9,10 +9,13 @@ interface AkmanStats {
   proUsers: number;
   yearlyUsers: number;
   todayUsers: number;
+  newUsersSince: number | null;
   monthlyUsers: number;
   revenue: number;
   monthlyRevenue: number;
 }
+
+const AKMAN_LAST_SEEN_KEY = 'excload-akman-dashboard-last-seen';
 
 interface DuplicateReportUser {
   id: string;
@@ -125,12 +128,20 @@ export default function AkmanClient() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/akman/stats');
+        const lastSeen =
+          typeof window !== 'undefined' ? localStorage.getItem(AKMAN_LAST_SEEN_KEY) : null;
+        const statsUrl = lastSeen
+          ? `/api/akman/stats?since=${encodeURIComponent(lastSeen)}`
+          : '/api/akman/stats';
+        const res = await fetch(statsUrl);
         if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
           setStats(data);
           setStatsError(null);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(AKMAN_LAST_SEEN_KEY, new Date().toISOString());
+          }
         } else if (res.status === 401 || res.status === 403) {
           setStats(null);
           setStatsError('요약 통계는 관리자 로그인 후에 표시됩니다. 아래 메뉴는 권한에 따라 일부만 동작할 수 있습니다.');
@@ -160,6 +171,14 @@ export default function AkmanClient() {
 
   const fmt = (n: number) => n.toLocaleString('ko-KR');
   const fmtWon = (n: number) => `${fmt(n)}원`;
+
+  const newSignupSinceLastVisit =
+    stats?.newUsersSince != null && stats.newUsersSince > 0 ? stats.newUsersSince : 0;
+  const newSignupToday = stats?.todayUsers ?? 0;
+  const newSignupBadgeCount =
+    newSignupSinceLastVisit > 0 ? newSignupSinceLastVisit : newSignupToday;
+  const newSignupBadgeLabel =
+    newSignupSinceLastVisit > 0 ? '마지막 방문 이후' : '오늘';
 
   const loadUsers = async (
     plan: 'ALL' | 'FREE' | 'PRO' | 'YEARLY' = userPlanFilter,
@@ -318,14 +337,64 @@ export default function AkmanClient() {
           {statsError}
         </p>
       )}
+      {!statsLoading && stats && (newSignupSinceLastVisit > 0 || newSignupToday > 0) && (
+        <div
+          style={{
+            marginBottom: '16px',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            border: '1px solid #86efac',
+            background: '#ecfdf5',
+            color: '#065f46',
+            fontSize: '14px',
+            lineHeight: 1.5,
+          }}
+        >
+          {newSignupSinceLastVisit > 0 && (
+            <div style={{ fontWeight: 600 }}>
+              마지막 방문 이후 신규 가입 {fmt(newSignupSinceLastVisit)}명
+            </div>
+          )}
+          {newSignupToday > 0 && (
+            <div style={{ fontWeight: newSignupSinceLastVisit > 0 ? 500 : 600, marginTop: newSignupSinceLastVisit > 0 ? 4 : 0 }}>
+              오늘 신규 가입 {fmt(newSignupToday)}명
+            </div>
+          )}
+        </div>
+      )}
       {!statsLoading && stats && (
         <div style={cardGrid}>
           <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('ALL', 'ALL')}>
             <div style={{ fontSize: '13px', color: '#666' }}>전체 회원</div>
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.totalUsers)}</div>
           </div>
-          <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('ALL', 'today')}>
-            <div style={{ fontSize: '13px', color: '#666' }}>오늘 가입</div>
+          <div
+            style={{
+              ...statCard,
+              cursor: 'pointer',
+              ...(newSignupToday > 0
+                ? { border: '1px solid #86efac', background: '#ecfdf5' }
+                : {}),
+            }}
+            onClick={() => openUsers('ALL', 'today')}
+          >
+            <div style={{ fontSize: '13px', color: '#666', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              오늘 가입
+              {newSignupToday > 0 && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '999px',
+                    background: '#16a34a',
+                    color: '#fff',
+                  }}
+                >
+                  +{fmt(newSignupToday)}
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.todayUsers)}</div>
           </div>
           <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('ALL', 'thisMonth')}>
@@ -410,7 +479,23 @@ export default function AkmanClient() {
           marginTop: '8px',
         }}
       >
-        <div style={{ fontWeight: 600, marginBottom: '10px' }}>가입 회원 목록</div>
+        <div style={{ fontWeight: 600, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span>가입 회원 목록</span>
+          {newSignupBadgeCount > 0 && (
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '999px',
+                background: '#dc2626',
+                color: '#fff',
+              }}
+            >
+              {newSignupBadgeLabel} 신규 {fmt(newSignupBadgeCount)}명
+            </span>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
           <button
             type="button"
@@ -430,6 +515,7 @@ export default function AkmanClient() {
             }}
           >
             {usersOpen ? '회원 목록 닫기' : '회원 목록 펼치기'}
+            {!usersOpen && newSignupBadgeCount > 0 ? ` (${fmt(newSignupBadgeCount)}명)` : ''}
           </button>
           {usersOpen && (
             <>

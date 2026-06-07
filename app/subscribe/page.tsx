@@ -373,7 +373,21 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
           )}
 
         {user &&
-          hasProEntitlementClient(user.plan, user.feedbackTrialEndsAt) &&
+          user.adminTrialEndsAt &&
+          new Date(user.adminTrialEndsAt).getTime() > Date.now() &&
+          !hasPaidPlan &&
+          user.plan === 'FREE' && (
+            <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-800 dark:bg-sky-950/40">
+              <FeedbackTrialActiveBanner
+                endsAt={user.adminTrialEndsAt}
+                headline="관리자 PRO 혜택 이용 중입니다."
+                className="text-sm text-sky-900 dark:text-sky-100"
+              />
+            </div>
+          )}
+
+        {user &&
+          hasProEntitlementClient(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt) &&
           !hasPaidPlan &&
           user.feedbackTrialEndsAt && (
             <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800 dark:bg-emerald-950/40">

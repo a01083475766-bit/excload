@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/lib/auth'
 import { isAdminEmail } from '@/app/lib/admin-auth'
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
 
   if (!session || !session.user || !session.user.email || !isAdminEmail(session.user.email)) {
@@ -34,6 +34,17 @@ export async function GET() {
       }
     }
   })
+
+  let newUsersSince: number | null = null
+  const sinceRaw = new URL(request.url).searchParams.get('since')
+  if (sinceRaw) {
+    const sinceDate = new Date(sinceRaw)
+    if (!Number.isNaN(sinceDate.getTime())) {
+      newUsersSince = await prisma.user.count({
+        where: { createdAt: { gt: sinceDate } },
+      })
+    }
+  }
 
   // 이번달 시작
   const startOfMonth = new Date()
@@ -70,6 +81,7 @@ export async function GET() {
     proUsers,
     yearlyUsers,
     todayUsers,
+    newUsersSince,
     monthlyUsers,
     revenue: revenue._sum.amount || 0,
     monthlyRevenue: monthlyRevenue._sum.amount || 0

@@ -37,6 +37,7 @@ interface UserDetail {
   phone?: string | null;
   plan: string;
   points: number;
+  adminTrialEndsAt?: string | null;
   signupProvider?: string | null;
   lastLoginProvider?: string | null;
   emailVerified: boolean | null;
@@ -68,6 +69,8 @@ export default function UserDetailPage() {
   const userId = typeof params?.id === 'string' ? params.id : '';
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [trialMonths, setTrialMonths] = useState(1);
+  const [trialSubmitting, setTrialSubmitting] = useState(false);
 
   // 사용자 상세 정보 조회
   const fetchUserDetail = async () => {
@@ -123,17 +126,85 @@ export default function UserDetailPage() {
     }
   };
 
-  // 플랜 변경
+  // 관리자 PRO 혜택(N개월) 부여 — plan=FREE 유지, 포인트 변경 없음
+  const handleGrantProTrial = async () => {
+    if (!user) return;
+
+    const months = Math.floor(Number(trialMonths));
+    if (!Number.isInteger(months) || months < 1 || months > 24) {
+      alert('개월 수는 1~24 사이의 정수를 입력해 주세요.');
+      return;
+    }
+
+    if (!confirm(`${user.email} 회원에게 PRO 혜택 ${months}개월을 부여하시겠습니까?\n(포인트는 변경되지 않습니다.)`)) {
+      return;
+    }
+
+    setTrialSubmitting(true);
+    try {
+      const response = await fetch('/api/akman/grant-pro-trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, months }),
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(data.message || 'PRO 혜택이 적용되었습니다.');
+        fetchUserDetail();
+      } else {
+        alert(data.error || 'PRO 혜택 부여에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[User Detail Page] PRO 혜택 부여 실패:', error);
+      alert('PRO 혜택 부여 중 오류가 발생했습니다.');
+    } finally {
+      setTrialSubmitting(false);
+    }
+  };
+
+  const handleRevokeProTrial = async () => {
+    if (!user) return;
+
+    if (!confirm(`${user.email} 회원의 관리자 PRO 혜택을 즉시 취소하시겠습니까?`)) {
+      return;
+    }
+
+    setTrialSubmitting(true);
+    try {
+      const response = await fetch('/api/akman/revoke-pro-trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert(data.message || 'PRO 혜택이 취소되었습니다.');
+        fetchUserDetail();
+      } else {
+        alert(data.error || 'PRO 혜택 취소에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[User Detail Page] PRO 혜택 취소 실패:', error);
+      alert('PRO 혜택 취소 중 오류가 발생했습니다.');
+    } finally {
+      setTrialSubmitting(false);
+    }
+  };
+
+  // 플랜 변경 (유료 플랜 수동 조정용)
   const handleUpdatePlan = async () => {
     if (!user) return;
 
     let newPlan: 'FREE' | 'PRO' | 'YEARLY';
-    if (user.plan === 'FREE') {
-      newPlan = 'PRO';
-    } else if (user.plan === 'PRO') {
+    if (user.plan === 'PRO') {
       newPlan = 'YEARLY';
-    } else {
+    } else if (user.plan === 'YEARLY') {
       newPlan = 'FREE';
+    } else {
+      alert('FREE 회원 PRO 혜택은 아래 「PRO +N개월」로 부여해 주세요.');
+      return;
     }
 
     if (!confirm(`플랜을 ${user.plan}에서 ${newPlan}로 변경하시겠습니까?`)) {
@@ -255,6 +326,20 @@ export default function UserDetailPage() {
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Plan</div>
             <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{user.plan}</div>
           </div>
+          {user.adminTrialEndsAt && new Date(user.adminTrialEndsAt).getTime() > Date.now() && (
+            <div>
+              <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>관리자 PRO 혜택</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#17a2b8' }}>
+                {new Date(user.adminTrialEndsAt).toLocaleDateString('ko-KR', {
+                  timeZone: 'Asia/Seoul',
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                })}{' '}
+                까지
+              </div>
+            </div>
+          )}
           <div>
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Usage</div>
             <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0066cc' }}>
@@ -371,20 +456,77 @@ export default function UserDetailPage() {
           >
             -1000
           </button>
-          <button
-            onClick={handleUpdatePlan}
-            style={{
-              padding: '8px 16px',
-              fontSize: '14px',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            {user.plan === 'FREE' ? 'FREE → PRO' : user.plan === 'PRO' ? 'PRO → YEARLY' : 'YEARLY → FREE'}
-          </button>
+          {user.plan === 'FREE' && (
+            <>
+              <input
+                type="number"
+                min={1}
+                max={24}
+                value={trialMonths}
+                onChange={(e) => setTrialMonths(Number(e.target.value))}
+                disabled={trialSubmitting}
+                style={{
+                  width: '64px',
+                  padding: '8px',
+                  fontSize: '14px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                }}
+                aria-label="PRO 혜택 개월 수"
+              />
+              <button
+                onClick={handleGrantProTrial}
+                disabled={trialSubmitting}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  backgroundColor: '#17a2b8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: trialSubmitting ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  opacity: trialSubmitting ? 0.7 : 1,
+                }}
+              >
+                PRO +N개월
+              </button>
+              {user.adminTrialEndsAt &&
+                new Date(user.adminTrialEndsAt).getTime() > Date.now() && (
+                  <button
+                    onClick={handleRevokeProTrial}
+                    disabled={trialSubmitting}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      backgroundColor: '#6f42c1',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: trialSubmitting ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    PRO 혜택 취소
+                  </button>
+                )}
+            </>
+          )}
+          {(user.plan === 'PRO' || user.plan === 'YEARLY') && (
+            <button
+              onClick={handleUpdatePlan}
+              style={{
+                padding: '8px 16px',
+                fontSize: '14px',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              {user.plan === 'PRO' ? 'PRO → YEARLY' : 'YEARLY → FREE'}
+            </button>
+          )}
           <button
             onClick={handleDeleteUser}
             style={{

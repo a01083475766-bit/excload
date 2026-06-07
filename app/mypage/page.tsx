@@ -710,6 +710,18 @@ export default function MyPage() {
           <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">계정 정보 불러오는 중…</p>
         )}
 
+        {user?.adminTrialEndsAt &&
+          new Date(user.adminTrialEndsAt).getTime() > Date.now() &&
+          user.plan === 'FREE' && (
+            <div className="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-950/40">
+              <FeedbackTrialActiveBanner
+                endsAt={user.adminTrialEndsAt}
+                headline="관리자 PRO 혜택 이용 중입니다."
+                className="text-sm text-sky-900 dark:text-sky-100"
+              />
+            </div>
+          )}
+
         {user?.feedbackTrialEndsAt &&
           new Date(user.feedbackTrialEndsAt).getTime() > Date.now() &&
           user.plan === 'FREE' && (

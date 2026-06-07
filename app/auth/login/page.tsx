@@ -1,37 +1,40 @@
 /**
- * 로그인 페이지 (리다이렉트)
+ * 로그인 페이지 (/auth/login → /auth?mode=login 호환)
  *
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
- * 인증 시스템은 파이프라인 구조와 독립적으로 동작합니다.
- *
- * 통합 인증 페이지(/auth)로 리다이렉트합니다.
+ * 서버에서 세션·쿼리를 확인해 클라이언트 2-hop 깜빡임을 제거합니다.
  */
 
-'use client';
+export const dynamic = 'force-dynamic';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
+import {
+  buildAuthLoginRedirectUrl,
+  getPostLoginPath,
+} from '@/app/lib/auth/post-login-redirect';
 
-export default function LoginPage() {
-  const router = useRouter();
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const raw = await searchParams;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'string') {
+      params.set(key, value);
+    } else if (Array.isArray(value) && value[0]) {
+      params.set(key, value[0]);
+    }
+  }
+  params.set('mode', 'login');
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    params.set('mode', 'login');
-    router.replace(`/auth?${params.toString()}`);
-  }, [router]);
+  const session = await getServerSession(authOptions);
+  if (session?.user) {
+    redirect(getPostLoginPath(params));
+  }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50">
-          <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-        </div>
-        <p className="text-base font-semibold text-gray-900">로그인 페이지로 이동 중입니다.</p>
-        <p className="mt-2 text-sm text-gray-500">잠시만 기다려주세요.</p>
-      </div>
-    </div>
-  );
+  redirect(`/auth?${params.toString()}`);
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isAdminEmail } from '@/app/lib/admin-auth';
+import { buildAuthLoginRedirectUrl } from '@/app/lib/auth/post-login-redirect';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -58,10 +59,10 @@ export async function middleware(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
     if (!token) {
-      const loginUrl = new URL('/auth/login', request.url);
       const callbackPath = pathname + request.nextUrl.search;
-      loginUrl.searchParams.set('callbackUrl', callbackPath);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(
+        buildAuthLoginRedirectUrl(request.url, callbackPath),
+      );
     }
     return NextResponse.next();
   }
@@ -148,10 +149,10 @@ export async function middleware(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
     if (!token) {
-      const loginUrl = new URL('/auth/login', request.url);
       const callbackPath = pathname + request.nextUrl.search;
-      loginUrl.searchParams.set('callbackUrl', callbackPath);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(
+        buildAuthLoginRedirectUrl(request.url, callbackPath),
+      );
     }
     const email =
       typeof token.email === 'string'

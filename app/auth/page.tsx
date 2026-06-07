@@ -15,6 +15,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   getPostLoginPath,
   isAuthPathname,
+  navigatePostLogin,
 } from '@/app/lib/auth/post-login-redirect';
 import Link from 'next/link';
 import { Mail, Lock, LogIn, UserPlus, Loader2, Eye, EyeOff, Smartphone, X, Search } from 'lucide-react';
@@ -106,7 +107,7 @@ function AuthPageContent() {
   const redirectAfterAuth = () => {
     if (postLoginRedirectedRef.current) return;
     postLoginRedirectedRef.current = true;
-    router.replace(getPostLoginPath(params));
+    navigatePostLogin(getPostLoginPath(params), router);
   };
 
   useEffect(() => {
