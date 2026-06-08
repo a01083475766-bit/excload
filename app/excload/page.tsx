@@ -45,14 +45,14 @@ function heroSegClass(
       ? 'text-[clamp(1.12rem,3.1vw,1.34rem)] font-bold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all] transition-all duration-500'
       : 'text-[clamp(1.02rem,2.8vw,1.2rem)] font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all] transition-all duration-500';
   }
-  if (text === '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.') {
+  if (text === '주문 엑셀파일만 첨부하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.') {
     return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all] sm:whitespace-nowrap';
   }
   return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all]';
 }
 
 export default function HomePage() {
-  /** 고정 높이 박스에서 1~4번을 순차 재생하고, 블록이 바뀌면 이전 블록은 지웁니다. */
+  /** 고정 높이 박스에서 1~3번을 순차 재생하고, 블록이 바뀌면 이전 블록은 지웁니다. */
   const heroHeadline = '복잡한 기능을 빼고 "빠른주문정리"에만 집중해 사용법이 어렵지 않습니다';
   const heroBlocks = useMemo(
     () =>
@@ -60,37 +60,43 @@ export default function HomePage() {
         {
           id: '1',
           segments: [
-            { kind: 'title' as const, text: '왜 쇼핑몰마다 양식이 다를까요?' },
-            { kind: 'body' as const, text: '스마트스토어, 쿠팡, 자사몰…' },
-            { kind: 'body' as const, text: '사용하는 시스템이 모두 다르기 때문입니다.' },
-            { kind: 'body' as const, text: '택배사 업로드 양식도 모두 다릅니다.' },
-            { kind: 'body' as const, text: '엑클로드를 이용하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.' },
+            {
+              kind: 'title' as const,
+              text: '쇼핑몰마다 양식이 다르고 택배 업로드 양식이 달라도 상관없습니다.',
+            },
+            {
+              kind: 'body' as const,
+              text: '주문파일과 송장파일만 넣으면 자동으로 매칭되어 송장파일이 생성됩니다.',
+            },
+            {
+              kind: 'body' as const,
+              text: '주문 엑셀파일만 첨부하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.',
+            },
           ],
         },
         {
           id: '2',
           segments: [
-            { kind: 'title' as const, text: '카톡, 문자 등의 단건 주문 타이핑 입력, 힘드시죠?' },
-            { kind: 'body' as const, text: '핸드폰 화면 보고, 주소 복사하고, 주문 정리하고…' },
-            { kind: 'body' as const, text: '이제는 그대로 붙여넣으세요.' },
-            { kind: 'body' as const, text: '엑셀파일, 캡쳐이미지, 텍스트주문, 카톡주문까지 자동 정리됩니다.' },
+            {
+              kind: 'title' as const,
+              text: '카톡, 문자, 주문 페이지 복사 + 붙여넣기로 주문정리 완성.',
+            },
+            {
+              kind: 'body' as const,
+              text: '이제는 그대로 붙여 넣기만 하세요. 더 이상 타이핑 안 하셔도 됩니다.',
+            },
+            {
+              kind: 'body' as const,
+              text: '엑셀파일, 캡처 이미지, 텍스트 주문, 카톡 주문까지 자동 정리됩니다.',
+            },
           ],
         },
         {
           id: '3',
           segments: [
-            { kind: 'title' as const, text: '송장번호 매핑 입력, 힘드시죠?' },
-            { kind: 'body' as const, text: '주문파일과 송장파일만 넣으면 자동으로 매칭 파일이 생성됩니다.' },
-            { kind: 'body' as const, text: '복잡한 함수나 매크로 사용은 필요 없습니다.' },
-          ],
-        },
-        {
-          id: '4',
-          segments: [
-            { kind: 'title' as const, text: '주문서 엑셀 칸 옮기기 이제 그만하셔도 됩니다.' },
-            { kind: 'body' as const, text: '복잡한 기능을 빼고 빠른 주문정리에만 집중했습니다.' },
-            { kind: 'body' as const, text: '복사해서 붙여넣으면 택배 업로드 파일이 완성됩니다.' },
-            { kind: 'body' as const, text: '아래 무료체험에서 직접 확인해보세요.' },
+            { kind: 'title' as const, text: '복잡한 함수나 매크로 사용은 필요 없습니다.' },
+            { kind: 'body' as const, text: '주문서 엑셀 칸 옮기기 이제 그만하셔도 됩니다.' },
+            { kind: 'body' as const, text: confirmText },
           ],
         },
       ] satisfies readonly HeroBlock[],
