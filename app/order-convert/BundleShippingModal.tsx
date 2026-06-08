@@ -707,7 +707,7 @@ export function BundleShippingModal({
                         삭제 예정 행은 취소선으로 표시됩니다. 미리보기에 적용할 때 제외됩니다.
                       </p>
                     )}
-                    <div className="overflow-auto">
+                    <div className="overflow-auto preview-scrollbar preview-table-no-copy">
                     <table className="min-w-max border-collapse text-sm">
                       <thead className="sticky top-0 z-10 bg-gray-50">
                         <tr>
