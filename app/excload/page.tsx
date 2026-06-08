@@ -32,23 +32,17 @@ type HeroBlock = { id: string; segments: readonly HeroSeg[] };
 
 const confirmText = '아래 무료체험에서 직접 확인해보세요.';
 
-function heroSegClass(
-  kind: HeroSeg['kind'],
-  text: string,
-  confirmBumped: boolean,
-) {
-  if (kind === 'title') {
-    return 'mt-1 text-[clamp(1.05rem,3.2vw,1.34rem)] font-bold leading-snug text-zinc-950 dark:text-zinc-100 [word-break:keep-all]';
-  }
+/** 1~3번 대화형 안내 — title/body 동일 크기 */
+const heroDialogueTextClass =
+  'mt-1 text-[clamp(1.05rem,3.2vw,1.34rem)] font-semibold leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all]';
+
+function heroSegClass(text: string, confirmBumped: boolean) {
   if (text === confirmText) {
     return confirmBumped
-      ? 'text-[clamp(1.12rem,3.1vw,1.34rem)] font-bold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all] transition-all duration-500'
-      : 'text-[clamp(1.02rem,2.8vw,1.2rem)] font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all] transition-all duration-500';
+      ? 'mt-1 text-[clamp(1.16rem,3.6vw,1.5rem)] font-bold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all] transition-all duration-500'
+      : `${heroDialogueTextClass} transition-all duration-500`;
   }
-  if (text === '주문 엑셀파일만 첨부하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.') {
-    return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all] sm:whitespace-nowrap';
-  }
-  return 'text-[clamp(0.95rem,2.6vw,1.08rem)] font-medium leading-relaxed text-zinc-800 dark:text-zinc-200 [word-break:keep-all]';
+  return heroDialogueTextClass;
 }
 
 export default function HomePage() {
@@ -252,7 +246,7 @@ export default function HomePage() {
                     return (
                       <p
                         key={`${heroBlocks[blockIdx].id}-${idx}-${seg.text}`}
-                        className={heroSegClass(seg.kind, seg.text, isConfirm && confirmBumped)}
+                        className={heroSegClass(seg.text, isConfirm && confirmBumped)}
                       >
                         {seg.text}
                         {isTyping ? <span className="animate-pulse text-zinc-400">|</span> : null}
