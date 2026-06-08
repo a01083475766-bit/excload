@@ -5,10 +5,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkSlidingWindowRateLimit } from '@/app/lib/api-rate-limit';
+import { getClientIp } from '@/app/lib/client-ip';
 import {
   isValidKoreanPhoneDigits,
   normalizeKoreanPhoneDigits,
 } from '@/app/lib/phone-kr';
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_PER_IP = 5;
+const findEmailRateBuckets = new Map<string, { count: number; time: number }>();
 
 /** 로컬 파트 앞 3글자만 남기고 나머지는 * (도메인은 그대로) */
 function maskEmailForHint(email: string): string {
@@ -27,6 +33,15 @@ function maskEmailForHint(email: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimited = checkSlidingWindowRateLimit(
+      findEmailRateBuckets,
+      `find-email:${getClientIp(request)}`,
+      { windowMs: RATE_LIMIT_WINDOW_MS, max: RATE_LIMIT_MAX_PER_IP },
+    );
+    if (rateLimited) {
+      return rateLimited;
+    }
+
     const body = await request.json();
     const raw = body?.phone;
     if (raw === undefined || raw === null || String(raw).trim() === '') {
@@ -61,8 +76,8 @@ export async function POST(request: NextRequest) {
       success: true,
       maskedEmail: maskEmailForHint(user.email),
     });
-  } catch (e) {
-    console.error('[find-email] POST', e);
+  } catch {
+    console.error('[find-email] POST failed');
     return NextResponse.json(
       { error: '요청을 처리할 수 없습니다. 잠시 후 다시 시도해주세요.' },
       { status: 500 }

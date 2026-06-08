@@ -103,28 +103,10 @@ export async function GET(request: NextRequest) {
     // 조건이 없으면 undefined로 설정 (전체 조회)
     const finalWhereCondition = Object.keys(whereCondition).length > 0 ? whereCondition : undefined;
     
-    // 디버깅: 검색어와 결과 확인
-    if (trimmedSearchTerm || planFilter || dateFilter) {
-      console.log('[Admin Users API] 검색어:', trimmedSearchTerm);
-      console.log('[Admin Users API] 플랜 필터:', planFilter);
-      console.log('[Admin Users API] 날짜 필터:', dateFilter);
-      console.log('[Admin Users API] 검색 조건:', JSON.stringify(finalWhereCondition, null, 2));
-    }
-
-    // 디버깅: 검색 조건 확인
-    if (trimmedSearchTerm) {
-      console.log('[Admin Users API] 검색 조건:', JSON.stringify(whereCondition, null, 2));
-    }
-
     // 총 사용자 수 조회 (검색 조건 포함)
     const totalUsers = await prisma.user.count({
       where: finalWhereCondition,
     });
-
-    // 디버깅: 총 사용자 수 확인
-    if (trimmedSearchTerm || planFilter || dateFilter) {
-      console.log('[Admin Users API] 검색 조건 적용 후 총 사용자 수:', totalUsers);
-    }
 
     // 사용자 목록 조회
     const users = await prisma.user.findMany({
@@ -147,10 +129,16 @@ export async function GET(request: NextRequest) {
       take,
     });
 
-    // 디버깅: 검색 결과 확인
-    if (trimmedSearchTerm || planFilter || dateFilter) {
-      console.log('[Admin Users API] 검색 결과 수:', users.length);
-      console.log('[Admin Users API] 검색된 이메일:', users.map(u => u.email));
+    const hasQuery = Boolean(trimmedSearchTerm || planFilter || dateFilter);
+    if (hasQuery) {
+      console.log('[Admin Users API] query', {
+        hasSearch: Boolean(trimmedSearchTerm),
+        hasPlanFilter: Boolean(planFilter),
+        hasDateFilter: Boolean(dateFilter),
+        count: users.length,
+        totalUsers,
+        page,
+      });
     }
 
     const totalPages = Math.ceil(totalUsers / pageSize);

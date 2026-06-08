@@ -107,22 +107,17 @@ export async function POST(request: NextRequest) {
         addedAmount: amount,
         reason: reason || '사용량 제공',
       });
-    } catch (dbError) {
-      console.error('[Add Points API] DB 업데이트 실패:', dbError);
-      
-      // DB 업데이트 실패 시 에러 반환
+    } catch {
+      console.error('[Add Points API] DB 업데이트 실패');
       return NextResponse.json(
-        {
-          error: '사용량 제공 처리 중 오류가 발생했습니다.',
-          details: dbError instanceof Error ? dbError.message : String(dbError),
-        },
+        { error: '사용량 제공 처리 중 오류가 발생했습니다.' },
         { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('[Add Points API] 에러:', error);
+  } catch {
+    console.error('[Add Points API] 요청 처리 실패');
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : '사용량 제공 실패' },
+      { error: '사용량 제공 실패' },
       { status: 500 }
     );
   }
