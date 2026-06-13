@@ -1,5 +1,6 @@
 'use client';
 
+import { LandingHeroSlides } from '@/app/components/landing/LandingHeroSlides';
 import {
   LandingHowToSteps,
   LandingPrePricingCta,
@@ -230,6 +231,9 @@ export default function HomePage() {
               <br />
               복잡한 엑셀 작업 없이 업로드 파일을 간편하게 만들어주는 주문/배송 업무 자동화 서비스입니다.
             </p>
+
+            <LandingHeroSlides />
+
             <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-sm dark:border-blue-900 dark:bg-blue-950/30 md:p-5 lg:p-6">
               <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
                 <div className="flex h-[292px] flex-col overflow-hidden py-1 sm:h-[248px] md:h-[216px]">
