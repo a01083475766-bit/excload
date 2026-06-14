@@ -4,6 +4,10 @@
 
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import {
+  readLocalStorageWithLegacyMigrate,
+  writeLocalStorageForUser,
+} from '@/app/lib/scoped-local-storage';
+import {
   buildCourierTemplateFromHeaders,
   buildTrialBridgeFile,
 } from '@/app/logistics-convert/trial-sample-formats';
@@ -21,6 +25,10 @@ export const DEFAULT_SMARTSTORE_INVOICE_DISPLAY_NAME = '스마트스토어 발�
 
 export const INVOICE_DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY =
   'invoiceFileConvert_default_smartstore_intro_suppress_until_v1';
+
+/** 사용자가 기본 양식을 삭제한 경우 자동 재등록 방지 */
+export const INVOICE_DEFAULT_SMARTSTORE_OPT_OUT_KEY =
+  'invoiceFileConvert_default_smartstore_opt_out_v1';
 
 /** 기본 양식 시드 시 배송방법 고정 입력 (배송방법 열은 기준헤더 미매핑 → 고정 입력으로 채움) */
 export const DEFAULT_SMARTSTORE_FIXED_INPUT = {
@@ -43,7 +51,6 @@ export interface DefaultSmartstoreInvoiceRecentFormat {
   columnOrder: string[];
   displayName: string;
   bridgeFile: TemplateBridgeFile;
-  protectedFromDeletion: true;
 }
 
 export interface DefaultSmartstoreInvoiceSeed {
@@ -61,18 +68,27 @@ export function headersMatchDefaultSmartstoreInvoice(headers: string[]): boolean
   return headers.every((header, index) => header === SMARTSTORE_INVOICE_HEADERS[index]);
 }
 
-export function isDefaultSmartstoreInvoiceProtectedFormat(
-  format: { id?: string; protectedFromDeletion?: boolean; displayName?: string } | undefined,
+export function isDefaultSmartstoreInvoiceSeedFormat(
+  format: { id?: string; columnOrder?: string[] } | undefined,
 ): boolean {
   if (!format) return false;
   if (isDefaultSmartstoreInvoiceSeedFormatId(format.id)) return true;
   if (
-    format.protectedFromDeletion &&
-    format.displayName === DEFAULT_SMARTSTORE_INVOICE_DISPLAY_NAME
+    Array.isArray(format.columnOrder) &&
+    headersMatchDefaultSmartstoreInvoice(format.columnOrder)
   ) {
     return true;
   }
-  return format.displayName === DEFAULT_SMARTSTORE_INVOICE_DISPLAY_NAME;
+  return false;
+}
+
+export function isDefaultSmartstoreAutoSeedOptOut(userId: string | null): boolean {
+  if (typeof window === 'undefined') return false;
+  return readLocalStorageWithLegacyMigrate(INVOICE_DEFAULT_SMARTSTORE_OPT_OUT_KEY, userId) === '1';
+}
+
+export function setDefaultSmartstoreAutoSeedOptOut(userId: string | null): void {
+  writeLocalStorageForUser(INVOICE_DEFAULT_SMARTSTORE_OPT_OUT_KEY, userId, '1');
 }
 
 export function buildDefaultSmartstoreInvoiceSeed(): DefaultSmartstoreInvoiceSeed {
@@ -85,7 +101,6 @@ export function buildDefaultSmartstoreInvoiceSeed(): DefaultSmartstoreInvoiceSee
     columnOrder: headers,
     displayName: DEFAULT_SMARTSTORE_INVOICE_DISPLAY_NAME,
     bridgeFile,
-    protectedFromDeletion: true,
   };
   return { template, bridgeFile, recentFormat };
 }

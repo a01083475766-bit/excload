@@ -134,9 +134,12 @@ import {
   DEFAULT_CJ_FORMAT_ID,
   DEFAULT_CJ_INTRO_COPY,
   isActiveDefaultCjTemplate,
-  isDefaultCjProtectedFormat,
+  isDefaultCjAutoSeedOptOut,
+  isDefaultCjSeedFormat,
   isDefaultCjSeedFormatId,
   LOGISTICS_DEFAULT_CJ_INTRO_SUPPRESS_KEY,
+  LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY,
+  setDefaultCjAutoSeedOptOut,
 } from '@/app/lib/default-cj-courier-template';
 import {
   TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
@@ -205,9 +208,7 @@ function isTrialDefaultProtectedFormat(f: RecentExcelFormat | undefined): boolea
 }
 
 function isProtectedFormat(f: RecentExcelFormat | undefined, trialMode: boolean): boolean {
-  if (isTrialDefaultProtectedFormat(f)) return true;
-  if (!trialMode && isDefaultCjProtectedFormat(f)) return true;
-  return false;
+  return trialMode && isTrialDefaultProtectedFormat(f);
 }
 
 /** 물류 상품코드 매핑 파일(3PL과 동일 구조) */
@@ -1921,6 +1922,10 @@ export function LogisticsConvertClient({
       return;
     }
 
+    if (isDefaultCjAutoSeedOptOut(userId, LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY)) {
+      return;
+    }
+
     if (defaultCjSeedAppliedRef.current) return;
     defaultCjSeedAppliedRef.current = true;
 
@@ -3412,15 +3417,15 @@ export function LogisticsConvertClient({
     const formats = loadRecentExcelFormats(trialMode, trialMode ? null : userId);
     const formatToDelete = formats.find((format) => format.id === formatId);
     if (isProtectedFormat(formatToDelete, trialMode)) {
-      alert(
-        trialMode
-          ? '체험용 예시 양식은 삭제할 수 없습니다.'
-          : '기본으로 제공되는 양식은 삭제할 수 없어요.',
-      );
+      alert('체험용 예시 양식은 삭제할 수 없습니다.');
       return;
     }
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
+      if (!trialMode && formatToDelete && isDefaultCjSeedFormat(formatToDelete)) {
+        setDefaultCjAutoSeedOptOut(userId, LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY);
+      }
+
       // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
       if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
         const currentHeaders = courierUploadTemplate.headers
@@ -6337,11 +6342,9 @@ export function LogisticsConvertClient({
                                         data-ex-tooltip={
                                           trialMode && isTrialDefaultProtectedFormat(format)
                                             ? '체험용 예시 양식 이름은 변경할 수 없습니다.'
-                                            : !trialMode && isDefaultCjProtectedFormat(format)
-                                              ? '기본 제공 양식 이름은 변경할 수 없어요.'
-                                              : undefined
+                                            : undefined
                                         }
-                                        className={`${(trialMode && isTrialDefaultProtectedFormat(format)) || (!trialMode && isDefaultCjProtectedFormat(format)) ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
+                                        className={`${trialMode && isTrialDefaultProtectedFormat(format) ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
                                           isProtectedFormat(format, trialMode)
                                             ? 'text-zinc-400 cursor-not-allowed opacity-60'
                                             : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
@@ -6351,11 +6354,7 @@ export function LogisticsConvertClient({
                                       </button>
                                       {isProtectedFormat(format, trialMode) ? (
                                         <span
-                                          data-ex-tooltip={
-                                            trialMode
-                                              ? '체험용 예시 양식은 삭제할 수 없습니다.'
-                                              : '기본 제공 양식은 삭제할 수 없어요.'
-                                          }
+                                          data-ex-tooltip="체험용 예시 양식은 삭제할 수 없습니다."
                                           className="ex-tooltip-target px-2 py-1 text-xs text-zinc-400 cursor-default"
                                         >
                                           삭제 불가

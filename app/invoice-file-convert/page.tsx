@@ -64,9 +64,11 @@ import {
   DEFAULT_SMARTSTORE_INVOICE_FORMAT_ID,
   DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY,
   isActiveDefaultSmartstoreInvoiceTemplate,
-  isDefaultSmartstoreInvoiceProtectedFormat,
+  isDefaultSmartstoreAutoSeedOptOut,
+  isDefaultSmartstoreInvoiceSeedFormat,
   isDefaultSmartstoreInvoiceSeedFormatId,
   INVOICE_DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY,
+  setDefaultSmartstoreAutoSeedOptOut,
 } from '@/app/lib/default-smartstore-invoice-template';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
@@ -127,8 +129,6 @@ interface RecentExcelFormat {
   columnOrder: string[];
   displayName?: string;
   bridgeFile?: TemplateBridgeFile;
-  /** 스마트스토어 기본 제공 양식 등 삭제 불가 */
-  protectedFromDeletion?: boolean;
 }
 
 const DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY = INVOICE_DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY;
@@ -830,6 +830,10 @@ export default function InvoiceFileConvertPage() {
       return;
     }
 
+    if (isDefaultSmartstoreAutoSeedOptOut(storageUserId)) {
+      return;
+    }
+
     if (defaultSmartstoreSeedAppliedRef.current) return;
     defaultSmartstoreSeedAppliedRef.current = true;
 
@@ -1313,12 +1317,12 @@ export default function InvoiceFileConvertPage() {
   const handleDeleteFormat = (formatId: string) => {
     const formats = loadRecentExcelFormats(storageUserId);
     const formatToDelete = formats.find((format) => format.id === formatId);
-    if (isDefaultSmartstoreInvoiceProtectedFormat(formatToDelete)) {
-      alert('기본으로 제공되는 양식은 삭제할 수 없어요.');
-      return;
-    }
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
+      if (formatToDelete && isDefaultSmartstoreInvoiceSeedFormat(formatToDelete)) {
+        setDefaultSmartstoreAutoSeedOptOut(storageUserId);
+      }
+
       // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
       if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
         const currentHeaders = courierUploadTemplate.headers
@@ -3072,30 +3076,19 @@ export default function InvoiceFileConvertPage() {
                                           e.stopPropagation();
                                           handleStartEditName(format);
                                         }}
-                                        disabled={isDefaultSmartstoreInvoiceProtectedFormat(format)}
-                                        className={`px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
-                                          isDefaultSmartstoreInvoiceProtectedFormat(format)
-                                            ? 'text-zinc-400 cursor-not-allowed opacity-60'
-                                            : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
-                                        }`}
+                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                       >
                                         이름 변경하기
                                       </button>
-                                      {isDefaultSmartstoreInvoiceProtectedFormat(format) ? (
-                                        <span className="px-2 py-1 text-xs text-zinc-400 cursor-default">
-                                          삭제 불가
-                                        </span>
-                                      ) : (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteFormat(format.id);
-                                          }}
-                                          className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                                        >
-                                          삭제
-                                        </button>
-                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteFormat(format.id);
+                                        }}
+                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                      >
+                                        삭제
+                                      </button>
                                     </>
                                   )}
                                   <span className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</span>

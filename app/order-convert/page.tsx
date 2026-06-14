@@ -44,9 +44,12 @@ import {
   DEFAULT_CJ_FORMAT_ID,
   DEFAULT_CJ_INTRO_COPY,
   isActiveDefaultCjTemplate,
-  isDefaultCjProtectedFormat,
+  isDefaultCjAutoSeedOptOut,
+  isDefaultCjSeedFormat,
   isDefaultCjSeedFormatId,
   ORDER_DEFAULT_CJ_INTRO_SUPPRESS_KEY,
+  ORDER_DEFAULT_CJ_OPT_OUT_KEY,
+  setDefaultCjAutoSeedOptOut,
 } from '@/app/lib/default-cj-courier-template';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
@@ -151,8 +154,6 @@ interface RecentExcelFormat {
   columnOrder: string[];
   displayName?: string;
   bridgeFile?: TemplateBridgeFile;
-  /** 기본 제공 CJ 양식 등 삭제 불가 */
-  protectedFromDeletion?: boolean;
 }
 
 const isSenderColumn = (headerName: string): boolean => {
@@ -969,6 +970,10 @@ export default function OrderConvertPage() {
       return;
     }
 
+    if (isDefaultCjAutoSeedOptOut(storageUserId, ORDER_DEFAULT_CJ_OPT_OUT_KEY)) {
+      return;
+    }
+
     if (defaultCjSeedAppliedRef.current) return;
     defaultCjSeedAppliedRef.current = true;
 
@@ -1439,12 +1444,12 @@ export default function OrderConvertPage() {
   const handleDeleteFormat = (formatId: string) => {
     const formats = loadRecentExcelFormats(storageUserId);
     const formatToDelete = formats.find((format) => format.id === formatId);
-    if (isDefaultCjProtectedFormat(formatToDelete)) {
-      alert('기본으로 제공되는 양식은 삭제할 수 없어요.');
-      return;
-    }
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
+      if (formatToDelete && isDefaultCjSeedFormat(formatToDelete)) {
+        setDefaultCjAutoSeedOptOut(storageUserId, ORDER_DEFAULT_CJ_OPT_OUT_KEY);
+      }
+
       // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
       if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
         const currentHeaders = courierUploadTemplate.headers
@@ -3503,30 +3508,19 @@ export default function OrderConvertPage() {
                                           e.stopPropagation();
                                           handleStartEditName(format);
                                         }}
-                                        disabled={isDefaultCjProtectedFormat(format)}
-                                        className={`px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
-                                          isDefaultCjProtectedFormat(format)
-                                            ? 'text-zinc-400 cursor-not-allowed opacity-60'
-                                            : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
-                                        }`}
+                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                       >
                                         이름 변경하기
                                       </button>
-                                      {isDefaultCjProtectedFormat(format) ? (
-                                        <span className="px-2 py-1 text-xs text-zinc-400 cursor-default">
-                                          삭제 불가
-                                        </span>
-                                      ) : (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteFormat(format.id);
-                                          }}
-                                          className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                                        >
-                                          삭제
-                                        </button>
-                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteFormat(format.id);
+                                        }}
+                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                      >
+                                        삭제
+                                      </button>
                                     </>
                                   )}
                                   <span className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</span>

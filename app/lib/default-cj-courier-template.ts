@@ -4,6 +4,10 @@
 
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import {
+  readLocalStorageWithLegacyMigrate,
+  writeLocalStorageForUser,
+} from '@/app/lib/scoped-local-storage';
+import {
   buildCourierTemplateFromHeaders,
   buildTrialBridgeFile,
   CJ_DEFAULT_COURIER_HEADERS,
@@ -16,6 +20,10 @@ export const ORDER_DEFAULT_CJ_INTRO_SUPPRESS_KEY =
   'orderConvert_default_cj_intro_suppress_until_v1';
 export const LOGISTICS_DEFAULT_CJ_INTRO_SUPPRESS_KEY =
   'logisticsConvert_default_cj_intro_suppress_until_v1';
+
+/** 사용자가 기본 양식을 삭제한 경우 자동 재등록 방지 */
+export const ORDER_DEFAULT_CJ_OPT_OUT_KEY = 'orderConvert_default_cj_opt_out_v1';
+export const LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY = 'logisticsConvert_default_cj_opt_out_v1';
 
 export const DEFAULT_CJ_INTRO_COPY = {
   modalTitle: '기본 양식으로 먼저 시작할게요',
@@ -37,7 +45,6 @@ export interface DefaultCjRecentFormat {
   columnOrder: string[];
   displayName: string;
   bridgeFile: TemplateBridgeFile;
-  protectedFromDeletion: true;
 }
 
 export interface DefaultCjCourierSeed {
@@ -55,15 +62,27 @@ export function headersMatchDefaultCj(headers: string[]): boolean {
   return headers.every((header, index) => header === CJ_DEFAULT_COURIER_HEADERS[index]);
 }
 
-export function isDefaultCjProtectedFormat(
-  format: { id?: string; protectedFromDeletion?: boolean; displayName?: string } | undefined,
+export function isDefaultCjSeedFormat(
+  format: { id?: string; columnOrder?: string[] } | undefined,
 ): boolean {
   if (!format) return false;
   if (isDefaultCjSeedFormatId(format.id)) return true;
-  if (format.protectedFromDeletion && format.displayName === DEFAULT_CJ_FORMAT_DISPLAY_NAME) {
+  if (Array.isArray(format.columnOrder) && headersMatchDefaultCj(format.columnOrder)) {
     return true;
   }
-  return format.displayName === DEFAULT_CJ_FORMAT_DISPLAY_NAME;
+  return false;
+}
+
+export function isDefaultCjAutoSeedOptOut(
+  userId: string | null,
+  optOutKey: string,
+): boolean {
+  if (typeof window === 'undefined') return false;
+  return readLocalStorageWithLegacyMigrate(optOutKey, userId) === '1';
+}
+
+export function setDefaultCjAutoSeedOptOut(userId: string | null, optOutKey: string): void {
+  writeLocalStorageForUser(optOutKey, userId, '1');
 }
 
 export function buildDefaultCjCourierSeed(): DefaultCjCourierSeed {
@@ -76,7 +95,6 @@ export function buildDefaultCjCourierSeed(): DefaultCjCourierSeed {
     columnOrder: headers,
     displayName: DEFAULT_CJ_FORMAT_DISPLAY_NAME,
     bridgeFile,
-    protectedFromDeletion: true,
   };
   return { template, bridgeFile, recentFormat };
 }
