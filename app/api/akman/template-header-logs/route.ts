@@ -1,0 +1,139 @@
+/**
+ * GET /api/akman/template-header-logs — 관리자 전용 양식 헤더 수집 로그
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
+import { isAdminEmail } from '@/app/lib/admin-auth';
+import { prisma } from '@/app/lib/prisma';
+import {
+  isTemplateHeaderLogPage,
+  isTemplateHeaderLogSource,
+  maskEmailForAdmin,
+  sanitizeHeaderLabel,
+  type TemplateHeaderLogMappedEntry,
+} from '@/app/lib/template-header-log';
+import type { Prisma } from '@prisma/client';
+
+function parseDateStart(value: string | null): Date | undefined {
+  if (!value) return undefined;
+  const d = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+function parseDateEnd(value: string | null): Date | undefined {
+  if (!value) return undefined;
+  const d = new Date(`${value}T23:59:59.999Z`);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+function headersContainSearch(headers: unknown, search: string): boolean {
+  if (!Array.isArray(headers)) return false;
+  const q = search.toLowerCase();
+  return headers.some((h) => String(h ?? '').toLowerCase().includes(q));
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+      return NextResponse.json({ error: '관리자 권한 필요' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const pageFilter = searchParams.get('page');
+    const sourceFilter = searchParams.get('source');
+    const courierName = searchParams.get('courierName')?.trim();
+    const hasUnknown = searchParams.get('hasUnknown');
+    const headerSearch = searchParams.get('headerSearch')?.trim();
+    const dateFrom = parseDateStart(searchParams.get('dateFrom'));
+    const dateTo = parseDateEnd(searchParams.get('dateTo'));
+    const take = Math.min(
+      Math.max(parseInt(searchParams.get('limit') ?? '200', 10) || 200, 1),
+      500,
+    );
+
+    const where: Prisma.TemplateHeaderLogWhereInput = {};
+
+    if (pageFilter && isTemplateHeaderLogPage(pageFilter)) {
+      where.page = pageFilter;
+    }
+
+    if (sourceFilter && isTemplateHeaderLogSource(sourceFilter)) {
+      where.source = sourceFilter;
+    }
+
+    if (courierName) {
+      where.courierName = { contains: courierName, mode: 'insensitive' };
+    }
+
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = dateFrom;
+      if (dateTo) where.createdAt.lte = dateTo;
+    }
+
+    const needsMemoryFilter = Boolean(headerSearch) || hasUnknown === 'true' || hasUnknown === 'false';
+
+    let rows = await prisma.templateHeaderLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: needsMemoryFilter ? 500 : take,
+      include: {
+        user: { select: { email: true } },
+      },
+    });
+
+    if (hasUnknown === 'true') {
+      rows = rows.filter(
+        (row) => Array.isArray(row.unknownHeaders) && (row.unknownHeaders as unknown[]).length > 0,
+      );
+    } else if (hasUnknown === 'false') {
+      rows = rows.filter(
+        (row) =>
+          !Array.isArray(row.unknownHeaders) || (row.unknownHeaders as unknown[]).length === 0,
+      );
+    }
+
+    if (headerSearch) {
+      const q = sanitizeHeaderLabel(headerSearch).toLowerCase();
+      if (q) {
+        rows = rows.filter((row) => headersContainSearch(row.headers, q));
+      }
+    }
+
+    rows = rows.slice(0, take);
+
+    const data = rows.map((row) => {
+      const unknown = Array.isArray(row.unknownHeaders)
+        ? (row.unknownHeaders as string[])
+        : [];
+      return {
+        id: row.id,
+        createdAt: row.createdAt.toISOString(),
+        maskedEmail: maskEmailForAdmin(row.user?.email),
+        page: row.page,
+        templateName: row.templateName,
+        courierName: row.courierName,
+        headerCount: row.headerCount,
+        unknownCount: unknown.length,
+        mappingSuccessRate: row.mappingSuccessRate,
+        headers: row.headers,
+        unknownHeaders: row.unknownHeaders,
+        mappedHeaders: row.mappedHeaders as TemplateHeaderLogMappedEntry[],
+        fileSessionId: row.fileSessionId,
+        templateId: row.templateId,
+        source: row.source,
+      };
+    });
+
+    return NextResponse.json({ data, count: data.length });
+  } catch (error) {
+    console.error('[akman/template-header-logs] GET error:', error);
+    return NextResponse.json(
+      { error: '로그 조회 중 오류가 발생했습니다.' },
+      { status: 500 },
+    );
+  }
+}

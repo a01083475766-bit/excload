@@ -63,7 +63,7 @@ export async function runUnifiedInputOrderPipelines(
   const isTrialContext = isTrialPageContext();
 
   // Stage2: Order Pipeline 실행 (대용량 시 행 청크 순차 호출)
-  const orderStandardFile = await fetchOrderPipelineStage2(
+  const { orderStandardFile } = await fetchOrderPipelineStage2(
     cleanInputFile,
     fileSessionId ?? crypto.randomUUID(),
     {

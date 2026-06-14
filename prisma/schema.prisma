@@ -85,6 +85,7 @@ model User {
   subscriptions   Subscription[]
   favoriteMalls   UserFavoriteMall[]
   feedbackSubmissions FeedbackSubmission[]
+  templateHeaderLogs TemplateHeaderLog[]
 }
 
 model EmailVerificationToken {
@@ -238,6 +239,61 @@ model HeaderAlias {
   source      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+/// 택배·물류·송장 업로드 양식 등록 시 엑셀 1행 헤더만 수집 (주문 데이터·PII 미저장)
+model TemplateHeaderLog {
+  id             String   @id @default(cuid())
+  userId         String?
+  fileSessionId  String?
+  templateId     String?
+  page           String
+  templateName   String?
+  courierName    String?
+  headers        Json
+  mappedHeaders  Json
+  unknownHeaders Json
+  headerCount    Int
+  mappingSuccessRate Float?
+  source         String   @default("template_upload")
+  createdAt      DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([page])
+  @@index([courierName])
+  @@index([userId])
+}
+
+/// 업로드에서 처음 발견된 헤더명 사전 (중복 헤더는 1회만 등록)
+model HeaderDictionary {
+  id                String   @id @default(cuid())
+  header            String   @unique
+  firstSeenAt       DateTime @default(now())
+  page              String
+  source            String
+  exampleBaseHeader String?
+
+  usage HeaderUsageCount?
+
+  @@index([firstSeenAt])
+  @@index([page])
+  @@index([source])
+}
+
+/// 헤더별 업로드 등장(사용) 횟수
+model HeaderUsageCount {
+  id                 String   @id @default(cuid())
+  headerDictionaryId String   @unique
+  count              Int      @default(1)
+  lastSeenAt         DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  dictionary HeaderDictionary @relation(fields: [headerDictionaryId], references: [id], onDelete: Cascade)
+
+  @@index([count])
+  @@index([lastSeenAt])
 }
 
 model StripeEvent {

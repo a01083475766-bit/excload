@@ -18,11 +18,30 @@ export type OrderPipelineFetchInit = {
   onChunkProgress?: (completed: number, total: number) => void;
 };
 
+export type OrderPipelineStage2FetchResult = {
+  orderStandardFile: OrderStandardFile;
+  /** Stage2 헤더 매핑(1행 헤더 수집용). 행 데이터는 포함하지 않음 */
+  headerMapping: MappingResult | null;
+};
+
 function stripStage2Extension(
   json: OrderStandardFile & { _reuseHeaderMapping?: MappingResult },
 ): OrderStandardFile {
   const { _reuseHeaderMapping: _r, ...rest } = json;
   return rest as OrderStandardFile;
+}
+
+function extractHeaderMapping(
+  json: OrderStandardFile & { _reuseHeaderMapping?: MappingResult },
+): MappingResult | null {
+  const reuse = json._reuseHeaderMapping;
+  if (!reuse || !Array.isArray(reuse.mappedBaseHeaders)) {
+    return null;
+  }
+  return {
+    mappedBaseHeaders: [...reuse.mappedBaseHeaders],
+    unknownHeaders: Array.isArray(reuse.unknownHeaders) ? [...reuse.unknownHeaders] : [],
+  };
 }
 
 async function postOrderPipeline(
@@ -55,7 +74,7 @@ export async function fetchOrderPipelineStage2(
   cleanInputFile: OrderPipelineStage2Input,
   fileSessionId: string,
   init?: OrderPipelineFetchInit,
-): Promise<OrderStandardFile> {
+): Promise<OrderPipelineStage2FetchResult> {
   const rows = cleanInputFile.rows;
   const totalChunks = Math.max(
     1,
@@ -63,12 +82,12 @@ export async function fetchOrderPipelineStage2(
   );
 
   if (!Array.isArray(rows) || rows.length <= ORDER_PIPELINE_ROW_CHUNK_SIZE) {
-    const json = await postOrderPipeline(
-      { ...cleanInputFile, fileSessionId },
-      init,
-    );
+    const json = await postOrderPipeline({ ...cleanInputFile, fileSessionId }, init);
     init?.onChunkProgress?.(1, totalChunks);
-    return stripStage2Extension(json);
+    return {
+      orderStandardFile: stripStage2Extension(json),
+      headerMapping: extractHeaderMapping(json),
+    };
   }
 
   const { headers, sourceType } = cleanInputFile;
@@ -76,6 +95,7 @@ export async function fetchOrderPipelineStage2(
   let unknownHeaders: string[] = [];
   let baseHeaders: OrderStandardFile['baseHeaders'] | null = null;
   let reuse: MappingResult | undefined;
+  let headerMapping: MappingResult | null = null;
 
   for (let offset = 0; offset < rows.length; offset += ORDER_PIPELINE_ROW_CHUNK_SIZE) {
     const chunkRows = rows.slice(offset, offset + ORDER_PIPELINE_ROW_CHUNK_SIZE);
@@ -95,6 +115,7 @@ export async function fetchOrderPipelineStage2(
       baseHeaders = json.baseHeaders;
       unknownHeaders = Array.isArray(json.unknownHeaders) ? [...json.unknownHeaders] : [];
       reuse = json._reuseHeaderMapping;
+      headerMapping = extractHeaderMapping(json);
       if (!reuse || !Array.isArray(reuse.mappedBaseHeaders)) {
         throw new Error('Stage2 첫 청크 응답에 헤더 매핑 재사용 정보(_reuseHeaderMapping)가 없습니다.');
       }
@@ -106,8 +127,11 @@ export async function fetchOrderPipelineStage2(
   }
 
   return {
-    baseHeaders: baseHeaders!,
-    rows: mergedRows,
-    unknownHeaders,
+    orderStandardFile: {
+      baseHeaders: baseHeaders!,
+      rows: mergedRows,
+      unknownHeaders,
+    },
+    headerMapping,
   };
 }

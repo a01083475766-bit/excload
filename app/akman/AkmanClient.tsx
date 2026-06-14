@@ -318,6 +318,8 @@ export default function AkmanClient() {
     { href: '/akman/refunds', title: '환불 신청', desc: '환불 접수/승인/반려 관리' },
     { href: '/akman/points', title: '사용량 로그', desc: '사용량 제공·차감 이력' },
     { href: '/akman/ai-mapping', title: 'AI 매핑', desc: '매핑 규칙 관리' },
+    { href: '/akman/template-header-logs', title: '헤더 수집 로그', desc: '주문·양식 1행 헤더 수집' },
+    { href: '/akman/header-dictionary', title: '헤더 사전', desc: '신규 헤더·사용 횟수' },
     { href: '/akman/popups', title: '팝업 관리', desc: '사이트 팝업 설정' },
     { href: '/admin/feedback-event', title: '피드백 이벤트', desc: '기간·접수·체험권' },
     { href: '/akman/favorite-malls', title: '즐겨찾기 URL', desc: '자주 등록된 쇼핑몰 주소 집계' },

@@ -15,6 +15,11 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Truck, Search, ArrowDown, X, Check, Upload, Loader2 } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
+import {
+  buildTemplateHeaderLogPayload,
+  buildOrderFileHeaderLogPayload,
+  logTemplateHeaderUpload,
+} from '@/app/lib/template-header-log';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { ExcelPreprocessPipeline } from '@/app/pipeline/preprocess/excel-preprocess-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
@@ -1195,6 +1200,15 @@ export default function InvoiceFileConvertPage() {
         setTempSelectedFormatId(newFormatId);
       }
 
+      logTemplateHeaderUpload(
+        buildTemplateHeaderLogPayload(templateResult.bridgeFile, {
+          page: 'invoice-file-convert',
+          fileSessionId: newTemplateSessionId,
+          templateId: newFormatId ?? undefined,
+          courierName: template.courierType ?? undefined,
+        }),
+      );
+
       setRegistrationSuccessMessage('등록이 완료되었습니다');
       setTimeout(() => {
         setRegistrationSuccessMessage(null);
@@ -1848,10 +1862,23 @@ export default function InvoiceFileConvertPage() {
 
       const invoiceSessionId = crypto.randomUUID();
 
-      const [orderStage2, invoiceStage2] = await Promise.all([
+      const [orderStage2Fetch, invoiceStage2Fetch] = await Promise.all([
         fetchOrderPipelineStage2(orderCleanInput, newOrderSessionId),
         fetchOrderPipelineStage2(invoiceCleanInput, invoiceSessionId),
       ]);
+
+      const orderStage2 = orderStage2Fetch.orderStandardFile;
+      const invoiceStage2 = invoiceStage2Fetch.orderStandardFile;
+
+      if (orderStage2Fetch.headerMapping) {
+        logTemplateHeaderUpload(
+          buildOrderFileHeaderLogPayload(orderCleanInput.headers, orderStage2Fetch.headerMapping, {
+            page: 'invoice-file-convert',
+            fileSessionId: newOrderSessionId,
+            courierName: courierUploadTemplateRef.current?.courierType ?? undefined,
+          }),
+        );
+      }
 
       const combinedUnknownHeaders = [
         ...new Set([...(orderStage2.unknownHeaders ?? []), ...(invoiceStage2.unknownHeaders ?? [])]),

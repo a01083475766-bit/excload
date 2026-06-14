@@ -12,6 +12,11 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2 } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
+import {
+  buildTemplateHeaderLogPayload,
+  buildOrderFileHeaderLogPayload,
+  logTemplateHeaderUpload,
+} from '@/app/lib/template-header-log';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { ExcelPreprocessPipeline } from '@/app/pipeline/preprocess/excel-preprocess-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
@@ -1324,6 +1329,15 @@ export default function OrderConvertPage() {
         setTempSelectedFormatId(newFormatId);
       }
 
+      logTemplateHeaderUpload(
+        buildTemplateHeaderLogPayload(templateResult.bridgeFile, {
+          page: 'order-convert',
+          fileSessionId: newTemplateSessionId,
+          templateId: newFormatId ?? undefined,
+          courierName: template.courierType ?? undefined,
+        }),
+      );
+
       setRegistrationSuccessMessage('등록이 완료되었습니다');
       setTimeout(() => {
         setRegistrationSuccessMessage(null);
@@ -2190,7 +2204,7 @@ export default function OrderConvertPage() {
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
 
     // Stage2 실행 (대용량 시 행 청크로 서버 API 순차 호출)
-    const stage2Result = await fetchOrderPipelineStage2(
+    const { orderStandardFile: stage2Result, headerMapping } = await fetchOrderPipelineStage2(
       cleanInputFile,
       newOrderSessionId,
       {
@@ -2203,6 +2217,16 @@ export default function OrderConvertPage() {
         },
       },
     );
+
+    if (headerMapping) {
+      logTemplateHeaderUpload(
+        buildOrderFileHeaderLogPayload(cleanInputFile.headers, headerMapping, {
+          page: 'order-convert',
+          fileSessionId: newOrderSessionId,
+          courierName: courierUploadTemplate?.courierType ?? undefined,
+        }),
+      );
+    }
 
     if (isExcloudPipelineDebugClient()) {
       try {

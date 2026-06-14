@@ -22,6 +22,11 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
+import {
+  buildTemplateHeaderLogPayload,
+  buildOrderFileHeaderLogPayload,
+  logTemplateHeaderUpload,
+} from '@/app/lib/template-header-log';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { ExcelPreprocessPipeline } from '@/app/pipeline/preprocess/excel-preprocess-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
@@ -3161,6 +3166,18 @@ export function LogisticsConvertClient({
       }
 
       if (!options?.silent) {
+        logTemplateHeaderUpload(
+          buildTemplateHeaderLogPayload(templateResult.bridgeFile, {
+            page: 'logistics-convert',
+            fileSessionId: newTemplateSessionId,
+            templateId: newFormatId ?? undefined,
+            templateName: options?.formatDisplayName ?? undefined,
+            courierName: template.courierType ?? undefined,
+          }),
+        );
+      }
+
+      if (!options?.silent) {
         setRegistrationSuccessMessage('등록이 완료되었습니다');
         setTimeout(() => {
           setRegistrationSuccessMessage(null);
@@ -4201,7 +4218,7 @@ export function LogisticsConvertClient({
     const preprocessPipeline = new ExcelPreprocessPipeline();
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
 
-    const stage2Result = await fetchOrderPipelineStage2(cleanInputFile, newOrderSessionId, {
+    const { orderStandardFile: stage2Result, headerMapping } = await fetchOrderPipelineStage2(cleanInputFile, newOrderSessionId, {
       trialHeader: trialMode,
       onChunkProgress: (completed, total) => {
         if (total > 1) {
@@ -4211,6 +4228,16 @@ export function LogisticsConvertClient({
         }
       },
     });
+
+    if (headerMapping) {
+      logTemplateHeaderUpload(
+        buildOrderFileHeaderLogPayload(cleanInputFile.headers, headerMapping, {
+          page: 'logistics-convert',
+          fileSessionId: newOrderSessionId,
+          courierName: courierUploadTemplate?.courierType ?? undefined,
+        }),
+      );
+    }
 
     if (isExcloudPipelineDebugClient()) {
       try {
