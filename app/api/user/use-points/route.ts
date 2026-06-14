@@ -17,6 +17,16 @@ interface UsePointsRequest {
   reason?: string;
 }
 
+/** 관리자·마이페이지 사용량 내역 조회용 (PointHistory.reason) */
+function resolvePointHistoryReason(
+  type: 'text' | 'download',
+  customReason?: string,
+): string {
+  const trimmed = customReason?.trim();
+  if (trimmed) return trimmed;
+  return type === 'download' ? 'DOWNLOAD_FILE' : 'TEXT_CONVERT';
+}
+
 /**
  * POST /api/user/use-points
  * 사용량 차감
@@ -111,35 +121,43 @@ export async function POST(request: NextRequest) {
       // - download: (무료에서 호출) 1회 1000 기준이지만 잔액이 부족하면 전액 차감 후 1회 허용
       const normalizedAmount = Math.max(1, Math.floor(amount));
       const deductionAmount = Math.min(user.points, normalizedAmount);
+      const historyReason = resolvePointHistoryReason(type, reason);
 
-      // 동시 요청 시 잔액보다 많이 빠지지 않도록 한 번에 조건+차감 (TOCTOU 방지)
-      const deducted = await prisma.user.updateMany({
-        where: { id: user.id, points: { gte: deductionAmount } },
-        data: { points: { decrement: deductionAmount } },
-      });
+      // 동시 요청 시 잔액보다 많이 빠지지 않도록 조건+차감 후 내역 기록 (원자 처리)
+      const updatedUser = await prisma.$transaction(async (tx) => {
+        const deducted = await tx.user.updateMany({
+          where: { id: user.id, points: { gte: deductionAmount } },
+          data: { points: { decrement: deductionAmount } },
+        });
 
-      if (deducted.count === 0) {
-        return NextResponse.json(
-          { error: '사용량이 부족합니다.' },
-          { status: 400 }
-        );
-      }
+        if (deducted.count === 0) {
+          return null;
+        }
 
-      const updatedUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: {
-          id: true,
-          email: true,
-          plan: true,
-          points: true,
-          nextPointDate: true,
-        },
+        await tx.pointHistory.create({
+          data: {
+            userId: user.id,
+            change: -deductionAmount,
+            reason: historyReason,
+          },
+        });
+
+        return tx.user.findUnique({
+          where: { id: user.id },
+          select: {
+            id: true,
+            email: true,
+            plan: true,
+            points: true,
+            nextPointDate: true,
+          },
+        });
       });
 
       if (!updatedUser) {
         return NextResponse.json(
-          { error: '사용자를 찾을 수 없습니다.' },
-          { status: 404 }
+          { error: '사용량이 부족합니다.' },
+          { status: 400 }
         );
       }
 
@@ -153,7 +171,7 @@ export async function POST(request: NextRequest) {
           nextPointDate: updatedUser.nextPointDate?.toISOString() ?? null,
         },
         usedAmount: deductionAmount,
-        reason: reason || '사용량 차감',
+        reason: historyReason,
       });
     } catch (dbError) {
       console.error('[Use Points API] DB 업데이트 실패:', dbError);
