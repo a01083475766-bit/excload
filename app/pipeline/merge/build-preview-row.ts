@@ -6,6 +6,10 @@ import type { TemplateBridgeFile } from '../template/types';
 import type { FixedInput, PreviewRow } from './types';
 import { applyFillOnly } from './apply-fill-only';
 import {
+  isTrackingNumberUploadHeader,
+  sanitizeTrackingNumberForUpload,
+} from '@/app/lib/sanitize-tracking-number-for-upload';
+import {
   enrichFixedInputByTemplate,
   mergeDeliveryMessageValue,
   resolveFixedValueForColumn,
@@ -44,7 +48,14 @@ export function buildPreviewRowFromStandardRow(
     if (baseHeader === '배송메시지') {
       previewRow[courierHeader] = mergeDeliveryMessageValue(orderValue, fixedValue);
     } else {
-      previewRow[courierHeader] = applyFillOnly(orderValue, fixedValue);
+      let cellValue = applyFillOnly(orderValue, fixedValue);
+      if (
+        baseHeader === '운송장번호' ||
+        isTrackingNumberUploadHeader(courierHeader)
+      ) {
+        cellValue = sanitizeTrackingNumberForUpload(cellValue);
+      }
+      previewRow[courierHeader] = cellValue;
     }
   }
 

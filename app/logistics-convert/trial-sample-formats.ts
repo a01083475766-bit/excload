@@ -91,7 +91,8 @@ export const TRIAL_LOGISTICS_SEED: TrialSampleFormatSpec = {
  * CJ 일반 B2C 업로드 양식에 흔한 헤더 구성 (택배사명 미표기)
  * @see CJ 대한통운 일반 접수 엑셀 양식 계열
  */
-const CJ_STYLE_HEADERS = [
+/** CJ 일반 B2C 업로드 양식 12열 — 택배·물류 기본 제공 양식과 동일 */
+export const CJ_DEFAULT_COURIER_HEADERS = [
   '받는분성명',
   '받는분전화번호',
   '받는분기타연락처',
@@ -144,7 +145,7 @@ export const TRIAL_EXTRA_SAMPLE_FORMATS: TrialSampleFormatSpec[] = [
   {
     id: TRIAL_SEED_FORMAT_IDS.courierStyleA,
     displayName: '체험 업로드 양식 (예시 2)',
-    headers: [...CJ_STYLE_HEADERS],
+    headers: [...CJ_DEFAULT_COURIER_HEADERS],
   },
   {
     id: TRIAL_SEED_FORMAT_IDS.courierStyleB,

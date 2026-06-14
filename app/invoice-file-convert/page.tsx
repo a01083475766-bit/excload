@@ -52,6 +52,17 @@ import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedb
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
+import { DefaultSmartstoreInvoiceTemplateNotice } from '@/app/components/DefaultSmartstoreInvoiceTemplateNotice';
+import {
+  buildDefaultSmartstoreInvoiceSeed,
+  DEFAULT_SMARTSTORE_FIXED_INPUT,
+  DEFAULT_SMARTSTORE_INVOICE_FORMAT_ID,
+  DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY,
+  isActiveDefaultSmartstoreInvoiceTemplate,
+  isDefaultSmartstoreInvoiceProtectedFormat,
+  isDefaultSmartstoreInvoiceSeedFormatId,
+  INVOICE_DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY,
+} from '@/app/lib/default-smartstore-invoice-template';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBridgeChange';
@@ -111,10 +122,11 @@ interface RecentExcelFormat {
   columnOrder: string[];
   displayName?: string;
   bridgeFile?: TemplateBridgeFile;
+  /** 스마트스토어 기본 제공 양식 등 삭제 불가 */
+  protectedFromDeletion?: boolean;
 }
 
-const TEMPLATE_ONBOARDING_SUPPRESS_KEY =
-  'invoiceFileConvert_template_onboarding_suppress_until_v1';
+const DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY = INVOICE_DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY;
 
 const isSenderColumn = (headerName: string): boolean => {
   const normalized = headerName.toLowerCase().trim();
@@ -261,16 +273,25 @@ const saveRecentExcelFormat = (
   setRecentExcelFormats: (formats: RecentExcelFormat[]) => void,
   userId: string | null,
   bridgeFile?: TemplateBridgeFile,
+  displayName?: string,
+  protectedFromDeletion?: boolean,
+  formatId?: string,
 ) => {
   try {
-    const formats = loadRecentExcelFormats(userId);
+    let formats = loadRecentExcelFormats(userId);
     const columnOrder = Array.isArray(template.headers) ? template.headers.map((header) => header.name) : [];
 
+    if (formatId) {
+      formats = formats.filter((format) => format.id !== formatId);
+    }
+
     const newFormat: RecentExcelFormat = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: formatId ?? `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date().toISOString(),
       columnOrder,
       bridgeFile,
+      ...(displayName?.trim() ? { displayName: displayName.trim() } : {}),
+      ...(protectedFromDeletion ? { protectedFromDeletion: true } : {}),
     };
 
     const updatedFormats = [newFormat, ...formats];
@@ -306,6 +327,7 @@ export default function InvoiceFileConvertPage() {
     (authStatus === 'unauthenticated' || Boolean(storageUserId));
   const isFormStatusChecking = !authAssetsReady || !workspaceStorageHydrated;
   const invoiceCourierHydratedRef = useRef(false);
+  const defaultSmartstoreSeedAppliedRef = useRef(false);
   const prevAccountBoundaryRef = useRef<string | undefined>(undefined);
 
   const [courierUploadTemplate, setCourierUploadTemplate] = useState<CourierUploadTemplate | null>(null);
@@ -766,6 +788,96 @@ export default function InvoiceFileConvertPage() {
       .map((header) => header.name);
   }, [courierUploadTemplate]);
 
+  const isUsingDefaultSmartstoreTemplate = useMemo(
+    () => isActiveDefaultSmartstoreInvoiceTemplate(courierUploadTemplate),
+    [courierUploadTemplate],
+  );
+
+  useEffect(() => {
+    defaultSmartstoreSeedAppliedRef.current = false;
+  }, [storageUserId]);
+
+  /** 양식 미등록 시 스마트스토어 발송 필수 4열 기본 양식 자동 등록 */
+  useEffect(() => {
+    if (!authAssetsReady || !workspaceStorageHydrated) return;
+
+    const storedTemplate = loadCourierUploadTemplate(storageUserId);
+    if (isValidCourierTemplate(storedTemplate)) {
+      if (isActiveDefaultSmartstoreInvoiceTemplate(storedTemplate)) {
+        const formats = loadRecentExcelFormats(storageUserId);
+        const hasDefaultEntry = formats.some((format) =>
+          isDefaultSmartstoreInvoiceSeedFormatId(format.id),
+        );
+        if (!hasDefaultEntry) {
+          const seed = buildDefaultSmartstoreInvoiceSeed();
+          const updatedFormats = [
+            seed.recentFormat,
+            ...formats.filter((format) => format.id !== DEFAULT_SMARTSTORE_INVOICE_FORMAT_ID),
+          ];
+          writeLocalStorageForUser(
+            INVOICE_FILE_CONVERT_KEYS.recentFormats,
+            storageUserId,
+            JSON.stringify(updatedFormats),
+          );
+          setRecentExcelFormats(updatedFormats);
+        }
+      }
+      return;
+    }
+
+    if (defaultSmartstoreSeedAppliedRef.current) return;
+    defaultSmartstoreSeedAppliedRef.current = true;
+
+    const seed = buildDefaultSmartstoreInvoiceSeed();
+    writeLocalStorageForUser(
+      INVOICE_FILE_CONVERT_KEYS.template,
+      storageUserId,
+      JSON.stringify(seed.template),
+    );
+    writeLocalStorageForUser(
+      INVOICE_FILE_CONVERT_KEYS.bridge,
+      storageUserId,
+      JSON.stringify(seed.bridgeFile),
+    );
+
+    const updatedFormats = [
+      seed.recentFormat,
+      ...loadRecentExcelFormats(storageUserId).filter(
+        (format) => format.id !== DEFAULT_SMARTSTORE_INVOICE_FORMAT_ID,
+      ),
+    ];
+    writeLocalStorageForUser(
+      INVOICE_FILE_CONVERT_KEYS.recentFormats,
+      storageUserId,
+      JSON.stringify(updatedFormats),
+    );
+
+    let nextFixed: Record<string, string> = {};
+    try {
+      const rawFixed = readLocalStorageWithLegacyMigrate(
+        INVOICE_FILE_CONVERT_KEYS.fixedHeaders,
+        storageUserId,
+      );
+      nextFixed = rawFixed ? (JSON.parse(rawFixed) as Record<string, string>) : {};
+    } catch {
+      nextFixed = {};
+    }
+    if (!String(nextFixed['배송방법'] ?? '').trim()) {
+      nextFixed['배송방법'] = DEFAULT_SMARTSTORE_FIXED_INPUT.배송방법;
+      writeLocalStorageForUser(
+        INVOICE_FILE_CONVERT_KEYS.fixedHeaders,
+        storageUserId,
+        JSON.stringify(nextFixed),
+      );
+      setFixedHeaderValues(nextFixed);
+    }
+
+    setCourierUploadTemplate(seed.template);
+    setTemplateBridgeFile(seed.bridgeFile);
+    setRecentExcelFormats(updatedFormats);
+    setTempSelectedFormatId(DEFAULT_SMARTSTORE_INVOICE_FORMAT_ID);
+  }, [authAssetsReady, workspaceStorageHydrated, storageUserId]);
+
   const handleInvoicePreviewSessionRestored = useCallback(() => {
     setPreviewReady(true);
     setConversionProgress(100);
@@ -1185,11 +1297,14 @@ export default function InvoiceFileConvertPage() {
   };
 
   const handleDeleteFormat = (formatId: string) => {
+    const formats = loadRecentExcelFormats(storageUserId);
+    const formatToDelete = formats.find((format) => format.id === formatId);
+    if (isDefaultSmartstoreInvoiceProtectedFormat(formatToDelete)) {
+      alert('기본으로 제공되는 양식은 삭제할 수 없어요.');
+      return;
+    }
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
-      const formats = loadRecentExcelFormats(storageUserId);
-      const formatToDelete = formats.find((format) => format.id === formatId);
-      
       // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
       if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
         const currentHeaders = courierUploadTemplate.headers
@@ -1305,9 +1420,9 @@ export default function InvoiceFileConvertPage() {
     handleOpenCourierTemplateModal();
   };
 
-  const readTemplateOnboardingSuppressUntil = useCallback((): number | null => {
+  const readDefaultSmartstoreIntroSuppressUntil = useCallback((): number | null => {
     const raw = readLocalStorageWithLegacyMigrate(
-      TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+      DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY,
       templateStorageUserId,
     );
     if (!raw) return null;
@@ -1316,14 +1431,14 @@ export default function InvoiceFileConvertPage() {
     return parsed;
   }, [templateStorageUserId]);
 
-  const writeTemplateOnboardingSuppressUntil = useCallback(
+  const writeDefaultSmartstoreIntroSuppressUntil = useCallback(
     (expiresAt: number | null) => {
       if (expiresAt === null) {
-        removeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, templateStorageUserId);
+        removeLocalStorageForUser(DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY, templateStorageUserId);
         return;
       }
       writeLocalStorageForUser(
-        TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+        DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY,
         templateStorageUserId,
         String(expiresAt),
       );
@@ -1334,14 +1449,14 @@ export default function InvoiceFileConvertPage() {
   const handleCloseTemplateOnboardingModal = useCallback(() => {
     if (dontShowTemplateGuideForWeek) {
       const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-      writeTemplateOnboardingSuppressUntil(Date.now() + oneWeekMs);
+      writeDefaultSmartstoreIntroSuppressUntil(Date.now() + oneWeekMs);
     } else {
-      writeTemplateOnboardingSuppressUntil(null);
+      writeDefaultSmartstoreIntroSuppressUntil(null);
       setDismissedTemplateGuideThisVisit(true);
     }
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
-  }, [dontShowTemplateGuideForWeek, writeTemplateOnboardingSuppressUntil]);
+  }, [dontShowTemplateGuideForWeek, writeDefaultSmartstoreIntroSuppressUntil]);
 
   const handleGoTemplateRegistrationFromOnboarding = useCallback(() => {
     setIsTemplateOnboardingModalOpen(false);
@@ -1350,16 +1465,12 @@ export default function InvoiceFileConvertPage() {
   }, []);
 
   useLayoutEffect(() => {
-    if (authStatus !== 'authenticated' || !templateStorageUserId) {
+    if (!authAssetsReady || !workspaceStorageHydrated) {
       setIsTemplateOnboardingModalOpen(false);
       return;
     }
 
-    const hasTemplate =
-      isValidCourierTemplate(courierUploadTemplate) ||
-      isValidCourierTemplate(loadCourierUploadTemplate(templateStorageUserId));
-
-    if (hasTemplate) {
+    if (!isUsingDefaultSmartstoreTemplate) {
       setIsTemplateOnboardingModalOpen(false);
       setDismissedTemplateGuideThisVisit(false);
       return;
@@ -1369,7 +1480,7 @@ export default function InvoiceFileConvertPage() {
       return;
     }
 
-    const suppressUntil = readTemplateOnboardingSuppressUntil();
+    const suppressUntil = readDefaultSmartstoreIntroSuppressUntil();
     if (suppressUntil && suppressUntil > Date.now()) {
       setIsTemplateOnboardingModalOpen(false);
       return;
@@ -1377,11 +1488,11 @@ export default function InvoiceFileConvertPage() {
 
     setIsTemplateOnboardingModalOpen(true);
   }, [
-    authStatus,
-    templateStorageUserId,
-    courierUploadTemplate,
+    authAssetsReady,
+    workspaceStorageHydrated,
+    isUsingDefaultSmartstoreTemplate,
     dismissedTemplateGuideThisVisit,
-    readTemplateOnboardingSuppressUntil,
+    readDefaultSmartstoreIntroSuppressUntil,
   ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2775,6 +2886,12 @@ export default function InvoiceFileConvertPage() {
             fixedHeaderValues={fixedHeaderValues}
             variant="blue"
           />
+          {isUsingDefaultSmartstoreTemplate && !isFormStatusChecking && (
+            <DefaultSmartstoreInvoiceTemplateNotice
+              onRegisterCustom={handleOpenCourierTemplateModal}
+              onOpenFixedInput={handleOpenSenderModal}
+            />
+          )}
         </section>
 
       </main>
@@ -2928,19 +3045,30 @@ export default function InvoiceFileConvertPage() {
                                           e.stopPropagation();
                                           handleStartEditName(format);
                                         }}
-                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        disabled={isDefaultSmartstoreInvoiceProtectedFormat(format)}
+                                        className={`px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
+                                          isDefaultSmartstoreInvoiceProtectedFormat(format)
+                                            ? 'text-zinc-400 cursor-not-allowed opacity-60'
+                                            : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                                        }`}
                                       >
                                         이름 변경하기
                                       </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteFormat(format.id);
-                                        }}
-                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                                      >
-                                        삭제
-                                      </button>
+                                      {isDefaultSmartstoreInvoiceProtectedFormat(format) ? (
+                                        <span className="px-2 py-1 text-xs text-zinc-400 cursor-default">
+                                          삭제 불가
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteFormat(format.id);
+                                          }}
+                                          className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        >
+                                          삭제
+                                        </button>
+                                      )}
                                     </>
                                   )}
                                   <span className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</span>
@@ -3080,7 +3208,7 @@ export default function InvoiceFileConvertPage() {
         </div>
       )}
 
-      {/* 사용자 온보딩: 템플릿 미등록 안내 */}
+      {/* 스마트스토어 기본 4열 양식 안내 모달 */}
       {isTemplateOnboardingModalOpen && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -3092,7 +3220,7 @@ export default function InvoiceFileConvertPage() {
           >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                먼저 양식 등록이 필요합니다
+                {DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY.modalTitle}
               </h2>
               <button
                 onClick={handleCloseTemplateOnboardingModal}
@@ -3105,10 +3233,11 @@ export default function InvoiceFileConvertPage() {
 
             <div className="mb-5">
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                등록된 택배 업로드 양식이 없습니다.
-                <br />
-                송장 변환을 시작하려면{' '}
-                <span className="font-semibold">쇼핑몰 송장 업로드 양식</span>을 먼저 진행해 주세요.
+                {DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY.modalBody}
+              </p>
+              <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                택배사 이름은 「고정 입력 정보 설정」에서 스마트스토어센터에 등록된 이름과
+                같게 맞춰 주세요. 송장번호는 하이픈(-) 없이 숫자만 들어가도록 정리됩니다.
               </p>
             </div>
 
@@ -3127,13 +3256,13 @@ export default function InvoiceFileConvertPage() {
                 onClick={handleCloseTemplateOnboardingModal}
                 className="flex-1 px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
-                확인
+                {DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY.continueButton}
               </button>
               <button
                 onClick={handleGoTemplateRegistrationFromOnboarding}
                 className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
               >
-                지금 등록하기
+                {DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY.registerButton}
               </button>
             </div>
           </div>

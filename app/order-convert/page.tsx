@@ -33,6 +33,16 @@ import { useHistoryStore } from '@/app/store/historyStore';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
+import { DefaultCjTemplateNotice } from '@/app/components/DefaultCjTemplateNotice';
+import {
+  buildDefaultCjCourierSeed,
+  DEFAULT_CJ_FORMAT_ID,
+  DEFAULT_CJ_INTRO_COPY,
+  isActiveDefaultCjTemplate,
+  isDefaultCjProtectedFormat,
+  isDefaultCjSeedFormatId,
+  ORDER_DEFAULT_CJ_INTRO_SUPPRESS_KEY,
+} from '@/app/lib/default-cj-courier-template';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
@@ -114,7 +124,7 @@ import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-pr
 /** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
 const PREVIEW_TOOLBAR_BTN =
   'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
-const TEMPLATE_ONBOARDING_SUPPRESS_KEY = 'orderConvert_template_onboarding_suppress_until_v1';
+const DEFAULT_CJ_INTRO_SUPPRESS_KEY = ORDER_DEFAULT_CJ_INTRO_SUPPRESS_KEY;
 
 interface CourierUploadHeader {
   name: string;
@@ -136,6 +146,8 @@ interface RecentExcelFormat {
   columnOrder: string[];
   displayName?: string;
   bridgeFile?: TemplateBridgeFile;
+  /** 기본 제공 CJ 양식 등 삭제 불가 */
+  protectedFromDeletion?: boolean;
 }
 
 const isSenderColumn = (headerName: string): boolean => {
@@ -279,16 +291,25 @@ const saveRecentExcelFormat = (
   setRecentExcelFormats: (formats: RecentExcelFormat[]) => void,
   userId: string | null,
   bridgeFile?: TemplateBridgeFile,
+  displayName?: string,
+  protectedFromDeletion?: boolean,
+  formatId?: string,
 ) => {
   try {
-    const formats = loadRecentExcelFormats(userId);
+    let formats = loadRecentExcelFormats(userId);
     const columnOrder = Array.isArray(template.headers) ? template.headers.map((header) => header.name) : [];
 
+    if (formatId) {
+      formats = formats.filter((format) => format.id !== formatId);
+    }
+
     const newFormat: RecentExcelFormat = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: formatId ?? `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date().toISOString(),
       columnOrder,
       bridgeFile,
+      ...(displayName?.trim() ? { displayName: displayName.trim() } : {}),
+      ...(protectedFromDeletion ? { protectedFromDeletion: true } : {}),
     };
 
     const updatedFormats = [newFormat, ...formats];
@@ -326,6 +347,7 @@ export default function OrderConvertPage() {
     (authStatus === 'unauthenticated' || Boolean(storageUserId));
   const isFormStatusChecking = !authAssetsReady || !workspaceStorageHydrated;
   const courierStorageHydratedRef = useRef(false);
+  const defaultCjSeedAppliedRef = useRef(false);
   const prevAccountBoundaryRef = useRef<string | undefined>(undefined);
 
   const [courierUploadTemplate, setCourierUploadTemplate] = useState<CourierUploadTemplate | null>(null);
@@ -907,6 +929,74 @@ export default function OrderConvertPage() {
       .map((header) => header.name);
   }, [courierUploadTemplate]);
 
+  const isUsingDefaultCjTemplate = useMemo(
+    () => isActiveDefaultCjTemplate(courierUploadTemplate),
+    [courierUploadTemplate],
+  );
+
+  useEffect(() => {
+    defaultCjSeedAppliedRef.current = false;
+  }, [storageUserId]);
+
+  /** 양식 미등록 시 CJ 12열 기본 양식 자동 등록 */
+  useEffect(() => {
+    if (!authAssetsReady || !workspaceStorageHydrated) return;
+
+    const storedTemplate = loadCourierUploadTemplate(storageUserId);
+    if (isValidCourierTemplate(storedTemplate)) {
+      if (isActiveDefaultCjTemplate(storedTemplate)) {
+        const formats = loadRecentExcelFormats(storageUserId);
+        const hasDefaultEntry = formats.some((format) => isDefaultCjSeedFormatId(format.id));
+        if (!hasDefaultEntry) {
+          const seed = buildDefaultCjCourierSeed();
+          const updatedFormats = [
+            seed.recentFormat,
+            ...formats.filter((format) => format.id !== DEFAULT_CJ_FORMAT_ID),
+          ];
+          writeLocalStorageForUser(
+            ORDER_CONVERT_KEYS.recentFormats,
+            storageUserId,
+            JSON.stringify(updatedFormats),
+          );
+          setRecentExcelFormats(updatedFormats);
+        }
+      }
+      return;
+    }
+
+    if (defaultCjSeedAppliedRef.current) return;
+    defaultCjSeedAppliedRef.current = true;
+
+    const seed = buildDefaultCjCourierSeed();
+    writeLocalStorageForUser(
+      ORDER_CONVERT_KEYS.template,
+      storageUserId,
+      JSON.stringify(seed.template),
+    );
+    writeLocalStorageForUser(
+      ORDER_CONVERT_KEYS.bridge,
+      storageUserId,
+      JSON.stringify(seed.bridgeFile),
+    );
+
+    const updatedFormats = [
+      seed.recentFormat,
+      ...loadRecentExcelFormats(storageUserId).filter(
+        (format) => format.id !== DEFAULT_CJ_FORMAT_ID,
+      ),
+    ];
+    writeLocalStorageForUser(
+      ORDER_CONVERT_KEYS.recentFormats,
+      storageUserId,
+      JSON.stringify(updatedFormats),
+    );
+
+    setCourierUploadTemplate(seed.template);
+    setTemplateBridgeFile(seed.bridgeFile);
+    setRecentExcelFormats(updatedFormats);
+    setTempSelectedFormatId(DEFAULT_CJ_FORMAT_ID);
+  }, [authAssetsReady, workspaceStorageHydrated, storageUserId]);
+
   const handlePreviewSessionRestored = useCallback(() => {
     setFileProcessingStatus('done');
   }, []);
@@ -1333,11 +1423,14 @@ export default function OrderConvertPage() {
   };
 
   const handleDeleteFormat = (formatId: string) => {
+    const formats = loadRecentExcelFormats(storageUserId);
+    const formatToDelete = formats.find((format) => format.id === formatId);
+    if (isDefaultCjProtectedFormat(formatToDelete)) {
+      alert('기본으로 제공되는 양식은 삭제할 수 없어요.');
+      return;
+    }
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
-      const formats = loadRecentExcelFormats(storageUserId);
-      const formatToDelete = formats.find((format) => format.id === formatId);
-      
       // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
       if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
         const currentHeaders = courierUploadTemplate.headers
@@ -1415,9 +1508,9 @@ export default function OrderConvertPage() {
     setIsNoTemplateModalOpen(false);
   };
 
-  const readTemplateOnboardingSuppressUntil = useCallback((): number | null => {
+  const readDefaultCjIntroSuppressUntil = useCallback((): number | null => {
     const raw = readLocalStorageWithLegacyMigrate(
-      TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+      DEFAULT_CJ_INTRO_SUPPRESS_KEY,
       templateStorageUserId,
     );
     if (!raw) return null;
@@ -1426,14 +1519,14 @@ export default function OrderConvertPage() {
     return parsed;
   }, [templateStorageUserId]);
 
-  const writeTemplateOnboardingSuppressUntil = useCallback(
+  const writeDefaultCjIntroSuppressUntil = useCallback(
     (expiresAt: number | null) => {
       if (expiresAt === null) {
-        removeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, templateStorageUserId);
+        removeLocalStorageForUser(DEFAULT_CJ_INTRO_SUPPRESS_KEY, templateStorageUserId);
         return;
       }
       writeLocalStorageForUser(
-        TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+        DEFAULT_CJ_INTRO_SUPPRESS_KEY,
         templateStorageUserId,
         String(expiresAt),
       );
@@ -1444,14 +1537,14 @@ export default function OrderConvertPage() {
   const handleCloseTemplateOnboardingModal = useCallback(() => {
     if (dontShowTemplateGuideForWeek) {
       const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-      writeTemplateOnboardingSuppressUntil(Date.now() + oneWeekMs);
+      writeDefaultCjIntroSuppressUntil(Date.now() + oneWeekMs);
     } else {
-      writeTemplateOnboardingSuppressUntil(null);
+      writeDefaultCjIntroSuppressUntil(null);
       setDismissedTemplateGuideThisVisit(true);
     }
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
-  }, [dontShowTemplateGuideForWeek, writeTemplateOnboardingSuppressUntil]);
+  }, [dontShowTemplateGuideForWeek, writeDefaultCjIntroSuppressUntil]);
 
   const handleGoTemplateRegistrationFromOnboarding = useCallback(() => {
     setIsTemplateOnboardingModalOpen(false);
@@ -1464,18 +1557,14 @@ export default function OrderConvertPage() {
     handleOpenCourierTemplateModal();
   };
 
-  // DB·전체 LS 복원 대기 없이, session.user.id 기준 localStorage만 동기 판단
+  // 기본 CJ 양식 사용 중일 때 첫 안내 모달
   useLayoutEffect(() => {
-    if (authStatus !== 'authenticated' || !templateStorageUserId) {
+    if (!authAssetsReady || !workspaceStorageHydrated) {
       setIsTemplateOnboardingModalOpen(false);
       return;
     }
 
-    const hasTemplate =
-      isValidCourierTemplate(courierUploadTemplate) ||
-      isValidCourierTemplate(loadCourierUploadTemplate(templateStorageUserId));
-
-    if (hasTemplate) {
+    if (!isUsingDefaultCjTemplate) {
       setIsTemplateOnboardingModalOpen(false);
       setDismissedTemplateGuideThisVisit(false);
       return;
@@ -1485,7 +1574,7 @@ export default function OrderConvertPage() {
       return;
     }
 
-    const suppressUntil = readTemplateOnboardingSuppressUntil();
+    const suppressUntil = readDefaultCjIntroSuppressUntil();
     if (suppressUntil && suppressUntil > Date.now()) {
       setIsTemplateOnboardingModalOpen(false);
       return;
@@ -1493,11 +1582,11 @@ export default function OrderConvertPage() {
 
     setIsTemplateOnboardingModalOpen(true);
   }, [
-    authStatus,
-    templateStorageUserId,
-    courierUploadTemplate,
+    authAssetsReady,
+    workspaceStorageHydrated,
+    isUsingDefaultCjTemplate,
     dismissedTemplateGuideThisVisit,
-    readTemplateOnboardingSuppressUntil,
+    readDefaultCjIntroSuppressUntil,
   ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3231,6 +3320,12 @@ export default function OrderConvertPage() {
             fixedHeaderValues={fixedHeaderValues}
             variant="blue"
           />
+          {isUsingDefaultCjTemplate && !isFormStatusChecking && (
+            <DefaultCjTemplateNotice
+              variant="courier"
+              onRegisterCustom={handleOpenCourierTemplateModal}
+            />
+          )}
         </section>
 
       </main>
@@ -3384,19 +3479,30 @@ export default function OrderConvertPage() {
                                           e.stopPropagation();
                                           handleStartEditName(format);
                                         }}
-                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        disabled={isDefaultCjProtectedFormat(format)}
+                                        className={`px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
+                                          isDefaultCjProtectedFormat(format)
+                                            ? 'text-zinc-400 cursor-not-allowed opacity-60'
+                                            : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                                        }`}
                                       >
                                         이름 변경하기
                                       </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteFormat(format.id);
-                                        }}
-                                        className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                                      >
-                                        삭제
-                                      </button>
+                                      {isDefaultCjProtectedFormat(format) ? (
+                                        <span className="px-2 py-1 text-xs text-zinc-400 cursor-default">
+                                          삭제 불가
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteFormat(format.id);
+                                          }}
+                                          className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        >
+                                          삭제
+                                        </button>
+                                      )}
                                     </>
                                   )}
                                   <span className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</span>
@@ -3587,7 +3693,7 @@ export default function OrderConvertPage() {
         </div>
       )}
 
-      {/* 사용자 온보딩: 템플릿 미등록 안내 */}
+      {/* 기본 CJ 양식 안내 모달 */}
       {isTemplateOnboardingModalOpen && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -3599,7 +3705,7 @@ export default function OrderConvertPage() {
           >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                먼저 양식 등록이 필요합니다
+                {DEFAULT_CJ_INTRO_COPY.modalTitle}
               </h2>
               <button
                 onClick={handleCloseTemplateOnboardingModal}
@@ -3612,9 +3718,7 @@ export default function OrderConvertPage() {
 
             <div className="mb-5">
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                등록된 택배 업로드 양식이 없습니다.
-                <br />
-                주문 변환을 시작하려면 <span className="font-semibold">택배 업로드 양식 등록</span>을 먼저 진행해 주세요.
+                {DEFAULT_CJ_INTRO_COPY.modalBodyCourier}
               </p>
             </div>
 
@@ -3633,13 +3737,13 @@ export default function OrderConvertPage() {
                 onClick={handleCloseTemplateOnboardingModal}
                 className="flex-1 px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
-                확인
+                {DEFAULT_CJ_INTRO_COPY.continueButton}
               </button>
               <button
                 onClick={handleGoTemplateRegistrationFromOnboarding}
                 className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
               >
-                지금 등록하기
+                {DEFAULT_CJ_INTRO_COPY.registerButton}
               </button>
             </div>
           </div>

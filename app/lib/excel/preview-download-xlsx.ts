@@ -1,4 +1,8 @@
 import * as XLSX from 'xlsx';
+import {
+  isTrackingNumberUploadHeader,
+  sanitizeTrackingNumberForUpload,
+} from '@/app/lib/sanitize-tracking-number-for-upload';
 
 export type PreviewDownloadRow = {
   rowId: string;
@@ -14,10 +18,13 @@ export function buildPreviewDownloadAoA(
   userOverrides: Record<string, Record<string, string>>,
 ): string[][] {
   const excelRows = sortedRows.map((rowWithId) =>
-    courierHeaders.map(
-      (header) =>
-        userOverrides[rowWithId.rowId]?.[header] ?? rowWithId.data[header] ?? '',
-    ),
+    courierHeaders.map((header) => {
+      const raw =
+        userOverrides[rowWithId.rowId]?.[header] ?? rowWithId.data[header] ?? '';
+      return isTrackingNumberUploadHeader(header)
+        ? sanitizeTrackingNumberForUpload(raw)
+        : raw;
+    }),
   );
   return [[...courierHeaders], ...excelRows];
 }

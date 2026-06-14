@@ -64,6 +64,7 @@ import {
 } from '@/app/lib/excel/preview-download-xlsx';
 import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
+import { DefaultCjTemplateNotice } from '@/app/components/DefaultCjTemplateNotice';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
@@ -123,6 +124,15 @@ import {
   pruneOrderSnapshotsForRowIds,
 } from '@/app/lib/order-standard-row-snapshot';
 import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-preview';
+import {
+  buildDefaultCjCourierSeed,
+  DEFAULT_CJ_FORMAT_ID,
+  DEFAULT_CJ_INTRO_COPY,
+  isActiveDefaultCjTemplate,
+  isDefaultCjProtectedFormat,
+  isDefaultCjSeedFormatId,
+  LOGISTICS_DEFAULT_CJ_INTRO_SUPPRESS_KEY,
+} from '@/app/lib/default-cj-courier-template';
 import {
   TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
   TRIAL_EXTRA_SAMPLE_FORMATS,
@@ -187,6 +197,12 @@ function isTrialDefaultProtectedFormat(f: RecentExcelFormat | undefined): boolea
   if (f.protectedFromDeletion) return true;
   if (isTrialSeedFormatId(f.id)) return true;
   return f.displayName === TRIAL_DEFAULT_FORMAT_DISPLAY_NAME;
+}
+
+function isProtectedFormat(f: RecentExcelFormat | undefined, trialMode: boolean): boolean {
+  if (isTrialDefaultProtectedFormat(f)) return true;
+  if (!trialMode && isDefaultCjProtectedFormat(f)) return true;
+  return false;
 }
 
 /** 물류 상품코드 매핑 파일(3PL과 동일 구조) */
@@ -771,7 +787,7 @@ const TRIAL_LOGISTICS_TEMPLATE_KEY = 'trial_logistics_convert_onc_courier_templa
 const TRIAL_LOGISTICS_RECENT_KEY = 'trial_logistics_convert_recent_excel_formats_v1';
 const TRIAL_LOGISTICS_BRIDGE_KEY = 'trial_logistics_activeCourierBridgeFile';
 const TRIAL_LOGISTICS_FIXED_KEY = 'trial_logistics_convert_fixed_header_values_v1';
-const TEMPLATE_ONBOARDING_SUPPRESS_KEY = 'logisticsConvert_template_onboarding_suppress_until_v1';
+const DEFAULT_CJ_INTRO_SUPPRESS_KEY = LOGISTICS_DEFAULT_CJ_INTRO_SUPPRESS_KEY;
 
 const loadCourierUploadTemplate = (
   trialMode: boolean,
@@ -983,6 +999,7 @@ export function LogisticsConvertClient({
     ? !workspaceStorageHydrated
     : !authAssetsReady || !workspaceStorageHydrated;
   const logisticsCourierHydratedRef = useRef(false);
+  const defaultCjSeedAppliedRef = useRef(false);
   const prevLogisticsAccountBoundaryRef = useRef<string | undefined>(undefined);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
@@ -1867,6 +1884,62 @@ export function LogisticsConvertClient({
       .filter((header) => !header.isEmpty && header.name.trim() !== '')
       .map((header) => header.name);
   }, [courierUploadTemplate]);
+
+  const isUsingDefaultCjTemplate = useMemo(
+    () => !trialMode && isActiveDefaultCjTemplate(courierUploadTemplate),
+    [trialMode, courierUploadTemplate],
+  );
+
+  useEffect(() => {
+    defaultCjSeedAppliedRef.current = false;
+  }, [userId, trialMode]);
+
+  /** 본페이지: 양식 미등록 시 CJ 12열 기본 양식 자동 등록 */
+  useEffect(() => {
+    if (trialMode || !authAssetsReady || !workspaceStorageHydrated) return;
+
+    const storedTemplate = loadCourierUploadTemplate(false, userId);
+    if (isValidCourierTemplate(storedTemplate)) {
+      if (isActiveDefaultCjTemplate(storedTemplate)) {
+        const formats = loadRecentExcelFormats(false, userId);
+        const hasDefaultEntry = formats.some((format) => isDefaultCjSeedFormatId(format.id));
+        if (!hasDefaultEntry) {
+          const seed = buildDefaultCjCourierSeed();
+          const updatedFormats = [
+            seed.recentFormat,
+            ...formats.filter((format) => format.id !== DEFAULT_CJ_FORMAT_ID),
+          ];
+          persistLogisticsRecentFormats(false, userId, updatedFormats);
+          setRecentExcelFormats(updatedFormats);
+        }
+      }
+      return;
+    }
+
+    if (defaultCjSeedAppliedRef.current) return;
+    defaultCjSeedAppliedRef.current = true;
+
+    const seed = buildDefaultCjCourierSeed();
+    saveCourierUploadTemplate(seed.template, false, userId);
+    writeLocalStorageForUser(
+      LOGISTICS_MAIN_KEYS.bridge,
+      userId,
+      JSON.stringify(seed.bridgeFile),
+    );
+
+    const updatedFormats = [
+      seed.recentFormat,
+      ...loadRecentExcelFormats(false, userId).filter(
+        (format) => format.id !== DEFAULT_CJ_FORMAT_ID,
+      ),
+    ];
+    persistLogisticsRecentFormats(false, userId, updatedFormats);
+
+    setCourierUploadTemplate(seed.template);
+    setTemplateBridgeFile(seed.bridgeFile);
+    setRecentExcelFormats(updatedFormats);
+    setTempSelectedFormatId(DEFAULT_CJ_FORMAT_ID);
+  }, [trialMode, authAssetsReady, workspaceStorageHydrated, userId]);
 
   const handleLogisticsPreviewSessionRestored = useCallback(() => {
     setFileProcessingStatus('done');
@@ -3321,8 +3394,12 @@ export function LogisticsConvertClient({
   const handleDeleteFormat = (formatId: string) => {
     const formats = loadRecentExcelFormats(trialMode, trialMode ? null : userId);
     const formatToDelete = formats.find((format) => format.id === formatId);
-    if (isTrialDefaultProtectedFormat(formatToDelete)) {
-      alert('체험용 예시 양식은 삭제할 수 없습니다.');
+    if (isProtectedFormat(formatToDelete, trialMode)) {
+      alert(
+        trialMode
+          ? '체험용 예시 양식은 삭제할 수 없습니다.'
+          : '기본으로 제공되는 양식은 삭제할 수 없어요.',
+      );
       return;
     }
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
@@ -3421,9 +3498,9 @@ export function LogisticsConvertClient({
     handleOpenCourierTemplateModal();
   };
 
-  const readTemplateOnboardingSuppressUntil = useCallback((): number | null => {
+  const readDefaultCjIntroSuppressUntil = useCallback((): number | null => {
     const raw = readLocalStorageWithLegacyMigrate(
-      TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+      DEFAULT_CJ_INTRO_SUPPRESS_KEY,
       templateStorageUserId,
     );
     if (!raw) return null;
@@ -3432,14 +3509,14 @@ export function LogisticsConvertClient({
     return parsed;
   }, [templateStorageUserId]);
 
-  const writeTemplateOnboardingSuppressUntil = useCallback(
+  const writeDefaultCjIntroSuppressUntil = useCallback(
     (expiresAt: number | null) => {
       if (expiresAt === null) {
-        removeLocalStorageForUser(TEMPLATE_ONBOARDING_SUPPRESS_KEY, templateStorageUserId);
+        removeLocalStorageForUser(DEFAULT_CJ_INTRO_SUPPRESS_KEY, templateStorageUserId);
         return;
       }
       writeLocalStorageForUser(
-        TEMPLATE_ONBOARDING_SUPPRESS_KEY,
+        DEFAULT_CJ_INTRO_SUPPRESS_KEY,
         templateStorageUserId,
         String(expiresAt),
       );
@@ -3450,14 +3527,14 @@ export function LogisticsConvertClient({
   const handleCloseTemplateOnboardingModal = useCallback(() => {
     if (dontShowTemplateGuideForWeek) {
       const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-      writeTemplateOnboardingSuppressUntil(Date.now() + oneWeekMs);
+      writeDefaultCjIntroSuppressUntil(Date.now() + oneWeekMs);
     } else {
-      writeTemplateOnboardingSuppressUntil(null);
+      writeDefaultCjIntroSuppressUntil(null);
       setDismissedTemplateGuideThisVisit(true);
     }
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
-  }, [dontShowTemplateGuideForWeek, writeTemplateOnboardingSuppressUntil]);
+  }, [dontShowTemplateGuideForWeek, writeDefaultCjIntroSuppressUntil]);
 
   const handleGoTemplateRegistrationFromOnboarding = useCallback(() => {
     setIsTemplateOnboardingModalOpen(false);
@@ -3466,16 +3543,12 @@ export function LogisticsConvertClient({
   }, []);
 
   useLayoutEffect(() => {
-    if (trialMode || authStatus !== 'authenticated' || !templateStorageUserId) {
+    if (trialMode || !authAssetsReady || !workspaceStorageHydrated) {
       setIsTemplateOnboardingModalOpen(false);
       return;
     }
 
-    const hasTemplate =
-      isValidCourierTemplate(courierUploadTemplate) ||
-      isValidCourierTemplate(loadCourierUploadTemplate(false, templateStorageUserId));
-
-    if (hasTemplate) {
+    if (!isUsingDefaultCjTemplate) {
       setIsTemplateOnboardingModalOpen(false);
       setDismissedTemplateGuideThisVisit(false);
       return;
@@ -3485,7 +3558,7 @@ export function LogisticsConvertClient({
       return;
     }
 
-    const suppressUntil = readTemplateOnboardingSuppressUntil();
+    const suppressUntil = readDefaultCjIntroSuppressUntil();
     if (suppressUntil && suppressUntil > Date.now()) {
       setIsTemplateOnboardingModalOpen(false);
       return;
@@ -3494,11 +3567,11 @@ export function LogisticsConvertClient({
     setIsTemplateOnboardingModalOpen(true);
   }, [
     trialMode,
-    authStatus,
-    templateStorageUserId,
-    courierUploadTemplate,
+    authAssetsReady,
+    workspaceStorageHydrated,
+    isUsingDefaultCjTemplate,
     dismissedTemplateGuideThisVisit,
-    readTemplateOnboardingSuppressUntil,
+    readDefaultCjIntroSuppressUntil,
   ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -5584,6 +5657,12 @@ export function LogisticsConvertClient({
             fixedHeaderValues={fixedHeaderValues}
             variant="emerald"
           />
+          {isUsingDefaultCjTemplate && !isFormStatusChecking && (
+            <DefaultCjTemplateNotice
+              variant="logistics"
+              onRegisterCustom={handleOpenCourierTemplateModal}
+            />
+          )}
           {selectedMappingSummary && (
             <div className="w-full mt-4">
               <p className="text-xs text-emerald-500 w-full whitespace-nowrap overflow-hidden text-ellipsis">
@@ -6227,24 +6306,30 @@ export function LogisticsConvertClient({
                                           e.stopPropagation();
                                           handleStartEditName(format);
                                         }}
-                                        disabled={isTrialDefaultProtectedFormat(format)}
+                                        disabled={isProtectedFormat(format, trialMode)}
                                         data-ex-tooltip={
                                           trialMode && isTrialDefaultProtectedFormat(format)
                                             ? '체험용 예시 양식 이름은 변경할 수 없습니다.'
-                                            : undefined
+                                            : !trialMode && isDefaultCjProtectedFormat(format)
+                                              ? '기본 제공 양식 이름은 변경할 수 없어요.'
+                                              : undefined
                                         }
-                                        className={`${trialMode && isTrialDefaultProtectedFormat(format) ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
-                                          isTrialDefaultProtectedFormat(format)
+                                        className={`${(trialMode && isTrialDefaultProtectedFormat(format)) || (!trialMode && isDefaultCjProtectedFormat(format)) ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
+                                          isProtectedFormat(format, trialMode)
                                             ? 'text-zinc-400 cursor-not-allowed opacity-60'
                                             : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
                                         }`}
                                       >
                                         이름 변경하기
                                       </button>
-                                      {isTrialDefaultProtectedFormat(format) ? (
+                                      {isProtectedFormat(format, trialMode) ? (
                                         <span
-                                          data-ex-tooltip={trialMode ? '체험용 예시 양식은 삭제할 수 없습니다.' : undefined}
-                                          className={`${trialMode ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs text-zinc-400 cursor-default`}
+                                          data-ex-tooltip={
+                                            trialMode
+                                              ? '체험용 예시 양식은 삭제할 수 없습니다.'
+                                              : '기본 제공 양식은 삭제할 수 없어요.'
+                                          }
+                                          className="ex-tooltip-target px-2 py-1 text-xs text-zinc-400 cursor-default"
                                         >
                                           삭제 불가
                                         </span>
@@ -6404,7 +6489,7 @@ export function LogisticsConvertClient({
         </div>
       )}
 
-      {/* 사용자 온보딩: 템플릿 미등록 안내 (본페이지·로그인) */}
+      {/* 기본 CJ 양식 안내 모달 (본페이지·로그인) */}
       {isTemplateOnboardingModalOpen && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -6416,7 +6501,7 @@ export function LogisticsConvertClient({
           >
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                먼저 양식 등록이 필요합니다
+                {DEFAULT_CJ_INTRO_COPY.modalTitle}
               </h2>
               <button
                 onClick={handleCloseTemplateOnboardingModal}
@@ -6429,10 +6514,7 @@ export function LogisticsConvertClient({
 
             <div className="mb-5">
               <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                등록된 물류센터 업로드 양식이 없습니다.
-                <br />
-                물류 주문 변환을 시작하려면{' '}
-                <span className="font-semibold">물류센터 업로드 양식 등록</span>을 먼저 진행해 주세요.
+                {DEFAULT_CJ_INTRO_COPY.modalBodyLogistics}
               </p>
             </div>
 
@@ -6451,13 +6533,13 @@ export function LogisticsConvertClient({
                 onClick={handleCloseTemplateOnboardingModal}
                 className="flex-1 px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
-                확인
+                {DEFAULT_CJ_INTRO_COPY.continueButton}
               </button>
               <button
                 onClick={handleGoTemplateRegistrationFromOnboarding}
                 className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-sm text-white font-medium"
               >
-                지금 등록하기
+                {DEFAULT_CJ_INTRO_COPY.registerButton}
               </button>
             </div>
           </div>
