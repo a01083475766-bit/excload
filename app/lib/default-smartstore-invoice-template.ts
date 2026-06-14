@@ -30,6 +30,10 @@ export const INVOICE_DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY =
 export const INVOICE_DEFAULT_SMARTSTORE_OPT_OUT_KEY =
   'invoiceFileConvert_default_smartstore_opt_out_v1';
 
+/** 기본 양식 안내 모달 — 사용자가 한 번 확인하면 다시 표시하지 않음 */
+export const INVOICE_DEFAULT_SMARTSTORE_INTRO_ACKNOWLEDGED_KEY =
+  'invoiceFileConvert_default_smartstore_intro_acknowledged_v1';
+
 /** 기본 양식 시드 시 배송방법 고정 입력 (배송방법 열은 기준헤더 미매핑 → 고정 입력으로 채움) */
 export const DEFAULT_SMARTSTORE_FIXED_INPUT = {
   배송방법: '택배',
@@ -89,6 +93,18 @@ export function isDefaultSmartstoreAutoSeedOptOut(userId: string | null): boolea
 
 export function setDefaultSmartstoreAutoSeedOptOut(userId: string | null): void {
   writeLocalStorageForUser(INVOICE_DEFAULT_SMARTSTORE_OPT_OUT_KEY, userId, '1');
+}
+
+export function isDefaultSmartstoreIntroAcknowledged(userId: string | null): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    readLocalStorageWithLegacyMigrate(INVOICE_DEFAULT_SMARTSTORE_INTRO_ACKNOWLEDGED_KEY, userId) ===
+    '1'
+  );
+}
+
+export function setDefaultSmartstoreIntroAcknowledged(userId: string | null): void {
+  writeLocalStorageForUser(INVOICE_DEFAULT_SMARTSTORE_INTRO_ACKNOWLEDGED_KEY, userId, '1');
 }
 
 export function buildDefaultSmartstoreInvoiceSeed(): DefaultSmartstoreInvoiceSeed {

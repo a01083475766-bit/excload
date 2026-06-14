@@ -65,10 +65,13 @@ import {
   DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY,
   isActiveDefaultSmartstoreInvoiceTemplate,
   isDefaultSmartstoreAutoSeedOptOut,
+  isDefaultSmartstoreIntroAcknowledged,
   isDefaultSmartstoreInvoiceSeedFormat,
   isDefaultSmartstoreInvoiceSeedFormatId,
+  INVOICE_DEFAULT_SMARTSTORE_INTRO_ACKNOWLEDGED_KEY,
   INVOICE_DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY,
   setDefaultSmartstoreAutoSeedOptOut,
+  setDefaultSmartstoreIntroAcknowledged,
 } from '@/app/lib/default-smartstore-invoice-template';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
@@ -1465,22 +1468,23 @@ export default function InvoiceFileConvertPage() {
   );
 
   const handleCloseTemplateOnboardingModal = useCallback(() => {
+    setDefaultSmartstoreIntroAcknowledged(templateStorageUserId);
     if (dontShowTemplateGuideForWeek) {
       const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
       writeDefaultSmartstoreIntroSuppressUntil(Date.now() + oneWeekMs);
-    } else {
-      writeDefaultSmartstoreIntroSuppressUntil(null);
-      setDismissedTemplateGuideThisVisit(true);
     }
+    setDismissedTemplateGuideThisVisit(true);
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
-  }, [dontShowTemplateGuideForWeek, writeDefaultSmartstoreIntroSuppressUntil]);
+  }, [dontShowTemplateGuideForWeek, templateStorageUserId, writeDefaultSmartstoreIntroSuppressUntil]);
 
   const handleGoTemplateRegistrationFromOnboarding = useCallback(() => {
+    setDefaultSmartstoreIntroAcknowledged(templateStorageUserId);
+    setDismissedTemplateGuideThisVisit(true);
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
     handleOpenCourierTemplateModal();
-  }, []);
+  }, [templateStorageUserId]);
 
   useLayoutEffect(() => {
     if (!authAssetsReady || !workspaceStorageHydrated) {
@@ -1498,6 +1502,11 @@ export default function InvoiceFileConvertPage() {
       return;
     }
 
+    if (isDefaultSmartstoreIntroAcknowledged(templateStorageUserId)) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
     const suppressUntil = readDefaultSmartstoreIntroSuppressUntil();
     if (suppressUntil && suppressUntil > Date.now()) {
       setIsTemplateOnboardingModalOpen(false);
@@ -1511,6 +1520,7 @@ export default function InvoiceFileConvertPage() {
     isUsingDefaultSmartstoreTemplate,
     dismissedTemplateGuideThisVisit,
     readDefaultSmartstoreIntroSuppressUntil,
+    templateStorageUserId,
   ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

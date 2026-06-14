@@ -135,11 +135,14 @@ import {
   DEFAULT_CJ_INTRO_COPY,
   isActiveDefaultCjTemplate,
   isDefaultCjAutoSeedOptOut,
+  isDefaultCjIntroAcknowledged,
   isDefaultCjSeedFormat,
   isDefaultCjSeedFormatId,
+  LOGISTICS_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY,
   LOGISTICS_DEFAULT_CJ_INTRO_SUPPRESS_KEY,
   LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY,
   setDefaultCjAutoSeedOptOut,
+  setDefaultCjIntroAcknowledged,
 } from '@/app/lib/default-cj-courier-template';
 import {
   TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
@@ -3547,22 +3550,29 @@ export function LogisticsConvertClient({
   );
 
   const handleCloseTemplateOnboardingModal = useCallback(() => {
+    setDefaultCjIntroAcknowledged(
+      templateStorageUserId,
+      LOGISTICS_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY,
+    );
     if (dontShowTemplateGuideForWeek) {
       const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
       writeDefaultCjIntroSuppressUntil(Date.now() + oneWeekMs);
-    } else {
-      writeDefaultCjIntroSuppressUntil(null);
-      setDismissedTemplateGuideThisVisit(true);
     }
+    setDismissedTemplateGuideThisVisit(true);
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
-  }, [dontShowTemplateGuideForWeek, writeDefaultCjIntroSuppressUntil]);
+  }, [dontShowTemplateGuideForWeek, templateStorageUserId, writeDefaultCjIntroSuppressUntil]);
 
   const handleGoTemplateRegistrationFromOnboarding = useCallback(() => {
+    setDefaultCjIntroAcknowledged(
+      templateStorageUserId,
+      LOGISTICS_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY,
+    );
+    setDismissedTemplateGuideThisVisit(true);
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
     handleOpenCourierTemplateModal();
-  }, []);
+  }, [templateStorageUserId]);
 
   useLayoutEffect(() => {
     if (trialMode || !authAssetsReady || !workspaceStorageHydrated) {
@@ -3576,6 +3586,16 @@ export function LogisticsConvertClient({
       return;
     }
     if (dismissedTemplateGuideThisVisit) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
+    if (
+      isDefaultCjIntroAcknowledged(
+        templateStorageUserId,
+        LOGISTICS_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY,
+      )
+    ) {
       setIsTemplateOnboardingModalOpen(false);
       return;
     }
@@ -3594,6 +3614,7 @@ export function LogisticsConvertClient({
     isUsingDefaultCjTemplate,
     dismissedTemplateGuideThisVisit,
     readDefaultCjIntroSuppressUntil,
+    templateStorageUserId,
   ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

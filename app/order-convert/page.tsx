@@ -45,11 +45,14 @@ import {
   DEFAULT_CJ_INTRO_COPY,
   isActiveDefaultCjTemplate,
   isDefaultCjAutoSeedOptOut,
+  isDefaultCjIntroAcknowledged,
   isDefaultCjSeedFormat,
   isDefaultCjSeedFormatId,
+  ORDER_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY,
   ORDER_DEFAULT_CJ_INTRO_SUPPRESS_KEY,
   ORDER_DEFAULT_CJ_OPT_OUT_KEY,
   setDefaultCjAutoSeedOptOut,
+  setDefaultCjIntroAcknowledged,
 } from '@/app/lib/default-cj-courier-template';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
@@ -1554,22 +1557,23 @@ export default function OrderConvertPage() {
   );
 
   const handleCloseTemplateOnboardingModal = useCallback(() => {
+    setDefaultCjIntroAcknowledged(templateStorageUserId, ORDER_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY);
     if (dontShowTemplateGuideForWeek) {
       const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
       writeDefaultCjIntroSuppressUntil(Date.now() + oneWeekMs);
-    } else {
-      writeDefaultCjIntroSuppressUntil(null);
-      setDismissedTemplateGuideThisVisit(true);
     }
+    setDismissedTemplateGuideThisVisit(true);
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
-  }, [dontShowTemplateGuideForWeek, writeDefaultCjIntroSuppressUntil]);
+  }, [dontShowTemplateGuideForWeek, templateStorageUserId, writeDefaultCjIntroSuppressUntil]);
 
   const handleGoTemplateRegistrationFromOnboarding = useCallback(() => {
+    setDefaultCjIntroAcknowledged(templateStorageUserId, ORDER_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY);
+    setDismissedTemplateGuideThisVisit(true);
     setIsTemplateOnboardingModalOpen(false);
     setDontShowTemplateGuideForWeek(false);
     handleOpenCourierTemplateModal();
-  }, []);
+  }, [templateStorageUserId]);
 
   const handleOpenCourierTemplateFromNoTemplateModal = () => {
     setIsNoTemplateModalOpen(false);
@@ -1593,6 +1597,13 @@ export default function OrderConvertPage() {
       return;
     }
 
+    if (
+      isDefaultCjIntroAcknowledged(templateStorageUserId, ORDER_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY)
+    ) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
     const suppressUntil = readDefaultCjIntroSuppressUntil();
     if (suppressUntil && suppressUntil > Date.now()) {
       setIsTemplateOnboardingModalOpen(false);
@@ -1606,6 +1617,7 @@ export default function OrderConvertPage() {
     isUsingDefaultCjTemplate,
     dismissedTemplateGuideThisVisit,
     readDefaultCjIntroSuppressUntil,
+    templateStorageUserId,
   ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

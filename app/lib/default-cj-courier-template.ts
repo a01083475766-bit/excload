@@ -25,6 +25,12 @@ export const LOGISTICS_DEFAULT_CJ_INTRO_SUPPRESS_KEY =
 export const ORDER_DEFAULT_CJ_OPT_OUT_KEY = 'orderConvert_default_cj_opt_out_v1';
 export const LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY = 'logisticsConvert_default_cj_opt_out_v1';
 
+/** 기본 양식 안내 모달 — 사용자가 한 번 확인(계속하기/등록하기)하면 다시 표시하지 않음 */
+export const ORDER_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY =
+  'orderConvert_default_cj_intro_acknowledged_v1';
+export const LOGISTICS_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY =
+  'logisticsConvert_default_cj_intro_acknowledged_v1';
+
 export const DEFAULT_CJ_INTRO_COPY = {
   modalTitle: '기본 양식으로 먼저 시작할게요',
   modalBodyCourier:
@@ -83,6 +89,18 @@ export function isDefaultCjAutoSeedOptOut(
 
 export function setDefaultCjAutoSeedOptOut(userId: string | null, optOutKey: string): void {
   writeLocalStorageForUser(optOutKey, userId, '1');
+}
+
+export function isDefaultCjIntroAcknowledged(
+  userId: string | null,
+  acknowledgedKey: string,
+): boolean {
+  if (typeof window === 'undefined') return false;
+  return readLocalStorageWithLegacyMigrate(acknowledgedKey, userId) === '1';
+}
+
+export function setDefaultCjIntroAcknowledged(userId: string | null, acknowledgedKey: string): void {
+  writeLocalStorageForUser(acknowledgedKey, userId, '1');
 }
 
 export function buildDefaultCjCourierSeed(): DefaultCjCourierSeed {
