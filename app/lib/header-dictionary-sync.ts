@@ -31,8 +31,8 @@ function buildExampleBaseHeaderMap(
 
 /**
  * 업로드 1건의 헤더 목록을 사전·사용량에 반영합니다.
- * - HeaderDictionary: 처음 본 헤더만 insert
- * - HeaderUsageCount: 업로드마다 해당 헤더 count +1
+ * - HeaderDictionary: upsert (동시 업로드 시 unique race 방지)
+ * - HeaderUsageCount: upsert + increment
  */
 export async function syncHeadersToDictionary(
   input: SyncHeaderDictionaryInput,
@@ -54,35 +54,38 @@ export async function syncHeadersToDictionary(
           ? sanitizeHeaderLabel(exampleRaw)
           : null;
 
-      const existing = await tx.headerDictionary.findUnique({
+      const existedBefore = await tx.headerDictionary.findUnique({
         where: { header },
-        include: { usage: true },
+        select: { id: true },
       });
 
-      if (existing) {
-        if (existing.usage) {
-          await tx.headerUsageCount.update({
-            where: { headerDictionaryId: existing.id },
-            data: { count: { increment: 1 }, lastSeenAt: now },
-          });
-        } else {
-          await tx.headerUsageCount.create({
-            data: { headerDictionaryId: existing.id, count: 1, lastSeenAt: now },
-          });
-        }
-        continue;
-      }
-
-      await tx.headerDictionary.create({
-        data: {
+      const dictionary = await tx.headerDictionary.upsert({
+        where: { header },
+        create: {
           header,
           page: input.page,
           source: input.source,
           exampleBaseHeader,
-          usage: { create: { count: 1, lastSeenAt: now } },
+        },
+        update: {},
+      });
+
+      if (!existedBefore) {
+        newHeaders.push(header);
+      }
+
+      await tx.headerUsageCount.upsert({
+        where: { headerDictionaryId: dictionary.id },
+        create: {
+          headerDictionaryId: dictionary.id,
+          count: 1,
+          lastSeenAt: now,
+        },
+        update: {
+          count: { increment: 1 },
+          lastSeenAt: now,
         },
       });
-      newHeaders.push(header);
     }
   });
 

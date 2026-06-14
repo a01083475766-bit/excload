@@ -16,6 +16,7 @@ import {
   type TemplateHeaderLogMappedEntry,
 } from '@/app/lib/template-header-log';
 import { syncHeadersToDictionary } from '@/app/lib/header-dictionary-sync';
+import { logPrismaError } from '@/app/lib/log-prisma-error';
 
 function parseMappedHeaders(raw: unknown): TemplateHeaderLogMappedEntry[] {
   if (!Array.isArray(raw)) return [];
@@ -107,14 +108,20 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      await syncHeadersToDictionary({
+      const syncResult = await syncHeadersToDictionary({
         headers,
         mappedHeaders,
         page,
         source,
       });
+      if (syncResult.newHeaders.length > 0) {
+        console.info('[template-header-logs] HeaderDictionary sync ok', {
+          logId: row.id,
+          newHeaderCount: syncResult.newHeaders.length,
+        });
+      }
     } catch (syncError) {
-      console.error('[template-header-logs] HeaderDictionary sync error:', syncError);
+      logPrismaError('HeaderDictionary sync error', syncError);
     }
 
     return NextResponse.json({ ok: true, id: row.id });

@@ -101,7 +101,29 @@ const menuCard: React.CSSProperties = {
   display: 'block',
   transition: 'border-color 0.15s, box-shadow 0.15s',
   cursor: 'pointer',
+  position: 'relative',
 };
+
+const menuBadgeStyle: React.CSSProperties = {
+  fontSize: '11px',
+  fontWeight: 700,
+  minWidth: '20px',
+  height: '20px',
+  padding: '0 6px',
+  borderRadius: '999px',
+  background: '#dc2626',
+  color: '#fff',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  lineHeight: 1,
+  flexShrink: 0,
+};
+
+function formatBadgeCount(n: number): string {
+  if (n > 99) return '99+';
+  return String(n);
+}
 
 export default function AkmanClient() {
   const router = useRouter();
@@ -123,6 +145,7 @@ export default function AkmanClient() {
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const [duplicateSummary, setDuplicateSummary] = useState<DuplicateReportSummary | null>(null);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateReportGroup[]>([]);
+  const [menuBadges, setMenuBadges] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -133,26 +156,43 @@ export default function AkmanClient() {
         const statsUrl = lastSeen
           ? `/api/akman/stats?since=${encodeURIComponent(lastSeen)}`
           : '/api/akman/stats';
-        const res = await fetch(statsUrl);
+        const badgesUrl = lastSeen
+          ? `/api/akman/dashboard-badges?since=${encodeURIComponent(lastSeen)}`
+          : '/api/akman/dashboard-badges';
+
+        const [statsRes, badgesRes] = await Promise.all([
+          fetch(statsUrl),
+          fetch(badgesUrl),
+        ]);
+
         if (cancelled) return;
-        if (res.ok) {
-          const data = await res.json();
+
+        if (statsRes.ok) {
+          const data = await statsRes.json();
           setStats(data);
           setStatsError(null);
           if (typeof window !== 'undefined') {
             localStorage.setItem(AKMAN_LAST_SEEN_KEY, new Date().toISOString());
           }
-        } else if (res.status === 401 || res.status === 403) {
+        } else if (statsRes.status === 401 || statsRes.status === 403) {
           setStats(null);
           setStatsError('요약 통계는 관리자 로그인 후에 표시됩니다. 아래 메뉴는 권한에 따라 일부만 동작할 수 있습니다.');
         } else {
           setStats(null);
           setStatsError('통계를 불러오지 못했습니다.');
         }
+
+        if (badgesRes.ok) {
+          const badgeData = await badgesRes.json();
+          setMenuBadges(badgeData.badges ?? {});
+        } else {
+          setMenuBadges({});
+        }
       } catch {
         if (!cancelled) {
           setStats(null);
           setStatsError('통계를 불러오지 못했습니다.');
+          setMenuBadges({});
         }
       } finally {
         if (!cancelled) setStatsLoading(false);
@@ -453,7 +493,9 @@ export default function AkmanClient() {
 
       <h2 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>바로가기</h2>
       <div style={cardGrid}>
-        {menuItems.map((item) => (
+        {menuItems.map((item) => {
+          const badgeCount = menuBadges[item.href] ?? 0;
+          return (
           <div
             key={item.href}
             role="link"
@@ -465,12 +507,25 @@ export default function AkmanClient() {
                 router.push(item.href);
               }
             }}
-            style={{ ...menuCard, textDecoration: 'none', color: 'inherit' }}
+            style={{
+              ...menuCard,
+              textDecoration: 'none',
+              color: 'inherit',
+              ...(badgeCount > 0 ? { borderColor: '#fca5a5', background: '#fffbfb' } : {}),
+            }}
           >
-            <div style={{ ...linkStyle, marginBottom: '6px' }}>{item.title}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+              <div style={linkStyle}>{item.title}</div>
+              {badgeCount > 0 && (
+                <span style={menuBadgeStyle} title="확인할 항목">
+                  {formatBadgeCount(badgeCount)}
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: '14px', color: '#666' }}>{item.desc}</div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div

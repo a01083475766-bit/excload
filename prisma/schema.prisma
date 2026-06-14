@@ -288,7 +288,7 @@ model HeaderUsageCount {
   headerDictionaryId String   @unique
   count              Int      @default(1)
   lastSeenAt         DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime @default(now()) @updatedAt
 
   dictionary HeaderDictionary @relation(fields: [headerDictionaryId], references: [id], onDelete: Cascade)
 
