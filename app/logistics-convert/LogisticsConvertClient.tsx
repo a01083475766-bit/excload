@@ -134,14 +134,14 @@ import {
   DEFAULT_CJ_FORMAT_ID,
   DEFAULT_CJ_INTRO_COPY,
   isActiveDefaultCjTemplate,
-  isDefaultCjAutoSeedOptOut,
+  isDefaultCjAutoSeedOptOutForUserIds,
   isDefaultCjIntroAcknowledged,
   isDefaultCjSeedFormat,
   isDefaultCjSeedFormatId,
   LOGISTICS_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY,
   LOGISTICS_DEFAULT_CJ_INTRO_SUPPRESS_KEY,
   LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY,
-  setDefaultCjAutoSeedOptOut,
+  setDefaultCjAutoSeedOptOutForUserIds,
   setDefaultCjIntroAcknowledged,
 } from '@/app/lib/default-cj-courier-template';
 import {
@@ -996,6 +996,10 @@ export function LogisticsConvertClient({
     !trialMode && authStatus === 'authenticated' && session?.user?.id
       ? String(session.user.id)
       : userId;
+  const templateScopeUserIds = useMemo(
+    () => [templateStorageUserId, userId],
+    [templateStorageUserId, userId],
+  );
   const authAssetsReady = useAuthAssetsReady();
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
   const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
@@ -1848,7 +1852,20 @@ export function LogisticsConvertClient({
 
     logisticsCourierHydratedRef.current = false;
     try {
-      setCourierUploadTemplate(loadCourierUploadTemplate(false, userId));
+      let loadedTemplate = loadCourierUploadTemplate(false, userId);
+      if (
+        !trialMode &&
+        loadedTemplate &&
+        isActiveDefaultCjTemplate(loadedTemplate) &&
+        isDefaultCjAutoSeedOptOutForUserIds(templateScopeUserIds, LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY)
+      ) {
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, false, uid);
+          removeLocalStorageForUser(LOGISTICS_MAIN_KEYS.bridge, uid);
+        }
+        loadedTemplate = null;
+      }
+      setCourierUploadTemplate(loadedTemplate);
       setRecentExcelFormats(loadRecentExcelFormats(false, userId));
       try {
         const rawFixed = readLocalStorageWithLegacyMigrate(LOGISTICS_MAIN_KEYS.fixedHeaders, userId);
@@ -1883,7 +1900,7 @@ export function LogisticsConvertClient({
     isCancelledRef.current = false;
     logisticsCourierHydratedRef.current = true;
     setWorkspaceStorageHydrated(true);
-  }, [trialMode, authAssetsReady, userId]);
+  }, [trialMode, authAssetsReady, userId, templateScopeUserIds]);
 
   const activeTemplateHeaderNames = useMemo(() => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !courierUploadTemplate) {
@@ -1908,8 +1925,23 @@ export function LogisticsConvertClient({
     if (trialMode || !authAssetsReady || !workspaceStorageHydrated) return;
 
     const storedTemplate = loadCourierUploadTemplate(false, userId);
+    const scopeOptOut = isDefaultCjAutoSeedOptOutForUserIds(
+      templateScopeUserIds,
+      LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY,
+    );
+
     if (isValidCourierTemplate(storedTemplate)) {
-      if (isActiveDefaultCjTemplate(storedTemplate)) {
+      if (isActiveDefaultCjTemplate(storedTemplate) && scopeOptOut) {
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, false, uid);
+          removeLocalStorageForUser(LOGISTICS_MAIN_KEYS.bridge, uid);
+        }
+        setCourierUploadTemplate(null);
+        setTemplateBridgeFile(null);
+        return;
+      }
+
+      if (isActiveDefaultCjTemplate(storedTemplate) && !scopeOptOut) {
         const formats = loadRecentExcelFormats(false, userId);
         const hasDefaultEntry = formats.some((format) => isDefaultCjSeedFormatId(format.id));
         if (!hasDefaultEntry) {
@@ -1925,7 +1957,7 @@ export function LogisticsConvertClient({
       return;
     }
 
-    if (isDefaultCjAutoSeedOptOut(userId, LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY)) {
+    if (scopeOptOut) {
       return;
     }
 
@@ -1952,7 +1984,7 @@ export function LogisticsConvertClient({
     setTemplateBridgeFile(seed.bridgeFile);
     setRecentExcelFormats(updatedFormats);
     setTempSelectedFormatId(DEFAULT_CJ_FORMAT_ID);
-  }, [trialMode, authAssetsReady, workspaceStorageHydrated, userId]);
+  }, [trialMode, authAssetsReady, workspaceStorageHydrated, userId, templateScopeUserIds]);
 
   const handleLogisticsPreviewSessionRestored = useCallback(() => {
     setFileProcessingStatus('done');
@@ -3426,11 +3458,18 @@ export function LogisticsConvertClient({
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
       if (!trialMode && formatToDelete && isDefaultCjSeedFormat(formatToDelete)) {
-        setDefaultCjAutoSeedOptOut(userId, LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY);
-      }
-
-      // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
-      if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
+        setDefaultCjAutoSeedOptOutForUserIds(templateScopeUserIds, LOGISTICS_DEFAULT_CJ_OPT_OUT_KEY);
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, false, uid);
+          removeLocalStorageForUser(LOGISTICS_MAIN_KEYS.bridge, uid);
+        }
+        setCourierUploadTemplate(null);
+        setTemplateBridgeFile(null);
+      } else if (
+        formatToDelete &&
+        courierUploadTemplate &&
+        Array.isArray(courierUploadTemplate.headers)
+      ) {
         const currentHeaders = courierUploadTemplate.headers
           .filter((header) => !header.isEmpty && header.name.trim() !== '')
           .map((header) => header.name);

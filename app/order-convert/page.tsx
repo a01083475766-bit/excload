@@ -44,14 +44,14 @@ import {
   DEFAULT_CJ_FORMAT_ID,
   DEFAULT_CJ_INTRO_COPY,
   isActiveDefaultCjTemplate,
-  isDefaultCjAutoSeedOptOut,
+  isDefaultCjAutoSeedOptOutForUserIds,
   isDefaultCjIntroAcknowledged,
   isDefaultCjSeedFormat,
   isDefaultCjSeedFormatId,
   ORDER_DEFAULT_CJ_INTRO_ACKNOWLEDGED_KEY,
   ORDER_DEFAULT_CJ_INTRO_SUPPRESS_KEY,
   ORDER_DEFAULT_CJ_OPT_OUT_KEY,
-  setDefaultCjAutoSeedOptOut,
+  setDefaultCjAutoSeedOptOutForUserIds,
   setDefaultCjIntroAcknowledged,
 } from '@/app/lib/default-cj-courier-template';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
@@ -347,6 +347,10 @@ export default function OrderConvertPage() {
     authStatus === 'authenticated' && session?.user?.id
       ? String(session.user.id)
       : storageUserId;
+  const templateScopeUserIds = useMemo(
+    () => [templateStorageUserId, storageUserId],
+    [templateStorageUserId, storageUserId],
+  );
   const authAssetsReady = useAuthAssetsReady();
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
   const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
@@ -893,7 +897,19 @@ export default function OrderConvertPage() {
 
     courierStorageHydratedRef.current = false;
     try {
-      setCourierUploadTemplate(loadCourierUploadTemplate(storageUserId));
+      let loadedTemplate = loadCourierUploadTemplate(storageUserId);
+      if (
+        loadedTemplate &&
+        isActiveDefaultCjTemplate(loadedTemplate) &&
+        isDefaultCjAutoSeedOptOutForUserIds(templateScopeUserIds, ORDER_DEFAULT_CJ_OPT_OUT_KEY)
+      ) {
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, uid);
+          removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, uid);
+        }
+        loadedTemplate = null;
+      }
+      setCourierUploadTemplate(loadedTemplate);
       setRecentExcelFormats(loadRecentExcelFormats(storageUserId));
       try {
         const rawFixed = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.fixedHeaders, storageUserId);
@@ -927,7 +943,7 @@ export default function OrderConvertPage() {
     isCancelledRef.current = false;
     courierStorageHydratedRef.current = true;
     setWorkspaceStorageHydrated(true);
-  }, [authAssetsReady, storageUserId]);
+  }, [authAssetsReady, storageUserId, templateScopeUserIds]);
 
   const activeTemplateHeaderNames = useMemo(() => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !courierUploadTemplate) {
@@ -952,8 +968,23 @@ export default function OrderConvertPage() {
     if (!authAssetsReady || !workspaceStorageHydrated) return;
 
     const storedTemplate = loadCourierUploadTemplate(storageUserId);
+    const scopeOptOut = isDefaultCjAutoSeedOptOutForUserIds(
+      templateScopeUserIds,
+      ORDER_DEFAULT_CJ_OPT_OUT_KEY,
+    );
+
     if (isValidCourierTemplate(storedTemplate)) {
-      if (isActiveDefaultCjTemplate(storedTemplate)) {
+      if (isActiveDefaultCjTemplate(storedTemplate) && scopeOptOut) {
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, uid);
+          removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, uid);
+        }
+        setCourierUploadTemplate(null);
+        setTemplateBridgeFile(null);
+        return;
+      }
+
+      if (isActiveDefaultCjTemplate(storedTemplate) && !scopeOptOut) {
         const formats = loadRecentExcelFormats(storageUserId);
         const hasDefaultEntry = formats.some((format) => isDefaultCjSeedFormatId(format.id));
         if (!hasDefaultEntry) {
@@ -973,7 +1004,7 @@ export default function OrderConvertPage() {
       return;
     }
 
-    if (isDefaultCjAutoSeedOptOut(storageUserId, ORDER_DEFAULT_CJ_OPT_OUT_KEY)) {
+    if (scopeOptOut) {
       return;
     }
 
@@ -1008,7 +1039,7 @@ export default function OrderConvertPage() {
     setTemplateBridgeFile(seed.bridgeFile);
     setRecentExcelFormats(updatedFormats);
     setTempSelectedFormatId(DEFAULT_CJ_FORMAT_ID);
-  }, [authAssetsReady, workspaceStorageHydrated, storageUserId]);
+  }, [authAssetsReady, workspaceStorageHydrated, storageUserId, templateScopeUserIds]);
 
   const handlePreviewSessionRestored = useCallback(() => {
     setFileProcessingStatus('done');
@@ -1450,11 +1481,14 @@ export default function OrderConvertPage() {
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
       if (formatToDelete && isDefaultCjSeedFormat(formatToDelete)) {
-        setDefaultCjAutoSeedOptOut(storageUserId, ORDER_DEFAULT_CJ_OPT_OUT_KEY);
-      }
-
-      // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
-      if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
+        setDefaultCjAutoSeedOptOutForUserIds(templateScopeUserIds, ORDER_DEFAULT_CJ_OPT_OUT_KEY);
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, uid);
+          removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, uid);
+        }
+        setCourierUploadTemplate(null);
+        setTemplateBridgeFile(null);
+      } else if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
         const currentHeaders = courierUploadTemplate.headers
           .filter((header) => !header.isEmpty && header.name.trim() !== '')
           .map((header) => header.name);

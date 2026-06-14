@@ -91,6 +91,48 @@ export function setDefaultCjAutoSeedOptOut(userId: string | null, optOutKey: str
   writeLocalStorageForUser(optOutKey, userId, '1');
 }
 
+/** session·store 등 복수 스코프에 opt-out 기록 (userId 불일치로 재시드되는 것 방지) */
+export function setDefaultCjAutoSeedOptOutForUserIds(
+  userIds: Array<string | null | undefined>,
+  optOutKey: string,
+): void {
+  const seen = new Set<string>();
+  for (const raw of userIds) {
+    if (raw == null) {
+      if (!seen.has('__guest__')) {
+        seen.add('__guest__');
+        setDefaultCjAutoSeedOptOut(null, optOutKey);
+      }
+      continue;
+    }
+    const id = String(raw).trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    setDefaultCjAutoSeedOptOut(id, optOutKey);
+  }
+}
+
+export function isDefaultCjAutoSeedOptOutForUserIds(
+  userIds: Array<string | null | undefined>,
+  optOutKey: string,
+): boolean {
+  const seen = new Set<string>();
+  for (const raw of userIds) {
+    if (raw == null) {
+      if (!seen.has('__guest__')) {
+        seen.add('__guest__');
+        if (isDefaultCjAutoSeedOptOut(null, optOutKey)) return true;
+      }
+      continue;
+    }
+    const id = String(raw).trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    if (isDefaultCjAutoSeedOptOut(id, optOutKey)) return true;
+  }
+  return false;
+}
+
 export function isDefaultCjIntroAcknowledged(
   userId: string | null,
   acknowledgedKey: string,

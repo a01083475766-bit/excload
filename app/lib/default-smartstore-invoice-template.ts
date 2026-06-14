@@ -95,6 +95,45 @@ export function setDefaultSmartstoreAutoSeedOptOut(userId: string | null): void 
   writeLocalStorageForUser(INVOICE_DEFAULT_SMARTSTORE_OPT_OUT_KEY, userId, '1');
 }
 
+export function setDefaultSmartstoreAutoSeedOptOutForUserIds(
+  userIds: Array<string | null | undefined>,
+): void {
+  const seen = new Set<string>();
+  for (const raw of userIds) {
+    if (raw == null) {
+      if (!seen.has('__guest__')) {
+        seen.add('__guest__');
+        setDefaultSmartstoreAutoSeedOptOut(null);
+      }
+      continue;
+    }
+    const id = String(raw).trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    setDefaultSmartstoreAutoSeedOptOut(id);
+  }
+}
+
+export function isDefaultSmartstoreAutoSeedOptOutForUserIds(
+  userIds: Array<string | null | undefined>,
+): boolean {
+  const seen = new Set<string>();
+  for (const raw of userIds) {
+    if (raw == null) {
+      if (!seen.has('__guest__')) {
+        seen.add('__guest__');
+        if (isDefaultSmartstoreAutoSeedOptOut(null)) return true;
+      }
+      continue;
+    }
+    const id = String(raw).trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    if (isDefaultSmartstoreAutoSeedOptOut(id)) return true;
+  }
+  return false;
+}
+
 export function isDefaultSmartstoreIntroAcknowledged(userId: string | null): boolean {
   if (typeof window === 'undefined') return false;
   return (

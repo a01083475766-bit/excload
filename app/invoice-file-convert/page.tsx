@@ -64,13 +64,13 @@ import {
   DEFAULT_SMARTSTORE_INVOICE_FORMAT_ID,
   DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY,
   isActiveDefaultSmartstoreInvoiceTemplate,
-  isDefaultSmartstoreAutoSeedOptOut,
+  isDefaultSmartstoreAutoSeedOptOutForUserIds,
   isDefaultSmartstoreIntroAcknowledged,
   isDefaultSmartstoreInvoiceSeedFormat,
   isDefaultSmartstoreInvoiceSeedFormatId,
   INVOICE_DEFAULT_SMARTSTORE_INTRO_ACKNOWLEDGED_KEY,
   INVOICE_DEFAULT_SMARTSTORE_INTRO_SUPPRESS_KEY,
-  setDefaultSmartstoreAutoSeedOptOut,
+  setDefaultSmartstoreAutoSeedOptOutForUserIds,
   setDefaultSmartstoreIntroAcknowledged,
 } from '@/app/lib/default-smartstore-invoice-template';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
@@ -326,6 +326,10 @@ export default function InvoiceFileConvertPage() {
     authStatus === 'authenticated' && session?.user?.id
       ? String(session.user.id)
       : storageUserId;
+  const templateScopeUserIds = useMemo(
+    () => [templateStorageUserId, storageUserId],
+    [templateStorageUserId, storageUserId],
+  );
   const authAssetsReady = useAuthAssetsReady();
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
   const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
@@ -767,7 +771,19 @@ export default function InvoiceFileConvertPage() {
 
     invoiceCourierHydratedRef.current = false;
     try {
-      setCourierUploadTemplate(loadCourierUploadTemplate(storageUserId));
+      let loadedTemplate = loadCourierUploadTemplate(storageUserId);
+      if (
+        loadedTemplate &&
+        isActiveDefaultSmartstoreInvoiceTemplate(loadedTemplate) &&
+        isDefaultSmartstoreAutoSeedOptOutForUserIds(templateScopeUserIds)
+      ) {
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, uid);
+          removeLocalStorageForUser(INVOICE_FILE_CONVERT_KEYS.bridge, uid);
+        }
+        loadedTemplate = null;
+      }
+      setCourierUploadTemplate(loadedTemplate);
       setRecentExcelFormats(loadRecentExcelFormats(storageUserId));
       try {
         const rawFixed = readLocalStorageWithLegacyMigrate(
@@ -785,7 +801,7 @@ export default function InvoiceFileConvertPage() {
     }
     invoiceCourierHydratedRef.current = true;
     setWorkspaceStorageHydrated(true);
-  }, [authAssetsReady, storageUserId]);
+  }, [authAssetsReady, storageUserId, templateScopeUserIds]);
 
   const activeTemplateHeaderNames = useMemo(() => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !courierUploadTemplate) {
@@ -810,8 +826,20 @@ export default function InvoiceFileConvertPage() {
     if (!authAssetsReady || !workspaceStorageHydrated) return;
 
     const storedTemplate = loadCourierUploadTemplate(storageUserId);
+    const scopeOptOut = isDefaultSmartstoreAutoSeedOptOutForUserIds(templateScopeUserIds);
+
     if (isValidCourierTemplate(storedTemplate)) {
-      if (isActiveDefaultSmartstoreInvoiceTemplate(storedTemplate)) {
+      if (isActiveDefaultSmartstoreInvoiceTemplate(storedTemplate) && scopeOptOut) {
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, uid);
+          removeLocalStorageForUser(INVOICE_FILE_CONVERT_KEYS.bridge, uid);
+        }
+        setCourierUploadTemplate(null);
+        setTemplateBridgeFile(null);
+        return;
+      }
+
+      if (isActiveDefaultSmartstoreInvoiceTemplate(storedTemplate) && !scopeOptOut) {
         const formats = loadRecentExcelFormats(storageUserId);
         const hasDefaultEntry = formats.some((format) =>
           isDefaultSmartstoreInvoiceSeedFormatId(format.id),
@@ -833,7 +861,7 @@ export default function InvoiceFileConvertPage() {
       return;
     }
 
-    if (isDefaultSmartstoreAutoSeedOptOut(storageUserId)) {
+    if (scopeOptOut) {
       return;
     }
 
@@ -888,7 +916,7 @@ export default function InvoiceFileConvertPage() {
     setTemplateBridgeFile(seed.bridgeFile);
     setRecentExcelFormats(updatedFormats);
     setTempSelectedFormatId(DEFAULT_SMARTSTORE_INVOICE_FORMAT_ID);
-  }, [authAssetsReady, workspaceStorageHydrated, storageUserId]);
+  }, [authAssetsReady, workspaceStorageHydrated, storageUserId, templateScopeUserIds]);
 
   const handleInvoicePreviewSessionRestored = useCallback(() => {
     setPreviewReady(true);
@@ -1323,11 +1351,18 @@ export default function InvoiceFileConvertPage() {
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
       if (formatToDelete && isDefaultSmartstoreInvoiceSeedFormat(formatToDelete)) {
-        setDefaultSmartstoreAutoSeedOptOut(storageUserId);
-      }
-
-      // 삭제하려는 format이 현재 사용 중인 템플릿인지 확인
-      if (formatToDelete && courierUploadTemplate && Array.isArray(courierUploadTemplate.headers)) {
+        setDefaultSmartstoreAutoSeedOptOutForUserIds(templateScopeUserIds);
+        for (const uid of templateScopeUserIds) {
+          saveCourierUploadTemplate(null, uid);
+          removeLocalStorageForUser(INVOICE_FILE_CONVERT_KEYS.bridge, uid);
+        }
+        setCourierUploadTemplate(null);
+        setTemplateBridgeFile(null);
+      } else if (
+        formatToDelete &&
+        courierUploadTemplate &&
+        Array.isArray(courierUploadTemplate.headers)
+      ) {
         const currentHeaders = courierUploadTemplate.headers
           .filter((header) => !header.isEmpty && header.name.trim() !== '')
           .map((header) => header.name);
