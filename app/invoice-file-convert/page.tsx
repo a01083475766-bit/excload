@@ -3297,12 +3297,8 @@ export default function InvoiceFileConvertPage() {
             </div>
 
             <div className="mb-5">
-              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
                 {DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY.modalBody}
-              </p>
-              <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                택배사 이름은 「고정 입력 정보 설정」에서 스마트스토어센터에 등록된 이름과
-                같게 맞춰 주세요. 송장번호는 하이픈(-) 없이 숫자만 들어가도록 정리됩니다.
               </p>
             </div>
 

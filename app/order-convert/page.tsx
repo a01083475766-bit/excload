@@ -3781,7 +3781,7 @@ export default function OrderConvertPage() {
             </div>
 
             <div className="mb-5">
-              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
                 {DEFAULT_CJ_INTRO_COPY.modalBodyCourier}
               </p>
             </div>
