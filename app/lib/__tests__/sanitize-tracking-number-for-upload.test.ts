@@ -1,18 +1,21 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, expect, it } from 'vitest';
 import {
   isTrackingNumberUploadHeader,
   sanitizeTrackingNumberForUpload,
 } from '@/app/lib/sanitize-tracking-number-for-upload';
 
-test('sanitizeTrackingNumberForUpload removes hyphens and spaces', () => {
-  assert.equal(sanitizeTrackingNumberForUpload('1234-5678-9012'), '123456789012');
-  assert.equal(sanitizeTrackingNumberForUpload(' 123 456 '), '123456');
-  assert.equal(sanitizeTrackingNumberForUpload(''), '');
+describe('sanitizeTrackingNumberForUpload', () => {
+  it('removes hyphens and spaces', () => {
+    expect(sanitizeTrackingNumberForUpload('1234-5678-9012')).toBe('123456789012');
+    expect(sanitizeTrackingNumberForUpload(' 123 456 ')).toBe('123456');
+    expect(sanitizeTrackingNumberForUpload('')).toBe('');
+  });
 });
 
-test('isTrackingNumberUploadHeader matches 송장번호·운송장번호', () => {
-  assert.equal(isTrackingNumberUploadHeader('송장번호'), true);
-  assert.equal(isTrackingNumberUploadHeader('운송장번호'), true);
-  assert.equal(isTrackingNumberUploadHeader('상품주문번호'), false);
+describe('isTrackingNumberUploadHeader', () => {
+  it('matches 송장번호·운송장번호', () => {
+    expect(isTrackingNumberUploadHeader('송장번호')).toBe(true);
+    expect(isTrackingNumberUploadHeader('운송장번호')).toBe(true);
+    expect(isTrackingNumberUploadHeader('상품주문번호')).toBe(false);
+  });
 });

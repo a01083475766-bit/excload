@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { getClientIp } from '@/app/lib/client-ip';
-import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
+import { serviceBlockedResponse, tryGrantInitialFreeBenefits } from '@/app/lib/user-access-guard';
 import { hasProEntitlement } from '@/app/lib/feedback-event/entitlement';
 import { isMonthlyGrantDue, tryGrantMonthlyFreePoints } from '@/app/lib/grant-monthly-points-core';
 
@@ -66,21 +66,24 @@ export async function POST(request: NextRequest) {
     try {
       const { prisma } = await import('@/app/lib/prisma');
 
+      const userSelect = {
+        id: true,
+        email: true,
+        plan: true,
+        points: true,
+        nextPointDate: true,
+        feedbackTrialEndsAt: true,
+        adminTrialEndsAt: true,
+        feedbackTrialUsed: true,
+        signupBonusClaimed: true,
+        isBlocked: true,
+        abuseFlag: true,
+        blockReason: true,
+      } as const;
+
       const user = await prisma.user.findUnique({
         where: { email: userEmail },
-        select: {
-          id: true,
-          email: true,
-          plan: true,
-          points: true,
-          nextPointDate: true,
-          feedbackTrialEndsAt: true,
-          adminTrialEndsAt: true,
-          feedbackTrialUsed: true,
-          isBlocked: true,
-          abuseFlag: true,
-          blockReason: true,
-        },
+        select: userSelect,
       });
 
       if (!user) {
@@ -117,6 +120,21 @@ export async function POST(request: NextRequest) {
           usedAmount: 0,
           reason: 'PRO_엑셀다운로드_무제한',
         });
+      }
+
+      if (
+        chargeUser.points < normalizedAmount &&
+        !chargeUser.signupBonusClaimed &&
+        chargeUser.points === 0
+      ) {
+        await tryGrantInitialFreeBenefits(chargeUser.id);
+        const afterSignupBonus = await prisma.user.findUnique({
+          where: { id: chargeUser.id },
+          select: userSelect,
+        });
+        if (afterSignupBonus) {
+          chargeUser = afterSignupBonus;
+        }
       }
 
       if (
