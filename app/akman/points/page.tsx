@@ -1,6 +1,6 @@
 /**
- * EXCLOAD 관리자 — 사용량 제공·차감 이력
- * (다른 /akman 하위 페이지와 동일하게 클라이언트 + API 조회)
+ * EXCLOAD 관리자 — 사용량 제공·결제 이력
+ * 변환·다운로드 차감은 사용자 상세(/akman/users/[id])에서만 조회
  */
 
 'use client';
@@ -76,7 +76,16 @@ export default function PointLogPage() {
         </Link>
       </div>
 
-      <h1 style={{ marginBottom: '20px' }}>사용량 제공·차감 이력</h1>
+      <h1 style={{ marginBottom: '8px' }}>사용량 제공·결제 이력</h1>
+      <p style={{ color: '#666', marginBottom: '24px', fontSize: '14px', lineHeight: 1.5 }}>
+        월간 지급, 결제, 관리자 조정 등 지급·결제 관련 내역만 표시합니다.
+        <br />
+        다운로드·텍스트 변환 등 사용 차감은{' '}
+        <Link href="/akman" style={{ color: '#0066cc' }}>
+          사용자 상세
+        </Link>
+        에서 조회하세요.
+      </p>
 
       {loading ? (
         <p style={{ color: '#666', marginBottom: '30px' }}>불러오는 중…</p>
@@ -108,7 +117,7 @@ export default function PointLogPage() {
         </div>
       ) : (
         <p style={{ color: '#666', marginBottom: '30px' }}>
-          총 {logs.length}건 (최근 100건)
+          총 {logs.length}건 (지급·결제 기준 최근 100건)
         </p>
       )}
 
@@ -164,7 +173,7 @@ export default function PointLogPage() {
                     color: '#999',
                   }}
                 >
-                  사용량 로그가 없습니다.
+                  지급·결제 이력이 없습니다.
                 </td>
               </tr>
             ) : (

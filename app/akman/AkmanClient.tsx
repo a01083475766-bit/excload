@@ -356,7 +356,7 @@ export default function AkmanClient() {
     { href: '/akman/payments', title: '결제 내역', desc: '결제·플랜 기록 조회' },
     { href: '/akman/contact-inquiries', title: '고객문의', desc: '문의 접수·답변 상태 관리' },
     { href: '/akman/refunds', title: '환불 신청', desc: '환불 접수/승인/반려 관리' },
-    { href: '/akman/points', title: '사용량 로그', desc: '사용량 제공·차감 이력' },
+    { href: '/akman/points', title: '사용량 로그', desc: '지급·결제 이력 (사용 차감은 사용자 상세)' },
     { href: '/akman/ai-mapping', title: 'AI 매핑', desc: '매핑 규칙 관리' },
     { href: '/akman/template-header-logs', title: '헤더 수집 로그', desc: '주문·양식 1행 헤더 수집' },
     { href: '/akman/header-dictionary', title: '헤더 사전', desc: '신규 헤더·사용 횟수' },

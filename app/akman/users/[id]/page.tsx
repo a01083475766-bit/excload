@@ -566,7 +566,10 @@ export default function UserDetailPage() {
 
       {/* Point History 테이블 */}
       <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ marginBottom: '16px', fontSize: '20px' }}>Usage History</h2>
+        <h2 style={{ marginBottom: '8px', fontSize: '20px' }}>Usage History</h2>
+        <p style={{ marginBottom: '16px', fontSize: '13px', color: '#666' }}>
+          지급·결제·다운로드·텍스트 변환 등 이 계정의 전체 사용량 이력입니다.
+        </p>
         <table
           style={{
             borderCollapse: 'collapse',

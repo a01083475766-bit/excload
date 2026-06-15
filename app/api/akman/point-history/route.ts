@@ -7,9 +7,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 import { isAdminEmail } from '@/app/lib/admin-auth';
+import { grantsOnlyPointHistoryFilter } from '@/app/lib/point-history-filter';
 
 /**
  * GET /api/akman/point-history
+ * scope=grants (기본): 지급·결제·관리자 조정만 (다운로드·텍스트 변환 차감 제외)
+ * scope=all: 전체 이력
  */
 export async function GET(request: NextRequest) {
   try {
@@ -25,8 +28,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const take = Math.min(parseInt(searchParams.get('limit') || '100', 10) || 100, 500);
+    const scope = searchParams.get('scope') === 'all' ? 'all' : 'grants';
 
     const logs = await prisma.pointHistory.findMany({
+      where: scope === 'grants' ? grantsOnlyPointHistoryFilter() : undefined,
       orderBy: { createdAt: 'desc' },
       take,
       select: {
@@ -42,6 +47,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      scope,
       logs: logs.map((log) => ({
         id: log.id,
         email: log.user?.email ?? null,
