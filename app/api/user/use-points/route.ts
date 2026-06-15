@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { getClientIp } from '@/app/lib/client-ip';
-import { serviceBlockedResponse, syncUserIpAndAbuseScore } from '@/app/lib/user-access-guard';
+import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 import { hasProEntitlement } from '@/app/lib/feedback-event/entitlement';
 import { isMonthlyGrantDue, tryGrantMonthlyFreePoints } from '@/app/lib/grant-monthly-points-core';
 
@@ -90,36 +90,19 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await syncUserIpAndAbuseScore(user.id, getClientIp(request));
-
-      const freshUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: {
-          id: true,
-          email: true,
-          plan: true,
-          points: true,
-          nextPointDate: true,
-          feedbackTrialEndsAt: true,
-          adminTrialEndsAt: true,
-          feedbackTrialUsed: true,
-          isBlocked: true,
-          abuseFlag: true,
-          blockReason: true,
-        },
-      });
-
-      if (!freshUser) {
-        return NextResponse.json(
-          { error: '사용자를 찾을 수 없습니다.' },
-          { status: 404 }
-        );
-      }
-
-      const blockedResponse = serviceBlockedResponse(freshUser);
+      const blockedResponse = serviceBlockedResponse(user);
       if (blockedResponse) return blockedResponse;
 
-      let chargeUser = freshUser;
+      // IP만 기록(어뷰징 점수 재계산은 sync-account에서 처리 — 차감 핫패스 경량화)
+      const ip = getClientIp(request);
+      if (ip && ip !== 'unknown') {
+        void prisma.user
+          .update({ where: { id: user.id }, data: { lastIp: ip } })
+          .catch(() => {});
+      }
+
+      let chargeUser = user;
+      const normalizedAmount = Math.max(1, Math.floor(amount));
 
       if (type === 'download' && hasProEntitlement(chargeUser)) {
         return NextResponse.json({
@@ -136,7 +119,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      if (chargeUser.points < 1 && chargeUser.plan === 'FREE' && isMonthlyGrantDue(chargeUser)) {
+      if (
+        chargeUser.points < normalizedAmount &&
+        chargeUser.plan === 'FREE' &&
+        isMonthlyGrantDue(chargeUser)
+      ) {
         const grantSource = await prisma.user.findUnique({
           where: { id: chargeUser.id },
           select: {
@@ -178,7 +165,6 @@ export async function POST(request: NextRequest) {
       // 정책:
       // - text: 요청량이 잔액보다 커도 잔여 포인트 전액 차감 후 1회 허용
       // - download: (무료에서 호출) 1회 1000 기준이지만 잔액이 부족하면 전액 차감 후 1회 허용
-      const normalizedAmount = Math.max(1, Math.floor(amount));
       const deductionAmount = Math.min(chargeUser.points, normalizedAmount);
       const historyReason = resolvePointHistoryReason(type, reason);
 

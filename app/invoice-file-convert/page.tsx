@@ -1675,12 +1675,14 @@ export default function InvoiceFileConvertPage() {
       }
     }
 
-    await useUserStore.getState().prepareForPointCharge();
-    currentUser = useUserStore.getState().user;
-    if (!currentUser) {
-      alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-      router.push('/auth/login');
-      return false;
+    if (currentUser.points < amount) {
+      await useUserStore.getState().prepareForPointCharge(amount);
+      currentUser = useUserStore.getState().user;
+      if (!currentUser) {
+        alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+        router.push('/auth/login');
+        return false;
+      }
     }
 
     // 사용량 부족 확인

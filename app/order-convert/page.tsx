@@ -1964,13 +1964,15 @@ export default function OrderConvertPage() {
       }
     }
 
-    // 월간 지급 대기 등: 백그라운드 sync·지급 완료 후 클라이언트 잔액 확인
-    await useUserStore.getState().prepareForPointCharge();
-    currentUser = useUserStore.getState().user;
-    if (!currentUser) {
-      alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-      router.push('/auth/login');
-      return false;
+    // 잔액이 충분하면 sync·월간지급 대기 없이 바로 차감 API 호출
+    if (currentUser.points < amount) {
+      await useUserStore.getState().prepareForPointCharge(amount);
+      currentUser = useUserStore.getState().user;
+      if (!currentUser) {
+        alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+        router.push('/auth/login');
+        return false;
+      }
     }
 
     // 사용량 부족 확인
@@ -2523,18 +2525,20 @@ export default function OrderConvertPage() {
     }
 
     if (user && shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt)) {
-      await useUserStore.getState().prepareForPointCharge();
-      const latestUser = useUserStore.getState().user;
-      if (latestUser && latestUser.points < 1) {
-        alert(
-          buildInsufficientPointsMessage(
-            latestUser.plan,
-            latestUser.nextPointDate ?? latestUser.lastMonthlyGrant ?? null,
-            latestUser.feedbackTrialEndsAt,
-            latestUser.adminTrialEndsAt,
-          ),
-        );
-        return;
+      if (user.points < 1) {
+        await useUserStore.getState().prepareForPointCharge(1000);
+        const latestUser = useUserStore.getState().user;
+        if (latestUser && latestUser.points < 1) {
+          alert(
+            buildInsufficientPointsMessage(
+              latestUser.plan,
+              latestUser.nextPointDate ?? latestUser.lastMonthlyGrant ?? null,
+              latestUser.feedbackTrialEndsAt,
+              latestUser.adminTrialEndsAt,
+            ),
+          );
+          return;
+        }
       }
     }
 

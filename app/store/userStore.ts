@@ -37,8 +37,8 @@ interface UserStoreState {
   clearUser: () => void;
   fetchUser: () => Promise<void>;
   grantMonthlyPoints: () => Promise<void>;
-  /** sync-account·월간 지급 백그라운드 작업 완료 후 최신 포인트 반영 */
-  prepareForPointCharge: () => Promise<void>;
+  /** sync-account·월간 지급 — 잔액이 부족하거나 월간 지급일일 때만 대기 */
+  prepareForPointCharge: (requiredPoints?: number) => Promise<void>;
 }
 
 /** 동시에 fetchUser가 여러 곳에서 호출될 때 /api/user/get 중복 방지 */
@@ -77,6 +77,11 @@ function mapApiUserToStoreUser(data: {
     feedbackTrialUsed: data.feedbackTrialUsed ?? false,
     adminTrialEndsAt: data.adminTrialEndsAt ?? null,
   };
+}
+
+function isMonthlyGrantDueClient(nextPointDate: string | null | undefined, now = Date.now()): boolean {
+  if (!nextPointDate) return true;
+  return new Date(nextPointDate).getTime() <= now;
 }
 
 async function runSyncAccountSideEffects(
@@ -229,7 +234,18 @@ export const useUserStore = create<UserStoreState>()(
         }
       },
 
-      prepareForPointCharge: async () => {
+      prepareForPointCharge: async (requiredPoints = 1) => {
+        const user = get().user;
+        if (!user) return;
+
+        const monthlyDue =
+          user.plan === 'FREE' && isMonthlyGrantDueClient(user.nextPointDate);
+        const hasEnoughPoints = user.points >= requiredPoints;
+
+        if (hasEnoughPoints && !monthlyDue) {
+          return;
+        }
+
         if (syncAccountInFlight) {
           try {
             await syncAccountInFlight;
@@ -237,7 +253,18 @@ export const useUserStore = create<UserStoreState>()(
             // sync 실패는 use-points 서버 검증에서 재처리
           }
         }
-        await get().grantMonthlyPoints();
+
+        const refreshed = get().user;
+        if (!refreshed) return;
+
+        const stillNeedsGrant =
+          refreshed.plan === 'FREE' &&
+          isMonthlyGrantDueClient(refreshed.nextPointDate) &&
+          refreshed.points < requiredPoints;
+
+        if (stillNeedsGrant) {
+          await get().grantMonthlyPoints();
+        }
       },
     }),
     {
