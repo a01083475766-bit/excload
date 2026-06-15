@@ -1008,9 +1008,10 @@ export function LogisticsConvertClient({
     authAssetsReady &&
     workspaceStorageHydrated &&
     (authStatus === 'unauthenticated' || Boolean(userId));
-  const isFormStatusChecking = trialMode
-    ? !workspaceStorageHydrated
-    : !authAssetsReady || !workspaceStorageHydrated;
+  const isAccountScopedReady = trialMode
+    ? workspaceStorageHydrated
+    : authAssetsReady && workspaceStorageHydrated;
+  const isFormStatusChecking = !workspaceStorageHydrated;
   const logisticsCourierHydratedRef = useRef(false);
   const defaultCjSeedAppliedRef = useRef(false);
   const prevLogisticsAccountBoundaryRef = useRef<string | undefined>(undefined);
@@ -1474,21 +1475,24 @@ export function LogisticsConvertClient({
 
   const ensureLoggedInForOrderInput = useCallback((): boolean => {
     if (trialMode) return true;
-    if (user) return true;
-    if (isLoading) return false;
+    if (isAccountScopedReady && user) return true;
+    if (isLoading || (authStatus === 'authenticated' && !isAccountScopedReady)) {
+      setSettingsCheckOverlayOpen(true);
+      return false;
+    }
     setRequiresAccountModalOpen(true);
     return false;
-  }, [trialMode, user, isLoading]);
+  }, [trialMode, user, isLoading, authStatus, isAccountScopedReady]);
 
   useEffect(() => {
-    if (!isFormStatusChecking) {
+    if (isAccountScopedReady) {
       setSettingsCheckOverlayOpen(false);
     }
-  }, [isFormStatusChecking]);
+  }, [isAccountScopedReady]);
 
   const ensureCourierTemplateReady = useCallback(
     (modalType: 'fixed-input' | 'convert'): boolean => {
-      if (isFormStatusChecking) {
+      if (!isAccountScopedReady) {
         setSettingsCheckOverlayOpen(true);
         return false;
       }
@@ -1500,7 +1504,7 @@ export function LogisticsConvertClient({
       }
       return true;
     },
-    [isFormStatusChecking, courierUploadTemplate],
+    [isAccountScopedReady, courierUploadTemplate],
   );
 
   const resetBundleShippingUi = useCallback(() => {
@@ -3966,6 +3970,14 @@ export function LogisticsConvertClient({
         router.push('/auth/login');
         return false;
       }
+    }
+
+    await useUserStore.getState().prepareForPointCharge();
+    currentUser = useUserStore.getState().user;
+    if (!currentUser) {
+      alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+      router.push('/auth/login');
+      return false;
     }
 
     // 사용량 부족 확인

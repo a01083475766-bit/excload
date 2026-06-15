@@ -240,9 +240,8 @@ function AuthPageContent() {
         setError('이메일 또는 비밀번호가 올바르지 않습니다.');
         setIsLoading(false);
       } else {
-        // 로그인 성공 시 사용자 정보 가져오기
-        await fetchUser();
         redirectAfterAuth();
+        void fetchUser();
       }
     } catch (err) {
       setError('로그인 중 오류가 발생했습니다.');
@@ -387,8 +386,8 @@ function AuthPageContent() {
         setIsAutoLoggingInAfterSignup(false);
         setError('회원가입은 완료되었지만 자동 로그인에 실패했습니다. 로그인해주세요.');
       } else {
-        await fetchUser();
         redirectAfterAuth();
+        void fetchUser();
       }
     } catch {
       setError('인증코드 확인 중 오류가 발생했습니다.');

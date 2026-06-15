@@ -358,7 +358,8 @@ export default function OrderConvertPage() {
     authAssetsReady &&
     workspaceStorageHydrated &&
     (authStatus === 'unauthenticated' || Boolean(storageUserId));
-  const isFormStatusChecking = !authAssetsReady || !workspaceStorageHydrated;
+  const isAccountScopedReady = authAssetsReady && workspaceStorageHydrated;
+  const isFormStatusChecking = !workspaceStorageHydrated;
   const courierStorageHydratedRef = useRef(false);
   const defaultCjSeedAppliedRef = useRef(false);
   const prevAccountBoundaryRef = useRef<string | undefined>(undefined);
@@ -531,14 +532,14 @@ export default function OrderConvertPage() {
   }, [authStatus, isLoading, user]);
 
   const ensureLoggedInForOrderInput = useCallback((): boolean => {
-    if (user) return true;
-    if (authStatus === 'loading' || isLoading) {
+    if (isAccountScopedReady && user) return true;
+    if (authStatus === 'loading' || isLoading || (authStatus === 'authenticated' && !isAccountScopedReady)) {
       setSettingsCheckOverlayOpen(true);
       return false;
     }
     setRequiresAccountModalOpen(true);
     return false;
-  }, [user, isLoading, authStatus]);
+  }, [user, isLoading, authStatus, isAccountScopedReady]);
 
   /** 회원·설정 복원 전 파일 업로드는 대기열에 넣고 오버레이 표시 */
   const queueOrderInputUntilReady = useCallback(
@@ -594,10 +595,16 @@ export default function OrderConvertPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 복원 직후 1회 재시도
   }, [authAssetsReady, workspaceStorageHydrated, user, authStatus, courierUploadTemplate]);
 
+  useEffect(() => {
+    if (isAccountScopedReady) {
+      setSettingsCheckOverlayOpen(false);
+    }
+  }, [isAccountScopedReady]);
+
   /** 양식 복원 대기 중: 등록 모달 대신 오버레이만. 완료 후 없으면 등록 모달 */
   const ensureCourierTemplateReady = useCallback(
     (modalType: 'fixed-input' | 'convert'): boolean => {
-      if (isFormStatusChecking) {
+      if (!isAccountScopedReady) {
         setSettingsCheckOverlayOpen(true);
         return false;
       }
@@ -609,7 +616,7 @@ export default function OrderConvertPage() {
       }
       return true;
     },
-    [isFormStatusChecking, courierUploadTemplate],
+    [isAccountScopedReady, courierUploadTemplate],
   );
 
   // 고정 헤더 순서 배열 (courierUploadTemplate.headers 기준)
@@ -1957,6 +1964,15 @@ export default function OrderConvertPage() {
       }
     }
 
+    // 월간 지급 대기 등: 백그라운드 sync·지급 완료 후 클라이언트 잔액 확인
+    await useUserStore.getState().prepareForPointCharge();
+    currentUser = useUserStore.getState().user;
+    if (!currentUser) {
+      alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+      router.push('/auth/login');
+      return false;
+    }
+
     // 사용량 부족 확인
     if (currentUser.points < 1) {
       alert(
@@ -2507,13 +2523,15 @@ export default function OrderConvertPage() {
     }
 
     if (user && shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt)) {
-      if (user.points < 1) {
+      await useUserStore.getState().prepareForPointCharge();
+      const latestUser = useUserStore.getState().user;
+      if (latestUser && latestUser.points < 1) {
         alert(
           buildInsufficientPointsMessage(
-            user.plan,
-            user.nextPointDate ?? user.lastMonthlyGrant ?? null,
-            user.feedbackTrialEndsAt,
-            user.adminTrialEndsAt,
+            latestUser.plan,
+            latestUser.nextPointDate ?? latestUser.lastMonthlyGrant ?? null,
+            latestUser.feedbackTrialEndsAt,
+            latestUser.adminTrialEndsAt,
           ),
         );
         return;

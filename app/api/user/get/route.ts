@@ -1,29 +1,22 @@
 /**
- * 사용자 정보 조회 API
+ * 사용자 정보 조회 API (경량)
  *
  * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
- * 사용자 DB는 파이프라인 구조와 독립적으로 동작합니다.
- *
- * 월간 포인트 지급/리셋은 POST /api/user/grant-monthly-points 에서만 처리합니다.
+ * IP/어뷰징·체험 만료·초기 혜택은 POST /api/user/sync-account 에서 처리합니다.
+ * 월간 포인트 지급은 POST /api/user/grant-monthly-points 에서만 처리합니다.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { getClientIp } from '@/app/lib/client-ip';
-import {
-  syncUserIpAndAbuseScore,
-  tryGrantInitialFreeBenefits,
-} from '@/app/lib/user-access-guard';
+import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 import { isWithinWithdrawGrace, WITHDRAW_GRACE_DAYS } from '@/app/lib/account-withdrawal';
-import { expireFeedbackTrialIfNeeded } from '@/app/lib/feedback-event/entitlement';
-import { expireAdminTrialIfNeeded } from '@/app/lib/admin-pro-trial';
 
 /**
  * GET /api/user/get
  * 현재 로그인 사용자 정보 조회
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
@@ -53,6 +46,12 @@ export async function GET(request: NextRequest) {
           updatedAt: true,
           deletedAt: true,
           purgeAt: true,
+          feedbackTrialEndsAt: true,
+          feedbackTrialUsed: true,
+          adminTrialEndsAt: true,
+          isBlocked: true,
+          abuseFlag: true,
+          blockReason: true,
         },
       });
 
@@ -85,79 +84,27 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      await syncUserIpAndAbuseScore(user.id, getClientIp(request));
-      await tryGrantInitialFreeBenefits(user.id);
-      await expireFeedbackTrialIfNeeded(user.id);
-      await expireAdminTrialIfNeeded(user.id);
-
-      const freshUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          plan: true,
-          points: true,
-          lastLoginProvider: true,
-          nextPointDate: true,
-          createdAt: true,
-          updatedAt: true,
-          deletedAt: true,
-          purgeAt: true,
-          feedbackTrialEndsAt: true,
-          feedbackTrialUsed: true,
-          adminTrialEndsAt: true,
-        },
-      });
-
-      if (!freshUser) {
-        return NextResponse.json(
-          { error: '사용자를 찾을 수 없습니다.' },
-          { status: 404 }
-        );
-      }
-
-      if (freshUser.deletedAt) {
-        if (isWithinWithdrawGrace(freshUser)) {
-          return NextResponse.json(
-            {
-              error: `탈퇴 처리된 계정입니다. ${WITHDRAW_GRACE_DAYS}일 이내 로그인·재가입 시 복구할 수 있습니다.`,
-              code: 'ACCOUNT_WITHDRAWN',
-              purgeAt: freshUser.purgeAt?.toISOString() ?? null,
-              canRestore: true,
-            },
-            { status: 403 },
-          );
-        }
-        return NextResponse.json(
-          {
-            error: '탈퇴 유예 기간이 지난 계정입니다.',
-            code: 'ACCOUNT_WITHDRAWN_EXPIRED',
-            canRestore: false,
-          },
-          { status: 403 },
-        );
-      }
+      const blockedResponse = serviceBlockedResponse(user);
+      if (blockedResponse) return blockedResponse;
 
       return NextResponse.json({
         success: true,
         user: {
-          id: freshUser.id,
-          email: freshUser.email,
-          name: freshUser.name,
-          phone: freshUser.phone,
-          plan: freshUser.plan as 'FREE' | 'PRO' | 'YEARLY',
-          points: freshUser.points,
-          lastLoginProvider: freshUser.lastLoginProvider,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          phone: user.phone,
+          plan: user.plan as 'FREE' | 'PRO' | 'YEARLY',
+          points: user.points,
+          lastLoginProvider: user.lastLoginProvider,
           monthlyPoints: undefined,
-          lastMonthlyGrant: freshUser.nextPointDate?.toISOString() || null,
-          nextPointDate: freshUser.nextPointDate?.toISOString() || null,
-          createdAt: freshUser.createdAt.toISOString(),
-          updatedAt: freshUser.updatedAt.toISOString(),
-          feedbackTrialEndsAt: freshUser.feedbackTrialEndsAt?.toISOString() ?? null,
-          feedbackTrialUsed: freshUser.feedbackTrialUsed,
-          adminTrialEndsAt: freshUser.adminTrialEndsAt?.toISOString() ?? null,
+          lastMonthlyGrant: user.nextPointDate?.toISOString() || null,
+          nextPointDate: user.nextPointDate?.toISOString() || null,
+          createdAt: user.createdAt.toISOString(),
+          updatedAt: user.updatedAt.toISOString(),
+          feedbackTrialEndsAt: user.feedbackTrialEndsAt?.toISOString() ?? null,
+          feedbackTrialUsed: user.feedbackTrialUsed,
+          adminTrialEndsAt: user.adminTrialEndsAt?.toISOString() ?? null,
         },
       });
     } catch (dbError) {

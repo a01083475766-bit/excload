@@ -8,24 +8,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { addOneMonthKeepingDay } from '@/app/lib/add-one-month-keeping-day';
-import { isMonthlyFreeGrantBlocked } from '@/app/lib/free-benefit-fingerprint';
 import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
-import { isFeedbackTrialActive } from '@/app/lib/feedback-event/entitlement';
-import { isAdminTrialActive } from '@/app/lib/admin-pro-trial';
+import {
+  MONTHLY_FREE_GRANT_AMOUNT,
+  tryGrantMonthlyFreePoints,
+} from '@/app/lib/grant-monthly-points-core';
 
 /**
  * POST /api/user/grant-monthly-points
  * 월간 사용량 자동 제공
  * - 무료 회원(free): 매월 5000 사용량
  * - 유료 회원(pro, yearly): 지급 대상 아님
- *
- * 보안/일관성:
- * - 세션의 email로 사용자 조회 후, 이후 로직은 모두 user.id 기준
- * - session.user.id가 있으면 DB user.id와 일치해야 함 (JWT·DB 불일치 차단)
- * - 이번 달 이미 지급된 경우는 updateMany 조건으로 원자적으로 차단 (중복 호출·동시 요청 대응)
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -40,7 +35,6 @@ export async function POST(request: NextRequest) {
 
     try {
       const { prisma } = await import('@/app/lib/prisma');
-      const now = new Date();
 
       const user = await prisma.user.findUnique({
         where: { email: userEmail },
@@ -78,143 +72,46 @@ export async function POST(request: NextRequest) {
       const blockedResponse = serviceBlockedResponse(user);
       if (blockedResponse) return blockedResponse;
 
-      if (user.plan !== 'FREE') {
+      const result = await tryGrantMonthlyFreePoints(user);
+
+      if (result.status === 'granted') {
         return NextResponse.json({
-          success: false,
-          message: 'FREE 플랜만 월간 사용량 제공 대상입니다',
-          alreadyGranted: true,
+          success: true,
+          alreadyGranted: false,
+          grantedAmount: MONTHLY_FREE_GRANT_AMOUNT,
+          message: '월간 사용량이 제공되었습니다.',
+          user: {
+            id: result.user.id,
+            email: result.user.email,
+            plan: result.user.plan as 'FREE' | 'PRO' | 'YEARLY',
+            points: result.user.points,
+            lastMonthlyGrant: result.user.nextPointDate?.toISOString() || null,
+            nextPointDate: result.user.nextPointDate?.toISOString() || null,
+          },
         });
       }
 
-      if (isFeedbackTrialActive(user.feedbackTrialEndsAt, now)) {
-        return NextResponse.json({
-          success: false,
-          message: '피드백 이벤트 PRO 체험 중에는 무료 월간 사용량이 제공되지 않습니다.',
-          alreadyGranted: true,
-        });
-      }
-
-      if (isAdminTrialActive(user.adminTrialEndsAt, now)) {
-        return NextResponse.json({
-          success: false,
-          message: '관리자 PRO 혜택 이용 중에는 무료 월간 사용량이 제공되지 않습니다.',
-          alreadyGranted: true,
-        });
-      }
-
-      const monthlyBlocked = await isMonthlyFreeGrantBlocked({
-        email: user.email,
-        phone: user.phone,
-        deviceId: user.deviceId,
-      });
-      if (monthlyBlocked) {
-        return NextResponse.json({
-          success: false,
-          blocked: true,
-          message: '탈퇴 후 재가입 계정은 무료 월간 사용량 제공 대상이 아닙니다.',
-        });
-      }
-
-      const grantAmount = 5000;
-      /** 관리자 사용량 내역·로그 검색용 (PointHistory.reason) */
-      const grantReason = 'FREE플랜_월간사용량자동지급';
-
-      const dueDate = user.nextPointDate ?? addOneMonthKeepingDay(user.createdAt);
-
-      // 지급일 도달 시에만 포인트 증가 + 내역 기록 (동시 요청 시 하나만 성공)
-      const txResult = await prisma.$transaction(async (tx) => {
-        const updateResult = await tx.user.updateMany({
-          where: {
-            id: user.id,
-            plan: 'FREE',
-            OR: [{ nextPointDate: null }, { nextPointDate: { lte: now } }],
-          },
-          data: {
-            points: { increment: grantAmount },
-            nextPointDate: addOneMonthKeepingDay(dueDate),
-          },
-        });
-
-        if (updateResult.count === 0) {
-          return { granted: false as const };
-        }
-
-        await tx.pointHistory.create({
-          data: {
-            userId: user.id,
-            change: grantAmount,
-            reason: grantReason,
-          },
-        });
-
-        const updated = await tx.user.findUnique({
-          where: { id: user.id },
-          select: {
-            id: true,
-            email: true,
-            plan: true,
-            points: true,
-            nextPointDate: true,
-          },
-        });
-        return { granted: true as const, updatedUser: updated };
-      });
-
-      if (!txResult.granted) {
-        const fresh = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: {
-            id: true,
-            email: true,
-            plan: true,
-            points: true,
-            nextPointDate: true,
-          },
-        });
-
-        if (!fresh) {
-          return NextResponse.json(
-            { error: '사용자를 찾을 수 없습니다.' },
-            { status: 404 }
-          );
-        }
-
+      if (result.status === 'already_granted') {
         return NextResponse.json({
           success: true,
           alreadyGranted: true,
           message: '이번 달 사용량은 이미 제공되었습니다.',
           user: {
-            id: fresh.id,
-            email: fresh.email,
-            plan: fresh.plan as 'FREE' | 'PRO' | 'YEARLY',
-            points: fresh.points,
-            lastMonthlyGrant: fresh.nextPointDate?.toISOString() || null,
-            nextPointDate: fresh.nextPointDate?.toISOString() || null,
+            id: result.user.id,
+            email: result.user.email,
+            plan: result.user.plan as 'FREE' | 'PRO' | 'YEARLY',
+            points: result.user.points,
+            lastMonthlyGrant: result.user.nextPointDate?.toISOString() || null,
+            nextPointDate: result.user.nextPointDate?.toISOString() || null,
           },
         });
       }
 
-      const { updatedUser } = txResult;
-      if (!updatedUser) {
-        return NextResponse.json(
-          { error: '사용자를 찾을 수 없습니다.' },
-          { status: 404 }
-        );
-      }
-
       return NextResponse.json({
-        success: true,
-        alreadyGranted: false,
-        grantedAmount: grantAmount,
-        message: '월간 사용량이 제공되었습니다.',
-        user: {
-          id: updatedUser.id,
-          email: updatedUser.email,
-          plan: updatedUser.plan as 'FREE' | 'PRO' | 'YEARLY',
-          points: updatedUser.points,
-          lastMonthlyGrant: updatedUser.nextPointDate?.toISOString() || null,
-          nextPointDate: updatedUser.nextPointDate?.toISOString() || null,
-        },
+        success: false,
+        alreadyGranted: result.status === 'not_due',
+        blocked: result.reason?.includes('재가입'),
+        message: result.reason ?? '월간 사용량 제공 대상이 아닙니다.',
       });
     } catch (dbError) {
       console.error('[Grant Monthly Points API] DB 업데이트 실패:', dbError);

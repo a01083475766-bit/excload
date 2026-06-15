@@ -8,8 +8,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
+import { getClientIp } from '@/app/lib/client-ip';
+import { serviceBlockedResponse, syncUserIpAndAbuseScore } from '@/app/lib/user-access-guard';
 import { hasProEntitlement } from '@/app/lib/feedback-event/entitlement';
+import { isMonthlyGrantDue, tryGrantMonthlyFreePoints } from '@/app/lib/grant-monthly-points-core';
 
 interface UsePointsRequest {
   amount: number;
@@ -88,29 +90,86 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const blockedResponse = serviceBlockedResponse(user);
+      await syncUserIpAndAbuseScore(user.id, getClientIp(request));
+
+      const freshUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          id: true,
+          email: true,
+          plan: true,
+          points: true,
+          nextPointDate: true,
+          feedbackTrialEndsAt: true,
+          adminTrialEndsAt: true,
+          feedbackTrialUsed: true,
+          isBlocked: true,
+          abuseFlag: true,
+          blockReason: true,
+        },
+      });
+
+      if (!freshUser) {
+        return NextResponse.json(
+          { error: '사용자를 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+
+      const blockedResponse = serviceBlockedResponse(freshUser);
       if (blockedResponse) return blockedResponse;
 
-      if (type === 'download' && hasProEntitlement(user)) {
+      let chargeUser = freshUser;
+
+      if (type === 'download' && hasProEntitlement(chargeUser)) {
         return NextResponse.json({
           success: true,
           user: {
-            id: user.id,
-            email: user.email,
-            plan: user.plan as 'FREE' | 'PRO' | 'YEARLY',
-            points: user.points,
-            nextPointDate: user.nextPointDate?.toISOString() ?? null,
+            id: chargeUser.id,
+            email: chargeUser.email,
+            plan: chargeUser.plan as 'FREE' | 'PRO' | 'YEARLY',
+            points: chargeUser.points,
+            nextPointDate: chargeUser.nextPointDate?.toISOString() ?? null,
           },
           usedAmount: 0,
           reason: 'PRO_엑셀다운로드_무제한',
         });
       }
 
-      if (user.points < 1) {
+      if (chargeUser.points < 1 && chargeUser.plan === 'FREE' && isMonthlyGrantDue(chargeUser)) {
+        const grantSource = await prisma.user.findUnique({
+          where: { id: chargeUser.id },
+          select: {
+            id: true,
+            email: true,
+            phone: true,
+            deviceId: true,
+            plan: true,
+            points: true,
+            nextPointDate: true,
+            createdAt: true,
+            feedbackTrialEndsAt: true,
+            adminTrialEndsAt: true,
+          },
+        });
+
+        if (grantSource) {
+          const grantResult = await tryGrantMonthlyFreePoints(grantSource);
+          if (grantResult.status === 'granted' || grantResult.status === 'already_granted') {
+            chargeUser = {
+              ...chargeUser,
+              points: grantResult.user.points,
+              nextPointDate: grantResult.user.nextPointDate,
+            };
+          }
+        }
+      }
+
+      if (chargeUser.points < 1) {
         return NextResponse.json(
           {
             error: '사용량이 부족합니다.',
-            nextPointDate: user.nextPointDate?.toISOString() ?? null,
+            nextPointDate: chargeUser.nextPointDate?.toISOString() ?? null,
           },
           { status: 400 }
         );
@@ -120,13 +179,13 @@ export async function POST(request: NextRequest) {
       // - text: 요청량이 잔액보다 커도 잔여 포인트 전액 차감 후 1회 허용
       // - download: (무료에서 호출) 1회 1000 기준이지만 잔액이 부족하면 전액 차감 후 1회 허용
       const normalizedAmount = Math.max(1, Math.floor(amount));
-      const deductionAmount = Math.min(user.points, normalizedAmount);
+      const deductionAmount = Math.min(chargeUser.points, normalizedAmount);
       const historyReason = resolvePointHistoryReason(type, reason);
 
       // 동시 요청 시 잔액보다 많이 빠지지 않도록 조건+차감 후 내역 기록 (원자 처리)
       const updatedUser = await prisma.$transaction(async (tx) => {
         const deducted = await tx.user.updateMany({
-          where: { id: user.id, points: { gte: deductionAmount } },
+          where: { id: chargeUser.id, points: { gte: deductionAmount } },
           data: { points: { decrement: deductionAmount } },
         });
 
@@ -136,14 +195,14 @@ export async function POST(request: NextRequest) {
 
         await tx.pointHistory.create({
           data: {
-            userId: user.id,
+            userId: chargeUser.id,
             change: -deductionAmount,
             reason: historyReason,
           },
         });
 
         return tx.user.findUnique({
-          where: { id: user.id },
+          where: { id: chargeUser.id },
           select: {
             id: true,
             email: true,

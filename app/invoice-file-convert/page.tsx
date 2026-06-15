@@ -337,7 +337,8 @@ export default function InvoiceFileConvertPage() {
     authAssetsReady &&
     workspaceStorageHydrated &&
     (authStatus === 'unauthenticated' || Boolean(storageUserId));
-  const isFormStatusChecking = !authAssetsReady || !workspaceStorageHydrated;
+  const isAccountScopedReady = authAssetsReady && workspaceStorageHydrated;
+  const isFormStatusChecking = !workspaceStorageHydrated;
   const invoiceCourierHydratedRef = useRef(false);
   const defaultSmartstoreSeedAppliedRef = useRef(false);
   const prevAccountBoundaryRef = useRef<string | undefined>(undefined);
@@ -562,8 +563,8 @@ export default function InvoiceFileConvertPage() {
   );
 
   const ensureLoggedInForInvoiceInput = (): boolean => {
-    if (user) return true;
-    if (isLoading) return false;
+    if (isAccountScopedReady && user) return true;
+    if (isLoading || (authStatus === 'authenticated' && !isAccountScopedReady)) return false;
     setRequiresAccountModalOpen(true);
     return false;
   };
@@ -1672,6 +1673,14 @@ export default function InvoiceFileConvertPage() {
         router.push('/auth/login');
         return false;
       }
+    }
+
+    await useUserStore.getState().prepareForPointCharge();
+    currentUser = useUserStore.getState().user;
+    if (!currentUser) {
+      alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+      router.push('/auth/login');
+      return false;
     }
 
     // 사용량 부족 확인
