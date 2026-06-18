@@ -15,6 +15,13 @@ import { clearHeaderAliasDictionaryCache } from "@/app/lib/header-alias-cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/auth";
 import { isAdminEmail } from "@/app/lib/admin-auth";
+import { BASE_HEADERS } from "@/app/pipeline/base/base-headers";
+
+const BASE_HEADER_SET = new Set<string>([...BASE_HEADERS]);
+
+function sanitizeRequiredString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +35,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { alias, baseHeader } = body;
+    const alias = sanitizeRequiredString(body?.alias);
+    const baseHeader = sanitizeRequiredString(body?.baseHeader);
 
     // 입력 검증
     if (!alias || !baseHeader) {
@@ -38,17 +46,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // HeaderAlias 저장 또는 업데이트
-    const headerAlias = await prisma.headerAlias.upsert({
-      where: {
-        alias: alias,
-      },
-      update: {
-        baseHeader: baseHeader,
-        source: "admin",
-        updatedAt: new Date(),
-      },
-      create: {
+    if (!BASE_HEADER_SET.has(baseHeader)) {
+      return NextResponse.json(
+        { error: "baseHeader가 기준헤더 목록에 없습니다." },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.headerAlias.findUnique({
+      where: { alias },
+    });
+
+    if (existing) {
+      if (existing.baseHeader === baseHeader) {
+        clearHeaderAliasDictionaryCache();
+        return NextResponse.json({
+          success: true,
+          alreadyExists: true,
+          data: existing,
+        });
+      }
+
+      return NextResponse.json(
+        {
+          error: "이미 다른 기준헤더로 등록된 alias입니다.",
+          conflict: {
+            alias,
+            existingBaseHeader: existing.baseHeader,
+            requestedBaseHeader: baseHeader,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
+    // HeaderAlias 신규 저장. 기존 alias의 baseHeader 자동 덮어쓰기는 금지한다.
+    const headerAlias = await prisma.headerAlias.create({
+      data: {
         alias: alias,
         baseHeader: baseHeader,
         source: "admin",

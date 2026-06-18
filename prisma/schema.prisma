@@ -19,38 +19,77 @@ enum AuthProvider {
   UNKNOWN
 }
 
+enum HeaderMappingStatus {
+  AUTO_MATCHED
+  LOW_CONFIDENCE
+  UNMAPPED
+  NEEDS_REVIEW
+  CONFIRMED
+  IGNORED
+}
+
+enum HeaderMappingMethod {
+  BASE_HEADER
+  DB_ALIAS
+  STATIC_ALIAS
+  AI
+  REFINED
+  UNMAPPED
+}
+
+enum HeaderSampleValueType {
+  DATE
+  MONEY
+  PHONE
+  ADDRESS
+  NAME
+  MESSAGE
+  CODE
+  STATUS
+  TEXT
+  EMPTY
+}
+
+enum HeaderMappingAdminStatus {
+  PENDING
+  CONFIRMED
+  CHANGED
+  IGNORED
+  HOLD
+}
+
 model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
+  id                String       @id @default(cuid())
+  email             String       @unique
   /// 이메일 찾기·1인 1번호. DB에는 하이픈 제외 숫자만 저장.
-  phone            String?   @unique
-  passwordHash     String?   // 비밀번호 해시 (회원가입 시 저장)
-  name             String?
-  emailVerified    DateTime?
-  image            String?
-  signupProvider   AuthProvider @default(CREDENTIALS)
+  phone             String?      @unique
+  passwordHash      String? // 비밀번호 해시 (회원가입 시 저장)
+  name              String?
+  emailVerified     DateTime?
+  image             String?
+  signupProvider    AuthProvider @default(CREDENTIALS)
   lastLoginProvider AuthProvider @default(CREDENTIALS)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  
-  plan             String    @default("FREE")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  plan               String    @default("FREE")
   /// 다음 결제일부터 적용할 예약 플랜 (PRO | YEARLY)
-  pendingPlan          String?
-  pendingPlanApplyAt   DateTime?
-  points           Int       @default(5000)
-  nextPointDate    DateTime?
+  pendingPlan        String?
+  pendingPlanApplyAt DateTime?
+  points             Int       @default(5000)
+  nextPointDate      DateTime?
 
-  deviceId         String?   // 디바이스 기준 무료 혜택 제한용 식별자
-  lastIp           String?
-  abuseScore       Int       @default(0)
-  abuseFlag        Boolean   @default(false)
+  deviceId   String? // 디바이스 기준 무료 혜택 제한용 식별자
+  lastIp     String?
+  abuseScore Int     @default(0)
+  abuseFlag  Boolean @default(false)
 
-  isBlocked        Boolean   @default(false) // 계정 차단 여부
-  blockReason      String?              // 차단 이유
-  abuseReason      String?              // 어뷰즈 점수 사유 (요약)
+  isBlocked   Boolean @default(false) // 계정 차단 여부
+  blockReason String? // 차단 이유
+  abuseReason String? // 어뷰즈 점수 사유 (요약)
 
-  stripeCustomerId String?   @unique
-  cancelAtPeriodEnd Boolean  @default(false)
+  stripeCustomerId   String? @unique
+  cancelAtPeriodEnd  Boolean @default(false)
   signupBonusClaimed Boolean @default(false)
 
   /// 토스 자동결제(빌링) — customerKey는 항상 user.id 와 동일하게 사용
@@ -62,30 +101,31 @@ model User {
   tossChargeCooldownUntil DateTime?
 
   /// 정기결제 상태: active | past_due(유예) | canceled
-  subscriptionStatus     String    @default("active")
-  paymentFailedAt        DateTime?
-  paymentFailureReason   String?
-  paymentRetryCount      Int       @default(0)
-  gracePeriodUntil       DateTime?
+  subscriptionStatus   String    @default("active")
+  paymentFailedAt      DateTime?
+  paymentFailureReason String?
+  paymentRetryCount    Int       @default(0)
+  gracePeriodUntil     DateTime?
 
   /// 회원 탈퇴(유예) 시각. null 이면 활성 계정.
-  deletedAt              DateTime?
+  deletedAt DateTime?
   /// 영구 삭제 예정 시각 (탈퇴 후 7일 등). purgeAt 경과 시 cron 이 hard delete.
-  purgeAt                DateTime?
+  purgeAt   DateTime?
 
   /// 오픈 피드백 이벤트 PRO 체험 (유료 plan 과 분리)
-  feedbackTrialEndsAt   DateTime?
-  feedbackTrialUsed     Boolean   @default(false)
-  feedbackPopupSeenAt   DateTime?
+  feedbackTrialEndsAt DateTime?
+  feedbackTrialUsed   Boolean   @default(false)
+  feedbackPopupSeenAt DateTime?
 
   /// 관리자 수동 PRO 혜택 (plan=FREE 유지, 만료 시 PRO 권한만 종료)
-  adminTrialEndsAt      DateTime?
+  adminTrialEndsAt DateTime?
 
-  pointHistory     PointHistory[]
-  subscriptions   Subscription[]
-  favoriteMalls   UserFavoriteMall[]
-  feedbackSubmissions FeedbackSubmission[]
-  templateHeaderLogs TemplateHeaderLog[]
+  pointHistory           PointHistory[]
+  subscriptions          Subscription[]
+  favoriteMalls          UserFavoriteMall[]
+  feedbackSubmissions    FeedbackSubmission[]
+  templateHeaderLogs     TemplateHeaderLog[]
+  headerMappingAuditLogs HeaderMappingAuditLog[]
 }
 
 model EmailVerificationToken {
@@ -135,18 +175,18 @@ model PasswordResetAuditLog {
 }
 
 model SignupVerification {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   phone        String
   passwordHash String
-  plan         String   @default("FREE")
+  plan         String    @default("FREE")
   deviceId     String?
   codeHash     String
   expiresAt    DateTime
   usedAt       DateTime?
-  attemptCount Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  attemptCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([expiresAt])
 }
@@ -159,24 +199,24 @@ model PointHistory {
   createdAt DateTime @default(now())
 
   /// Stripe Checkout Session ID (cs_…)
-  stripeSessionId  String?
+  stripeSessionId String?
   /// Stripe Invoice ID (in_…)
-  stripeInvoiceId  String?
+  stripeInvoiceId String?
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model RefundRequest {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String
   paymentId     String?
-  type          String   // AUTO_CANCEL | REFUND
-  status        String   // REQUESTED | APPROVED | REJECTED | COMPLETED
+  type          String // AUTO_CANCEL | REFUND
+  status        String // REQUESTED | APPROVED | REJECTED | COMPLETED
   bankName      String?
   accountNumber String?
   accountHolder String?
   reason        String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
   processedAt   DateTime?
 }
 
@@ -205,58 +245,58 @@ model ContactInquiry {
 }
 
 model Payment {
-  id                   String   @id @default(cuid())
-  userId               String
-  email                String
-  plan                 String
-  amount               Int      // 결제 금액 (원 단위)
-  currency             String   @default("KRW")
+  id       String @id @default(cuid())
+  userId   String
+  email    String
+  plan     String
+  amount   Int // 결제 금액 (원 단위)
+  currency String @default("KRW")
 
-  stripeSessionId      String?  @unique
+  stripeSessionId      String? @unique
   stripeSubscriptionId String?
   stripeInvoiceId      String?
 
-  paymentProvider      String?  // STRIPE | TOSS
-  tossPaymentKey       String?
-  tossOrderId          String?
+  paymentProvider String? // STRIPE | TOSS
+  tossPaymentKey  String?
+  tossOrderId     String?
 
-  createdAt            DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model AiHeaderMappingLog {
-  id              String   @id @default(cuid())
-  originalHeader  String
-  aiMappedHeader  String
-  baseHeader      String
-  sourceType      String
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  originalHeader String
+  aiMappedHeader String
+  baseHeader     String
+  sourceType     String
+  createdAt      DateTime @default(now())
 }
 
 model HeaderAlias {
-  id          String   @id @default(cuid())
-  alias       String   @unique
-  baseHeader  String
-  source      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  alias      String   @unique
+  baseHeader String
+  source     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 /// 택배·물류·송장 업로드 양식 등록 시 엑셀 1행 헤더만 수집 (주문 데이터·PII 미저장)
 model TemplateHeaderLog {
-  id             String   @id @default(cuid())
-  userId         String?
-  fileSessionId  String?
-  templateId     String?
-  page           String
-  templateName   String?
-  courierName    String?
-  headers        Json
-  mappedHeaders  Json
-  unknownHeaders Json
-  headerCount    Int
+  id                 String   @id @default(cuid())
+  userId             String?
+  fileSessionId      String?
+  templateId         String?
+  page               String
+  templateName       String?
+  courierName        String?
+  headers            Json
+  mappedHeaders      Json
+  unknownHeaders     Json
+  headerCount        Int
   mappingSuccessRate Float?
-  source         String   @default("template_upload")
-  createdAt      DateTime @default(now())
+  source             String   @default("template_upload")
+  createdAt          DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -296,6 +336,63 @@ model HeaderUsageCount {
   @@index([lastSeenAt])
 }
 
+/// 헤더 매핑 감사 로그 — 업로드/변환 1건 단위. 원본 파일·전체 행 데이터는 저장하지 않음.
+model HeaderMappingAuditLog {
+  id                            String    @id @default(cuid())
+  userId                        String?
+  fileHash                      String?
+  source                        String?
+  totalHeaders                  Int
+  autoMatchedCount              Int
+  unmappedCount                 Int
+  lowConfidenceCount            Int
+  needsReviewCount              Int
+  entriesWithMaskedSamplesCount Int
+  createdAt                     DateTime  @default(now())
+  expiresAt                     DateTime?
+
+  user    User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  entries HeaderMappingAuditEntry[]
+
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@index([fileHash])
+  @@index([source])
+  @@index([userId])
+}
+
+/// 원본 헤더 1개 단위 감사 엔트리. 샘플은 마스킹된 값만 JSON으로 저장 가능.
+model HeaderMappingAuditEntry {
+  id                      String                   @id @default(cuid())
+  auditLogId              String
+  originalHeader          String
+  baseHeader              String?
+  status                  HeaderMappingStatus
+  method                  HeaderMappingMethod
+  confidenceReason        String?
+  sampleValueType         HeaderSampleValueType
+  maskedSamples           Json
+  sampleCount             Int
+  hasMaskedSamples        Boolean
+  adminStatus             HeaderMappingAdminStatus @default(PENDING)
+  adminSelectedBaseHeader String?
+  adminSelectedAt         DateTime?
+  adminMemo               String?
+  reviewedAt              DateTime?
+  createdAt               DateTime                 @default(now())
+
+  auditLog HeaderMappingAuditLog @relation(fields: [auditLogId], references: [id], onDelete: Cascade)
+
+  @@index([auditLogId])
+  @@index([originalHeader])
+  @@index([baseHeader])
+  @@index([status])
+  @@index([method])
+  @@index([sampleValueType])
+  @@index([adminStatus])
+  @@index([createdAt])
+}
+
 model StripeEvent {
   id        String   @id @default(cuid())
   eventId   String   @unique
@@ -303,24 +400,24 @@ model StripeEvent {
 }
 
 model Subscription {
-  id                 String   @id @default(cuid())
-  userId             String
-  stripeCustomerId   String
+  id                   String @id @default(cuid())
+  userId               String
+  stripeCustomerId     String
   stripeSubscriptionId String @unique
 
-  status             String
-  cancelAtPeriodEnd  Boolean  @default(false)
+  status            String
+  cancelAtPeriodEnd Boolean @default(false)
 
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
 
-  paymentProvider    String?  // STRIPE | TOSS
-  tossBillingKey     String?
+  paymentProvider String? // STRIPE | TOSS
+  tossBillingKey  String?
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user               User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 /// 오픈 피드백 이벤트 기간·활성 (id=default 단일 행)
@@ -352,18 +449,18 @@ model FeedbackSubmission {
 }
 
 model PopupCampaign {
-  id        String   @id @default(cuid())
-  title     String
-  imageUrl  String
-  linkUrl   String?
-  startAt   DateTime
-  endAt     DateTime
-  isActive  Boolean  @default(true)
-  priority  Int      @default(0)
-  target    String   @default("ALL")     // ALL | ORDER_CONVERT | HISTORY | OTHER
-  showEveryVisit Boolean @default(true)  // true: 이동할 때마다, false: 해당 페이지에서 한 번만
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  title          String
+  imageUrl       String
+  linkUrl        String?
+  startAt        DateTime
+  endAt          DateTime
+  isActive       Boolean  @default(true)
+  priority       Int      @default(0)
+  target         String   @default("ALL") // ALL | ORDER_CONVERT | HISTORY | OTHER
+  showEveryVisit Boolean  @default(true) // true: 이동할 때마다, false: 해당 페이지에서 한 번만
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 /// 체험판(/trial) IP별 접속 횟수 (해시만 저장)
@@ -414,11 +511,11 @@ model UserFavoriteMallUrlSeen {
 model FreeBenefitFingerprint {
   type                 String
   hash                 String
-  signupBonusUsed      Boolean  @default(false)
-  blockedAfterWithdraw Boolean  @default(false)
-  firstClaimedAt       DateTime @default(now())
+  signupBonusUsed      Boolean   @default(false)
+  blockedAfterWithdraw Boolean   @default(false)
+  firstClaimedAt       DateTime  @default(now())
   lastWithdrawnAt      DateTime?
-  withdrawCount        Int      @default(0)
+  withdrawCount        Int       @default(0)
 
   @@id([type, hash])
   @@index([blockedAfterWithdraw])

@@ -1,5 +1,24 @@
 import * as XLSX from 'xlsx';
 
+function isNonProduction(): boolean {
+  return process.env.NODE_ENV !== 'production';
+}
+
+function logParseExcelSummary(message: string, details?: Record<string, unknown>): void {
+  if (isNonProduction()) {
+    console.info(message, details);
+  }
+}
+
+function warnParseExcel(message: string, error: unknown, details?: Record<string, unknown>): void {
+  if (isNonProduction()) {
+    console.warn(message, {
+      ...details,
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    });
+  }
+}
+
 /**
  * AI 결과를 엑셀로 변환할 때 사용하는 고정 헤더 (7개)
  * 실제 업로드 엑셀과 100% 동일 인식을 위해 반드시 이 헤더를 사용해야 합니다.
@@ -239,20 +258,7 @@ function isProductSeriesHeader(header: string): boolean {
   ];
   
   const result = productSeriesPatterns.some(pattern => pattern.test(headerStr));
-  
-  // 상품명1, 상품상세1 추적용 로그
-  if (header.includes('상품명1') || header.includes('상품상세1')) {
-    console.log('[PRODUCT_SERIES_HEADER_CHECK]', {
-      header,
-      headerStr,
-      patterns: productSeriesPatterns.map((p, idx) => ({
-        pattern: p.toString(),
-        testResult: p.test(headerStr),
-      })),
-      result,
-    });
-  }
-  
+
   return result;
 }
 
@@ -322,34 +328,13 @@ function convertOptionHeaderToField(header: string): string {
 function convertProductHeaderToField(header: string): string {
   const headerStr = String(header || '').trim();
   const normalized = headerStr.toLowerCase();
-  
-  // 상품명1/상품상세1 추적용 로그
-  const isTargetHeader = headerStr.includes('상품명1') || headerStr.includes('상품상세1');
-  
+
   // 직접 매핑
   if (normalized === '상품' || normalized === 'product') {
-    const result = 'product';
-    if (isTargetHeader) {
-      console.log('[TRACE_CONVERT_PRODUCT_HEADER]', {
-        step: 'convertProductHeaderToField - 직접 매핑 (상품/product)',
-        header: headerStr,
-        normalized,
-        result,
-      });
-    }
-    return result;
+    return 'product';
   }
   if (normalized === '상품1' || normalized === 'product1') {
-    const result = 'product1';
-    if (isTargetHeader) {
-      console.log('[TRACE_CONVERT_PRODUCT_HEADER]', {
-        step: 'convertProductHeaderToField - 직접 매핑 (상품1/product1)',
-        header: headerStr,
-        normalized,
-        result,
-      });
-    }
-    return result;
+    return 'product1';
   }
   if (normalized === '상품2' || normalized === 'product2') {
     return 'product2';
@@ -384,18 +369,7 @@ function convertProductHeaderToField(header: string): string {
   // 패턴 매칭 (상품 + 숫자)
   const productMatch = normalized.match(/^상품(\d+)$/);
   if (productMatch) {
-    const result = `product${productMatch[1]}`;
-    if (isTargetHeader) {
-      console.log('[TRACE_CONVERT_PRODUCT_HEADER]', {
-        step: 'convertProductHeaderToField - 패턴 매칭 (상품+숫자)',
-        header: headerStr,
-        normalized,
-        pattern: '/^상품(\\d+)$/',
-        match: productMatch[1],
-        result,
-      });
-    }
-    return result;
+    return `product${productMatch[1]}`;
   }
   
   const productMatchEng = normalized.match(/^product(\d+)$/);
@@ -409,16 +383,7 @@ function convertProductHeaderToField(header: string): string {
   }
   
   // 기본값: 원본 헤더를 소문자로 변환 (스네이크 케이스로 변환)
-  const result = headerStr.toLowerCase().replace(/\s+/g, '_');
-  if (isTargetHeader) {
-    console.log('[TRACE_CONVERT_PRODUCT_HEADER]', {
-      step: 'convertProductHeaderToField - 기본값 (소문자 변환)',
-      header: headerStr,
-      normalized,
-      result,
-    });
-  }
-  return result;
+  return headerStr.toLowerCase().replace(/\s+/g, '_');
 }
 
 /**
@@ -694,7 +659,7 @@ function updateHeaderMappingStats() {
     localStorage.setItem(statsKey, JSON.stringify(stats));
   } catch (error) {
     // 통계 업데이트 실패해도 파싱은 계속 진행
-    console.warn('헤더 매핑 통계 업데이트 실패:', error);
+    warnParseExcel('[parseExcel] 헤더 매핑 통계 업데이트 실패', error);
   }
 }
 
@@ -863,7 +828,7 @@ function generateHeaderCandidates() {
     updateHeaderMappingStats();
   } catch (error) {
     // 후보 생성 실패해도 파싱은 계속 진행
-    console.warn('헤더 후보 생성 실패:', error);
+    warnParseExcel('[parseExcel] 헤더 후보 생성 실패', error);
   }
 }
 
@@ -875,9 +840,6 @@ function generateHeaderCandidates() {
 function matchHeaderWithDictionary(header: string): string | null {
   const headerTokens = normalizeHeader(header);
   const meaningTypes = ['name', 'phone', 'address', 'product', 'option', 'quantity', 'request', 'sender', 'sender_phone', 'sender_address'] as const;
-  
-  // PRODUCT 매칭 추적용
-  const productMatchLog: Array<{ keyword: string; keywordTokens: string[]; matched: boolean }> = [];
   
   // 각 의미 타입별로 사전 키워드와 매칭 시도
   for (const meaningType of meaningTypes) {
@@ -891,41 +853,8 @@ function matchHeaderWithDictionary(header: string): string | null {
       const keywordTokens = normalizeHeader(keyword);
       // 키워드의 모든 토큰이 헤더 토큰에 포함되어 있는지 확인
       if (keywordTokens.length > 0 && keywordTokens.every(kwToken => headerTokens.includes(kwToken))) {
-        // PRODUCT 매칭 시 상세 로그
-        if (meaningType === 'product') {
-          console.log('[PRODUCT_MATCH_DICTIONARY]', {
-            header,
-            headerTokens,
-            matchedKeyword: keyword,
-            keywordTokens,
-            meaningType: 'product',
-          });
-        }
         return meaningType;
       }
-      
-      // PRODUCT 매칭 실패 시에도 로그 (상품명1, 상품상세1 추적용)
-      if (meaningType === 'product') {
-        const matched = keywordTokens.length > 0 && keywordTokens.every(kwToken => headerTokens.includes(kwToken));
-        productMatchLog.push({ keyword, keywordTokens, matched });
-      }
-    }
-  }
-  
-  // PRODUCT 매칭 실패 시 로그
-  if (productMatchLog.length > 0) {
-    const hasProductKeywords = productMatchLog.some(log => log.matched);
-    if (!hasProductKeywords) {
-      console.log('[PRODUCT_MATCH_DICTIONARY_FAILED]', {
-        header,
-        headerTokens,
-        checkedKeywords: productMatchLog.slice(0, 10).map(log => ({
-          keyword: log.keyword,
-          keywordTokens: log.keywordTokens,
-          matched: log.matched,
-        })),
-        totalChecked: productMatchLog.length,
-      });
     }
   }
   
@@ -996,11 +925,11 @@ function saveLearnedHeaders(
     // learned map을 localStorage에 저장
     if (newHeadersCount > 0) {
       localStorage.setItem(learnedMapKey, JSON.stringify(learnedMap));
-      console.log(`신규 헤더 ${newHeadersCount}개를 learned header map에 저장했습니다.`);
+      logParseExcelSummary('[parseExcel] Learned header map updated:', { newHeadersCount });
     }
   } catch (error) {
     // learned map 저장 실패해도 파싱은 계속 진행
-    console.warn('learned header map 저장 실패:', error);
+    warnParseExcel('[parseExcel] learned header map 저장 실패', error);
   }
 }
 
@@ -1093,22 +1022,6 @@ function generateHeaderToFieldMap(headers: string[]): Record<string, string> {
       if (isProductSeriesHeader(headerStr)) {
         const fieldName = convertProductHeaderToField(headerStr);
         headerToFieldMap[headerStr] = fieldName;
-        console.log('[PRODUCT_SERIES_MAPPED]', {
-          header: headerStr,
-          fieldName,
-          method: 'isProductSeriesHeader',
-        });
-        
-        // 상품명1/상품상세1 추적용 로그
-        if (headerStr.includes('상품명1') || headerStr.includes('상품상세1')) {
-          console.log('[TRACE_HEADER_MAPPING]', {
-            step: '헤더 매핑 생성 (isProductSeriesHeader)',
-            header: headerStr,
-            isProductSeries: true,
-            fieldName,
-            'headerToFieldMap[header]': headerToFieldMap[headerStr],
-          });
-        }
         return;
       }
       
@@ -1117,73 +1030,14 @@ function generateHeaderToFieldMap(headers: string[]): Record<string, string> {
           // 중립 헤더가 sender 계열로 매핑되는 것을 차단
           if (isNeutralHeader(headerStr) && (dictionaryMatch === 'sender' || dictionaryMatch === 'sender_phone' || dictionaryMatch === 'sender_address')) {
             // 매핑 무시 (skip)
-            console.log('[PRODUCT_MAPPING_BLOCKED]', {
-              header: headerStr,
-              reason: 'isNeutralHeader && sender_*',
-              dictionaryMatch,
-            });
             return;
           }
           // 상품 계열은 MULTI-SLOT으로 처리하므로 사전 매칭에서 'product'로 매핑되는 것을 무시
           if (dictionaryMatch === 'product' && isProductSeriesHeader(headerStr)) {
             // 이미 위에서 MULTI-SLOT으로 처리되었으므로 여기서는 무시
-            console.log('[PRODUCT_MAPPING_SKIPPED]', {
-              header: headerStr,
-              reason: 'already handled by isProductSeriesHeader',
-              dictionaryMatch,
-            });
-            
-            // 상품명1/상품상세1 추적용 로그
-            if (headerStr.includes('상품명1') || headerStr.includes('상품상세1')) {
-              console.log('[TRACE_HEADER_MAPPING]', {
-                step: '헤더 매핑 생성 (dictionary match skipped)',
-                header: headerStr,
-                dictionaryMatch: 'product',
-                isProductSeries: true,
-                reason: 'already handled by isProductSeriesHeader',
-                'headerToFieldMap[header]': headerToFieldMap[headerStr] || null,
-              });
-            }
             return;
           }
           headerToFieldMap[headerStr] = dictionaryMatch;
-          
-          // PRODUCT 매칭 성공 로그
-          if (dictionaryMatch === 'product') {
-            console.log('[PRODUCT_MAPPED_DICTIONARY]', {
-              header: headerStr,
-              fieldName: dictionaryMatch,
-              method: 'matchHeaderWithDictionary',
-            });
-          }
-          
-          // 상품명1/상품상세1 추적용 로그
-          if (headerStr.includes('상품명1') || headerStr.includes('상품상세1')) {
-            console.log('[TRACE_HEADER_MAPPING]', {
-              step: '헤더 매핑 생성 (dictionary match)',
-              header: headerStr,
-              dictionaryMatch,
-              isProductSeries: isProductSeriesHeader(headerStr),
-              'headerToFieldMap[header]': headerToFieldMap[headerStr],
-            });
-          }
-        } else {
-          // 매칭 실패 시 로그 (상품명1, 상품상세1 추적용)
-          if (headerStr.includes('상품명1') || headerStr.includes('상품상세1')) {
-            console.log('[PRODUCT_MAPPING_FAILED]', {
-              header: headerStr,
-              isProductSeriesHeader: isProductSeriesHeader(headerStr),
-              dictionaryMatch: null,
-            });
-            
-            console.log('[TRACE_HEADER_MAPPING]', {
-              step: '헤더 매핑 생성 (dictionary match failed)',
-              header: headerStr,
-              dictionaryMatch: null,
-              isProductSeries: isProductSeriesHeader(headerStr),
-              'headerToFieldMap[header]': headerToFieldMap[headerStr] || null,
-            });
-          }
         }
     });
     
@@ -1219,22 +1073,6 @@ function generateHeaderToFieldMap(headers: string[]): Record<string, string> {
             if (isProductSeriesHeader(headerStr)) {
               const fieldName = convertProductHeaderToField(headerStr);
               headerToFieldMap[headerStr] = fieldName;
-              console.log('[PRODUCT_SERIES_MAPPED_STATS]', {
-                header: headerStr,
-                fieldName,
-                method: 'isProductSeriesHeader (stats fallback)',
-              });
-              
-              // 상품명1/상품상세1 추적용 로그
-              if (headerStr.includes('상품명1') || headerStr.includes('상품상세1')) {
-                console.log('[TRACE_HEADER_MAPPING]', {
-                  step: '헤더 매핑 생성 (stats fallback - isProductSeriesHeader)',
-                  header: headerStr,
-                  isProductSeries: true,
-                  fieldName,
-                  'headerToFieldMap[header]': headerToFieldMap[headerStr],
-                });
-              }
               return;
             }
             
@@ -1260,89 +1098,20 @@ function generateHeaderToFieldMap(headers: string[]): Record<string, string> {
               // 중립 헤더가 sender 계열로 매핑되는 것을 차단
               if (isNeutralHeader(headerStr) && (mostFrequentField === 'sender' || mostFrequentField === 'sender_phone' || mostFrequentField === 'sender_address')) {
                 // 매핑 무시 (skip)
-                console.log('[PRODUCT_MAPPING_BLOCKED_STATS]', {
-                  header: headerStr,
-                  reason: 'isNeutralHeader && sender_*',
-                  mostFrequentField,
-                  maxCount,
-                });
                 return;
               }
               // 상품 계열은 MULTI-SLOT으로 처리하므로 통계에서 'product'로 매핑되는 것을 무시
               if (mostFrequentField === 'product' && isProductSeriesHeader(headerStr)) {
                 // 이미 위에서 MULTI-SLOT으로 처리되었으므로 여기서는 무시
-                console.log('[PRODUCT_MAPPING_SKIPPED_STATS]', {
-                  header: headerStr,
-                  reason: 'already handled by isProductSeriesHeader',
-                  mostFrequentField,
-                  maxCount,
-                });
-                
-                // 상품명1/상품상세1 추적용 로그
-                if (headerStr.includes('상품명1') || headerStr.includes('상품상세1')) {
-                  console.log('[TRACE_HEADER_MAPPING]', {
-                    step: '헤더 매핑 생성 (stats match skipped)',
-                    header: headerStr,
-                    mostFrequentField: 'product',
-                    isProductSeries: true,
-                    reason: 'already handled by isProductSeriesHeader',
-                    'headerToFieldMap[header]': headerToFieldMap[headerStr] || null,
-                  });
-                }
                 return;
               }
               headerToFieldMap[headerStr] = mostFrequentField;
-              
-              // PRODUCT 매칭 성공 로그 (통계 기반)
-              if (mostFrequentField === 'product') {
-                console.log('[PRODUCT_MAPPED_STATS]', {
-                  header: headerStr,
-                  fieldName: mostFrequentField,
-                  maxCount,
-                  method: 'excel_header_mapping_stats_v1',
-                });
-              }
-              
-              // 상품명1/상품상세1 추적용 로그
-              if (headerStr.includes('상품명1') || headerStr.includes('상품상세1')) {
-                console.log('[TRACE_HEADER_MAPPING]', {
-                  step: '헤더 매핑 생성 (stats match)',
-                  header: headerStr,
-                  mostFrequentField,
-                  maxCount,
-                  isProductSeries: isProductSeriesHeader(headerStr),
-                  'headerToFieldMap[header]': headerToFieldMap[headerStr],
-                });
-              }
-            } else {
-              // 통계에서도 매핑 실패 시 로그 (UNKNOWN 처리 지점)
-              if (headerStr.includes('상품명1') || headerStr.includes('상품상세1')) {
-                console.log('[PRODUCT_MAPPING_FAILED_STATS]', {
-                  header: headerStr,
-                  isProductSeriesHeader: isProductSeriesHeader(headerStr),
-                  headerStats,
-                  mostFrequentField: null,
-                  maxCount: 0,
-                  status: 'UNKNOWN - will remain as original header',
-                });
-                
-                console.log('[TRACE_HEADER_MAPPING]', {
-                  step: '헤더 매핑 생성 (stats match failed)',
-                  header: headerStr,
-                  isProductSeries: isProductSeriesHeader(headerStr),
-                  headerStats,
-                  mostFrequentField: null,
-                  maxCount: 0,
-                  status: 'UNKNOWN - will remain as original header',
-                  'headerToFieldMap[header]': headerToFieldMap[headerStr] || null,
-                });
-              }
             }
           });
         }
       } catch (error) {
         // 통계 파싱 실패는 무시
-        console.warn('헤더 매핑 통계 파싱 실패:', error);
+        warnParseExcel('[parseExcel] 헤더 매핑 통계 파싱 실패', error);
       }
     }
     
@@ -1356,24 +1125,19 @@ function generateHeaderToFieldMap(headers: string[]): Record<string, string> {
     });
     
     if (productHeaders.length > 0) {
-      console.log('[PRODUCT_HEADERS_SUMMARY]', {
+      logParseExcelSummary('[parseExcel] Product header mapping summary:', {
         totalProductHeaders: productHeaders.length,
-        productHeaders: productHeaders.map(header => {
+        mappedProductHeaderCount: productHeaders.filter((header) => {
           const headerStr = String(header || '').trim();
-          return {
-            header: headerStr,
-            isProductSeries: isProductSeriesHeader(headerStr),
-            dictionaryMatch: matchHeaderWithDictionary(headerStr),
-            finalMapping: headerToFieldMap[headerStr] || 'UNKNOWN (original header kept)',
-          };
-        }),
+          return Boolean(headerToFieldMap[headerStr]);
+        }).length,
       });
     }
     
     return headerToFieldMap;
   } catch (error) {
     // 매핑 생성 실패해도 파싱은 계속 진행
-    console.warn('헤더 매핑 생성 실패:', error);
+    warnParseExcel('[parseExcel] 헤더 매핑 생성 실패', error, { headerCount: headers.length });
     return {};
   }
 }
@@ -1602,27 +1366,14 @@ function applyHeaderMapping(
         }
       });
       
-      // 검증 로그: 주소/상품/수량이 비어 있으면 그대로 빈 값으로 유지되는지 확인
-      if (dataRowIndex < 3) { // 처음 3개 행만 로그 출력
-        const addressValue = mappedRow['address'];
-        const productValue = mappedRow['product'];
-        const quantityValue = mappedRow['quantity'];
-        
-        console.log(`[applyHeaderMapping 검증] 행 ${dataRowIndex + 1}:`, {
-          address: addressValue,
-          addressIsEmpty: isEmptyValue(addressValue),
-          product: productValue,
-          productIsEmpty: isEmptyValue(productValue),
-          quantity: quantityValue,
-          quantityIsEmpty: isEmptyValue(quantityValue),
-        });
-      }
-      
       return mappedRow;
     });
   } catch (error) {
     // 매핑 적용 실패 시 원본 반환 (기존 파싱 흐름 유지)
-    console.warn('헤더 매핑 적용 실패, 원본 데이터 반환:', error);
+    warnParseExcel('[parseExcel] 헤더 매핑 적용 실패, 원본 데이터 반환', error, {
+      rowCount: rows.length,
+      headerCount: headerRow.length,
+    });
     return rows;
   }
 }
@@ -1637,18 +1388,21 @@ function applyHeaderMapping(
  * @throws 파일을 읽을 수 없거나 시트가 없는 경우 에러 발생
  */
 export async function parseExcel(file: File): Promise<Record<string, any>[]> {
-  console.log('=== parseExcel 함수 시작 ===');
-  console.log('입력 파일명:', file.name);
-  console.log('입력 파일 크기:', file.size, 'bytes');
+  logParseExcelSummary('[parseExcel] Start:', {
+    fileSize: file.size,
+  });
   
   // File을 ArrayBuffer로 읽기
   const arrayBuffer = await file.arrayBuffer();
-  console.log('ArrayBuffer 읽기 완료, 크기:', arrayBuffer.byteLength, 'bytes');
+  logParseExcelSummary('[parseExcel] ArrayBuffer loaded:', {
+    byteLength: arrayBuffer.byteLength,
+  });
   
   // 워크북 읽기
   const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-  console.log('워크북 읽기 완료, 시트 개수:', workbook.SheetNames.length);
-  console.log('시트 이름들:', workbook.SheetNames);
+  logParseExcelSummary('[parseExcel] Workbook loaded:', {
+    sheetCount: workbook.SheetNames.length,
+  });
   
   // 첫 번째 시트 이름 가져오기
   const firstSheetName = workbook.SheetNames[0];
@@ -1656,8 +1410,6 @@ export async function parseExcel(file: File): Promise<Record<string, any>[]> {
   if (!firstSheetName) {
     throw new Error('엑셀 파일에 시트가 없습니다.');
   }
-  
-  console.log('처리할 첫 번째 시트:', firstSheetName);
   
   // 첫 번째 시트 가져오기
   const worksheet = workbook.Sheets[firstSheetName];
@@ -1672,16 +1424,11 @@ export async function parseExcel(file: File): Promise<Record<string, any>[]> {
   // 헤더 alias 매핑 적용 (받는분전화로 매핑)
   headerRow = applyHeaderAliasMapping(headerRow);
   
-  console.log('=== 헤더 행 추출 ===');
-  console.log('헤더 행:', headerRow);
-  console.log('헤더 개수:', headerRow.length);
-  console.log('헤더 상세:', JSON.stringify(headerRow, null, 2));
+  logParseExcelSummary('[parseExcel] Header row loaded:', {
+    headerCount: headerRow.length,
+  });
   
   // 실제 읽히는 raw headers와 HEADER_DICTIONARY 비교 분석
-  console.log('\n=== HEADER_DICTIONARY 비교 분석 ===');
-  console.log('HEADER_DICTIONARY 키들:', Object.keys(HEADER_DICTIONARY_V1));
-  console.log('\n--- Raw Headers vs HEADER_DICTIONARY 매칭 결과 ---');
-  
   const meaningTypes = ['name', 'phone', 'address', 'product', 'option', 'quantity', 'request', 'sender', 'sender_phone', 'sender_address'] as const;
   const comparisonReport: Array<{
     rawHeader: string;
@@ -1692,7 +1439,6 @@ export async function parseExcel(file: File): Promise<Record<string, any>[]> {
   headerRow.forEach((rawHeader, index) => {
     const headerStr = String(rawHeader || '').trim();
     if (!headerStr) {
-      console.log(`[${index}] 빈 헤더`);
       return;
     }
     
@@ -1727,26 +1473,11 @@ export async function parseExcel(file: File): Promise<Record<string, any>[]> {
       matchedTypes,
       matchedKeywords,
     });
-    
-    // 콘솔 출력
-    console.log(`\n[${index}] "${headerStr}"`);
-    if (matchedTypes.length > 0) {
-      console.log(`  ✓ 매칭된 타입: ${matchedTypes.join(', ')}`);
-      matchedTypes.forEach((type) => {
-        console.log(`    - ${type}: ${matchedKeywords[type].slice(0, 5).join(', ')}${matchedKeywords[type].length > 5 ? ` ... (총 ${matchedKeywords[type].length}개)` : ''}`);
-      });
-    } else {
-      console.log(`  ✗ 매칭된 타입 없음 (HEADER_DICTIONARY에 해당하는 키워드 없음)`);
-    }
   });
   
   // 요약 통계
-  console.log('\n--- 매칭 요약 통계 ---');
   const matchedCount = comparisonReport.filter(r => r.matchedTypes.length > 0).length;
   const unmatchedCount = comparisonReport.filter(r => r.matchedTypes.length === 0).length;
-  console.log(`전체 헤더 개수: ${headerRow.length}`);
-  console.log(`매칭된 헤더: ${matchedCount}개`);
-  console.log(`매칭되지 않은 헤더: ${unmatchedCount}개`);
   
   const typeStats: Record<string, number> = {};
   comparisonReport.forEach((report) => {
@@ -1754,37 +1485,23 @@ export async function parseExcel(file: File): Promise<Record<string, any>[]> {
       typeStats[type] = (typeStats[type] || 0) + 1;
     });
   });
-  console.log('\n타입별 매칭 횟수:');
-  meaningTypes.forEach((type) => {
-    console.log(`  ${type}: ${typeStats[type] || 0}개`);
+  logParseExcelSummary('[parseExcel] Header dictionary match summary:', {
+    headerCount: headerRow.length,
+    matchedCount,
+    unmatchedCount,
+    typeStats,
   });
-  
-  if (unmatchedCount > 0) {
-    console.log('\n--- 매칭되지 않은 헤더 목록 ---');
-    comparisonReport
-      .filter(r => r.matchedTypes.length === 0)
-      .forEach((report, idx) => {
-        console.log(`  ${idx + 1}. "${report.rawHeader}"`);
-      });
-  }
-  
-  console.log('\n=== HEADER_DICTIONARY 비교 분석 완료 ===\n');
   
   // 원본 워크시트 데이터를 2차원 배열로 유지 (빈 셀 탐색용)
   const worksheetData = XLSX.utils.sheet_to_json(worksheet, {
     header: 1,
     defval: '',
   }) as any[][];
-  
-  console.log('=== 워크시트 데이터 구조 ===');
-  console.log('총 행 개수 (헤더 포함):', worksheetData.length);
-  console.log('데이터 행 개수 (헤더 제외):', worksheetData.length - 1);
-  if (worksheetData.length > 0) {
-    console.log('첫 번째 행 (헤더):', worksheetData[0]);
-    if (worksheetData.length > 1) {
-      console.log('두 번째 행 (첫 번째 데이터 행):', worksheetData[1]);
-    }
-  }
+  logParseExcelSummary('[parseExcel] Worksheet shape:', {
+    totalRowCount: worksheetData.length,
+    dataRowCount: Math.max(worksheetData.length - 1, 0),
+    columnCount: headerRow.length,
+  });
   
   // 헤더와 파일명을 localStorage에 누적 저장
   if (headerRow && headerRow.length > 0) {
@@ -1804,10 +1521,13 @@ export async function parseExcel(file: File): Promise<Record<string, any>[]> {
       
       // 키워드 기반 의미 후보 생성
       generateHeaderCandidates();
-      console.log('헤더 샘플 저장 및 후보 생성 완료');
+      logParseExcelSummary('[parseExcel] Header sample cache updated:', {
+        cachedSampleCount: samples.length,
+        headerCount: headerRow.length,
+      });
     } catch (error) {
       // localStorage 저장 실패 시에도 파싱은 계속 진행
-      console.warn('헤더 샘플 저장 실패:', error);
+      warnParseExcel('[parseExcel] 헤더 샘플 저장 실패', error, { headerCount: headerRow.length });
     }
   }
   
@@ -2029,70 +1749,37 @@ export async function parseExcel(file: File): Promise<Record<string, any>[]> {
     return mappedRow;
   });
   
-  console.log('=== 원본 rows 데이터 ===');
-  console.log('rows 배열 길이:', rows.length);
-  console.log('rows 타입:', typeof rows);
-  console.log('rows가 배열인가?', Array.isArray(rows));
-  if (rows.length > 0) {
-    console.log('첫 번째 row:', rows[0]);
-    console.log('첫 번째 row의 키들:', Object.keys(rows[0]));
-    console.log('첫 번째 row 상세:', JSON.stringify(rows[0], null, 2));
-    if (rows.length > 1) {
-      console.log('두 번째 row:', rows[1]);
-      console.log('두 번째 row 상세:', JSON.stringify(rows[1], null, 2));
-    }
-    if (rows.length > 2) {
-      console.log('세 번째 row:', rows[2]);
-    }
-  }
-  console.log('전체 rows 구조:', rows);
+  logParseExcelSummary('[parseExcel] Rows normalized:', {
+    rowCount: rows.length,
+    columnCount: headerRow.length,
+    isArray: Array.isArray(rows),
+  });
   
   // 헤더 매핑 생성 및 적용 (한 번만 수행)
   try {
-    console.log('=== 헤더 매핑 생성 시작 ===');
     const headerToFieldMap = generateHeaderToFieldMap(headerRow);
-    console.log('헤더 매핑 결과:', headerToFieldMap);
-    console.log('매핑된 헤더 개수:', Object.keys(headerToFieldMap).length);
-    console.log('매핑 상세:', JSON.stringify(headerToFieldMap, null, 2));
+    logParseExcelSummary('[parseExcel] Header mapping generated:', {
+      mappedHeaderCount: Object.keys(headerToFieldMap).length,
+      headerCount: headerRow.length,
+    });
     
     // 최종 헤더 매핑이 확정된 후, 사전·통계에 없는 신규 헤더를 learned header map에 저장
     saveLearnedHeaders(headerToFieldMap, headerRow);
     
-    console.log('=== 헤더 매핑 적용 시작 ===');
     // 헤더 포함 전체 worksheetData 전달 (현재는 사용하지 않지만 호환성을 위해 전달)
     const mappedRows = applyHeaderMapping(rows, headerToFieldMap, worksheetData, headerRow);
-    
-    console.log('=== 매핑 적용 후 mappedRows ===');
-    console.log('mappedRows 배열 길이:', mappedRows.length);
-    console.log('mappedRows 타입:', typeof mappedRows);
-    console.log('mappedRows가 배열인가?', Array.isArray(mappedRows));
-    if (mappedRows.length > 0) {
-      console.log('첫 번째 mappedRow:', mappedRows[0]);
-      console.log('첫 번째 mappedRow의 키들:', Object.keys(mappedRows[0]));
-      console.log('첫 번째 mappedRow 상세:', JSON.stringify(mappedRows[0], null, 2));
-      if (mappedRows.length > 1) {
-        console.log('두 번째 mappedRow:', mappedRows[1]);
-        console.log('두 번째 mappedRow 상세:', JSON.stringify(mappedRows[1], null, 2));
-      }
-    }
-    console.log('전체 mappedRows 구조:', mappedRows);
-    
-    console.log('=== parseExcel 함수 반환값 ===');
-    console.log('반환할 데이터 타입:', typeof mappedRows);
-    console.log('반환할 데이터 길이:', mappedRows.length);
-    console.log('반환할 데이터 구조:', mappedRows);
-    console.log('반환할 데이터 JSON:', JSON.stringify(mappedRows, null, 2));
-    console.log('=== parseExcel 함수 종료 ===');
+    logParseExcelSummary('[parseExcel] Completed:', {
+      returnedRowCount: mappedRows.length,
+      isArray: Array.isArray(mappedRows),
+    });
     
     return mappedRows;
   } catch (error) {
     // 매핑 실패 시 원본 rows 반환 (기존 파싱 흐름 유지)
-    console.warn('헤더 매핑 처리 실패, 원본 데이터 반환:', error);
-    console.log('=== 매핑 실패로 원본 rows 반환 ===');
-    console.log('반환할 원본 rows 길이:', rows.length);
-    console.log('반환할 원본 rows 구조:', rows);
-    console.log('반환할 원본 rows JSON:', JSON.stringify(rows, null, 2));
-    console.log('=== parseExcel 함수 종료 (원본 반환) ===');
+    warnParseExcel('[parseExcel] 헤더 매핑 처리 실패, 원본 데이터 반환', error, {
+      rowCount: rows.length,
+      headerCount: headerRow.length,
+    });
     
     return rows;
   }

@@ -23,12 +23,37 @@ import { withTrialApiHeaders } from '@/app/lib/trial-page-context';
 /**
  * 매핑 결과 인터페이스
  */
+export type HeaderMappingStatus =
+  | 'AUTO_MATCHED'
+  | 'UNMAPPED'
+  | 'LOW_CONFIDENCE'
+  | 'NEEDS_REVIEW';
+
+export type HeaderMappingMethod =
+  | 'BASE_HEADER'
+  | 'DB_ALIAS'
+  | 'STATIC_ALIAS'
+  | 'AI'
+  | 'REFINED'
+  | 'UNMAPPED';
+
+export interface HeaderMappingDetail {
+  originalHeader: string;
+  baseHeader: string | null;
+  status: HeaderMappingStatus;
+  method: HeaderMappingMethod;
+  confidenceReason: string;
+}
+
 export interface MappingResult {
   /** 매핑된 기준헤더 배열 (courierHeaders 순서 유지, 매핑 실패 시 null) */
   mappedBaseHeaders: (string | null)[];
   
   /** 매핑 실패한 헤더 배열 */
   unknownHeaders: string[];
+
+  /** 원본 헤더별 매핑 상세 정보 */
+  mappingDetails?: HeaderMappingDetail[];
 }
 
 /**
@@ -75,6 +100,16 @@ function normalizeHeader(header: string): string {
     .trim();
 }
 
+function createUnmappedDetail(originalHeader: string): HeaderMappingDetail {
+  return {
+    originalHeader,
+    baseHeader: null,
+    status: 'UNMAPPED',
+    method: 'UNMAPPED',
+    confidenceReason: '기준헤더 직접 일치, DB 별칭, 정적 별칭에서 매핑되지 않음',
+  };
+}
+
 /**
  * 택배사 헤더를 기준헤더로 매핑합니다.
  * 
@@ -105,6 +140,7 @@ export async function mapTemplateToBase(
   
   const mappedBaseHeaders: (string | null)[] = [];
   const unknownHeaders: string[] = [];
+  const mappingDetails: HeaderMappingDetail[] = [];
   
   // DB에서 HeaderAlias 로드 (서버 사이드에서만 가능)
   let dbAliasDictionary: Record<string, string> = {};
@@ -130,6 +166,13 @@ export async function mapTemplateToBase(
     // BASE_HEADERS에 포함된 헤더인지 먼저 확인
     if (BASE_HEADERS.includes(normalizedHeader as any)) {
       mappedBaseHeaders[i] = normalizedHeader;
+      mappingDetails[i] = {
+        originalHeader: courierHeader,
+        baseHeader: normalizedHeader,
+        status: 'AUTO_MATCHED',
+        method: 'BASE_HEADER',
+        confidenceReason: '정규화된 원본 헤더가 기준헤더와 직접 일치',
+      };
       continue;
     }
     
@@ -139,6 +182,13 @@ export async function mapTemplateToBase(
     if (dbBaseHeaderKey) {
       // DB Alias 매핑 성공
       mappedBaseHeaders[i] = dbBaseHeaderKey;
+      mappingDetails[i] = {
+        originalHeader: courierHeader,
+        baseHeader: dbBaseHeaderKey,
+        status: 'AUTO_MATCHED',
+        method: 'DB_ALIAS',
+        confidenceReason: '관리자/DB 별칭 사전에서 매핑',
+      };
       continue;
     }
     
@@ -150,10 +200,18 @@ export async function mapTemplateToBase(
     if (baseHeaderKey) {
       // 매핑 성공
       mappedBaseHeaders[i] = baseHeaderKey;
+      mappingDetails[i] = {
+        originalHeader: courierHeader,
+        baseHeader: baseHeaderKey,
+        status: 'AUTO_MATCHED',
+        method: 'STATIC_ALIAS',
+        confidenceReason: '정적 별칭 사전에서 매핑',
+      };
     } else {
       // 매핑 실패
       mappedBaseHeaders[i] = null;
       unknownHeaders.push(courierHeader);
+      mappingDetails[i] = createUnmappedDetail(courierHeader);
     }
   }
   
@@ -254,6 +312,13 @@ export async function mapTemplateToBase(
             const baseHeader = mappedHeader; // AI가 반환한 값이 기준헤더
             
             mappedBaseHeaders[i] = baseHeader;
+            mappingDetails[i] = {
+              originalHeader: courierHeader,
+              baseHeader,
+              status: 'LOW_CONFIDENCE',
+              method: 'AI',
+              confidenceReason: 'AI 헤더 매핑 결과로 자동 반영됨. 관리자 확인 전까지 낮은 신뢰도로 취급',
+            };
             
             // AI Header Mapping Log 저장 (중복 방지)
             try {
@@ -299,15 +364,38 @@ export async function mapTemplateToBase(
 
   const beforeRefine = [...mappedBaseHeaders];
   const refinedMapped = refineMappedBaseHeadersCouriers(courierHeaders, mappedBaseHeaders);
+  const refinedDetails = mappingDetails.map((detail, index) => {
+    const before = beforeRefine[index] ?? null;
+    const after = refinedMapped[index] ?? null;
+    if (before === after) {
+      return {
+        ...detail,
+        baseHeader: after,
+      };
+    }
+
+    return {
+      originalHeader: detail.originalHeader,
+      baseHeader: after,
+      status: 'NEEDS_REVIEW' as const,
+      method: 'REFINED' as const,
+      confidenceReason:
+        after == null
+          ? `후처리 보정에서 기존 매핑(${before ?? '없음'})이 해제됨`
+          : `후처리 보정에서 ${before ?? '미매핑'} → ${after}로 변경됨`,
+    };
+  });
 
   if (isExcloudPipelineDebugMapping()) {
     console.log('[Stage1 mappedBaseHeaders BEFORE refine]', beforeRefine);
     console.log('[Stage1 mappedBaseHeaders AFTER refine]', refinedMapped);
+    console.log('[Stage1 mappingDetails]', refinedDetails);
   }
 
   return {
     mappedBaseHeaders: refinedMapped,
     unknownHeaders,
+    mappingDetails: refinedDetails,
   };
 }
 

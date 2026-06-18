@@ -360,6 +360,7 @@ export default function AkmanClient() {
     { href: '/akman/ai-mapping', title: 'AI 매핑', desc: '매핑 규칙 관리' },
     { href: '/akman/template-header-logs', title: '헤더 수집 로그', desc: '주문·양식 1행 헤더 수집' },
     { href: '/akman/header-dictionary', title: '헤더 사전', desc: '신규 헤더·사용 횟수' },
+    { href: '/akman/header-mapping-audit', title: '헤더 매핑 검토', desc: '자동 매핑·마스킹 샘플 확인' },
     { href: '/akman/popups', title: '팝업 관리', desc: '사이트 팝업 설정' },
     { href: '/admin/feedback-event', title: '피드백 이벤트', desc: '기간·접수·체험권' },
     { href: '/akman/favorite-malls', title: '즐겨찾기 URL', desc: '자주 등록된 쇼핑몰 주소 집계' },

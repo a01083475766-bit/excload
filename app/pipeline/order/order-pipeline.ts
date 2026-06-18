@@ -19,9 +19,17 @@ import { BASE_HEADERS } from '../base/base-headers';
 import { ALIAS_DICTIONARY } from '../base/alias-dictionary';
 import type { CleanInputFile } from '../preprocess/types';
 import { validateCleanInputFile, validateOrderStandardFile, logValidationResult, throwIfInvalid } from '../utils/validation';
-import type { MappingResult } from '../template/map-template-to-base';
+import type { HeaderMappingDetail, MappingResult } from '../template/map-template-to-base';
 import { mapTemplateToBase } from '../template/map-template-to-base';
 import { coerceStage2CellValue } from '@/app/lib/excel/coerce-excel-phone';
+import {
+  buildHeaderMappingAuditEntries,
+  type HeaderMappingAuditEntry,
+} from '@/app/lib/header-mapping-audit/build-header-mapping-audit';
+import {
+  buildHeaderMappingAuditSummary,
+  saveHeaderMappingAuditLog,
+} from '@/app/lib/header-mapping-audit/save-header-mapping-audit';
 
 /**
  * 기준헤더 배열 (고정)
@@ -34,12 +42,14 @@ export const BASE_HEADERS_ARRAY = [...BASE_HEADERS] as const;
  * 
  * 기준헤더로 통일된 주문 데이터 파일
  */
+export type StandardOrderRow = Record<string, string>;
+
 export interface OrderStandardFile {
   /** 기준헤더 배열 (고정) */
   baseHeaders: readonly string[];
   
   /** 기준헤더 순서대로 변환된 행 데이터 */
-  rows: Record<string, string>[];
+  rows: StandardOrderRow[];
   
   /** 매핑 실패한 헤더 배열 */
   unknownHeaders: string[];
@@ -68,6 +78,86 @@ function normalizeHeader(header: string): string {
     .replace(/[.·]/g, '')        // 점 제거
     .replace(/[^가-힣0-9]/g, '')  // 한글/숫자 외 제거
     .trim();
+}
+
+function buildFallbackMappingDetails(
+  headers: string[],
+  mappedBaseHeaders: (string | null)[]
+): HeaderMappingDetail[] {
+  return headers.map((originalHeader, index) => {
+    const baseHeader = mappedBaseHeaders[index] ?? null;
+    return {
+      originalHeader,
+      baseHeader,
+      status: baseHeader ? 'AUTO_MATCHED' : 'UNMAPPED',
+      method: baseHeader ? 'BASE_HEADER' : 'UNMAPPED',
+      confidenceReason: baseHeader
+        ? '기존 재사용 매핑에 상세 정보가 없어 기준헤더 매핑 결과만 보존'
+        : '기존 재사용 매핑에서 기준헤더가 없음',
+    };
+  });
+}
+
+function normalizeMappingDetails(
+  headers: string[],
+  mappingResult: Pick<MappingResult, 'mappedBaseHeaders' | 'mappingDetails'>
+): HeaderMappingDetail[] {
+  if (
+    Array.isArray(mappingResult.mappingDetails) &&
+    mappingResult.mappingDetails.length === headers.length
+  ) {
+    return mappingResult.mappingDetails;
+  }
+
+  return buildFallbackMappingDetails(headers, mappingResult.mappedBaseHeaders);
+}
+
+function isHeaderMappingAuditEnabled(): boolean {
+  return process.env.HEADER_MAPPING_AUDIT_ENABLED === 'true';
+}
+
+function isNonProduction(): boolean {
+  return process.env.NODE_ENV !== 'production';
+}
+
+async function buildHeaderMappingAuditSafely(
+  headers: string[],
+  rows: string[][],
+  mappingDetails: HeaderMappingDetail[],
+  source: string | null,
+): Promise<void> {
+  try {
+    const auditEntries = buildHeaderMappingAuditEntries(headers, rows, mappingDetails);
+    const summary = buildHeaderMappingAuditSummary(auditEntries);
+
+    if (isNonProduction()) {
+      console.info('[Stage2] Header Mapping Audit Summary:', summary);
+    }
+
+    if (!isHeaderMappingAuditEnabled()) {
+      return;
+    }
+
+    const saveResult = await saveHeaderMappingAuditLog({
+      entries: auditEntries,
+      summary,
+      userId: null,
+      fileHash: null,
+      source,
+    });
+
+    if (isNonProduction()) {
+      console.info('[Stage2] Header Mapping Audit Save Summary:', {
+        ok: saveResult.ok,
+        entryCount: saveResult.ok ? saveResult.entryCount : 0,
+        skipped: saveResult.ok ? false : saveResult.skipped,
+      });
+    }
+  } catch {
+    if (isNonProduction()) {
+      console.warn('[Stage2] Header Mapping Audit 저장 준비 실패: 주문 변환은 계속 진행합니다.');
+    }
+  }
 }
 
 /**
@@ -108,17 +198,15 @@ export async function run(
     headers.length >= BASE_HEADERS.length * 0.7 &&
     headers.every((h) => baseHeaderSet.has(h as any));
   
-  const stage2Input = headers;
-  console.log('[PROMPT CHECK]', {
-    prompt,
-    type: typeof prompt,
-    length: prompt?.length,
-    preview: prompt?.slice?.(0, 100),
-  });
-  console.log('[Stage2 BEFORE AI]', {
-    input: stage2Input,
-    type: typeof stage2Input,
-  });
+  if (isNonProduction()) {
+    console.info('[Stage2] Input Summary:', {
+      headerCount: headers.length,
+      rowCount: rows.length,
+      hasPrompt: typeof prompt === 'string' && prompt.length > 0,
+      promptLength: typeof prompt === 'string' ? prompt.length : 0,
+      isNormalizedText,
+    });
+  }
 
   // 1. Stage1 헤더 매핑 (청크 후속 요청은 재사용 매핑으로 AI/DB 매핑 생략)
   let mappingResult: MappingResult;
@@ -132,23 +220,48 @@ export async function run(
     mappingResult = {
       mappedBaseHeaders: [...reuse.mappedBaseHeaders],
       unknownHeaders: [...reuse.unknownHeaders],
+      mappingDetails: normalizeMappingDetails(headers, reuse),
     };
-    console.log('[Stage2 REUSE HEADER MAP]', { headerCount: headers.length });
+    if (isNonProduction()) {
+      console.info('[Stage2] Reuse Header Mapping:', { headerCount: headers.length });
+    }
   } else if (isNormalizedText) {
-    console.log('[TEXT FLOW - SKIP HEADER MAP]', headers);
+    if (isNonProduction()) {
+      console.info('[Stage2] Text Flow - Skip Header Mapping:', { headerCount: headers.length });
+    }
     mappingResult = {
       mappedBaseHeaders: [...headers],
       unknownHeaders: [] as string[],
+      mappingDetails: headers.map((header) => ({
+        originalHeader: header,
+        baseHeader: header,
+        status: 'AUTO_MATCHED',
+        method: 'BASE_HEADER',
+        confidenceReason: '텍스트 정규화 흐름에서 이미 기준헤더 구조로 전달됨',
+      })),
     };
   } else {
-    console.log('[Stage1] Starting Header Mapping for Order File');
+    if (isNonProduction()) {
+      console.info('[Stage1] Starting Header Mapping for Order File:', { headerCount: headers.length });
+    }
     try {
       mappingResult = await mapTemplateToBase(headers, undefined, fileSessionId);
     } catch (error) {
-      console.error('[Stage2 INNER ERROR]', error);
+      if (isNonProduction()) {
+        console.error('[Stage2] Header Mapping failed:', {
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          headerCount: headers.length,
+        });
+      }
       throw error;
     }
-    console.log('[Stage2 AFTER AI]', mappingResult);
+    if (isNonProduction()) {
+      console.info('[Stage2] Header Mapping Result Summary:', {
+        mappedCount: mappingResult.mappedBaseHeaders.filter(Boolean).length,
+        unknownCount: mappingResult.unknownHeaders.length,
+        detailCount: mappingResult.mappingDetails?.length ?? 0,
+      });
+    }
   }
   
   // mappingResult를 headerMap으로 변환
@@ -163,8 +276,23 @@ export async function run(
   
   const unknownHeaders = mappingResult.unknownHeaders;
   
-  console.log('[Stage2] Header Map:', headerMap);
-  console.log('[Stage2] Unknown Headers:', unknownHeaders);
+  if (isNonProduction()) {
+    console.info('[Stage2] Header Map Summary:', {
+      mappedCount: Object.keys(headerMap).length,
+      unknownCount: unknownHeaders.length,
+    });
+  }
+  const mappingDetails = normalizeMappingDetails(headers, mappingResult);
+  if (isNonProduction()) {
+    console.info('[Stage2] Header Mapping Details Summary:', {
+      detailCount: mappingDetails.length,
+      autoMatchedCount: mappingDetails.filter((detail) => detail.status === 'AUTO_MATCHED').length,
+      lowConfidenceCount: mappingDetails.filter((detail) => detail.status === 'LOW_CONFIDENCE').length,
+      unmappedCount: mappingDetails.filter((detail) => detail.status === 'UNMAPPED').length,
+      needsReviewCount: mappingDetails.filter((detail) => detail.status === 'NEEDS_REVIEW').length,
+    });
+  }
+  await buildHeaderMappingAuditSafely(headers, rows, mappingDetails, cleanInputFile.sourceType);
   
   // 2. rows 변환 (기준헤더 순서대로)
   const transformedRows: Record<string, string>[] = rows.map((row, rowIndex) => {
@@ -221,18 +349,16 @@ export async function run(
           }
         }
 
-        const nonEmptyDistinct = [
-          ...new Set(
-            sourceIndices
-              .map((idx) => coerceStage2CellValue(row[idx], baseHeader))
-              .filter((v) => v.length > 0)
-          ),
-        ];
-        if (nonEmptyDistinct.length > 1) {
+        const nonEmptyDistinctCount = new Set(
+          sourceIndices
+            .map((idx) => coerceStage2CellValue(row[idx], baseHeader))
+            .filter((v) => v.length > 0)
+        ).size;
+        if (isNonProduction() && nonEmptyDistinctCount > 1) {
           console.warn('[Stage2] 동일 기준헤더로 매핑된 열에 서로 다른 값', {
             baseHeader,
             rowIndex,
-            values: nonEmptyDistinct,
+            distinctValueCount: nonEmptyDistinctCount,
             sourceHeaders: sourceIndices.map((i) => headers[i]),
           });
         }
@@ -293,6 +419,7 @@ export async function run(
     _reuseHeaderMapping: {
       mappedBaseHeaders: [...mappingResult.mappedBaseHeaders],
       unknownHeaders: [...mappingResult.unknownHeaders],
+      mappingDetails: normalizeMappingDetails(headers, mappingResult),
     },
   };
 }
