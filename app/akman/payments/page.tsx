@@ -12,7 +12,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -35,12 +35,52 @@ interface Pagination {
   hasPrevPage: boolean;
 }
 
+interface PaymentGroup {
+  email: string;
+  payments: Payment[];
+  totalAmount: number;
+  latestCreatedAt: string;
+  plans: string[];
+}
+
 export default function PaymentsPage() {
   const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedEmails, setExpandedEmails] = useState<Record<string, boolean>>({});
+
+  const groupedPayments = useMemo<PaymentGroup[]>(() => {
+    const groups = new Map<string, PaymentGroup>();
+
+    for (const payment of payments) {
+      const email = payment.email || '(이메일 없음)';
+      const group = groups.get(email);
+
+      if (!group) {
+        groups.set(email, {
+          email,
+          payments: [payment],
+          totalAmount: payment.amount,
+          latestCreatedAt: payment.createdAt,
+          plans: [payment.plan],
+        });
+        continue;
+      }
+
+      group.payments.push(payment);
+      group.totalAmount += payment.amount;
+      if (new Date(payment.createdAt).getTime() > new Date(group.latestCreatedAt).getTime()) {
+        group.latestCreatedAt = payment.createdAt;
+      }
+      if (!group.plans.includes(payment.plan)) {
+        group.plans.push(payment.plan);
+      }
+    }
+
+    return Array.from(groups.values());
+  }, [payments]);
 
   // 결제 내역 조회
   const fetchPayments = async (page: number = 1) => {
@@ -73,9 +113,37 @@ export default function PaymentsPage() {
   // 페이지 변경 핸들러
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
+    setExpandedEmails({});
     fetchPayments(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const toggleEmailGroup = (email: string) => {
+    setExpandedEmails((prev) => ({
+      ...prev,
+      [email]: !prev[email],
+    }));
+  };
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const thStyle = {
+    border: '1px solid #ccc',
+    padding: '10px',
+    textAlign: 'left',
+  } as const;
+
+  const tdStyle = {
+    border: '1px solid #ccc',
+    padding: '10px',
+  } as const;
 
   if (loading) {
     return (
@@ -123,6 +191,8 @@ export default function PaymentsPage() {
             페이지 {pagination.page} / {pagination.totalPages}
             {' | '}
             표시: {payments.length}건
+            {' | '}
+            계정 묶음: {groupedPayments.length}개
           </>
         ) : (
           <>총 결제 건수: {payments.length}건</>
@@ -139,20 +209,23 @@ export default function PaymentsPage() {
       >
         <thead>
           <tr style={{ backgroundColor: '#f5f5f5' }}>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
-              Email
+            <th style={thStyle}>
+              계정 이메일
             </th>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
-              Plan
+            <th style={{ ...thStyle, textAlign: 'right' }}>
+              결제 건수
             </th>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'right' }}>
-              금액
+            <th style={{ ...thStyle, textAlign: 'right' }}>
+              총 결제금액
             </th>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
-              통화
+            <th style={thStyle}>
+              플랜
             </th>
-            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
-              결제일
+            <th style={thStyle}>
+              최근 결제일
+            </th>
+            <th style={thStyle}>
+              상세
             </th>
           </tr>
         </thead>
@@ -173,25 +246,65 @@ export default function PaymentsPage() {
               </td>
             </tr>
           ) : (
-            payments.map((payment) => (
-              <tr key={payment.id}>
-                <td style={{ border: '1px solid #ccc', padding: '12px' }}>{payment.email}</td>
-                <td style={{ border: '1px solid #ccc', padding: '12px' }}>{payment.plan}</td>
-                <td style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
-                  ₩{payment.amount.toLocaleString()}
-                </td>
-                <td style={{ border: '1px solid #ccc', padding: '12px' }}>{payment.currency}</td>
-                <td style={{ border: '1px solid #ccc', padding: '12px' }}>
-                  {new Date(payment.createdAt).toLocaleString('ko-KR', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </td>
-              </tr>
-            ))
+            groupedPayments.map((group) => {
+              const expanded = Boolean(expandedEmails[group.email]);
+              return (
+                <Fragment key={group.email}>
+                  <tr style={{ backgroundColor: expanded ? '#f8fbff' : 'white' }}>
+                    <td style={{ ...tdStyle, fontWeight: 'bold' }}>{group.email}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{group.payments.length}건</td>
+                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 'bold' }}>
+                      ₩{group.totalAmount.toLocaleString()}
+                    </td>
+                    <td style={tdStyle}>{group.plans.join(', ')}</td>
+                    <td style={tdStyle}>{formatDate(group.latestCreatedAt)}</td>
+                    <td style={tdStyle}>
+                      <button
+                        type="button"
+                        onClick={() => toggleEmailGroup(group.email)}
+                        style={{
+                          padding: '5px 10px',
+                          border: '1px solid #d4d4d8',
+                          borderRadius: 6,
+                          background: '#fff',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {expanded ? '접기' : '펼치기'}
+                      </button>
+                    </td>
+                  </tr>
+                  {expanded && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: 0, border: '1px solid #ccc', backgroundColor: '#fff' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                          <thead>
+                            <tr style={{ backgroundColor: '#fafafa' }}>
+                              <th style={thStyle}>Plan</th>
+                              <th style={{ ...thStyle, textAlign: 'right' }}>금액</th>
+                              <th style={thStyle}>통화</th>
+                              <th style={thStyle}>결제일</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.payments.map((payment) => (
+                              <tr key={payment.id}>
+                                <td style={tdStyle}>{payment.plan}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 'bold' }}>
+                                  ₩{payment.amount.toLocaleString()}
+                                </td>
+                                <td style={tdStyle}>{payment.currency}</td>
+                                <td style={tdStyle}>{formatDate(payment.createdAt)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })
           )}
         </tbody>
       </table>

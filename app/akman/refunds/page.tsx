@@ -47,12 +47,14 @@ export default function AkmanRefundsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | RefundStatus>('ALL');
 
-  const loadRows = async () => {
+  const loadRows = async (filter: typeof statusFilter = statusFilter) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/akman/refund-requests', { credentials: 'include' });
+      const qs = filter !== 'ALL' ? `?status=${filter}` : '';
+      const res = await fetch(`/api/akman/refund-requests${qs}`, { credentials: 'include' });
       const data = await res.json();
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || '환불 신청 목록을 불러오지 못했습니다.');
@@ -84,6 +86,9 @@ export default function AkmanRefundsPage() {
         throw new Error(data?.error || '상태 변경에 실패했습니다.');
       }
       setRows((prev) => prev.map((r) => (r.id === id ? data.request : r)));
+      if (statusFilter !== 'ALL' && data.request?.status !== statusFilter) {
+        setRows((prev) => prev.filter((r) => r.id !== id));
+      }
       alert('상태가 변경되었습니다.');
     } catch (e) {
       alert(e instanceof Error ? e.message : '상태 변경에 실패했습니다.');
@@ -102,6 +107,44 @@ export default function AkmanRefundsPage() {
           style={{ border: '1px solid #d0d5dd', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}
         >
           대시보드로
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {(['ALL', 'REQUESTED', 'APPROVED', 'REJECTED', 'COMPLETED'] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => {
+              setStatusFilter(key);
+              void loadRows(key);
+            }}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 8,
+              border: '1px solid #d0d5dd',
+              background: statusFilter === key ? '#eff4ff' : '#fff',
+              color: statusFilter === key ? '#175cd3' : '#344054',
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+          >
+            {key === 'ALL' ? '전체' : statusLabel[key]}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => void loadRows()}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: '1px solid #d0d5dd',
+            background: '#fff',
+            cursor: 'pointer',
+            fontSize: 13,
+          }}
+        >
+          새로고침
         </button>
       </div>
 

@@ -6,7 +6,7 @@ import { isAdminEmail } from '@/app/lib/admin-auth';
 
 type RefundStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -16,7 +16,13 @@ export async function GET() {
       return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') as RefundStatus | null;
+    const allowed: RefundStatus[] = ['REQUESTED', 'APPROVED', 'REJECTED', 'COMPLETED'];
+    const where = status && allowed.includes(status) ? { status } : undefined;
+
     const requests = await prisma.refundRequest.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
