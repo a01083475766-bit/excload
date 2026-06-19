@@ -3016,7 +3016,7 @@ export default function InvoiceFileConvertPage() {
                   <br />
                   쇼핑몰·양식이 여러 개면 추가로 등록해 목록에서 관리·선택할 수 있습니다.
                 </p>
-                <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-[13px] leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                   내 업로드 파일: 쇼핑몰이나 판매처에서 안내받은 “송장 업로드용 엑셀 파일” 또는
                   송장번호를 입력해 다시 첨부하는 “엑셀파일”입니다.
                 </p>

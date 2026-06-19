@@ -3460,7 +3460,7 @@ export default function OrderConvertPage() {
                   <br />
                   택배사·양식이 여러 개면 추가로 등록해 목록에서 관리·선택할 수 있습니다.
                 </p>
-                <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-[13px] leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                   내 업로드 파일: 계약 택배사에서 안내받은 “업로드용 엑셀 파일” 또는 실제 택배사
                   프로그램에 첨부하는 “엑셀파일”입니다.
                 </p>

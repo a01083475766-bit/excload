@@ -6296,7 +6296,7 @@ export function LogisticsConvertClient({
                     </>
                   )}
                 </p>
-                <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-[13px] leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                   {trialMode
                     ? '내 업로드 파일: 물류사나 물류센터에서 안내받은 “주문 업로드용 엑셀 파일” 또는 실제 물류 프로그램에 첨부하는 “엑셀파일”입니다.'
                     : '내 업로드 파일: 계약 물류사나 물류센터에서 안내받은 “업로드용 엑셀 파일” 또는 실제 물류 프로그램에 첨부하는 “엑셀파일”입니다.'}
