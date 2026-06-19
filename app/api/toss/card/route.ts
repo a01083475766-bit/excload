@@ -32,6 +32,8 @@ export async function GET() {
       ok: true,
       hasBillingKey,
       cardSummary: cardSummary || null,
+      cardCompany: user.tossCardCompany || null,
+      cardNumberMask: user.tossCardNumberMask || null,
     });
   } catch (error) {
     console.error('[Toss Card API] error:', error);

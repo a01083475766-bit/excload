@@ -37,6 +37,8 @@ interface PendingPlanChangeState {
 interface TossCardState {
   hasBillingKey: boolean;
   cardSummary: string | null;
+  cardCompany: string | null;
+  cardNumberMask: string | null;
 }
 
 interface PaymentFailureState {
@@ -87,6 +89,8 @@ export default function MyPage() {
   const [tossCardState, setTossCardState] = useState<TossCardState>({
     hasBillingKey: false,
     cardSummary: null,
+    cardCompany: null,
+    cardNumberMask: null,
   });
   const [paymentFailure, setPaymentFailure] = useState<PaymentFailureState>({
     isPastDue: false,
@@ -384,16 +388,18 @@ export default function MyPage() {
           credentials: 'include',
         });
         if (!response.ok) {
-          setTossCardState({ hasBillingKey: false, cardSummary: null });
+          setTossCardState({ hasBillingKey: false, cardSummary: null, cardCompany: null, cardNumberMask: null });
           return;
         }
         const data = await response.json();
         setTossCardState({
           hasBillingKey: !!data?.hasBillingKey,
           cardSummary: typeof data?.cardSummary === 'string' ? data.cardSummary : null,
+          cardCompany: typeof data?.cardCompany === 'string' ? data.cardCompany : null,
+          cardNumberMask: typeof data?.cardNumberMask === 'string' ? data.cardNumberMask : null,
         });
       } catch {
-        setTossCardState({ hasBillingKey: false, cardSummary: null });
+        setTossCardState({ hasBillingKey: false, cardSummary: null, cardCompany: null, cardNumberMask: null });
       }
     };
     loadTossCardState();
@@ -1254,29 +1260,34 @@ export default function MyPage() {
                   
                   <div className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">결제 수단</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                        <div>
-                          {tossCardState.hasBillingKey ? (
-                            <>
-                              <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                                {tossCardState.cardSummary || '등록된 카드'}
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      {tossCardState.hasBillingKey ? (
+                        <div className="w-full max-w-[360px] rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-blue-600 p-5 text-white shadow-lg">
+                          <div className="mb-8 flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-medium uppercase tracking-[0.2em] text-blue-100">EXCLOAD</p>
+                              <p className="mt-1 text-lg font-bold">
+                                {tossCardState.cardCompany || '결제카드'}
                               </p>
-                              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                                자동결제용 카드가 등록되어 있습니다.
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="font-medium text-zinc-900 dark:text-zinc-100">등록된 결제카드 없음</p>
-                              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                                구독 페이지에서 카드 등록 후 결제를 진행해 주세요.
-                              </p>
-                            </>
-                          )}
+                            </div>
+                            <CreditCard className="h-7 w-7 text-blue-100" />
+                          </div>
+                          <p className="font-mono text-xl font-semibold tracking-[0.18em]">
+                            {tossCardState.cardNumberMask || tossCardState.cardSummary || '등록된 카드'}
+                          </p>
+                          <p className="mt-4 text-xs text-blue-100">자동결제용 카드가 등록되어 있습니다.</p>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <CreditCard className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                          <div>
+                            <p className="font-medium text-zinc-900 dark:text-zinc-100">등록된 결제카드 없음</p>
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                              구독 페이지에서 카드 등록 후 결제를 진행해 주세요.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => router.push(`/subscribe?plan=${subscribePlanParam}`)}
