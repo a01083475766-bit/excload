@@ -716,6 +716,7 @@ export default function HeaderMappingAuditPage() {
                             <table style={{ minWidth: 1320, borderCollapse: 'collapse', fontSize: 12, background: '#fff' }}>
                               <thead>
                                 <tr>
+                                  <th style={excelThStyle}>DB 별칭</th>
                                   <th style={excelThStyle}>원본 헤더</th>
                                   <th style={excelThStyle}>시스템 기준헤더</th>
                                   <th style={excelThStyle}>적용 기준헤더</th>
@@ -725,7 +726,6 @@ export default function HeaderMappingAuditPage() {
                                   <th style={excelThStyle}>마스킹 샘플</th>
                                   <th style={excelThStyle}>샘플 수</th>
                                   <th style={excelThStyle}>관리자 검토 상태</th>
-                                  <th style={excelThStyle}>DB 별칭</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -738,6 +738,11 @@ export default function HeaderMappingAuditPage() {
                                     const maskedSamples = asMaskedSamples(entry.maskedSamples).join(', ');
                                     return (
                                       <tr key={entry.id}>
+                                        <td style={excelTdStyle}>
+                                          <span style={apiAliasStatusStyle(entry.aliasStatus)}>
+                                            {apiAliasStatusLabel(entry)}
+                                          </span>
+                                        </td>
                                         <td style={clippedExcelTdStyle} title={entry.originalHeader}>{entry.originalHeader}</td>
                                         <td style={clippedExcelTdStyle} title={entry.baseHeader ?? '(미매핑)'}>
                                           {entry.baseHeader ?? '(미매핑)'}
@@ -755,11 +760,6 @@ export default function HeaderMappingAuditPage() {
                                         <td style={excelTdStyle}>
                                           <span style={adminStatusStyle(entry.adminStatus)}>
                                             {labelFor(ADMIN_STATUS_LABELS, entry.adminStatus || 'PENDING', '대기')}
-                                          </span>
-                                        </td>
-                                        <td style={excelTdStyle}>
-                                          <span style={apiAliasStatusStyle(entry.aliasStatus)}>
-                                            {apiAliasStatusLabel(entry)}
                                           </span>
                                         </td>
                                       </tr>
