@@ -39,6 +39,7 @@ import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
 import { DefaultCjTemplateNotice } from '@/app/components/DefaultCjTemplateNotice';
+import PwaInstallButton from '@/app/components/PwaInstallButton';
 import {
   buildDefaultCjCourierSeed,
   DEFAULT_CJ_FORMAT_ID,
@@ -2823,7 +2824,7 @@ export default function OrderConvertPage() {
           <div className="flex flex-col gap-2 lg:gap-3">
             {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (한쪽만 있을 때는 반대쪽 빈 슬롯으로 대칭) */}
             <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
+              <div className="flex w-full shrink-0 flex-col justify-center gap-2 sm:h-[38px] sm:w-[410px] sm:flex-row sm:justify-start">
                 <button
                   type="button"
                   onClick={() => router.push('/order/fetch')}
@@ -2831,6 +2832,7 @@ export default function OrderConvertPage() {
                 >
                   즐겨찾는 쇼핑몰
                 </button>
+                <PwaInstallButton />
               </div>
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
                 {user ? (

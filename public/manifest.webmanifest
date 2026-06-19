@@ -1,0 +1,26 @@
+{
+  "name": "엑클로드 - 택배주문변환",
+  "short_name": "엑클로드",
+  "description": "쇼핑몰 주문 엑셀, 물류 주문, 송장 파일을 택배사·물류 양식에 맞게 변환합니다.",
+  "lang": "ko",
+  "start_url": "/order-convert",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/excload-pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/excload-logo.png",
+      "sizes": "150x50",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

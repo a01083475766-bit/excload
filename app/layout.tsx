@@ -13,6 +13,7 @@ import StoreInitializer from "./components/StoreInitializer";
 import GlobalDragDropBlocker from "./components/GlobalDragDropBlocker";
 import GlobalPopupManager from "./components/GlobalPopupManager";
 import ClientConsoleSilencer from "./components/ClientConsoleSilencer";
+import PwaRegistrar from "./components/PwaRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.png",
   },
+  manifest: "/manifest.webmanifest",
   openGraph: buildOpenGraph(DEFAULT_TITLE, DEFAULT_DESCRIPTION, "/"),
   verification: {
     other: {
@@ -50,6 +52,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
       >
         <ClientConsoleSilencer />
+        <PwaRegistrar />
         <div className="flex flex-1 flex-col">
           <AuthProviders>
             <StoreInitializer />
