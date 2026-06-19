@@ -82,16 +82,19 @@ export async function POST(request: NextRequest) {
       return rateLimited;
     }
 
+    let auditUserId: string | null = null;
     if (session?.user?.email) {
       const { prisma } = await import('@/app/lib/prisma');
       const pipelineUser = await prisma.user.findUnique({
         where: { email: session.user.email.trim().toLowerCase() },
         select: {
+          id: true,
           isBlocked: true,
           abuseFlag: true,
           blockReason: true,
         },
       });
+      auditUserId = pipelineUser?.id ?? null;
       if (pipelineUser) {
         const blockedResponse = serviceBlockedResponse(pipelineUser);
         if (blockedResponse) return blockedResponse;
@@ -139,8 +142,8 @@ export async function POST(request: NextRequest) {
         cleanInputFile as unknown as CleanInputFile,
         fileSessionId,
         reuseHeaderMapping
-          ? { reuseHeaderMapping: reuseHeaderMapping as MappingResult }
-          : undefined,
+          ? { reuseHeaderMapping: reuseHeaderMapping as MappingResult, auditUserId }
+          : { auditUserId },
       );
     } catch (error) {
       console.error('[Stage2 ERROR]');

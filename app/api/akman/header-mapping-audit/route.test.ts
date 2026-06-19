@@ -39,6 +39,7 @@ import { DELETE, GET } from './route';
 const activeLog = {
   id: 'log-1',
   fileHash: 'hash-1',
+  user: { email: 'user@example.com' },
   source: 'excel',
   totalHeaders: 2,
   autoMatchedCount: 1,
@@ -211,6 +212,7 @@ describe('GET /api/akman/header-mapping-audit', () => {
       expect.objectContaining({
         id: 'log-1',
         fileHash: 'hash-1',
+        userEmail: 'user@example.com',
         source: 'excel',
         totalHeaders: 2,
       }),
@@ -254,7 +256,7 @@ describe('GET /api/akman/header-mapping-audit', () => {
             }),
           },
         }),
-        include: {
+        include: expect.objectContaining({
           entries: expect.objectContaining({
             where: expect.objectContaining({
               status: 'UNMAPPED',
@@ -262,7 +264,8 @@ describe('GET /api/akman/header-mapping-audit', () => {
             }),
             take: 20,
           }),
-        },
+          user: { select: { email: true } },
+        }),
       }),
     );
   });
@@ -360,11 +363,11 @@ describe('GET /api/akman/header-mapping-audit', () => {
       expect.objectContaining({
         skip: 20,
         take: 10,
-        include: {
+        include: expect.objectContaining({
           entries: expect.objectContaining({
             take: 5,
           }),
-        },
+        }),
       }),
     );
   });

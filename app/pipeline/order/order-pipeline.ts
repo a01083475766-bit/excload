@@ -63,6 +63,8 @@ export type OrderPipelineStage2Response = OrderStandardFile & {
 export type OrderPipelineRunOptions = {
   /** 동일 파일의 이전 청크에서 받은 매핑(헤더 길이 일치 필수). 있으면 Stage1/AI를 건너뜁니다. */
   reuseHeaderMapping?: MappingResult;
+  /** 헤더 매핑 감사 로그를 생성한 사용자 ID. 비회원/체험 요청은 null로 저장합니다. */
+  auditUserId?: string | null;
 };
 
 /**
@@ -125,6 +127,7 @@ async function buildHeaderMappingAuditSafely(
   rows: string[][],
   mappingDetails: HeaderMappingDetail[],
   source: string | null,
+  userId: string | null,
 ): Promise<void> {
   try {
     const auditEntries = buildHeaderMappingAuditEntries(headers, rows, mappingDetails);
@@ -141,7 +144,7 @@ async function buildHeaderMappingAuditSafely(
     const saveResult = await saveHeaderMappingAuditLog({
       entries: auditEntries,
       summary,
-      userId: null,
+      userId,
       fileHash: null,
       source,
     });
@@ -292,7 +295,13 @@ export async function run(
       needsReviewCount: mappingDetails.filter((detail) => detail.status === 'NEEDS_REVIEW').length,
     });
   }
-  await buildHeaderMappingAuditSafely(headers, rows, mappingDetails, cleanInputFile.sourceType);
+  await buildHeaderMappingAuditSafely(
+    headers,
+    rows,
+    mappingDetails,
+    cleanInputFile.sourceType,
+    options?.auditUserId ?? null,
+  );
   
   // 2. rows 변환 (기준헤더 순서대로)
   const transformedRows: Record<string, string>[] = rows.map((row, rowIndex) => {

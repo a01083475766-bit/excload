@@ -174,6 +174,7 @@ function mapEntry(row: {
 function mapLog(row: {
   id: string;
   fileHash: string | null;
+  user: { email: string | null } | null;
   source: string | null;
   totalHeaders: number;
   autoMatchedCount: number;
@@ -188,6 +189,7 @@ function mapLog(row: {
   return {
     id: row.id,
     fileHash: row.fileHash,
+    userEmail: row.user?.email ?? null,
     source: row.source,
     totalHeaders: row.totalHeaders,
     autoMatchedCount: row.autoMatchedCount,
@@ -242,6 +244,11 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
+          user: {
+            select: {
+              email: true,
+            },
+          },
           entries: {
             where: entryFiltered ? entryWhere : undefined,
             orderBy: { createdAt: 'asc' },

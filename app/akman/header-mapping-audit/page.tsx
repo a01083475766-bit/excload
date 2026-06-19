@@ -29,6 +29,7 @@ type AliasLocalState = {
 
 type AuditLog = {
   id: string;
+  userEmail: string | null;
   source: string | null;
   totalHeaders: number;
   autoMatchedCount: number;
@@ -105,16 +106,17 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const thStyle: React.CSSProperties = {
-  padding: 8,
+  padding: '6px 7px',
   borderBottom: '1px solid #e4e4e7',
   textAlign: 'left',
   whiteSpace: 'nowrap',
 };
 
 const tdStyle: React.CSSProperties = {
-  padding: 8,
+  padding: '6px 7px',
   borderBottom: '1px solid #f4f4f5',
   verticalAlign: 'top',
+  whiteSpace: 'nowrap',
 };
 
 const excelThStyle: React.CSSProperties = {
@@ -656,6 +658,7 @@ export default function HeaderMappingAuditPage() {
             <thead>
               <tr style={{ background: '#eff6ff' }}>
                 <th style={thStyle}>생성일</th>
+                <th style={thStyle}>사용자 이메일</th>
                 <th style={thStyle}>출처</th>
                 <th style={thStyle}>전체 헤더 수</th>
                 <th style={thStyle}>자동 매핑</th>
@@ -674,6 +677,17 @@ export default function HeaderMappingAuditPage() {
                   <Fragment key={log.id}>
                     <tr>
                       <td style={tdStyle}>{formatDate(log.createdAt)}</td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          maxWidth: 210,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={log.userEmail ?? '—'}
+                      >
+                        {log.userEmail ?? '—'}
+                      </td>
                       <td style={tdStyle}>{labelFor(SOURCE_LABELS, log.source, '—')}</td>
                       <td style={tdStyle}>{log.totalHeaders}</td>
                       <td style={tdStyle}>{log.autoMatchedCount}</td>
@@ -711,7 +725,7 @@ export default function HeaderMappingAuditPage() {
                     </tr>
                     {expanded && (
                       <tr>
-                        <td colSpan={10} style={{ padding: 0, borderBottom: '1px solid #e4e4e7', background: '#fff' }}>
+                        <td colSpan={11} style={{ padding: 0, borderBottom: '1px solid #e4e4e7', background: '#fff' }}>
                           <div style={{ overflowX: 'auto', padding: 12 }}>
                             <table style={{ minWidth: 1320, borderCollapse: 'collapse', fontSize: 12, background: '#fff' }}>
                               <thead>
