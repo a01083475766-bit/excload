@@ -13,6 +13,7 @@ import StoreInitializer from "./components/StoreInitializer";
 import GlobalDragDropBlocker from "./components/GlobalDragDropBlocker";
 import GlobalPopupManager from "./components/GlobalPopupManager";
 import ClientConsoleSilencer from "./components/ClientConsoleSilencer";
+import SiteFooter from "./components/SiteFooter";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,29 +61,7 @@ export default function RootLayout({
             </div>
           </AuthProviders>
         </div>
-        <footer className="mt-auto shrink-0 border-t border-zinc-200 px-4 py-5 text-center text-[11px] leading-5 text-zinc-500 sm:py-6 sm:text-xs sm:leading-relaxed">
-          <p className="mx-auto max-w-5xl">
-            상호: 원클 (엑클로드 EXCLOAD) | 대표자: 최영순 | 사업자등록번호: 834-19-02117 | 주소: 인천시
-            미추홀구 낙섬중로129 상가4동 207호
-          </p>
-          <p className="mx-auto mt-0.5 max-w-5xl">
-            전화번호: 010-8347-5766 | 이메일: sacom5766@naver.com | 통신판매업 신고번호:
-            2026-인천미추홀-0416
-          </p>
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] sm:text-xs">
-            <a href="/terms" className="underline underline-offset-2 hover:text-zinc-700">
-              이용약관
-            </a>
-            <span className="text-zinc-400">|</span>
-            <a href="/privacy" className="underline underline-offset-2 hover:text-zinc-700">
-              개인정보처리방침
-            </a>
-            <span className="text-zinc-400">|</span>
-            <a href="/refund" className="underline underline-offset-2 hover:text-zinc-700">
-              환불정책
-            </a>
-          </div>
-        </footer>
+        <SiteFooter />
         <GlobalPopupManager />
       </body>
     </html>
