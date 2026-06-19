@@ -14,11 +14,12 @@ export default function SiteFooter() {
           환불정책
         </a>
         <span className="text-zinc-400">|</span>
-        <details className="inline">
+        <details className="contents">
           <summary className="inline cursor-pointer list-none underline underline-offset-2 hover:text-zinc-700">
             사업자정보
           </summary>
-          <div className="mx-auto mt-3 max-w-5xl space-y-0.5 text-zinc-500">
+          <div className="basis-full pt-2">
+            <div className="mx-auto max-w-5xl space-y-0.5 text-zinc-500">
             <p>
               상호: 원클 (엑클로드 EXCLOAD) | 대표자: 최영순 | 사업자등록번호: 834-19-02117 | 주소:
               인천시 미추홀구 낙섬중로129 상가4동 207호
@@ -27,6 +28,7 @@ export default function SiteFooter() {
               전화번호: 010-8347-5766 | 이메일: sacom5766@naver.com | 통신판매업 신고번호:
               2026-인천미추홀-0416
             </p>
+            </div>
           </div>
         </details>
       </div>

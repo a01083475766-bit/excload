@@ -11,6 +11,7 @@ type PostDetail = {
   isAdminViewer?: boolean;
   canDelete?: boolean;
   authorLabel: string;
+  authorEmail: string | null;
   featureLabel: string;
   resultLabel: string;
   content: string;
@@ -137,6 +138,11 @@ export default function FeedbackPostDetailPage() {
                     {post.isAdminViewer && (
                       <span className="rounded bg-amber-100 text-amber-900 px-2 py-0.5">
                         관리자 열람
+                      </span>
+                    )}
+                    {post.authorEmail && (
+                      <span className="rounded bg-slate-100 text-slate-700 px-2 py-0.5">
+                        작성자 이메일: {post.authorEmail}
                       </span>
                     )}
                   </>

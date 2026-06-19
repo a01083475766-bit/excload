@@ -20,6 +20,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
 const POST_SELECT = {
   id: true,
   userId: true,
+  user: { select: { email: true } },
   featureUsed: true,
   conversionResult: true,
   content: true,
@@ -34,6 +35,7 @@ const POST_SELECT = {
 type PostRow = {
   id: string;
   userId: string;
+  user: { email: string };
   featureUsed: string;
   conversionResult: string;
   content: string;
@@ -55,6 +57,7 @@ function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean)
     isAdminViewer: isAdmin && !isMine,
     canDelete: isAdmin,
     authorLabel: isMine ? '나' : maskFeedbackAuthor(post.userId),
+    authorEmail: isAdmin ? post.user.email : null,
     featureLabel: getFeedbackFeatureLabel(post.featureUsed),
     resultLabel: getFeedbackResultLabel(post.conversionResult),
     content: post.content,
