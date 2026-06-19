@@ -48,7 +48,6 @@ import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
 import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
 import { useHistoryStore } from '@/app/store/historyStore';
 import type { SourceType, FileMetadata, SenderInfo } from '@/app/store/historyStore';
-import PwaInstallButton from '@/app/components/PwaInstallButton';
 import {
   emptyInputSourceCounts,
   incrementInputSource,
@@ -4896,7 +4895,7 @@ export function LogisticsConvertClient({
             <div
               className={`flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-2 ${trialMode ? '' : 'sm:justify-between'}`}
             >
-              <div className="flex w-full shrink-0 flex-col justify-center gap-2 sm:h-[38px] sm:w-[410px] sm:flex-row sm:justify-start">
+              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
                 {trialMode ? (
                   <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
                 ) : (
@@ -4908,7 +4907,6 @@ export function LogisticsConvertClient({
                     즐겨찾는 쇼핑몰
                   </button>
                 )}
-                <PwaInstallButton />
               </div>
               {!trialMode ? null : (
                 <p
