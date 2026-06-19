@@ -137,10 +137,10 @@ export default function AkmanHeaderDictionaryPage() {
         </Link>
       </div>
 
-      <h1 style={{ marginBottom: 8, fontSize: 22, fontWeight: 700 }}>헤더 사전</h1>
+      <h1 style={{ marginBottom: 8, fontSize: 22, fontWeight: 700 }}>발견 헤더 통계</h1>
       <p style={{ marginBottom: 20, fontSize: 14, color: '#52525b' }}>
-        업로드 시 처음 발견된 헤더만 HeaderDictionary에 등록하고, 모든 업로드에서 사용 횟수를
-        집계합니다. TemplateHeaderLog(업로드별 로그)는 기존과 같이 유지됩니다.
+        업로드에서 발견된 원본 헤더를 기록하고 사용 횟수를 집계합니다. 실제 매핑에 쓰는 DB 별칭
+        사전과는 별도인 통계/참고용 화면입니다.
       </p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>

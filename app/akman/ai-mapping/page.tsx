@@ -229,7 +229,7 @@ export default function AkmanAiMappingPage() {
         </Link>
       </div>
 
-      <h1 style={{ marginBottom: '20px' }}>AI Header Mapping Log</h1>
+      <h1 style={{ marginBottom: '20px' }}>AI 매핑 로그 / DB 별칭 관리</h1>
 
       <p style={{ color: '#666', marginBottom: '30px' }}>
         총 {logs.length}개의 매핑 로그
@@ -237,7 +237,7 @@ export default function AkmanAiMappingPage() {
 
       {/* 별칭 조회 섹션 */}
       <div style={{ marginBottom: '40px', padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
-        <h2 style={{ marginBottom: '15px', fontSize: '18px' }}>📋 DB Alias Dictionary 확인</h2>
+        <h2 style={{ marginBottom: '15px', fontSize: '18px' }}>DB 별칭 사전</h2>
         <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input
             type="text"
