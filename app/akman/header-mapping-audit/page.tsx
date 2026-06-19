@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type AuditEntry = {
@@ -117,6 +117,29 @@ const tdStyle: React.CSSProperties = {
   verticalAlign: 'top',
 };
 
+const excelThStyle: React.CSSProperties = {
+  padding: '6px 10px',
+  border: '1px solid #d4d4d8',
+  textAlign: 'left',
+  whiteSpace: 'nowrap',
+  background: '#f8fafc',
+  fontWeight: 700,
+};
+
+const excelTdStyle: React.CSSProperties = {
+  padding: '5px 10px',
+  border: '1px solid #e4e4e7',
+  verticalAlign: 'middle',
+  whiteSpace: 'nowrap',
+};
+
+const clippedExcelTdStyle: React.CSSProperties = {
+  ...excelTdStyle,
+  maxWidth: 260,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
+
 function formatDate(iso: string) {
   try {
     return new Date(iso).toLocaleString('ko-KR');
@@ -218,6 +241,7 @@ export default function HeaderMappingAuditPage() {
   const [updatingEntryId, setUpdatingEntryId] = useState<string | null>(null);
   const [savingBaseHeaderEntryId, setSavingBaseHeaderEntryId] = useState<string | null>(null);
   const [aliasAddingEntryId, setAliasAddingEntryId] = useState<string | null>(null);
+  const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
   const [aliasStates, setAliasStates] = useState<Record<string, AliasLocalState>>({});
   const [baseHeaders, setBaseHeaders] = useState<string[]>([]);
   const [selectedBaseHeaders, setSelectedBaseHeaders] = useState<Record<string, string>>({});
@@ -317,6 +341,47 @@ export default function HeaderMappingAuditPage() {
     setBaseHeader('');
     setSource('');
     setPage(1);
+  };
+
+  const deleteAuditLog = async (log: AuditLog) => {
+    const ok = confirm(
+      '이 헤더 매핑 검토 로그 묶음을 삭제하시겠습니까?\n삭제하면 이 묶음 안의 상세 헤더 기록도 함께 삭제됩니다.',
+    );
+    if (!ok) return;
+
+    setActionError('');
+    setDeletingLogId(log.id);
+    try {
+      const response = await fetch('/api/akman/header-mapping-audit', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: log.id }),
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        router.push('/');
+        return;
+      }
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || '헤더 매핑 검토 로그 삭제에 실패했습니다.');
+      }
+
+      setLogs((prev) => prev.filter((item) => item.id !== log.id));
+      setPagination((prev) => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1),
+        totalPages: Math.max(0, Math.ceil(Math.max(0, prev.total - 1) / prev.pageSize)),
+      }));
+      if (expandedLogId === log.id) {
+        setExpandedLogId(null);
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '헤더 매핑 검토 로그 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingLogId(null);
+    }
   };
 
   const updateEntryAdminStatus = async (
@@ -599,226 +664,115 @@ export default function HeaderMappingAuditPage() {
                 <th style={thStyle}>검토 필요</th>
                 <th style={thStyle}>마스킹 샘플</th>
                 <th style={thStyle}>상세</th>
+                <th style={thStyle}>삭제</th>
               </tr>
             </thead>
             <tbody>
               {logs.map((log) => {
                 const expanded = expandedLogId === log.id;
                 return (
-                  <tr key={log.id}>
-                    <td style={tdStyle}>{formatDate(log.createdAt)}</td>
-                    <td style={tdStyle}>{labelFor(SOURCE_LABELS, log.source, '—')}</td>
-                    <td style={tdStyle}>{log.totalHeaders}</td>
-                    <td style={tdStyle}>{log.autoMatchedCount}</td>
-                    <td style={tdStyle}>{log.unmappedCount}</td>
-                    <td style={tdStyle}>{log.lowConfidenceCount}</td>
-                    <td style={tdStyle}>{log.needsReviewCount}</td>
-                    <td style={tdStyle}>{log.entriesWithMaskedSamplesCount}</td>
-                    <td style={tdStyle}>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedLogId(expanded ? null : log.id)}
-                        style={{ padding: '4px 8px', border: '1px solid #d4d4d8', borderRadius: 6, background: '#fff', cursor: 'pointer' }}
-                      >
-                        {expanded ? '접기' : '펼치기'}
-                      </button>
-                      {expanded && (
-                        <div style={{ marginTop: 12, minWidth: 760 }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, background: '#fff' }}>
-                            <thead>
-                              <tr style={{ background: '#fafafa' }}>
-                                <th style={thStyle}>원본 헤더</th>
-                                <th style={thStyle}>기준헤더</th>
-                                <th style={thStyle}>매핑 상태</th>
-                                <th style={thStyle}>매핑 방식</th>
-                                <th style={thStyle}>샘플 값 종류</th>
-                                <th style={thStyle}>마스킹 샘플</th>
-                                <th style={thStyle}>샘플 수</th>
-                                <th style={thStyle}>관리자 검토 상태</th>
-                                <th style={thStyle}>DB 별칭</th>
-                                <th style={thStyle}>검토 액션</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {log.entries.length === 0 ? (
+                  <Fragment key={log.id}>
+                    <tr>
+                      <td style={tdStyle}>{formatDate(log.createdAt)}</td>
+                      <td style={tdStyle}>{labelFor(SOURCE_LABELS, log.source, '—')}</td>
+                      <td style={tdStyle}>{log.totalHeaders}</td>
+                      <td style={tdStyle}>{log.autoMatchedCount}</td>
+                      <td style={tdStyle}>{log.unmappedCount}</td>
+                      <td style={tdStyle}>{log.lowConfidenceCount}</td>
+                      <td style={tdStyle}>{log.needsReviewCount}</td>
+                      <td style={tdStyle}>{log.entriesWithMaskedSamplesCount}</td>
+                      <td style={tdStyle}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedLogId(expanded ? null : log.id)}
+                          style={{ padding: '4px 8px', border: '1px solid #d4d4d8', borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+                        >
+                          {expanded ? '접기' : '펼치기'}
+                        </button>
+                      </td>
+                      <td style={tdStyle}>
+                        <button
+                          type="button"
+                          disabled={deletingLogId === log.id}
+                          onClick={() => deleteAuditLog(log)}
+                          style={{
+                            padding: '4px 8px',
+                            border: '1px solid #fecaca',
+                            borderRadius: 6,
+                            background: deletingLogId === log.id ? '#fef2f2' : '#fff',
+                            color: '#991b1b',
+                            cursor: deletingLogId === log.id ? 'not-allowed' : 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {deletingLogId === log.id ? '삭제 중' : '삭제'}
+                        </button>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr>
+                        <td colSpan={10} style={{ padding: 0, borderBottom: '1px solid #e4e4e7', background: '#fff' }}>
+                          <div style={{ overflowX: 'auto', padding: 12 }}>
+                            <table style={{ minWidth: 1320, borderCollapse: 'collapse', fontSize: 12, background: '#fff' }}>
+                              <thead>
                                 <tr>
-                                  <td style={tdStyle} colSpan={10}>표시할 엔트리가 없습니다.</td>
+                                  <th style={excelThStyle}>원본 헤더</th>
+                                  <th style={excelThStyle}>시스템 기준헤더</th>
+                                  <th style={excelThStyle}>적용 기준헤더</th>
+                                  <th style={excelThStyle}>매핑 상태</th>
+                                  <th style={excelThStyle}>매핑 방식</th>
+                                  <th style={excelThStyle}>샘플 값 종류</th>
+                                  <th style={excelThStyle}>마스킹 샘플</th>
+                                  <th style={excelThStyle}>샘플 수</th>
+                                  <th style={excelThStyle}>관리자 검토 상태</th>
+                                  <th style={excelThStyle}>DB 별칭</th>
                                 </tr>
-                              ) : (
-                                log.entries.map((entry) => (
-                                  <tr key={entry.id}>
-                                    <td style={{ ...tdStyle, wordBreak: 'break-all' }}>{entry.originalHeader}</td>
-                                    <td style={{ ...tdStyle, minWidth: 260 }}>
-                                      <div style={{ display: 'grid', gap: 6 }}>
-                                        <div style={{ color: '#71717a', fontSize: 11 }}>
-                                          시스템 기준헤더: {entry.baseHeader ?? '(미매핑)'}
-                                        </div>
-                                        <div>
-                                          <span
-                                            style={{
-                                              display: 'inline-block',
-                                              padding: '2px 8px',
-                                              borderRadius: 999,
-                                              background: '#eef2ff',
-                                              color: '#3730a3',
-                                              fontSize: 12,
-                                              fontWeight: 700,
-                                              whiteSpace: 'nowrap',
-                                            }}
-                                          >
-                                            적용 기준헤더: {entry.effectiveBaseHeader ?? '(없음)'}
-                                          </span>
-                                          {entry.adminSelectedBaseHeader && (
-                                            <span
-                                              style={{
-                                                display: 'inline-block',
-                                                marginLeft: 6,
-                                                padding: '2px 8px',
-                                                borderRadius: 999,
-                                                background: '#ecfdf5',
-                                                color: '#047857',
-                                                fontSize: 12,
-                                                fontWeight: 700,
-                                                whiteSpace: 'nowrap',
-                                              }}
-                                            >
-                                              관리자 선택
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                                          <select
-                                            value={getSelectedBaseHeaderValue(entry)}
-                                            onChange={(event) =>
-                                              setSelectedBaseHeaders((prev) => ({
-                                                ...prev,
-                                                [entry.id]: event.target.value,
-                                              }))
-                                            }
-                                            style={{ minWidth: 150, padding: '4px 6px' }}
-                                          >
-                                            <option value="">기준헤더 선택</option>
-                                            {baseHeaders.map((header) => (
-                                              <option key={header} value={header}>
-                                                {header}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <button
-                                            type="button"
-                                            disabled={savingBaseHeaderEntryId === entry.id || baseHeaders.length === 0}
-                                            onClick={() => saveSelectedBaseHeader(entry)}
-                                            style={{
-                                              padding: '4px 8px',
-                                              border: '1px solid #2563eb',
-                                              borderRadius: 6,
-                                              background:
-                                                savingBaseHeaderEntryId === entry.id || baseHeaders.length === 0
-                                                  ? '#eff6ff'
-                                                  : '#fff',
-                                              color: '#1d4ed8',
-                                              cursor:
-                                                savingBaseHeaderEntryId === entry.id || baseHeaders.length === 0
-                                                  ? 'not-allowed'
-                                                  : 'pointer',
-                                              fontSize: 12,
-                                              fontWeight: 700,
-                                              whiteSpace: 'nowrap',
-                                            }}
-                                          >
-                                            {savingBaseHeaderEntryId === entry.id ? '저장 중' : '선택 저장'}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td style={tdStyle}>{labelFor(STATUS_LABELS, entry.status, '—')}</td>
-                                    <td style={tdStyle}>{labelFor(METHOD_LABELS, entry.method, '—')}</td>
-                                    <td style={tdStyle}>{labelFor(SAMPLE_VALUE_TYPE_LABELS, entry.sampleValueType, '—')}</td>
-                                    <td style={{ ...tdStyle, wordBreak: 'break-all' }}>
-                                      {asMaskedSamples(entry.maskedSamples).length > 0
-                                        ? asMaskedSamples(entry.maskedSamples).join(', ')
-                                        : '—'}
-                                    </td>
-                                    <td style={tdStyle}>{entry.sampleCount}</td>
-                                    <td style={tdStyle}>
-                                      <span style={adminStatusStyle(entry.adminStatus)}>
-                                        {labelFor(ADMIN_STATUS_LABELS, entry.adminStatus || 'PENDING', '대기')}
-                                      </span>
-                                    </td>
-                                    <td style={tdStyle}>
-                                      {aliasStates[entry.id] ? (
-                                        <span style={aliasStateStyle(aliasStates[entry.id].status)}>
-                                          {aliasStates[entry.id].message}
-                                        </span>
-                                      ) : canAddDbAlias(entry) ? (
-                                        <button
-                                          type="button"
-                                          disabled={aliasAddingEntryId === entry.id}
-                                          onClick={() => addDbAlias(entry)}
-                                          style={{
-                                            padding: '4px 8px',
-                                            border: '1px solid #2563eb',
-                                            borderRadius: 6,
-                                            background: aliasAddingEntryId === entry.id ? '#eff6ff' : '#fff',
-                                            color: '#1d4ed8',
-                                            cursor: aliasAddingEntryId === entry.id ? 'not-allowed' : 'pointer',
-                                            fontSize: 12,
-                                            fontWeight: 700,
-                                            whiteSpace: 'nowrap',
-                                          }}
-                                        >
-                                          {aliasAddingEntryId === entry.id ? '추가 중' : 'DB 별칭 추가'}
-                                        </button>
-                                      ) : (
-                                        <span style={apiAliasStatusStyle(entry.aliasStatus)}>
-                                          {apiAliasStatusLabel(entry)}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td style={tdStyle}>
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                        {[
-                                          ['CONFIRMED', '확인'],
-                                          ['IGNORED', '무시'],
-                                          ['HOLD', '보류'],
-                                        ].map(([nextStatus, label]) => {
-                                          const disabled = updatingEntryId === entry.id;
-                                          return (
-                                            <button
-                                              key={nextStatus}
-                                              type="button"
-                                              disabled={disabled}
-                                              onClick={() =>
-                                                updateEntryAdminStatus(
-                                                  entry.id,
-                                                  nextStatus as 'CONFIRMED' | 'IGNORED' | 'HOLD',
-                                                )
-                                              }
-                                              style={{
-                                                padding: '4px 8px',
-                                                border: '1px solid #d4d4d8',
-                                                borderRadius: 6,
-                                                background: disabled ? '#f4f4f5' : '#fff',
-                                                color: '#111827',
-                                                cursor: disabled ? 'not-allowed' : 'pointer',
-                                                fontSize: 12,
-                                              }}
-                                            >
-                                              {disabled ? '처리 중' : label}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    </td>
+                              </thead>
+                              <tbody>
+                                {log.entries.length === 0 ? (
+                                  <tr>
+                                    <td style={excelTdStyle} colSpan={10}>표시할 엔트리가 없습니다.</td>
                                   </tr>
-                                ))
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+                                ) : (
+                                  log.entries.map((entry) => {
+                                    const maskedSamples = asMaskedSamples(entry.maskedSamples).join(', ');
+                                    return (
+                                      <tr key={entry.id}>
+                                        <td style={clippedExcelTdStyle} title={entry.originalHeader}>{entry.originalHeader}</td>
+                                        <td style={clippedExcelTdStyle} title={entry.baseHeader ?? '(미매핑)'}>
+                                          {entry.baseHeader ?? '(미매핑)'}
+                                        </td>
+                                        <td style={clippedExcelTdStyle} title={entry.effectiveBaseHeader ?? '(없음)'}>
+                                          {entry.effectiveBaseHeader ?? '(없음)'}
+                                        </td>
+                                        <td style={excelTdStyle}>{labelFor(STATUS_LABELS, entry.status, '—')}</td>
+                                        <td style={excelTdStyle}>{labelFor(METHOD_LABELS, entry.method, '—')}</td>
+                                        <td style={excelTdStyle}>{labelFor(SAMPLE_VALUE_TYPE_LABELS, entry.sampleValueType, '—')}</td>
+                                        <td style={clippedExcelTdStyle} title={maskedSamples || '—'}>
+                                          {maskedSamples || '—'}
+                                        </td>
+                                        <td style={excelTdStyle}>{entry.sampleCount}</td>
+                                        <td style={excelTdStyle}>
+                                          <span style={adminStatusStyle(entry.adminStatus)}>
+                                            {labelFor(ADMIN_STATUS_LABELS, entry.adminStatus || 'PENDING', '대기')}
+                                          </span>
+                                        </td>
+                                        <td style={excelTdStyle}>
+                                          <span style={apiAliasStatusStyle(entry.aliasStatus)}>
+                                            {apiAliasStatusLabel(entry)}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

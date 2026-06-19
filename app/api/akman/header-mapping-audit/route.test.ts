@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   isAdminEmail: vi.fn(),
   count: vi.fn(),
   findMany: vi.fn(),
+  deleteLog: vi.fn(),
   findHeaderAliases: vi.fn(),
 }));
 
@@ -25,6 +26,7 @@ vi.mock('@/app/lib/prisma', () => ({
     headerMappingAuditLog: {
       count: mocks.count,
       findMany: mocks.findMany,
+      delete: mocks.deleteLog,
     },
     headerAlias: {
       findMany: mocks.findHeaderAliases,
@@ -32,7 +34,7 @@ vi.mock('@/app/lib/prisma', () => ({
   },
 }));
 
-import { GET } from './route';
+import { DELETE, GET } from './route';
 
 const activeLog = {
   id: 'log-1',
@@ -187,6 +189,7 @@ describe('GET /api/akman/header-mapping-audit', () => {
     mocks.isAdminEmail.mockReturnValue(true);
     mocks.count.mockResolvedValue(1);
     mocks.findMany.mockResolvedValue([activeLog]);
+    mocks.deleteLog.mockResolvedValue(activeLog);
     mocks.findHeaderAliases.mockResolvedValue([]);
   });
 
@@ -376,5 +379,54 @@ describe('GET /api/akman/header-mapping-audit', () => {
         }),
       }),
     );
+  });
+});
+
+describe('DELETE /api/akman/header-mapping-audit', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getServerSession.mockResolvedValue({ user: { email: 'admin@example.com' } });
+    mocks.isAdminEmail.mockReturnValue(true);
+    mocks.deleteLog.mockResolvedValue(activeLog);
+  });
+
+  it('관리자가 아니면 삭제할 수 없다', async () => {
+    mocks.isAdminEmail.mockReturnValue(false);
+
+    const res = await DELETE(
+      new Request('http://localhost/api/akman/header-mapping-audit', {
+        method: 'DELETE',
+        body: JSON.stringify({ id: 'log-1' }),
+      }) as never,
+    );
+
+    expect(res.status).toBe(403);
+    expect(mocks.deleteLog).not.toHaveBeenCalled();
+  });
+
+  it('로그 묶음을 삭제한다', async () => {
+    const res = await DELETE(
+      new Request('http://localhost/api/akman/header-mapping-audit', {
+        method: 'DELETE',
+        body: JSON.stringify({ id: 'log-1' }),
+      }) as never,
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(mocks.deleteLog).toHaveBeenCalledWith({ where: { id: 'log-1' } });
+  });
+
+  it('삭제할 로그 ID가 없으면 400을 반환한다', async () => {
+    const res = await DELETE(
+      new Request('http://localhost/api/akman/header-mapping-audit', {
+        method: 'DELETE',
+        body: JSON.stringify({ id: '' }),
+      }) as never,
+    );
+
+    expect(res.status).toBe(400);
+    expect(mocks.deleteLog).not.toHaveBeenCalled();
   });
 });

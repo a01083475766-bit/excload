@@ -283,3 +283,35 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+      return NextResponse.json({ error: '관리자 권한 필요' }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const id = typeof body?.id === 'string' ? body.id.trim() : '';
+    if (!id) {
+      return NextResponse.json({ error: '삭제할 헤더 매핑 감사 로그 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    await prisma.headerMappingAuditLog.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
+    if (code === 'P2025') {
+      return NextResponse.json({ error: '삭제할 헤더 매핑 감사 로그를 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    console.error('[akman/header-mapping-audit] DELETE error:', error);
+    return NextResponse.json(
+      { error: '헤더 매핑 감사 로그 삭제 중 오류가 발생했습니다.' },
+      { status: 500 },
+    );
+  }
+}
