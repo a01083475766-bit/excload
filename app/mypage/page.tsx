@@ -92,6 +92,7 @@ export default function MyPage() {
     cardCompany: null,
     cardNumberMask: null,
   });
+  const [isDeletingCard, setIsDeletingCard] = useState(false);
   const [paymentFailure, setPaymentFailure] = useState<PaymentFailureState>({
     isPastDue: false,
     gracePeriodUntilLabel: null,
@@ -544,6 +545,47 @@ export default function MyPage() {
       alert('구독 상태 변경 중 오류가 발생했습니다.');
     } finally {
       setIsUpdatingSubscription(false);
+    }
+  };
+
+  const handleDeleteCard = async () => {
+    if (!tossCardState.hasBillingKey || isDeletingCard) return;
+
+    if (hasPaidPlan) {
+      alert(
+        '현재 유료 플랜 이용 중입니다.\n\n카드를 삭제해도 구독이 취소되는 것은 아니므로, 무료로 전환하려면 먼저 「정기결제 해지 예약」을 진행해 주세요.'
+      );
+      return;
+    }
+
+    const ok = window.confirm(
+      '등록된 결제카드를 삭제하시겠습니까?\n\n무료 플랜에서는 카드 삭제 후 자동결제가 진행되지 않습니다. 다시 구독하려면 카드를 새로 등록해야 합니다.'
+    );
+    if (!ok) return;
+
+    try {
+      setIsDeletingCard(true);
+      const response = await fetch('/api/toss/card', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(data?.error || '결제카드 삭제에 실패했습니다.');
+        return;
+      }
+      setTossCardState({
+        hasBillingKey: false,
+        cardSummary: null,
+        cardCompany: null,
+        cardNumberMask: null,
+      });
+      alert('등록된 결제카드가 삭제되었습니다.');
+    } catch (error) {
+      console.error('[MyPage] 결제카드 삭제 실패:', error);
+      alert('결제카드 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeletingCard(false);
     }
   };
 
@@ -1288,14 +1330,31 @@ export default function MyPage() {
                           </div>
                         </div>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/subscribe?plan=${subscribePlanParam}`)}
-                        disabled={!accountReady}
-                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        {tossCardState.hasBillingKey ? '카드 변경' : '카드 등록'}
-                      </button>
+                      <div className="flex flex-col items-start gap-2 sm:items-end">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/subscribe?plan=${subscribePlanParam}`)}
+                          disabled={!accountReady}
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+                        >
+                          {tossCardState.hasBillingKey ? '카드 변경' : '카드 등록'}
+                        </button>
+                        {tossCardState.hasBillingKey && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleDeleteCard}
+                              disabled={!accountReady || isDeletingCard}
+                              className="text-sm text-rose-600 dark:text-rose-400 hover:underline disabled:opacity-50"
+                            >
+                              {isDeletingCard ? '카드 삭제 중...' : '카드 삭제'}
+                            </button>
+                            <p className="max-w-[260px] text-left text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-right">
+                              유료 플랜 이용 중에는 먼저 정기결제 해지 예약을 진행해 주세요.
+                            </p>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
