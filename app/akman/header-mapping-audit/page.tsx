@@ -60,6 +60,50 @@ const METHOD_OPTIONS = ['', 'BASE_HEADER', 'DB_ALIAS', 'STATIC_ALIAS', 'AI', 'RE
 const TYPE_OPTIONS = ['', 'DATE', 'MONEY', 'PHONE', 'ADDRESS', 'NAME', 'MESSAGE', 'CODE', 'STATUS', 'TEXT', 'EMPTY'];
 const ADMIN_STATUS_OPTIONS = ['', 'PENDING', 'CONFIRMED', 'CHANGED', 'IGNORED', 'HOLD'];
 
+const STATUS_LABELS: Record<string, string> = {
+  AUTO_MATCHED: '자동 매핑',
+  LOW_CONFIDENCE: '낮은 신뢰도',
+  UNMAPPED: '미매핑',
+  NEEDS_REVIEW: '검토 필요',
+  CONFIRMED: '확인됨',
+  IGNORED: '무시됨',
+};
+
+const METHOD_LABELS: Record<string, string> = {
+  BASE_HEADER: '기준헤더',
+  DB_ALIAS: 'DB 별칭',
+  STATIC_ALIAS: '고정 별칭',
+  AI: 'AI 매핑',
+  REFINED: '정제됨',
+  UNMAPPED: '미매핑',
+};
+
+const SAMPLE_VALUE_TYPE_LABELS: Record<string, string> = {
+  DATE: '날짜',
+  MONEY: '금액',
+  PHONE: '전화번호',
+  ADDRESS: '주소',
+  NAME: '이름',
+  MESSAGE: '메시지',
+  CODE: '코드',
+  STATUS: '상태',
+  TEXT: '텍스트',
+  EMPTY: '빈 값',
+};
+
+const ADMIN_STATUS_LABELS: Record<string, string> = {
+  PENDING: '대기',
+  CONFIRMED: '확인',
+  CHANGED: '변경됨',
+  IGNORED: '무시',
+  HOLD: '보류',
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  excel: '엑셀',
+  text: '텍스트',
+};
+
 const thStyle: React.CSSProperties = {
   padding: 8,
   borderBottom: '1px solid #e4e4e7',
@@ -87,6 +131,11 @@ function asMaskedSamples(value: unknown): string[] {
     .map((item) => String(item ?? '').trim())
     .filter(Boolean)
     .slice(0, 5);
+}
+
+function labelFor(labels: Record<string, string>, value: string | null | undefined, emptyLabel = '전체') {
+  if (!value) return emptyLabel;
+  return labels[value] ?? value;
 }
 
 function adminStatusStyle(status: string): React.CSSProperties {
@@ -468,43 +517,43 @@ export default function HeaderMappingAuditPage() {
         }}
       >
         <label style={{ fontSize: 13 }}>
-          status
+          매핑 상태
           <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}>
-            {STATUS_OPTIONS.map((option) => <option key={option || 'all'} value={option}>{option || '전체'}</option>)}
+            {STATUS_OPTIONS.map((option) => <option key={option || 'all'} value={option}>{labelFor(STATUS_LABELS, option)}</option>)}
           </select>
         </label>
         <label style={{ fontSize: 13 }}>
-          method
+          매핑 방식
           <select value={method} onChange={(e) => { setMethod(e.target.value); setPage(1); }} style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}>
-            {METHOD_OPTIONS.map((option) => <option key={option || 'all'} value={option}>{option || '전체'}</option>)}
+            {METHOD_OPTIONS.map((option) => <option key={option || 'all'} value={option}>{labelFor(METHOD_LABELS, option)}</option>)}
           </select>
         </label>
         <label style={{ fontSize: 13 }}>
-          sampleValueType
+          샘플 값 종류
           <select value={sampleValueType} onChange={(e) => { setSampleValueType(e.target.value); setPage(1); }} style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}>
-            {TYPE_OPTIONS.map((option) => <option key={option || 'all'} value={option}>{option || '전체'}</option>)}
+            {TYPE_OPTIONS.map((option) => <option key={option || 'all'} value={option}>{labelFor(SAMPLE_VALUE_TYPE_LABELS, option)}</option>)}
           </select>
         </label>
         <label style={{ fontSize: 13 }}>
-          adminStatus
+          관리자 검토 상태
           <select value={adminStatus} onChange={(e) => { setAdminStatus(e.target.value); setPage(1); }} style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}>
-            {ADMIN_STATUS_OPTIONS.map((option) => <option key={option || 'all'} value={option}>{option || '전체'}</option>)}
+            {ADMIN_STATUS_OPTIONS.map((option) => <option key={option || 'all'} value={option}>{labelFor(ADMIN_STATUS_LABELS, option)}</option>)}
           </select>
         </label>
         <label style={{ fontSize: 13 }}>
-          originalHeader
+          원본 헤더
           <input value={originalHeader} onChange={(e) => { setOriginalHeader(e.target.value); setPage(1); }} placeholder="원본 헤더 검색" style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }} />
         </label>
         <label style={{ fontSize: 13 }}>
-          baseHeader
+          기준헤더
           <input value={baseHeader} onChange={(e) => { setBaseHeader(e.target.value); setPage(1); }} placeholder="기준헤더 검색" style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }} />
         </label>
         <label style={{ fontSize: 13 }}>
-          source
-          <input value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} placeholder="excel 등" style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }} />
+          출처
+          <input value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }} placeholder="엑셀 등" style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }} />
         </label>
         <label style={{ fontSize: 13 }}>
-          pageSize
+          한 페이지 표시 수
           <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}>
             {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
           </select>
@@ -542,13 +591,13 @@ export default function HeaderMappingAuditPage() {
             <thead>
               <tr style={{ background: '#eff6ff' }}>
                 <th style={thStyle}>생성일</th>
-                <th style={thStyle}>source</th>
-                <th style={thStyle}>totalHeaders</th>
-                <th style={thStyle}>autoMatched</th>
-                <th style={thStyle}>unmapped</th>
-                <th style={thStyle}>lowConfidence</th>
-                <th style={thStyle}>needsReview</th>
-                <th style={thStyle}>maskedSamples</th>
+                <th style={thStyle}>출처</th>
+                <th style={thStyle}>전체 헤더 수</th>
+                <th style={thStyle}>자동 매핑</th>
+                <th style={thStyle}>미매핑</th>
+                <th style={thStyle}>낮은 신뢰도</th>
+                <th style={thStyle}>검토 필요</th>
+                <th style={thStyle}>마스킹 샘플</th>
                 <th style={thStyle}>상세</th>
               </tr>
             </thead>
@@ -558,7 +607,7 @@ export default function HeaderMappingAuditPage() {
                 return (
                   <tr key={log.id}>
                     <td style={tdStyle}>{formatDate(log.createdAt)}</td>
-                    <td style={tdStyle}>{log.source ?? '—'}</td>
+                    <td style={tdStyle}>{labelFor(SOURCE_LABELS, log.source, '—')}</td>
                     <td style={tdStyle}>{log.totalHeaders}</td>
                     <td style={tdStyle}>{log.autoMatchedCount}</td>
                     <td style={tdStyle}>{log.unmappedCount}</td>
@@ -578,14 +627,14 @@ export default function HeaderMappingAuditPage() {
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, background: '#fff' }}>
                             <thead>
                               <tr style={{ background: '#fafafa' }}>
-                                <th style={thStyle}>originalHeader</th>
+                                <th style={thStyle}>원본 헤더</th>
                                 <th style={thStyle}>기준헤더</th>
-                                <th style={thStyle}>status</th>
-                                <th style={thStyle}>method</th>
-                                <th style={thStyle}>sampleValueType</th>
-                                <th style={thStyle}>maskedSamples</th>
-                                <th style={thStyle}>sampleCount</th>
-                                <th style={thStyle}>adminStatus</th>
+                                <th style={thStyle}>매핑 상태</th>
+                                <th style={thStyle}>매핑 방식</th>
+                                <th style={thStyle}>샘플 값 종류</th>
+                                <th style={thStyle}>마스킹 샘플</th>
+                                <th style={thStyle}>샘플 수</th>
+                                <th style={thStyle}>관리자 검토 상태</th>
                                 <th style={thStyle}>DB 별칭</th>
                                 <th style={thStyle}>검토 액션</th>
                               </tr>
@@ -682,9 +731,9 @@ export default function HeaderMappingAuditPage() {
                                         </div>
                                       </div>
                                     </td>
-                                    <td style={tdStyle}>{entry.status}</td>
-                                    <td style={tdStyle}>{entry.method}</td>
-                                    <td style={tdStyle}>{entry.sampleValueType}</td>
+                                    <td style={tdStyle}>{labelFor(STATUS_LABELS, entry.status, '—')}</td>
+                                    <td style={tdStyle}>{labelFor(METHOD_LABELS, entry.method, '—')}</td>
+                                    <td style={tdStyle}>{labelFor(SAMPLE_VALUE_TYPE_LABELS, entry.sampleValueType, '—')}</td>
                                     <td style={{ ...tdStyle, wordBreak: 'break-all' }}>
                                       {asMaskedSamples(entry.maskedSamples).length > 0
                                         ? asMaskedSamples(entry.maskedSamples).join(', ')
@@ -693,7 +742,7 @@ export default function HeaderMappingAuditPage() {
                                     <td style={tdStyle}>{entry.sampleCount}</td>
                                     <td style={tdStyle}>
                                       <span style={adminStatusStyle(entry.adminStatus)}>
-                                        {entry.adminStatus || 'PENDING'}
+                                        {labelFor(ADMIN_STATUS_LABELS, entry.adminStatus || 'PENDING', '대기')}
                                       </span>
                                     </td>
                                     <td style={tdStyle}>
