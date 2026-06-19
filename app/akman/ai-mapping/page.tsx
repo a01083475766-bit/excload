@@ -40,6 +40,7 @@ export default function AkmanAiMappingPage() {
   const [aliases, setAliases] = useState<HeaderAlias[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchAlias, setSearchAlias] = useState('');
+  const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
 
   // AI 매핑 로그 조회
   const fetchLogs = async () => {
@@ -48,6 +49,7 @@ export default function AkmanAiMappingPage() {
       if (response.ok) {
         const data = await response.json();
         setLogs(data || []);
+        setSelectedLogIds((prev) => prev.filter((id) => (data || []).some((log: AiHeaderMappingLog) => log.id === id)));
       } else if (response.status === 401 || response.status === 403) {
         router.push('/');
       }
@@ -139,10 +141,61 @@ export default function AkmanAiMappingPage() {
 
       // 성공 시 로그 목록 새로고침
       fetchLogs();
+      setSelectedLogIds((prev) => prev.filter((id) => id !== logId));
     } catch (error: any) {
       console.error('[Akman AI Mapping Page] 로그 삭제 실패:', error);
       alert(`❌ 로그 삭제 실패: ${error.message || '알 수 없는 오류'}`);
     }
+  };
+
+  // 선택 로그 삭제 핸들러
+  const handleDeleteSelectedLogs = async () => {
+    if (selectedLogIds.length === 0) {
+      alert('삭제할 로그를 선택해 주세요.');
+      return;
+    }
+
+    if (!confirm(`선택한 ${selectedLogIds.length}개의 로그를 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/akman/ai-mapping', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: selectedLogIds }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '선택 로그 삭제 실패');
+      }
+
+      setSelectedLogIds([]);
+      fetchLogs();
+    } catch (error: any) {
+      console.error('[Akman AI Mapping Page] 선택 로그 삭제 실패:', error);
+      alert(`❌ 선택 로그 삭제 실패: ${error.message || '알 수 없는 오류'}`);
+    }
+  };
+
+  const toggleLogSelection = (logId: string) => {
+    setSelectedLogIds((prev) =>
+      prev.includes(logId) ? prev.filter((id) => id !== logId) : [...prev, logId],
+    );
+  };
+
+  const allVisibleSelected = logs.length > 0 && logs.every((log) => selectedLogIds.includes(log.id));
+
+  const toggleAllVisibleLogs = () => {
+    if (allVisibleSelected) {
+      setSelectedLogIds((prev) => prev.filter((id) => !logs.some((log) => log.id === id)));
+      return;
+    }
+
+    setSelectedLogIds((prev) => [...new Set([...prev, ...logs.map((log) => log.id)])]);
   };
 
   // 별칭이 이미 추가되었는지 확인하는 함수
@@ -275,6 +328,28 @@ export default function AkmanAiMappingPage() {
         )}
       </div>
 
+      <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <button
+          type="button"
+          onClick={handleDeleteSelectedLogs}
+          disabled={selectedLogIds.length === 0}
+          style={{
+            padding: '8px 12px',
+            fontSize: '13px',
+            backgroundColor: selectedLogIds.length === 0 ? '#e9ecef' : '#dc3545',
+            color: selectedLogIds.length === 0 ? '#6c757d' : 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: selectedLogIds.length === 0 ? 'not-allowed' : 'pointer',
+          }}
+        >
+          선택 삭제
+        </button>
+        <span style={{ fontSize: '13px', color: '#666' }}>
+          선택 {selectedLogIds.length}개
+        </span>
+      </div>
+
       <table
         style={{
           marginTop: '20px',
@@ -285,6 +360,14 @@ export default function AkmanAiMappingPage() {
       >
         <thead>
           <tr style={{ backgroundColor: '#f5f5f5' }}>
+            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'center', width: '44px' }}>
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleAllVisibleLogs}
+                aria-label="현재 목록 전체 선택"
+              />
+            </th>
             <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
               원본 헤더
             </th>
@@ -310,7 +393,7 @@ export default function AkmanAiMappingPage() {
           {logs.length === 0 ? (
             <tr>
               <td
-                colSpan={6}
+                colSpan={7}
                 style={{
                   border: '1px solid #ccc',
                   padding: '20px',
@@ -324,6 +407,14 @@ export default function AkmanAiMappingPage() {
           ) : (
             logs.map((log) => (
               <tr key={log.id}>
+                <td style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedLogIds.includes(log.id)}
+                    onChange={() => toggleLogSelection(log.id)}
+                    aria-label={`${log.originalHeader} 선택`}
+                  />
+                </td>
                 <td style={{ border: '1px solid #ccc', padding: '12px' }}>
                   {log.originalHeader}
                 </td>

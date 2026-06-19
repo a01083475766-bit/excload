@@ -55,7 +55,23 @@ export async function DELETE(request: Request) {
     }
 
     const body = await request.json()
-    const { id } = body
+    const { id, ids } = body
+
+    const uniqueIds = Array.isArray(ids)
+      ? [...new Set(ids.filter((item): item is string => typeof item === 'string' && item.trim().length > 0))]
+      : []
+
+    if (uniqueIds.length > 0) {
+      const result = await prisma.aiHeaderMappingLog.deleteMany({
+        where: { id: { in: uniqueIds } },
+      })
+
+      return NextResponse.json({
+        success: true,
+        deletedCount: result.count,
+        message: `${result.count}개의 로그가 삭제되었습니다.`,
+      })
+    }
 
     if (!id) {
       return NextResponse.json(
