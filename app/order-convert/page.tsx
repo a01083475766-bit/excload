@@ -1816,25 +1816,9 @@ export default function OrderConvertPage() {
             setFileProcessingStatus("idle");
           }
         }, 1500);
-        console.group('[EXCLOAD][ORDER_CONVERT][MULTI_EXCEL] 다중 엑셀 변환 완료');
-        console.table(
-          chunks.map((chunk) => ({
-            ...chunk.metrics,
-            finalTotalRows: finalRows,
-          })),
-        );
-        console.info('[EXCLOAD][ORDER_CONVERT][MULTI_EXCEL] 최종 미리보기 행 합계', {
-          fileCount: chunks.length,
-          finalRows,
-          expectedRows: chunks.reduce((sum, chunk) => sum + chunk.metrics.stage4Rows, 0),
-        });
-        console.groupEnd();
       } else {
         setStage2ChunkLabel(null);
         setFileProcessingStatus("idle");
-        console.warn('[EXCLOAD][ORDER_CONVERT][MULTI_EXCEL] 다중 엑셀 변환 결과가 비어 있습니다.', {
-          selectedExcelFiles: excelFiles.map((file) => file.name),
-        });
       }
     }
 
@@ -2567,9 +2551,6 @@ export default function OrderConvertPage() {
             setFileProcessingStatus("idle");
           }
         }, 1500);
-        console.group('[EXCLOAD][ORDER_CONVERT][SINGLE_EXCEL] 엑셀 변환 완료');
-        console.table([{ ...metrics, finalTotalRows: metrics.stage4Rows }]);
-        console.groupEnd();
       }
       
       if (appendPreview) {
