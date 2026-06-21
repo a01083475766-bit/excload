@@ -379,6 +379,7 @@ export default function OrderConvertPage() {
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [settingsCheckOverlayOpen, setSettingsCheckOverlayOpen] = useState(false);
   const pendingOrderUploadsRef = useRef<PendingOrderUpload[]>([]);
+  const fileProcessingTokenRef = useRef(0);
   const [isNoTemplateModalOpen, setIsNoTemplateModalOpen] = useState(false);
   const [noTemplateModalType, setNoTemplateModalType] = useState<'fixed-input' | 'convert'>('fixed-input');
   const [isTemplateOnboardingModalOpen, setIsTemplateOnboardingModalOpen] = useState(false);
@@ -577,22 +578,30 @@ export default function OrderConvertPage() {
 
     setSettingsCheckOverlayOpen(false);
 
-    for (const item of queue) {
-      if (item.kind === 'excel') {
-        if (!isValidCourierTemplate(courierUploadTemplate)) {
-          setNoTemplateModalType('convert');
-          setIsNoTemplateModalOpen(true);
-          continue;
+    void (async () => {
+      const seenExcelKeys = new Set(
+        uploadedFileMeta.map((file) => `${file.name}:${file.size}`),
+      );
+
+      for (const item of queue) {
+        if (item.kind === 'excel') {
+          if (!isValidCourierTemplate(courierUploadTemplate)) {
+            setNoTemplateModalType('convert');
+            setIsNoTemplateModalOpen(true);
+            continue;
+          }
+
+          const key = `${item.file.name}:${item.file.size}`;
+          if (!seenExcelKeys.has(key)) {
+            seenExcelKeys.add(key);
+            setUploadedExcelFile(item.file);
+            await parseExcelFile(item.file);
+          }
+        } else {
+          await handleImageFileSelect(item.file);
         }
-        if (!uploadedFileMeta.some((f) => f.name === item.file.name && f.size === item.file.size)) {
-          setUploadedExcelFile(item.file);
-          void parseExcelFile(item.file);
-        }
-      } else {
-        void handleImageFileSelect(item.file);
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 복원 직후 1회 재시도
+    })();
   }, [authAssetsReady, workspaceStorageHydrated, user, authStatus, courierUploadTemplate]);
 
   useEffect(() => {
@@ -1661,36 +1670,66 @@ export default function OrderConvertPage() {
     templateStorageUserId,
   ]);
 
+  const processOrderInputFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+    if (!ensureLoggedInForOrderInput()) return;
+
+    const seenExcelKeys = new Set(
+      uploadedFileMeta.map((file) => `${file.name}:${file.size}`),
+    );
+    let duplicateExcelCount = 0;
+    const unsupportedFileNames: string[] = [];
+
+    for (const file of files) {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      const fileType = file.type || '';
+
+      if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
+        const key = `${file.name}:${file.size}`;
+        if (seenExcelKeys.has(key)) {
+          duplicateExcelCount += 1;
+          continue;
+        }
+
+        seenExcelKeys.add(key);
+        if (!queueOrderInputUntilReady({ kind: 'excel', file })) continue;
+        if (!ensureCourierTemplateReady('convert')) return;
+
+        setUploadedExcelFile(file);
+        await parseExcelFile(file);
+        continue;
+      }
+
+      if (
+        extension === 'jpg' ||
+        extension === 'jpeg' ||
+        extension === 'png' ||
+        extension === 'gif' ||
+        extension === 'webp' ||
+        fileType.startsWith('image/')
+      ) {
+        if (!queueOrderInputUntilReady({ kind: 'image', file })) continue;
+        await handleImageFileSelect(file);
+        continue;
+      }
+
+      unsupportedFileNames.push(file.name);
+    }
+
+    if (duplicateExcelCount > 0) {
+      alert(`${duplicateExcelCount}개 파일은 이미 업로드되어 건너뛰었습니다.`);
+    }
+
+    if (unsupportedFileNames.length > 0) {
+      const sample = unsupportedFileNames.slice(0, 5).join(', ');
+      const suffix = unsupportedFileNames.length > 5 ? ` 외 ${unsupportedFileNames.length - 5}개` : '';
+      alert(`지원하지 않는 파일 형식입니다: ${sample}${suffix}`);
+    }
+  };
+
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      if (!ensureLoggedInForOrderInput()) {
-        if (e.target) {
-          e.target.value = '';
-        }
-        return;
-      }
-      files.forEach(file => {
-        const extension = file.name.split('.').pop()?.toLowerCase();
-        const fileType = file.type;
-        
-      // 엑셀·암호 ZIP 파일 처리
-      if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
-        if (!queueOrderInputUntilReady({ kind: 'excel', file })) return;
-        if (!ensureCourierTemplateReady('convert')) return;
-        if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
-          setUploadedExcelFile(file);
-          parseExcelFile(file);
-        }
-      }
-      // 이미지 파일 처리 (이미지 변환)
-      else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || 
-               fileType.startsWith('image/')) {
-        if (!queueOrderInputUntilReady({ kind: 'image', file })) return;
-        handleImageFileSelect(file);
-      }
-      });
-    }
+    void processOrderInputFiles(files);
     // input 초기화하여 같은 파일을 다시 선택할 수 있도록 함
     if (e.target) {
       e.target.value = '';
@@ -2192,43 +2231,13 @@ export default function OrderConvertPage() {
     e.stopPropagation();
     setIsDragging(false);
 
-    if (!ensureLoggedInForOrderInput()) {
-      return;
-    }
-
     const files = Array.from(e.dataTransfer.files);
-    
-    if (files.length === 0) {
-      return;
-    }
-
-    // 파일 타입별로 분류 처리
-    files.forEach(file => {
-      const extension = file.name.split('.').pop()?.toLowerCase();
-      const fileType = file.type;
-      
-      // 엑셀 파일 처리
-      if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
-        if (!queueOrderInputUntilReady({ kind: 'excel', file })) return;
-        if (!ensureCourierTemplateReady('convert')) return;
-        if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
-          setUploadedExcelFile(file);
-          parseExcelFile(file);
-        }
-      }
-      // 이미지 파일 처리 (이미지 변환)
-      else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || 
-               fileType.startsWith('image/')) {
-        if (!queueOrderInputUntilReady({ kind: 'image', file })) return;
-        handleImageFileSelect(file);
-      }
-      else {
-        alert(`지원하지 않는 파일 형식입니다: ${extension || fileType}`);
-      }
-    });
+    void processOrderInputFiles(files);
   };
 
   const parseExcelFile = async (file: File) => {
+    const processingToken = fileProcessingTokenRef.current + 1;
+    fileProcessingTokenRef.current = processingToken;
     setFileProcessingStatus("processing");
     setStage2ChunkLabel(null);
     recordWorkspaceInput('excel');
@@ -2325,7 +2334,9 @@ export default function OrderConvertPage() {
     setStage2ChunkLabel(null);
     setFileProcessingStatus("done");
     setTimeout(() => {
-      setFileProcessingStatus("idle");
+      if (fileProcessingTokenRef.current === processingToken) {
+        setFileProcessingStatus("idle");
+      }
     }, 1500);
     
     // unknownHeaders 처리
@@ -2936,6 +2947,7 @@ export default function OrderConvertPage() {
                     id="unified-file-input"
                     type="file"
                     accept=".xlsx,.xls,.png,.jpg,.jpeg,.gif"
+                    multiple
                     onChange={handleExcelFileChange}
                     style={{ display: 'none' }}
                   />
