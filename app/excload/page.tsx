@@ -1,15 +1,14 @@
 'use client';
 
-import { LandingHeroSlides } from '@/app/components/landing/LandingHeroSlides';
 import {
   LandingHowToSteps,
   LandingPrePricingCta,
   LandingWhyHowCarriers,
 } from '@/app/components/landing/LandingReferenceSections';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
 const TrialEmbed = dynamic(
   () =>
     import('@/app/logistics-convert/LogisticsConvertClient').then(
@@ -25,174 +24,22 @@ const TrialEmbed = dynamic(
   },
 );
 
-const typingHeroTextClass =
-  'font-bold leading-tight text-zinc-950 dark:text-zinc-100 text-[clamp(1.2rem,4vw,1.8rem)] tracking-tight [word-break:keep-all]';
-
-type HeroSeg = { kind: 'title' | 'body'; text: string };
-type HeroBlock = { id: string; segments: readonly HeroSeg[] };
-
-const confirmText = '아래 무료체험에서 직접 확인해보세요.';
-
-/** 1~3번 대화형 안내 — title/body 동일 크기 */
-const heroDialogueTextClass =
-  'mt-1 text-[clamp(1.05rem,3.2vw,1.34rem)] font-semibold leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all]';
-
-function heroSegClass(text: string, confirmBumped: boolean) {
-  if (text === confirmText) {
-    return confirmBumped
-      ? 'mt-1 text-[clamp(1.16rem,3.6vw,1.5rem)] font-bold leading-relaxed text-zinc-900 dark:text-zinc-100 [word-break:keep-all] transition-all duration-500'
-      : `${heroDialogueTextClass} transition-all duration-500`;
-  }
-  return heroDialogueTextClass;
-}
+const quickOrderPoints = [
+  {
+    title: '주문 파일 그대로 시작',
+    description: '지금 쓰는 주문 엑셀이나 이미지 파일을 먼저 올리면 됩니다.',
+  },
+  {
+    title: '필요한 내용만 확인',
+    description: '수취인, 연락처, 주소, 상품명처럼 배송에 필요한 주문 정보를 정리합니다.',
+  },
+  {
+    title: '한 번에 변환',
+    description: '양식이 다른 파일도 택배 업로드에 맞는 하나의 파일로 정리합니다.',
+  },
+];
 
 export default function HomePage() {
-  /** 고정 높이 박스에서 1~3번을 순차 재생하고, 블록이 바뀌면 이전 블록은 지웁니다. */
-  const heroHeadline = '복잡한 기능을 빼고 "빠른주문정리"에만 집중해 사용법이 어렵지 않습니다';
-  const heroBlocks = useMemo(
-    () =>
-      [
-        {
-          id: '1',
-          segments: [
-            {
-              kind: 'title' as const,
-              text: '쇼핑몰마다 양식이 다르고 택배 업로드 양식이 달라도 상관없습니다.',
-            },
-            {
-              kind: 'body' as const,
-              text: '주문파일과 송장파일만 넣으면 자동으로 매칭되어 송장파일이 생성됩니다.',
-            },
-            {
-              kind: 'body' as const,
-              text: '주문 엑셀파일만 첨부하시면 여러 쇼핑몰 주문파일도 쉽게 택배 업로드 파일로 자동 정리됩니다.',
-            },
-          ],
-        },
-        {
-          id: '2',
-          segments: [
-            {
-              kind: 'title' as const,
-              text: '카톡, 문자, 주문 페이지 복사 + 붙여넣기로 주문정리 완성.',
-            },
-            {
-              kind: 'body' as const,
-              text: '이제는 그대로 붙여 넣기만 하세요. 더 이상 타이핑 안 하셔도 됩니다.',
-            },
-            {
-              kind: 'body' as const,
-              text: '엑셀파일, 캡처 이미지, 텍스트 주문, 카톡 주문까지 자동 정리됩니다.',
-            },
-          ],
-        },
-        {
-          id: '3',
-          segments: [
-            { kind: 'title' as const, text: '복잡한 함수나 매크로 사용은 필요 없습니다.' },
-            { kind: 'body' as const, text: '주문서 엑셀 칸 옮기기 이제 그만하셔도 됩니다.' },
-            { kind: 'body' as const, text: confirmText },
-          ],
-        },
-      ] satisfies readonly HeroBlock[],
-    [],
-  );
-
-  const [blockIdx, setBlockIdx] = useState(0);
-  const [segIdx, setSegIdx] = useState(0);
-  const [charIdx, setCharIdx] = useState(0);
-  const [betweenBlocks, setBetweenBlocks] = useState(false);
-  const [confirmBumped, setConfirmBumped] = useState(false);
-
-  // 안내문(무료체험 유도 문구)이 "완성"된 뒤 2초 후 글자를 한 단계 더 키웁니다.
-  useEffect(() => {
-    const currentBlock = heroBlocks[blockIdx];
-    const seg = currentBlock?.segments?.[segIdx];
-
-    const isConfirm = seg?.text === confirmText;
-    const isComplete = !!seg && isConfirm && charIdx >= seg.text.length;
-
-    setConfirmBumped(false);
-    if (!isConfirm || !isComplete || betweenBlocks) return;
-
-    const t = window.setTimeout(() => setConfirmBumped(true), 2000);
-    return () => window.clearTimeout(t);
-  }, [betweenBlocks, blockIdx, segIdx, charIdx, heroBlocks]);
-
-  useEffect(() => {
-    if (betweenBlocks) {
-      const isLastBlock = blockIdx + 1 >= heroBlocks.length;
-      const transition = window.setTimeout(() => {
-        if (isLastBlock) {
-          setBlockIdx(0);
-          setSegIdx(0);
-          setCharIdx(0);
-          setBetweenBlocks(false);
-          return;
-        }
-        if (blockIdx + 1 < heroBlocks.length) {
-          setBlockIdx((prev) => prev + 1);
-          setSegIdx(0);
-          setCharIdx(0);
-          setBetweenBlocks(false);
-          return;
-        }
-      }, isLastBlock ? 120000 : 3000);
-      return () => window.clearTimeout(transition);
-    }
-
-    const currentBlock = heroBlocks[blockIdx];
-    if (!currentBlock) {
-      setBlockIdx(0);
-      setSegIdx(0);
-      setCharIdx(0);
-      return;
-    }
-
-    const seg = currentBlock.segments[segIdx];
-    if (!seg) {
-      setBetweenBlocks(true);
-      return;
-    }
-
-    const isTypingChar = charIdx < seg.text.length;
-    const linePauseMs = seg.kind === 'title' ? 980 : 860;
-    const delay = (() => {
-      if (!isTypingChar) return linePauseMs;
-      const ch = seg.text.charAt(charIdx);
-      if (ch === ' ') return 28;
-      if (/[.,…!?]/.test(ch)) return 58;
-      return 40;
-    })();
-
-    const timer = window.setTimeout(() => {
-      if (isTypingChar) {
-        setCharIdx((prev) => prev + 1);
-        return;
-      }
-      if (segIdx + 1 < currentBlock.segments.length) {
-        setSegIdx((prev) => prev + 1);
-        setCharIdx(0);
-        return;
-      }
-      setBetweenBlocks(true);
-    }, delay);
-
-    return () => window.clearTimeout(timer);
-  }, [betweenBlocks, blockIdx, segIdx, charIdx, heroBlocks]);
-
-  const heroVisibleSegments = useMemo(() => {
-    const currentBlock = heroBlocks[blockIdx];
-    if (!currentBlock) return [] as HeroSeg[];
-    const completed = currentBlock.segments.slice(0, segIdx);
-    const current = currentBlock.segments[segIdx];
-    const withCurrent = current
-      ? [...completed, { ...current, text: current.text.slice(0, charIdx) }]
-      : [...completed];
-    const maxLines = 8;
-    return withCurrent.slice(-maxLines);
-  }, [heroBlocks, blockIdx, segIdx, charIdx]);
-
   const plans = [
     {
       planKey: 'free' as const,
@@ -224,40 +71,72 @@ export default function HomePage() {
     <div className="pt-6 bg-zinc-50 dark:bg-black min-h-screen">
       <main className="max-w-7xl mx-auto px-6">
         {/* Hero 섹션 */}
-        <section className="blue-unified-theme pt-8 pb-8 lg:pt-12 lg:pb-12">
-          <div className="flex flex-col gap-0">
-            <p className="mb-6 mx-auto max-w-5xl text-center text-base sm:text-lg font-medium leading-snug text-zinc-900 dark:text-zinc-100 [word-break:keep-all] md:mb-8">
-              엑클로드(EXCLOAD)는 주문·송장·물류 데이터를 택배사와 물류센터 양식에 맞게 자동 변환하고,
-              <br />
-              복잡한 엑셀 작업 없이 업로드 파일을 간편하게 만들어주는 주문/배송 업무 자동화 서비스입니다.
-            </p>
+        <section className="blue-unified-theme pt-12 pb-8 lg:pt-20 lg:pb-12">
+          <div className="flex flex-col gap-8">
+            <div className="mx-auto max-w-5xl text-center">
+              <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
+              <h1 className="mt-4 text-[clamp(2.1rem,6vw,4.8rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
+                복잡한 기능은 빼고
+                <br />
+                <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>
+              </h1>
+              <p className="mx-auto mt-6 max-w-3xl text-lg font-semibold leading-relaxed text-zinc-800 dark:text-zinc-200 sm:text-xl [word-break:keep-all]">
+                지금 필요한건 복잡한 기능 설정이 아니라 편리한 주문정리
+                <br />
+                택배양식에 맞게 변환이 필요하다면 사용하던 주문 파일을 그대로 올려 시작하세요.
+              </p>
+              <div className="mx-auto mt-7 flex max-w-3xl items-center gap-3 rounded-2xl border border-blue-100 bg-white px-5 py-4 text-left shadow-[0_14px_40px_rgba(37,99,235,0.10)] dark:border-blue-900/70 dark:bg-zinc-900 sm:px-6">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
+                  <Check className="h-5 w-5" />
+                </span>
+                <p className="text-base font-semibold leading-snug text-zinc-700 dark:text-zinc-200 sm:text-lg [word-break:keep-all]">
+                  양식이 다른 여러 파일을 올려도{' '}
+                  <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                    자동으로 하나의 파일로 변환
+                  </span>
+                  됩니다.
+                </p>
+              </div>
+            </div>
 
-            <LandingHeroSlides />
-
-            <div className="mx-auto mb-4 w-full max-w-6xl rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-sm dark:border-blue-900 dark:bg-blue-950/30 md:p-5 lg:p-6">
-              <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white/90 p-5 text-left dark:border-blue-900 dark:bg-zinc-900/90 md:p-6 lg:p-7">
-                <div className="flex h-[292px] flex-col overflow-hidden py-1 sm:h-[248px] md:h-[216px]">
-                  <p className={`${typingHeroTextClass} mb-5`}>{heroHeadline}</p>
-                  {heroVisibleSegments.map((seg, idx) => {
-                    const isCurrent = idx === heroVisibleSegments.length - 1;
-                    const isTyping =
-                      !betweenBlocks &&
-                      segIdx < heroBlocks[blockIdx].segments.length &&
-                      isCurrent;
-
-                    const isConfirm = seg.text === confirmText;
-
-                    return (
-                      <p
-                        key={`${heroBlocks[blockIdx].id}-${idx}-${seg.text}`}
-                        className={heroSegClass(seg.text, isConfirm && confirmBumped)}
-                      >
-                        {seg.text}
-                        {isTyping ? <span className="animate-pulse text-zinc-400">|</span> : null}
-                      </p>
-                    );
-                  })}
+            <div className="mx-auto grid w-full max-w-6xl items-center gap-7 rounded-[2rem] border border-blue-100 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 lg:grid-cols-[0.9fr_1.1fr] lg:p-8">
+              <div className="space-y-5 px-1 py-2 lg:px-3">
+                <div>
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">빠른 주문 정리</p>
+                  <h2 className="mt-2 text-2xl font-extrabold leading-snug text-zinc-950 dark:text-zinc-100 sm:text-3xl [word-break:keep-all]">
+                    주문을 다시 만들지 말고,
+                    <br />
+                    쓰던 파일에서 바로 정리하세요.
+                  </h2>
                 </div>
+                <div className="space-y-3">
+                  {quickOrderPoints.map((point, index) => (
+                    <div
+                      key={point.title}
+                      className="flex gap-3 rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-950/50"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <div>
+                        <p className="font-bold text-zinc-900 dark:text-zinc-100">{point.title}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 [word-break:keep-all]">
+                          {point.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 p-2 shadow-[0_20px_50px_rgba(15,23,42,0.12)] dark:border-blue-900 dark:bg-blue-950/30">
+                <Image
+                  src="/landing/quick-order-preview.png"
+                  alt="엑클로드 빠른 주문 정리 화면 미리보기"
+                  width={1024}
+                  height={576}
+                  priority
+                  className="h-auto w-full rounded-xl object-cover"
+                />
               </div>
             </div>
 
