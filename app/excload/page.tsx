@@ -8,7 +8,7 @@ import {
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Check, CheckCircle, Clock, FileText, MapPin, Package, Truck } from 'lucide-react';
+import { Check } from 'lucide-react';
 const TrialEmbed = dynamic(
   () =>
     import('@/app/logistics-convert/LogisticsConvertClient').then(
@@ -47,14 +47,14 @@ const courierCards: { key: CourierKey; name: string; logo: string; color: string
 
 function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
   if (type === 'naver') {
-    return <span className="text-[22px] font-black leading-none tracking-tight text-[#03c75a]">NAVER</span>;
+    return <span className="text-[16px] font-black leading-none tracking-tight text-[#03c75a]">NAVER</span>;
   }
   if (type === 'eleven') {
-    return <span className="text-[30px] font-black leading-none tracking-tight text-[#ef3340]">11&gt;</span>;
+    return <span className="text-[20px] font-black leading-none tracking-tight text-[#ef3340]">11&gt;</span>;
   }
   if (type === 'coupang') {
     return (
-      <span className="text-[20px] font-black leading-none tracking-tight">
+      <span className="text-[14px] font-black leading-none tracking-tight">
         <span className="text-[#6b1d1d]">cou</span>
         <span className="text-[#f59e0b]">p</span>
         <span className="text-[#16a34a]">a</span>
@@ -65,75 +65,20 @@ function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
   }
   if (type === 'gmarket') {
     return (
-      <span className="text-[21px] font-black leading-none tracking-tight">
+      <span className="text-[15px] font-black leading-none tracking-tight">
         <span className="text-[#00b050]">G</span>
         <span className="text-[#1d4ed8]">market</span>
       </span>
     );
   }
   if (type === 'auction') {
-    return <span className="text-[24px] font-black leading-none text-[#c1121f]">옥션</span>;
+    return <span className="text-[17px] font-black leading-none text-[#c1121f]">옥션</span>;
   }
   return (
-    <span className="text-[22px] font-black leading-none tracking-tight">
+    <span className="text-[16px] font-black leading-none tracking-tight">
       <span className="text-[#111827]">cafe</span>
       <span className="text-[#0ea5e9]">24</span>
     </span>
-  );
-}
-
-function CourierActionIcons({ type }: { type: CourierKey }) {
-  const iconClass = 'h-5 w-5 text-zinc-800';
-
-  if (type === 'cj') {
-    return (
-      <div className="flex items-center gap-2">
-        <Truck className={iconClass} />
-        <span className="text-[10px] font-bold leading-tight text-zinc-700">
-          배송조회
-          <br />
-          연동
-        </span>
-      </div>
-    );
-  }
-  if (type === 'logen') {
-    return (
-      <div className="flex items-center gap-2">
-        <MapPin className={iconClass} />
-        <Clock className={iconClass} />
-      </div>
-    );
-  }
-  if (type === 'post') {
-    return (
-      <div className="flex items-center gap-2">
-        <Package className={iconClass} />
-        <CheckCircle className={iconClass} />
-      </div>
-    );
-  }
-  if (type === 'hanjin') {
-    return (
-      <div className="flex items-center gap-2">
-        <Package className={iconClass} />
-        <Truck className={iconClass} />
-      </div>
-    );
-  }
-  if (type === 'lotte') {
-    return (
-      <div className="flex items-center gap-2">
-        <FileText className={iconClass} />
-        <CheckCircle className={iconClass} />
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center gap-2">
-      <Truck className={iconClass} />
-      <CheckCircle className={iconClass} />
-    </div>
   );
 }
 
@@ -197,40 +142,37 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="mx-auto grid w-full max-w-7xl items-start gap-5 lg:grid-cols-[300px_minmax(0,1024px)]">
-              <div className="space-y-4 lg:pt-1">
-                <div className="grid grid-cols-2 gap-3">
+            <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[210px_minmax(0,1024px)]">
+              <div className="space-y-3 lg:pt-1">
+                <div className="grid grid-cols-2 gap-2">
                   {shoppingMallCards.map((mall) => (
                     <div
                       key={mall.name}
-                      className="flex min-h-[74px] flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-center shadow-[0_3px_8px_rgba(15,23,42,0.14)]"
+                      className="flex min-h-[54px] flex-col items-center justify-center rounded-xl border border-zinc-200 bg-white px-2 py-2 text-center shadow-sm"
                     >
                       <ShoppingMallBrand type={mall.key} />
-                      <span className="mt-2 text-[17px] font-black leading-none text-black [word-break:keep-all]">
+                      <span className="mt-1 text-[12px] font-black leading-none text-black [word-break:keep-all]">
                         {mall.name}
                       </span>
                     </div>
                   ))}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {courierCards.map((courier) => (
                     <div
                       key={courier.name}
-                      className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-2 shadow-[0_3px_8px_rgba(15,23,42,0.14)]"
+                      className="flex min-h-[32px] items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 shadow-sm"
                     >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className="w-[58px] shrink-0 text-center text-[14px] font-black leading-none tracking-tight"
-                          style={{ color: courier.color }}
-                        >
-                          {courier.logo}
-                        </span>
-                        <span className="truncate text-[17px] font-black text-black [word-break:keep-all]">
-                          {courier.name}
-                        </span>
-                      </div>
-                      <CourierActionIcons type={courier.key} />
+                      <span
+                        className="w-[46px] shrink-0 text-center text-[11px] font-black leading-none tracking-tight"
+                        style={{ color: courier.color }}
+                      >
+                        {courier.logo}
+                      </span>
+                      <span className="truncate text-[12px] font-black text-black [word-break:keep-all]">
+                        {courier.name}
+                      </span>
                     </div>
                   ))}
                 </div>
