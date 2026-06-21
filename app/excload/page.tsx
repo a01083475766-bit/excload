@@ -75,7 +75,7 @@ export default function HomePage() {
           <div className="flex flex-col gap-8">
             <div className="mx-auto max-w-5xl text-center">
               <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
-              <h1 className="mt-4 text-[clamp(2.1rem,6vw,4.8rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
+              <h1 className="mt-4 text-[clamp(1.47rem,4.2vw,3.36rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
                 복잡한 기능은 빼고
                 <br />
                 <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>
