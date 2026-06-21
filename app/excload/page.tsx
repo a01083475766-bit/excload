@@ -24,6 +24,25 @@ const TrialEmbed = dynamic(
   },
 );
 
+const shoppingMallCards = [
+  { name: '스마트스토어', label: 'NAVER', color: '#03c75a', tint: '#e9fff4' },
+  { name: '11번가', label: '11ST', color: '#e60012', tint: '#fff1f2' },
+  { name: '쿠팡', label: 'COUPANG', color: '#2563eb', tint: '#eff6ff' },
+  { name: 'G마켓', label: 'G', color: '#00a651', tint: '#ecfdf5' },
+  { name: '옥션', label: 'A', color: '#e11d48', tint: '#fff1f2' },
+  { name: '카페24', label: 'C24', color: '#1d4ed8', tint: '#eff6ff' },
+  { name: '자사몰', label: 'SHOP', color: '#7c3aed', tint: '#f5f3ff' },
+];
+
+const courierCards = [
+  { name: 'CJ대한통운', label: 'CJ', color: '#0f5ca8', tint: '#eff6ff' },
+  { name: '로젠택배', label: 'LOGEN', color: '#f97316', tint: '#fff7ed' },
+  { name: '우체국택배', label: 'POST', color: '#dc2626', tint: '#fff1f2' },
+  { name: '한진택배', label: 'HANJIN', color: '#2563eb', tint: '#eff6ff' },
+  { name: '롯데택배', label: 'LOTTE', color: '#be123c', tint: '#fff1f2' },
+  { name: '경동택배', label: 'KDEXP', color: '#16a34a', tint: '#f0fdf4' },
+];
+
 export default function HomePage() {
   const plans = [
     {
@@ -84,7 +103,26 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="mx-auto flex w-full max-w-6xl justify-end">
+            <div className="mx-auto w-full max-w-6xl space-y-4">
+              <div className="ml-auto flex w-full max-w-[1024px] flex-wrap justify-end gap-3">
+                {shoppingMallCards.map((mall) => (
+                  <div
+                    key={mall.name}
+                    className="flex min-w-[118px] items-center gap-2 rounded-2xl border border-zinc-100 bg-white px-3 py-2 shadow-sm"
+                  >
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-black"
+                      style={{ backgroundColor: mall.tint, color: mall.color }}
+                    >
+                      {mall.label}
+                    </span>
+                    <span className="text-sm font-extrabold text-zinc-800 [word-break:keep-all]">
+                      {mall.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
               <Image
                 src="/landing/quick-order-preview2.png"
                 alt="엑클로드 빠른 주문 정리 화면 미리보기"
@@ -94,6 +132,25 @@ export default function HomePage() {
                 unoptimized
                 className="ml-auto h-auto w-full max-w-[1024px]"
               />
+
+              <div className="ml-auto flex w-full max-w-[1024px] flex-wrap justify-end gap-3">
+                {courierCards.map((courier) => (
+                  <div
+                    key={courier.name}
+                    className="flex min-w-[124px] items-center gap-2 rounded-2xl border border-zinc-100 bg-white px-3 py-2 shadow-sm"
+                  >
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[10px] font-black"
+                      style={{ backgroundColor: courier.tint, color: courier.color }}
+                    >
+                      {courier.label}
+                    </span>
+                    <span className="text-sm font-extrabold text-zinc-800 [word-break:keep-all]">
+                      {courier.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
