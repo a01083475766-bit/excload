@@ -2087,7 +2087,12 @@ export default function OrderConvertPage() {
   };
 
   // 사용량 차감 헬퍼 함수
-  const usePoints = async (amount: number, type: 'text' | 'download'): Promise<boolean> => {
+  const usePoints = async (
+    amount: number,
+    type: 'text' | 'download',
+    options?: { redirectOnAuthRequired?: boolean },
+  ): Promise<boolean> => {
+    const redirectOnAuthRequired = options?.redirectOnAuthRequired ?? true;
     // 현재 사용자 정보 가져오기 (최신 상태)
     let currentUser = useUserStore.getState().user;
     
@@ -2097,14 +2102,18 @@ export default function OrderConvertPage() {
         await fetchUser();
         currentUser = useUserStore.getState().user;
         if (!currentUser) {
-          alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-          router.push('/auth/login');
+          if (redirectOnAuthRequired) {
+            alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+            router.push('/auth/login');
+          }
           return false;
         }
       } catch (error) {
         console.error('[usePoints] 사용자 정보 가져오기 실패:', error);
-        alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-        router.push('/auth/login');
+        if (redirectOnAuthRequired) {
+          alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+          router.push('/auth/login');
+        }
         return false;
       }
     }
@@ -2114,8 +2123,10 @@ export default function OrderConvertPage() {
       await useUserStore.getState().prepareForPointCharge(amount);
       currentUser = useUserStore.getState().user;
       if (!currentUser) {
-        alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-        router.push('/auth/login');
+        if (redirectOnAuthRequired) {
+          alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+          router.push('/auth/login');
+        }
         return false;
       }
     }
@@ -2280,10 +2291,24 @@ export default function OrderConvertPage() {
 
       const rowIdsToRollback = appendResult.newRowIds;
       void (async () => {
-        const pointsDeducted = await usePoints(textLength, 'text');
+        let pendingReleasedByTimeout = false;
+        const pendingReleaseTimer = window.setTimeout(() => {
+          pendingReleasedByTimeout = true;
+          setTextConvertPointsPending(false);
+          void fetchUser();
+        }, 15_000);
+
+        const pointsDeducted = await usePoints(textLength, 'text', {
+          redirectOnAuthRequired: false,
+        });
+        window.clearTimeout(pendingReleaseTimer);
         if (!pointsDeducted) {
-          rollbackTextConvertPreviewRows(rowIdsToRollback);
-          setTextConvertReviewModal(null);
+          if (!pendingReleasedByTimeout) {
+            rollbackTextConvertPreviewRows(rowIdsToRollback);
+            setTextConvertReviewModal(null);
+          } else {
+            void fetchUser();
+          }
           setTextConvertPointsPending(false);
           return;
         }
