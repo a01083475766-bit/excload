@@ -158,7 +158,7 @@ export default function HomePage() {
                   ))}
                 </div>
 
-                <div className="space-y-1.5 pt-7 lg:pt-9">
+                <div className="space-y-1.5 pt-16 lg:pt-24">
                   {courierCards.map((courier) => (
                     <div
                       key={courier.name}
