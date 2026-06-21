@@ -1674,9 +1674,27 @@ export default function OrderConvertPage() {
     if (files.length === 0) return;
     if (!ensureLoggedInForOrderInput()) return;
 
+    const supportedFiles = files.filter((file) => {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      const fileType = file.type || '';
+      return (
+        extension === 'xlsx' ||
+        extension === 'xls' ||
+        extension === 'zip' ||
+        extension === 'jpg' ||
+        extension === 'jpeg' ||
+        extension === 'png' ||
+        extension === 'gif' ||
+        extension === 'webp' ||
+        fileType.startsWith('image/')
+      );
+    });
+    setSelectedFiles(supportedFiles);
+
     const seenExcelKeys = new Set(
       uploadedFileMeta.map((file) => `${file.name}:${file.size}`),
     );
+    const excelTasks: Promise<void>[] = [];
     let duplicateExcelCount = 0;
     const unsupportedFileNames: string[] = [];
 
@@ -1696,7 +1714,7 @@ export default function OrderConvertPage() {
         if (!ensureCourierTemplateReady('convert')) return;
 
         setUploadedExcelFile(file);
-        await parseExcelFile(file);
+        excelTasks.push(parseExcelFile(file));
         continue;
       }
 
@@ -1714,6 +1732,10 @@ export default function OrderConvertPage() {
       }
 
       unsupportedFileNames.push(file.name);
+    }
+
+    if (excelTasks.length > 0) {
+      await Promise.all(excelTasks);
     }
 
     if (duplicateExcelCount > 0) {
@@ -2906,15 +2928,20 @@ export default function OrderConvertPage() {
                           (xlsx, xls, jpg, png, gif)
                         </p>
                       </div>
-                      {(uploadedExcelFile || uploadedFileMeta.length > 0 || selectedFileName) && (
+                      {(selectedFiles.length > 0 || uploadedExcelFile || uploadedFileMeta.length > 0 || selectedFileName) && (
                         <div className="flex items-center justify-center gap-3 mt-2 text-sm text-gray-600">
                           <span>
                               📄 선택된 파일:{' '}
-                              {uploadedExcelFile?.name ??
+                              {selectedFiles[0]?.name ??
+                                uploadedExcelFile?.name ??
                                 selectedFileName ??
                                 uploadedFileMeta[0]?.name ??
                                 ''}
-                              {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
+                              {selectedFiles.length > 1
+                                ? ` 외 ${selectedFiles.length - 1}개`
+                                : selectedFiles.length === 0 && uploadedFileMeta.length > 1
+                                  ? ` 외 ${uploadedFileMeta.length - 1}개`
+                                  : ''}
                             </span>
 
                             <span className="w-[110px] text-right inline-block">
