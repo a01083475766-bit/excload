@@ -84,17 +84,16 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="mx-auto flex w-full max-w-6xl justify-end rounded-[2rem] border border-blue-100 bg-white/90 p-4 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 lg:p-6">
-              <div className="ml-auto w-full overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 p-2 shadow-[0_20px_50px_rgba(15,23,42,0.12)] dark:border-blue-900 dark:bg-blue-950/30 lg:w-[86%]">
-                <Image
-                  src="/landing/quick-order-preview.png"
-                  alt="엑클로드 빠른 주문 정리 화면 미리보기"
-                  width={1024}
-                  height={576}
-                  priority
-                  className="h-auto w-full rounded-xl object-cover"
-                />
-              </div>
+            <div className="mx-auto flex w-full max-w-6xl justify-end">
+              <Image
+                src="/landing/quick-order-preview2.png"
+                alt="엑클로드 빠른 주문 정리 화면 미리보기"
+                width={1024}
+                height={576}
+                priority
+                unoptimized
+                className="ml-auto h-auto w-full max-w-[1024px]"
+              />
             </div>
 
             {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
