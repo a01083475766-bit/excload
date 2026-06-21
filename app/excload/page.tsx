@@ -158,11 +158,11 @@ export default function HomePage() {
                   ))}
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 pt-7 lg:pt-9">
                   {courierCards.map((courier) => (
                     <div
                       key={courier.name}
-                      className="flex min-h-[32px] items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 shadow-sm"
+                      className="flex min-h-[32px] items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 shadow-sm"
                     >
                       <span
                         className="w-[46px] shrink-0 text-center text-[11px] font-black leading-none tracking-tight"
@@ -170,7 +170,7 @@ export default function HomePage() {
                       >
                         {courier.logo}
                       </span>
-                      <span className="truncate text-[12px] font-black text-black [word-break:keep-all]">
+                      <span className="text-center text-[12px] font-black text-black [word-break:keep-all]">
                         {courier.name}
                       </span>
                     </div>
