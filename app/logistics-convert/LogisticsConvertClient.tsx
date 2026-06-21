@@ -179,6 +179,14 @@ type PreviewRowWithId = {
   data: PreviewRow;
 };
 
+type ParsedExcelPreviewChunk = {
+  file: File;
+  rowIds: string[];
+  previewRows: PreviewRowWithId[];
+  standardRows: Record<string, string>[];
+  courierHeaders: string[];
+};
+
 interface CourierUploadHeader {
   name: string;
   index: number;
@@ -1461,6 +1469,7 @@ export function LogisticsConvertClient({
   const previewScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const screenshotPasteAreaRef = useRef<HTMLDivElement | null>(null);
   const isCancelledRef = useRef<boolean>(false);
+  const fileProcessingTokenRef = useRef(0);
 
   const needsAccount = !trialMode && !user && !isLoading;
 
@@ -2018,6 +2027,25 @@ export function LogisticsConvertClient({
       return [];
     }
   }, [templateBridgeFile, userId]);
+
+  const getActiveTemplateBridgeFile = useCallback((): TemplateBridgeFile | null => {
+    if (templateBridgeFile?.courierHeaders?.length) {
+      return templateBridgeFile;
+    }
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = trialMode
+        ? localStorage.getItem(TRIAL_LOGISTICS_BRIDGE_KEY)
+        : readLocalStorageWithLegacyMigrate(LOGISTICS_MAIN_KEYS.bridge, userId);
+      if (!saved) return null;
+      const parsed = JSON.parse(saved) as TemplateBridgeFile;
+      return Array.isArray(parsed.courierHeaders) && parsed.courierHeaders.length > 0
+        ? parsed
+        : null;
+    } catch {
+      return null;
+    }
+  }, [templateBridgeFile, trialMode, userId]);
 
   useEffect(() => {
     if (trialMode) {
@@ -3660,34 +3688,143 @@ export function LogisticsConvertClient({
     templateStorageUserId,
   ]);
 
+  const processOrderInputFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+    if (!ensureLoggedInForOrderInput()) return;
+
+    const supportedFiles = files.filter((file) => {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      const fileType = file.type || '';
+      return (
+        extension === 'xlsx' ||
+        extension === 'xls' ||
+        extension === 'zip' ||
+        extension === 'jpg' ||
+        extension === 'jpeg' ||
+        extension === 'png' ||
+        extension === 'gif' ||
+        extension === 'webp' ||
+        fileType.startsWith('image/')
+      );
+    });
+    setSelectedFiles(supportedFiles);
+
+    const seenExcelKeys = new Set(
+      previewRows.length > 0
+        ? uploadedFileMeta.map((file) => `${file.name}:${file.size}`)
+        : [],
+    );
+    const excelFiles: File[] = [];
+    let duplicateExcelCount = 0;
+    const unsupportedFileNames: string[] = [];
+
+    for (const file of files) {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      const fileType = file.type || '';
+
+      if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
+        const key = `${file.name}:${file.size}`;
+        if (seenExcelKeys.has(key)) {
+          duplicateExcelCount += 1;
+          continue;
+        }
+
+        seenExcelKeys.add(key);
+        if (!ensureCourierTemplateReady('convert')) return;
+
+        setUploadedExcelFile(file);
+        excelFiles.push(file);
+        continue;
+      }
+
+      if (
+        extension === 'jpg' ||
+        extension === 'jpeg' ||
+        extension === 'png' ||
+        extension === 'gif' ||
+        extension === 'webp' ||
+        fileType.startsWith('image/')
+      ) {
+        await handleImageFileSelect(file);
+        continue;
+      }
+
+      unsupportedFileNames.push(file.name);
+    }
+
+    if (excelFiles.length === 1) {
+      await parseExcelFile(excelFiles[0]);
+    } else if (excelFiles.length > 1) {
+      const chunks = (
+        await Promise.all(
+          excelFiles.map((file) => parseExcelFile(file, { appendPreview: false })),
+        )
+      ).filter((chunk): chunk is ParsedExcelPreviewChunk => Boolean(chunk));
+
+      if (chunks.length > 0) {
+        const rowsToAdd = chunks.flatMap((chunk) => chunk.previewRows);
+        const rowIdsToAdd = chunks.flatMap((chunk) => chunk.rowIds);
+        setProductCodeMappingNotice(null);
+        resetProductCodeColumnToggle();
+        setPreviewRows((prev) =>
+          prependPreviewRowsWithAutoMapping(
+            rowsToAdd,
+            chunks[chunks.length - 1].courierHeaders,
+            prev,
+          ),
+        );
+        setOrderStandardRowsByRowId((prev) =>
+          chunks.reduce(
+            (acc, chunk) =>
+              registerOrderSnapshotsForPreviewChunk(acc, chunk.rowIds, chunk.standardRows),
+            prev,
+          ),
+        );
+        setNewRows((prev) => {
+          const updated = new Set(prev);
+          rowIdsToAdd.forEach((id) => updated.add(id));
+          return updated;
+        });
+        setTimeout(() => {
+          setNewRows((prev) => {
+            const updated = new Set(prev);
+            rowIdsToAdd.forEach((id) => updated.delete(id));
+            return updated;
+          });
+        }, 3000);
+        setCourierHeaders(chunks[chunks.length - 1].courierHeaders);
+        setUploadedFileMeta((prev) => [
+          ...chunks.map((chunk) => ({ name: chunk.file.name, size: chunk.file.size })),
+          ...prev,
+        ]);
+        setStage2ChunkLabel(null);
+        setFileProcessingStatus("done");
+        const completionToken = fileProcessingTokenRef.current;
+        setTimeout(() => {
+          if (fileProcessingTokenRef.current === completionToken) {
+            setFileProcessingStatus("idle");
+          }
+        }, 1500);
+      } else {
+        setStage2ChunkLabel(null);
+        setFileProcessingStatus("idle");
+      }
+    }
+
+    if (duplicateExcelCount > 0) {
+      alert(`${duplicateExcelCount}개 파일은 이미 업로드되어 건너뛰었습니다.`);
+    }
+
+    if (unsupportedFileNames.length > 0) {
+      const sample = unsupportedFileNames.slice(0, 5).join(', ');
+      const suffix = unsupportedFileNames.length > 5 ? ` 외 ${unsupportedFileNames.length - 5}개` : '';
+      alert(`지원하지 않는 파일 형식입니다: ${sample}${suffix}`);
+    }
+  };
+
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      if (!ensureLoggedInForOrderInput()) {
-        if (e.target) {
-          e.target.value = '';
-        }
-        return;
-      }
-      files.forEach(file => {
-        const extension = file.name.split('.').pop()?.toLowerCase();
-        const fileType = file.type;
-        
-      // 엑셀·암호 ZIP 파일 처리
-      if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
-        if (!ensureCourierTemplateReady('convert')) return;
-        if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
-          setUploadedExcelFile(file);
-          parseExcelFile(file);
-        }
-      }
-      // 이미지 파일 처리 (이미지 변환)
-      else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || 
-               fileType.startsWith('image/')) {
-        handleImageFileSelect(file);
-      }
-      });
-    }
+    void processOrderInputFiles(files);
     // input 초기화하여 같은 파일을 다시 선택할 수 있도록 함
     if (e.target) {
       e.target.value = '';
@@ -3937,7 +4074,12 @@ export function LogisticsConvertClient({
   };
 
   // 사용량 차감 헬퍼 함수
-  const usePoints = async (amount: number, type: 'text' | 'download'): Promise<boolean> => {
+  const usePoints = async (
+    amount: number,
+    type: 'text' | 'download',
+    options?: { redirectOnAuthRequired?: boolean },
+  ): Promise<boolean> => {
+    const redirectOnAuthRequired = options?.redirectOnAuthRequired ?? true;
     if (trialMode) {
       if (type === 'download') return false;
       const current = readTrialPointsFromStorage();
@@ -3960,14 +4102,18 @@ export function LogisticsConvertClient({
         await fetchUser();
         currentUser = useUserStore.getState().user;
         if (!currentUser) {
-          alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-          router.push('/auth/login');
+          if (redirectOnAuthRequired) {
+            alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+            router.push('/auth/login');
+          }
           return false;
         }
       } catch (error) {
         console.error('[usePoints] 사용자 정보 가져오기 실패:', error);
-        alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-        router.push('/auth/login');
+        if (redirectOnAuthRequired) {
+          alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+          router.push('/auth/login');
+        }
         return false;
       }
     }
@@ -3976,8 +4122,10 @@ export function LogisticsConvertClient({
       await useUserStore.getState().prepareForPointCharge(amount);
       currentUser = useUserStore.getState().user;
       if (!currentUser) {
-        alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-        router.push('/auth/login');
+        if (redirectOnAuthRequired) {
+          alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+          router.push('/auth/login');
+        }
         return false;
       }
     }
@@ -4162,10 +4310,24 @@ export function LogisticsConvertClient({
 
       const rowIdsToRollback = appendResult.newRowIds;
       void (async () => {
-        const pointsDeducted = await usePoints(textLength, 'text');
+        let pendingReleasedByTimeout = false;
+        const pendingReleaseTimer = window.setTimeout(() => {
+          pendingReleasedByTimeout = true;
+          setTextConvertPointsPending(false);
+          void fetchUser();
+        }, 15_000);
+
+        const pointsDeducted = await usePoints(textLength, 'text', {
+          redirectOnAuthRequired: false,
+        });
+        window.clearTimeout(pendingReleaseTimer);
         if (!pointsDeducted) {
-          rollbackTextConvertPreviewRows(rowIdsToRollback);
-          setTextConvertReviewModal(null);
+          if (!pendingReleasedByTimeout) {
+            rollbackTextConvertPreviewRows(rowIdsToRollback);
+            setTextConvertReviewModal(null);
+          } else {
+            void fetchUser();
+          }
           setTextConvertPointsPending(false);
           return;
         }
@@ -4219,41 +4381,17 @@ export function LogisticsConvertClient({
     e.stopPropagation();
     setIsDragging(false);
 
-    if (!ensureLoggedInForOrderInput()) {
-      return;
-    }
-
     const files = Array.from(e.dataTransfer.files);
-    
-    if (files.length === 0) {
-      return;
-    }
-
-    // 파일 타입별로 분류 처리
-    files.forEach(file => {
-      const extension = file.name.split('.').pop()?.toLowerCase();
-      const fileType = file.type;
-      
-      // 엑셀·암호 ZIP 파일 처리
-      if (extension === 'xlsx' || extension === 'xls' || extension === 'zip') {
-        if (!ensureCourierTemplateReady('convert')) return;
-        if (!uploadedFileMeta.some(f => f.name === file.name && f.size === file.size)) {
-          setUploadedExcelFile(file);
-          parseExcelFile(file);
-        }
-      }
-      // 이미지 파일 처리 (이미지 변환)
-      else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || 
-               fileType.startsWith('image/')) {
-        handleImageFileSelect(file);
-      }
-      else {
-        alert(`지원하지 않는 파일 형식입니다: ${extension || fileType}`);
-      }
-    });
+    void processOrderInputFiles(files);
   };
 
-  const parseExcelFile = async (file: File) => {
+  const parseExcelFile = async (
+    file: File,
+    options?: { appendPreview?: boolean },
+  ): Promise<ParsedExcelPreviewChunk | null> => {
+    const appendPreview = options?.appendPreview ?? true;
+    const processingToken = fileProcessingTokenRef.current + 1;
+    fileProcessingTokenRef.current = processingToken;
     setFileProcessingStatus("processing");
     setStage2ChunkLabel(null);
     recordWorkspaceInput('excel');
@@ -4264,16 +4402,16 @@ export function LogisticsConvertClient({
     if (!trialMode && !user) {
       setFileProcessingStatus('idle');
       setRequiresAccountModalOpen(true);
-      return;
+      return null;
     }
 
     // 중복 검사 로직
-    if (uploadedFileMeta.some(
+    if (appendPreview && previewRows.length > 0 && uploadedFileMeta.some(
       f => f.name === file.name && f.size === file.size
     )) {
       alert('이미 업로드된 파일입니다.');
       setFileProcessingStatus("idle");
-      return;
+      return null;
     }
 
     try {
@@ -4283,7 +4421,7 @@ export function LogisticsConvertClient({
     } catch (unlockError) {
       if (unlockError instanceof ExcelUnlockCancelledError) {
         setFileProcessingStatus('idle');
-        return;
+        return null;
       }
       throw unlockError;
     }
@@ -4342,27 +4480,33 @@ export function LogisticsConvertClient({
       }
     }
 
-    // Stage2 완료 직후 상태 설정
-    setStage2ChunkLabel(null);
-    setFileProcessingStatus("done");
-    setTimeout(() => {
-      setFileProcessingStatus("idle");
-    }, 1500);
+    const activeTemplateBridgeFile = getActiveTemplateBridgeFile();
+    if (!activeTemplateBridgeFile) {
+      setStage2ChunkLabel(null);
+      setFileProcessingStatus('idle');
+      setNoTemplateModalType('convert');
+      setIsNoTemplateModalOpen(true);
+      return null;
+    }
     
     // unknownHeaders 처리
-    if (stage2Result.unknownHeaders?.length > 0) {
-      setUnknownHeadersWarning(stage2Result.unknownHeaders);
-    } else {
-      setUnknownHeadersWarning([]);
+    if (appendPreview) {
+      if (stage2Result.unknownHeaders?.length > 0) {
+        setUnknownHeadersWarning(stage2Result.unknownHeaders);
+      } else {
+        setUnknownHeadersWarning([]);
+      }
     }
     
     // orderStandardFile 상태는 유지하되, 누적하지 않음 (파일 단위 처리)
-    setOrderStandardFile(stage2Result);
+    if (appendPreview) {
+      setOrderStandardFile(stage2Result);
+    }
     
     // Stage3 실행 (handleExcelUpload 내부에서만 실행)
-    if (templateBridgeFile) {
+    if (activeTemplateBridgeFile) {
       const stage3Result = await runMergePipeline({
-        template: templateBridgeFile,
+        template: activeTemplateBridgeFile,
         orderData: stage2Result, // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
         fixedInput: fixedHeaderValues,
       });
@@ -4377,10 +4521,10 @@ export function LogisticsConvertClient({
             ? String(stage3Result?.previewRows?.[0]?.[pcccCourierHeader] ?? '')
             : '';
           const idx = pcccCourierHeader
-            ? templateBridgeFile.courierHeaders.indexOf(pcccCourierHeader)
+            ? activeTemplateBridgeFile.courierHeaders.indexOf(pcccCourierHeader)
             : -1;
           const mappedBaseHeader =
-            idx >= 0 ? templateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
+            idx >= 0 ? activeTemplateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
 
           console.log(
             `[EXCLOAD][DEBUG][PCCC] Stage3 courierHeader=${pcccCourierHeader} mappedBase=${mappedBaseHeader} previewRow0=${previewRow0}`,
@@ -4399,9 +4543,11 @@ export function LogisticsConvertClient({
         }
       }
 
-      // Stage3 직후: 자동 상품코드 투영 없음 — 미리보기에는 상품명 등 원문만 두고, 코드는 사용자가 버튼으로 적용
-      setProductCodeMappingNotice(null);
-      resetProductCodeColumnToggle();
+      if (appendPreview) {
+        // Stage3 직후: 자동 상품코드 투영 없음 — 미리보기에는 상품명 등 원문만 두고, 코드는 사용자가 버튼으로 적용
+        setProductCodeMappingNotice(null);
+        resetProductCodeColumnToggle();
+      }
 
       const projectedPreviewRows = stage3Result.previewRows;
 
@@ -4411,44 +4557,65 @@ export function LogisticsConvertClient({
         rowId: newRowIds[index]!,
         data: row,
       }));
-      setPreviewRows((prev) =>
-        prependPreviewRowsWithAutoMapping(
-          newPreviewChunk,
-          stage3Result.courierHeaders,
-          prev,
-        ),
-      );
-      setOrderStandardRowsByRowId((prev) =>
-        registerOrderSnapshotsForPreviewChunk(
-          prev,
-          newRowIds,
-          stage2Result.rows ?? [],
-        ),
-      );
-      
-      // 새로 생성된 행을 newRows에 추가
-      setNewRows(prev => {
-        const updated = new Set(prev);
-        newRowIds.forEach(id => updated.add(id));
-        return updated;
-      });
-      
-      // 3초 후 자동 제거
-      setTimeout(() => {
+      if (appendPreview) {
+        setPreviewRows((prev) =>
+          prependPreviewRowsWithAutoMapping(
+            newPreviewChunk,
+            stage3Result.courierHeaders,
+            prev,
+          ),
+        );
+        setOrderStandardRowsByRowId((prev) =>
+          registerOrderSnapshotsForPreviewChunk(
+            prev,
+            newRowIds,
+            stage2Result.rows ?? [],
+          ),
+        );
+        
+        // 새로 생성된 행을 newRows에 추가
         setNewRows(prev => {
           const updated = new Set(prev);
-          newRowIds.forEach(id => updated.delete(id));
+          newRowIds.forEach(id => updated.add(id));
           return updated;
         });
-      }, 3000);
+        
+        // 3초 후 자동 제거
+        setTimeout(() => {
+          setNewRows(prev => {
+            const updated = new Set(prev);
+            newRowIds.forEach(id => updated.delete(id));
+            return updated;
+          });
+        }, 3000);
+        setStage2ChunkLabel(null);
+        setFileProcessingStatus("done");
+        setTimeout(() => {
+          if (fileProcessingTokenRef.current === processingToken) {
+            setFileProcessingStatus("idle");
+          }
+        }, 1500);
+      }
       
-      setCourierHeaders(stage3Result.courierHeaders);
+      if (appendPreview) {
+        setCourierHeaders(stage3Result.courierHeaders);
+      }
 
       // Stage3 성공 후 메타데이터 저장
-      setUploadedFileMeta(prev => [
-        { name: file.name, size: file.size },
-        ...prev
-      ]);
+      if (appendPreview) {
+        setUploadedFileMeta(prev => [
+          { name: file.name, size: file.size },
+          ...prev
+        ]);
+      }
+
+      return {
+        file,
+        rowIds: newRowIds,
+        previewRows: newPreviewChunk,
+        standardRows: stage2Result.rows ?? [],
+        courierHeaders: stage3Result.courierHeaders,
+      };
     } else {
       console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
     }
@@ -4457,6 +4624,7 @@ export function LogisticsConvertClient({
       (window as any).__lastOrderResult = stage2Result;
       (window as any).__lastOrderFile = file.name;
     }
+    return null;
     } catch (error) {
       console.error('[LogisticsConvertClient] parseExcelFile', error);
       setStage2ChunkLabel(null);
@@ -4466,6 +4634,7 @@ export function LogisticsConvertClient({
           ? error.message
           : '엑셀 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
       );
+      return null;
     }
   };
 
@@ -5018,15 +5187,20 @@ export function LogisticsConvertClient({
                           (xlsx, xls, jpg, png, gif)
                         </p>
                       </div>
-                      {(uploadedExcelFile || uploadedFileMeta.length > 0 || selectedFileName) && (
+                      {(selectedFiles.length > 0 || uploadedExcelFile || uploadedFileMeta.length > 0 || selectedFileName) && (
                         <div className="flex items-center justify-center gap-3 mt-2 text-sm text-gray-600">
                           <span>
                             📄 선택된 파일:{' '}
-                            {uploadedExcelFile?.name ??
+                            {selectedFiles[0]?.name ??
+                              uploadedExcelFile?.name ??
                               selectedFileName ??
                               uploadedFileMeta[0]?.name ??
                               ''}
-                            {uploadedFileMeta.length > 1 && ` 외 ${uploadedFileMeta.length - 1}개`}
+                            {selectedFiles.length > 1
+                              ? ` 외 ${selectedFiles.length - 1}개`
+                              : selectedFiles.length === 0 && uploadedFileMeta.length > 1
+                                ? ` 외 ${uploadedFileMeta.length - 1}개`
+                                : ''}
                           </span>
 
                           <span className="w-[110px] text-right inline-block">
@@ -5059,6 +5233,7 @@ export function LogisticsConvertClient({
                     id="unified-file-input"
                     type="file"
                     accept=".xlsx,.xls,.png,.jpg,.jpeg,.gif"
+                    multiple
                     onChange={handleExcelFileChange}
                     style={{ display: 'none' }}
                   />
