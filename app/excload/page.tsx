@@ -24,21 +24,6 @@ const TrialEmbed = dynamic(
   },
 );
 
-const quickOrderPoints = [
-  {
-    title: '주문 파일 그대로 시작',
-    description: '지금 쓰는 주문 엑셀이나 이미지 파일을 먼저 올리면 됩니다.',
-  },
-  {
-    title: '필요한 내용만 확인',
-    description: '수취인, 연락처, 주소, 상품명처럼 배송에 필요한 주문 정보를 정리합니다.',
-  },
-  {
-    title: '한 번에 변환',
-    description: '양식이 다른 파일도 택배 업로드에 맞는 하나의 파일로 정리합니다.',
-  },
-];
-
 export default function HomePage() {
   const plans = [
     {
@@ -99,36 +84,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="mx-auto grid w-full max-w-6xl items-center gap-7 rounded-[2rem] border border-blue-100 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 lg:grid-cols-[0.9fr_1.1fr] lg:p-8">
-              <div className="space-y-5 px-1 py-2 lg:px-3">
-                <div>
-                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">빠른 주문 정리</p>
-                  <h2 className="mt-2 text-2xl font-extrabold leading-snug text-zinc-950 dark:text-zinc-100 sm:text-3xl [word-break:keep-all]">
-                    주문을 다시 만들지 말고,
-                    <br />
-                    쓰던 파일에서 바로 정리하세요.
-                  </h2>
-                </div>
-                <div className="space-y-3">
-                  {quickOrderPoints.map((point, index) => (
-                    <div
-                      key={point.title}
-                      className="flex gap-3 rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-950/50"
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-                      <div>
-                        <p className="font-bold text-zinc-900 dark:text-zinc-100">{point.title}</p>
-                        <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 [word-break:keep-all]">
-                          {point.description}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 p-2 shadow-[0_20px_50px_rgba(15,23,42,0.12)] dark:border-blue-900 dark:bg-blue-950/30">
+            <div className="mx-auto flex w-full max-w-6xl justify-end rounded-[2rem] border border-blue-100 bg-white/90 p-4 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 lg:p-6">
+              <div className="ml-auto w-full overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 p-2 shadow-[0_20px_50px_rgba(15,23,42,0.12)] dark:border-blue-900 dark:bg-blue-950/30 lg:w-[86%]">
                 <Image
                   src="/landing/quick-order-preview.png"
                   alt="엑클로드 빠른 주문 정리 화면 미리보기"
