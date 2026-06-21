@@ -162,16 +162,16 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
   const unlockExcelFile = useCallback(
     (file: File): Promise<ArrayBuffer> => {
       return new Promise<ArrayBuffer>((resolve, reject) => {
-        pendingRef.current = { resolve, reject };
-
         void (async () => {
           try {
             const probe = await probeExcelUploadFile(file);
 
             if (probe.action === 'use_plain') {
-              resolvePending(probe.buffer);
+              resolve(probe.buffer);
               return;
             }
+
+            pendingRef.current = { resolve, reject };
 
             if (probe.action === 'unsupported') {
               openUnsupportedModal(file.name, probe.message);
