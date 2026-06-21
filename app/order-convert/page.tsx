@@ -247,6 +247,15 @@ type ParsedExcelPreviewChunk = {
   previewRows: PreviewRowWithId[];
   standardRows: Record<string, string>[];
   courierHeaders: string[];
+  metrics: {
+    fileName: string;
+    originalRows: number;
+    baseHeaderMatchedRows: number;
+    stage1Rows: number;
+    stage2Rows: number;
+    stage3Rows: number;
+    stage4Rows: number;
+  };
 };
 
 const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean => {
@@ -1773,6 +1782,7 @@ export default function OrderConvertPage() {
       if (chunks.length > 0) {
         const rowsToAdd = chunks.flatMap((chunk) => chunk.previewRows);
         const rowIdsToAdd = chunks.flatMap((chunk) => chunk.rowIds);
+        const finalRows = rowsToAdd.length;
         setPreviewRows((prev) => [...rowsToAdd, ...prev]);
         setOrderStandardRowsByRowId((prev) =>
           chunks.reduce(
@@ -1798,6 +1808,33 @@ export default function OrderConvertPage() {
           ...chunks.map((chunk) => ({ name: chunk.file.name, size: chunk.file.size })),
           ...prev,
         ]);
+        setStage2ChunkLabel(null);
+        setFileProcessingStatus("done");
+        const completionToken = fileProcessingTokenRef.current;
+        setTimeout(() => {
+          if (fileProcessingTokenRef.current === completionToken) {
+            setFileProcessingStatus("idle");
+          }
+        }, 1500);
+        console.group('[EXCLOAD][ORDER_CONVERT][MULTI_EXCEL] 다중 엑셀 변환 완료');
+        console.table(
+          chunks.map((chunk) => ({
+            ...chunk.metrics,
+            finalTotalRows: finalRows,
+          })),
+        );
+        console.info('[EXCLOAD][ORDER_CONVERT][MULTI_EXCEL] 최종 미리보기 행 합계', {
+          fileCount: chunks.length,
+          finalRows,
+          expectedRows: chunks.reduce((sum, chunk) => sum + chunk.metrics.stage4Rows, 0),
+        });
+        console.groupEnd();
+      } else {
+        setStage2ChunkLabel(null);
+        setFileProcessingStatus("idle");
+        console.warn('[EXCLOAD][ORDER_CONVERT][MULTI_EXCEL] 다중 엑셀 변환 결과가 비어 있습니다.', {
+          selectedExcelFiles: excelFiles.map((file) => file.name),
+        });
       }
     }
 
@@ -2428,24 +2465,19 @@ export default function OrderConvertPage() {
       return null;
     }
 
-    // Stage2 완료 직후 상태 설정
-    setStage2ChunkLabel(null);
-    setFileProcessingStatus("done");
-    setTimeout(() => {
-      if (fileProcessingTokenRef.current === processingToken) {
-        setFileProcessingStatus("idle");
-      }
-    }, 1500);
-    
     // unknownHeaders 처리
-    if (stage2Result.unknownHeaders?.length > 0) {
-      setUnknownHeadersWarning(stage2Result.unknownHeaders);
-    } else {
-      setUnknownHeadersWarning([]);
+    if (appendPreview) {
+      if (stage2Result.unknownHeaders?.length > 0) {
+        setUnknownHeadersWarning(stage2Result.unknownHeaders);
+      } else {
+        setUnknownHeadersWarning([]);
+      }
     }
     
     // orderStandardFile 상태는 유지하되, 누적하지 않음 (파일 단위 처리)
-    setOrderStandardFile(stage2Result);
+    if (appendPreview) {
+      setOrderStandardFile(stage2Result);
+    }
     
     // Stage3 실행 (handleExcelUpload 내부에서만 실행)
     if (activeTemplateBridgeFile) {
@@ -2494,6 +2526,15 @@ export default function OrderConvertPage() {
           rowId: newRowIds[index],
           data: row
         }));
+      const metrics = {
+        fileName: file.name,
+        originalRows: Math.max(0, alignedRawData.length - 1),
+        baseHeaderMatchedRows: stage2Result.rows?.length ?? 0,
+        stage1Rows: cleanInputFile.rows?.length ?? 0,
+        stage2Rows: stage2Result.rows?.length ?? 0,
+        stage3Rows: stage3Result.previewRows.length,
+        stage4Rows: previewRowsWithIds.length,
+      };
 
       if (appendPreview) {
         setPreviewRows(prev => [
@@ -2519,9 +2560,21 @@ export default function OrderConvertPage() {
             return updated;
           });
         }, 3000);
+        setStage2ChunkLabel(null);
+        setFileProcessingStatus("done");
+        setTimeout(() => {
+          if (fileProcessingTokenRef.current === processingToken) {
+            setFileProcessingStatus("idle");
+          }
+        }, 1500);
+        console.group('[EXCLOAD][ORDER_CONVERT][SINGLE_EXCEL] 엑셀 변환 완료');
+        console.table([{ ...metrics, finalTotalRows: metrics.stage4Rows }]);
+        console.groupEnd();
       }
       
-      setCourierHeaders(stage3Result.courierHeaders);
+      if (appendPreview) {
+        setCourierHeaders(stage3Result.courierHeaders);
+      }
 
       // Stage3 성공 후 메타데이터 저장
       if (appendPreview) {
@@ -2537,6 +2590,7 @@ export default function OrderConvertPage() {
         previewRows: previewRowsWithIds,
         standardRows: stage2Result.rows ?? [],
         courierHeaders: stage3Result.courierHeaders,
+        metrics,
       };
     } else {
       console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');

@@ -180,11 +180,15 @@ export function useExcelFileUnlock(options?: UseExcelFileUnlockOptions) {
 
             openPasswordModal(file, probe.kind, probe.buffer);
           } catch (error) {
-            rejectPending(
+            const normalizedError =
               error instanceof Error
                 ? error
-                : new Error('파일을 확인할 수 없습니다.'),
-            );
+                : new Error('파일을 확인할 수 없습니다.');
+            if (pendingRef.current) {
+              rejectPending(normalizedError);
+            } else {
+              reject(normalizedError);
+            }
           }
         })();
       });
