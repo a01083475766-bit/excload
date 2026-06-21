@@ -1090,6 +1090,23 @@ export default function OrderConvertPage() {
     }
   }, [templateBridgeFile, storageUserId]);
 
+  const getActiveTemplateBridgeFile = useCallback((): TemplateBridgeFile | null => {
+    if (templateBridgeFile?.courierHeaders?.length) {
+      return templateBridgeFile;
+    }
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.bridge, storageUserId);
+      if (!saved) return null;
+      const parsed = JSON.parse(saved) as TemplateBridgeFile;
+      return Array.isArray(parsed.courierHeaders) && parsed.courierHeaders.length > 0
+        ? parsed
+        : null;
+    } catch {
+      return null;
+    }
+  }, [templateBridgeFile, storageUserId]);
+
   useEffect(() => {
     if (previewSessionEnabled || !authAssetsReady || !workspaceStorageHydrated) return;
     if (authStatus === 'loading') return;
@@ -1700,7 +1717,9 @@ export default function OrderConvertPage() {
     setSelectedFiles(supportedFiles);
 
     const seenExcelKeys = new Set(
-      uploadedFileMeta.map((file) => `${file.name}:${file.size}`),
+      previewRows.length > 0
+        ? uploadedFileMeta.map((file) => `${file.name}:${file.size}`)
+        : [],
     );
     const excelFiles: File[] = [];
     let duplicateExcelCount = 0;
@@ -2322,7 +2341,7 @@ export default function OrderConvertPage() {
     }
 
     // 중복 검사 로직
-    if (uploadedFileMeta.some(
+    if (appendPreview && previewRows.length > 0 && uploadedFileMeta.some(
       f => f.name === file.name && f.size === file.size
     )) {
       alert('이미 업로드된 파일입니다.');
@@ -2400,6 +2419,15 @@ export default function OrderConvertPage() {
       }
     }
 
+    const activeTemplateBridgeFile = getActiveTemplateBridgeFile();
+    if (!activeTemplateBridgeFile) {
+      setStage2ChunkLabel(null);
+      setFileProcessingStatus('idle');
+      setNoTemplateModalType('convert');
+      setIsNoTemplateModalOpen(true);
+      return null;
+    }
+
     // Stage2 완료 직후 상태 설정
     setStage2ChunkLabel(null);
     setFileProcessingStatus("done");
@@ -2420,9 +2448,9 @@ export default function OrderConvertPage() {
     setOrderStandardFile(stage2Result);
     
     // Stage3 실행 (handleExcelUpload 내부에서만 실행)
-    if (templateBridgeFile) {
+    if (activeTemplateBridgeFile) {
       const stage3Result = await runMergePipeline({
-        template: templateBridgeFile,
+        template: activeTemplateBridgeFile,
         orderData: stage2Result, // ❗ 누적 전체 아님, 현재 파일의 stage2Result만 전달
         fixedInput: fixedHeaderValues,
       });
@@ -2438,10 +2466,10 @@ export default function OrderConvertPage() {
             : '';
 
           const idx = pcccCourierHeader
-            ? templateBridgeFile.courierHeaders.indexOf(pcccCourierHeader)
+            ? activeTemplateBridgeFile.courierHeaders.indexOf(pcccCourierHeader)
             : -1;
           const mappedBaseHeader =
-            idx >= 0 ? templateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
+            idx >= 0 ? activeTemplateBridgeFile.mappedBaseHeaders[idx] ?? null : null;
 
           console.log(
             `[EXCLOAD][DEBUG][PCCC] Stage3 courierHeader=${pcccCourierHeader} mappedBase=${mappedBaseHeader} previewRow0=${previewRow0}`,
