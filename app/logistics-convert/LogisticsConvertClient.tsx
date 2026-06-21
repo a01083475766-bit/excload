@@ -5084,9 +5084,9 @@ export function LogisticsConvertClient({
                       ? '체험판은 미리보기 중심으로 제공되며, 다운로드는 가입 후 이용할 수 있습니다.'
                       : undefined
                   }
-                  className={`order-first min-w-0 flex-1 self-center px-1 text-center text-sm leading-snug text-gray-500 sm:order-none ${trialMode ? 'ex-tooltip-target' : ''}`}
+                  className={`order-first min-w-0 flex-1 self-center px-1 text-center text-xl font-bold leading-snug text-blue-400 sm:order-none ${trialMode ? 'ex-tooltip-target' : ''}`}
                 >
-                  무료체험으로 엑셀·파일 변환은 계속 이용할 수 있습니다. 텍스트 변환은 2,000자(글자 수 차감)까지 이용 가능합니다.
+                  지금 바로 무료로 테스트 해보세요
                 </p>
               )}
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">

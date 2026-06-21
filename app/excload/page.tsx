@@ -111,12 +111,12 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="pt-6 bg-zinc-50 dark:bg-black min-h-screen">
+    <div className="landing-soft-font pt-6 bg-zinc-50 dark:bg-black min-h-screen">
       <main className="max-w-7xl mx-auto px-6">
         {/* Hero 섹션 */}
         <section className="blue-unified-theme pt-12 pb-8 lg:pt-20 lg:pb-12">
           <div className="flex flex-col gap-8">
-            <div className="mx-auto max-w-5xl text-center">
+            <div className="relative mx-auto mb-28 max-w-5xl text-center lg:mb-36">
               <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
               <h1 className="mt-4 text-[clamp(1.47rem,4.2vw,3.36rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
                 복잡한 기능은 빼고
@@ -124,9 +124,9 @@ export default function HomePage() {
                 <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>
               </h1>
               <p className="mx-auto mt-6 max-w-3xl text-lg font-semibold leading-relaxed text-zinc-800 dark:text-zinc-200 sm:text-xl [word-break:keep-all]">
-                지금 필요한건 복잡한 기능 설정이 아니라 편리한 주문정리
+                복잡한 설정 없이, 내려받은 주문 파일을 그대로 올려보세요.
                 <br />
-                택배양식에 맞게 변환이 필요하다면 사용하던 주문 파일을 그대로 올려 시작하세요.
+                택배사 양식에 맞는 파일로 빠르게 정리됩니다.
               </p>
               <div className="mx-auto mt-7 flex max-w-3xl items-center gap-3 rounded-2xl border border-blue-100 bg-white px-5 py-4 text-left shadow-[0_14px_40px_rgba(37,99,235,0.10)] dark:border-blue-900/70 dark:bg-zinc-900 sm:px-6">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
@@ -143,7 +143,7 @@ export default function HomePage() {
             </div>
 
             <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[210px_minmax(0,1024px)]">
-              <div className="space-y-3 lg:pt-1">
+              <div className="space-y-3 pt-10 lg:pt-16">
                 <div className="grid grid-cols-2 gap-2">
                   {shoppingMallCards.map((mall) => (
                     <div
@@ -158,7 +158,16 @@ export default function HomePage() {
                   ))}
                 </div>
 
-                <div className="space-y-1.5 pt-32 lg:pt-48">
+                <div className="flex h-[92px] flex-col items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 via-teal-700 to-blue-900 px-3 text-center shadow-sm">
+                  <p className="text-[15px] font-black leading-tight text-amber-200 [word-break:keep-all]">
+                    여러 쇼핑몰 주문을
+                  </p>
+                  <p className="mt-1 text-[15px] font-black leading-tight text-amber-200 [word-break:keep-all]">
+                    택배사 양식으로 정리
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-4 lg:pt-5">
                   {courierCards.map((courier) => (
                     <div
                       key={courier.name}
@@ -189,8 +198,22 @@ export default function HomePage() {
               />
             </div>
 
+            <div className="mx-auto max-w-4xl px-3 pt-28 text-center lg:pt-32">
+              <h2 className="text-2xl font-extrabold leading-snug text-zinc-950 dark:text-zinc-100 sm:text-3xl [word-break:keep-all]">
+                주문 확인은 그대로,
+                <br />
+                파일 정리는 더 간단하게.
+              </h2>
+              <p className="mt-5 text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+                내려받은 주문 엑셀을 택배사 양식에 맞춰 전달하면 됩니다.
+              </p>
+              <p className="mt-2 text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+                복잡한 주문관리 프로그램을 새로 배울 필요가 없습니다.
+              </p>
+            </div>
+
             {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
-            <div className="w-full pt-8 pb-4 lg:pt-12 lg:pb-6">
+            <div className="w-full pt-12 pb-4 lg:pt-16 lg:pb-6">
               <div className="mx-auto w-full max-w-6xl">
                 <div className="rounded-2xl border border-blue-200 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-7 lg:p-8">
                   <LandingHowToSteps variant="embedded" />
@@ -228,8 +251,8 @@ export default function HomePage() {
             <h2 className="text-center text-xl sm:text-2xl font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
               주문 정리, 이렇게 돕습니다
             </h2>
-            <div className="flex justify-center overflow-x-auto">
-              <div className="grid w-max max-w-full min-w-0 grid-cols-[max-content_auto_minmax(8rem,1fr)] gap-x-2 gap-y-2 text-left text-sm sm:gap-x-3 sm:text-base leading-snug text-zinc-600 dark:text-zinc-400">
+            <div className="flex justify-center">
+              <div className="grid w-fit max-w-full min-w-0 grid-cols-[max-content_auto_minmax(8rem,max-content)] gap-x-2 gap-y-2 text-left text-sm sm:gap-x-3 sm:text-base leading-snug text-zinc-600 dark:text-zinc-400">
                 <div className="text-right font-semibold text-zinc-800 dark:text-zinc-200 [word-break:keep-all]">
                   어떤 방식의 주문도
                 </div>

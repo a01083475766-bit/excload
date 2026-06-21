@@ -31,6 +31,18 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.landing-soft-font {
+  font-family:
+    "Pretendard Variable",
+    Pretendard,
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    "Segoe UI",
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
 /* 랜딩 체험 버튼: hover 시 배경·글자 반전 (Tailwind와 동일 포인트 컬러 #00bcd4) */
 .trial-button {
   transition:
