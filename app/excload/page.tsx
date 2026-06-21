@@ -8,7 +8,7 @@ import {
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import { Check, CheckCircle, Clock, FileText, MapPin, Package, Truck } from 'lucide-react';
 const TrialEmbed = dynamic(
   () =>
     import('@/app/logistics-convert/LogisticsConvertClient').then(
@@ -24,24 +24,118 @@ const TrialEmbed = dynamic(
   },
 );
 
-const shoppingMallCards = [
-  { name: '스마트스토어', label: 'NAVER', color: '#03c75a', tint: '#e9fff4' },
-  { name: '11번가', label: '11ST', color: '#e60012', tint: '#fff1f2' },
-  { name: '쿠팡', label: 'COUPANG', color: '#2563eb', tint: '#eff6ff' },
-  { name: 'G마켓', label: 'G', color: '#00a651', tint: '#ecfdf5' },
-  { name: '옥션', label: 'A', color: '#e11d48', tint: '#fff1f2' },
-  { name: '카페24', label: 'C24', color: '#1d4ed8', tint: '#eff6ff' },
-  { name: '자사몰', label: 'SHOP', color: '#7c3aed', tint: '#f5f3ff' },
+type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
+type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
+
+const shoppingMallCards: { key: ShoppingMallKey; name: string }[] = [
+  { key: 'naver', name: '스마트스토어' },
+  { key: 'eleven', name: '11번가' },
+  { key: 'coupang', name: '쿠팡' },
+  { key: 'gmarket', name: 'G마켓' },
+  { key: 'auction', name: '옥션' },
+  { key: 'cafe24', name: '카페24' },
 ];
 
-const courierCards = [
-  { name: 'CJ대한통운', label: 'CJ', color: '#0f5ca8', tint: '#eff6ff' },
-  { name: '로젠택배', label: 'LOGEN', color: '#f97316', tint: '#fff7ed' },
-  { name: '우체국택배', label: 'POST', color: '#dc2626', tint: '#fff1f2' },
-  { name: '한진택배', label: 'HANJIN', color: '#2563eb', tint: '#eff6ff' },
-  { name: '롯데택배', label: 'LOTTE', color: '#be123c', tint: '#fff1f2' },
-  { name: '경동택배', label: 'KDEXP', color: '#16a34a', tint: '#f0fdf4' },
+const courierCards: { key: CourierKey; name: string; logo: string; color: string }[] = [
+  { key: 'cj', name: 'CJ대한통운', logo: 'CJ', color: '#0f5ca8' },
+  { key: 'logen', name: '로젠택배', logo: 'LOGEN', color: '#b07a1f' },
+  { key: 'post', name: '우체국택배', logo: 'POST', color: '#dc2626' },
+  { key: 'hanjin', name: '한진택배', logo: 'HANJIN', color: '#0f75bc' },
+  { key: 'lotte', name: '롯데택배', logo: 'LOTTE', color: '#dc2626' },
+  { key: 'kydexp', name: '경동택배', logo: 'KYDEXP', color: '#138f45' },
 ];
+
+function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
+  if (type === 'naver') {
+    return <span className="text-[22px] font-black leading-none tracking-tight text-[#03c75a]">NAVER</span>;
+  }
+  if (type === 'eleven') {
+    return <span className="text-[30px] font-black leading-none tracking-tight text-[#ef3340]">11&gt;</span>;
+  }
+  if (type === 'coupang') {
+    return (
+      <span className="text-[20px] font-black leading-none tracking-tight">
+        <span className="text-[#6b1d1d]">cou</span>
+        <span className="text-[#f59e0b]">p</span>
+        <span className="text-[#16a34a]">a</span>
+        <span className="text-[#2563eb]">n</span>
+        <span className="text-[#38bdf8]">g</span>
+      </span>
+    );
+  }
+  if (type === 'gmarket') {
+    return (
+      <span className="text-[21px] font-black leading-none tracking-tight">
+        <span className="text-[#00b050]">G</span>
+        <span className="text-[#1d4ed8]">market</span>
+      </span>
+    );
+  }
+  if (type === 'auction') {
+    return <span className="text-[24px] font-black leading-none text-[#c1121f]">옥션</span>;
+  }
+  return (
+    <span className="text-[22px] font-black leading-none tracking-tight">
+      <span className="text-[#111827]">cafe</span>
+      <span className="text-[#0ea5e9]">24</span>
+    </span>
+  );
+}
+
+function CourierActionIcons({ type }: { type: CourierKey }) {
+  const iconClass = 'h-5 w-5 text-zinc-800';
+
+  if (type === 'cj') {
+    return (
+      <div className="flex items-center gap-2">
+        <Truck className={iconClass} />
+        <span className="text-[10px] font-bold leading-tight text-zinc-700">
+          배송조회
+          <br />
+          연동
+        </span>
+      </div>
+    );
+  }
+  if (type === 'logen') {
+    return (
+      <div className="flex items-center gap-2">
+        <MapPin className={iconClass} />
+        <Clock className={iconClass} />
+      </div>
+    );
+  }
+  if (type === 'post') {
+    return (
+      <div className="flex items-center gap-2">
+        <Package className={iconClass} />
+        <CheckCircle className={iconClass} />
+      </div>
+    );
+  }
+  if (type === 'hanjin') {
+    return (
+      <div className="flex items-center gap-2">
+        <Package className={iconClass} />
+        <Truck className={iconClass} />
+      </div>
+    );
+  }
+  if (type === 'lotte') {
+    return (
+      <div className="flex items-center gap-2">
+        <FileText className={iconClass} />
+        <CheckCircle className={iconClass} />
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <Truck className={iconClass} />
+      <CheckCircle className={iconClass} />
+    </div>
+  );
+}
 
 export default function HomePage() {
   const plans = [
@@ -103,21 +197,16 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[180px_minmax(0,1024px)]">
-              <div className="space-y-5 lg:pt-2">
-                <div className="grid grid-cols-2 gap-2 lg:grid-cols-2">
-                  {shoppingMallCards.slice(0, 6).map((mall) => (
+            <div className="mx-auto grid w-full max-w-7xl items-start gap-5 lg:grid-cols-[300px_minmax(0,1024px)]">
+              <div className="space-y-4 lg:pt-1">
+                <div className="grid grid-cols-2 gap-3">
+                  {shoppingMallCards.map((mall) => (
                     <div
                       key={mall.name}
-                      className="flex min-h-16 flex-col items-center justify-center rounded-xl border border-zinc-100 bg-white px-2 py-2 text-center shadow-sm"
+                      className="flex min-h-[74px] flex-col items-center justify-center rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-center shadow-[0_3px_8px_rgba(15,23,42,0.14)]"
                     >
-                      <span
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-black"
-                        style={{ backgroundColor: mall.tint, color: mall.color }}
-                      >
-                        {mall.label}
-                      </span>
-                      <span className="mt-1 text-[11px] font-extrabold leading-tight text-zinc-800 [word-break:keep-all]">
+                      <ShoppingMallBrand type={mall.key} />
+                      <span className="mt-2 text-[17px] font-black leading-none text-black [word-break:keep-all]">
                         {mall.name}
                       </span>
                     </div>
@@ -128,17 +217,20 @@ export default function HomePage() {
                   {courierCards.map((courier) => (
                     <div
                       key={courier.name}
-                      className="flex items-center gap-2 rounded-xl border border-zinc-100 bg-white px-3 py-2 shadow-sm"
+                      className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-2 shadow-[0_3px_8px_rgba(15,23,42,0.14)]"
                     >
-                      <span
-                        className="flex h-7 w-12 shrink-0 items-center justify-center rounded-lg text-[9px] font-black"
-                        style={{ backgroundColor: courier.tint, color: courier.color }}
-                      >
-                        {courier.label}
-                      </span>
-                      <span className="text-xs font-extrabold text-zinc-800 [word-break:keep-all]">
-                        {courier.name}
-                      </span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="w-[58px] shrink-0 text-center text-[14px] font-black leading-none tracking-tight"
+                          style={{ color: courier.color }}
+                        >
+                          {courier.logo}
+                        </span>
+                        <span className="truncate text-[17px] font-black text-black [word-break:keep-all]">
+                          {courier.name}
+                        </span>
+                      </div>
+                      <CourierActionIcons type={courier.key} />
                     </div>
                   ))}
                 </div>
