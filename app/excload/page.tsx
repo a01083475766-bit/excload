@@ -103,24 +103,45 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="mx-auto w-full max-w-6xl space-y-4">
-              <div className="ml-auto flex w-full max-w-[1024px] flex-wrap justify-end gap-3">
-                {shoppingMallCards.map((mall) => (
-                  <div
-                    key={mall.name}
-                    className="flex min-w-[118px] items-center gap-2 rounded-2xl border border-zinc-100 bg-white px-3 py-2 shadow-sm"
-                  >
-                    <span
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-black"
-                      style={{ backgroundColor: mall.tint, color: mall.color }}
+            <div className="mx-auto grid w-full max-w-6xl items-start gap-5 lg:grid-cols-[180px_minmax(0,1024px)]">
+              <div className="space-y-5 lg:pt-2">
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-2">
+                  {shoppingMallCards.slice(0, 6).map((mall) => (
+                    <div
+                      key={mall.name}
+                      className="flex min-h-16 flex-col items-center justify-center rounded-xl border border-zinc-100 bg-white px-2 py-2 text-center shadow-sm"
                     >
-                      {mall.label}
-                    </span>
-                    <span className="text-sm font-extrabold text-zinc-800 [word-break:keep-all]">
-                      {mall.name}
-                    </span>
-                  </div>
-                ))}
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-[10px] font-black"
+                        style={{ backgroundColor: mall.tint, color: mall.color }}
+                      >
+                        {mall.label}
+                      </span>
+                      <span className="mt-1 text-[11px] font-extrabold leading-tight text-zinc-800 [word-break:keep-all]">
+                        {mall.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2">
+                  {courierCards.map((courier) => (
+                    <div
+                      key={courier.name}
+                      className="flex items-center gap-2 rounded-xl border border-zinc-100 bg-white px-3 py-2 shadow-sm"
+                    >
+                      <span
+                        className="flex h-7 w-12 shrink-0 items-center justify-center rounded-lg text-[9px] font-black"
+                        style={{ backgroundColor: courier.tint, color: courier.color }}
+                      >
+                        {courier.label}
+                      </span>
+                      <span className="text-xs font-extrabold text-zinc-800 [word-break:keep-all]">
+                        {courier.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <Image
@@ -132,25 +153,6 @@ export default function HomePage() {
                 unoptimized
                 className="ml-auto h-auto w-full max-w-[1024px]"
               />
-
-              <div className="ml-auto flex w-full max-w-[1024px] flex-wrap justify-end gap-3">
-                {courierCards.map((courier) => (
-                  <div
-                    key={courier.name}
-                    className="flex min-w-[124px] items-center gap-2 rounded-2xl border border-zinc-100 bg-white px-3 py-2 shadow-sm"
-                  >
-                    <span
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[10px] font-black"
-                      style={{ backgroundColor: courier.tint, color: courier.color }}
-                    >
-                      {courier.label}
-                    </span>
-                    <span className="text-sm font-extrabold text-zinc-800 [word-break:keep-all]">
-                      {courier.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
