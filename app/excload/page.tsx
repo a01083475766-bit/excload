@@ -199,15 +199,15 @@ export default function HomePage() {
             </div>
 
             <div className="mx-auto max-w-4xl px-3 pt-28 text-center lg:pt-32">
-              <h2 className="text-2xl font-extrabold leading-snug text-zinc-950 dark:text-zinc-100 sm:text-3xl [word-break:keep-all]">
+              <h2 className="text-3xl font-extrabold leading-snug text-zinc-950 dark:text-zinc-100 sm:text-4xl [word-break:keep-all]">
                 주문 확인은 그대로,
                 <br />
                 파일 정리는 더 간단하게.
               </h2>
-              <p className="mt-5 text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+              <p className="mt-5 text-lg font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-xl [word-break:keep-all]">
                 내려받은 주문 엑셀을 택배사 양식에 맞춰 전달하면 됩니다.
               </p>
-              <p className="mt-2 text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+              <p className="mt-2 text-lg font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-xl [word-break:keep-all]">
                 복잡한 주문관리 프로그램을 새로 배울 필요가 없습니다.
               </p>
             </div>
