@@ -241,6 +241,14 @@ type PendingOrderUpload =
   | { kind: 'excel'; file: File }
   | { kind: 'image'; file: File };
 
+type ParsedExcelPreviewChunk = {
+  file: File;
+  rowIds: string[];
+  previewRows: PreviewRowWithId[];
+  standardRows: Record<string, string>[];
+  courierHeaders: string[];
+};
+
 const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean => {
   if (template === null) return false;
   if (!Array.isArray(template.headers)) return false;
@@ -1694,7 +1702,7 @@ export default function OrderConvertPage() {
     const seenExcelKeys = new Set(
       uploadedFileMeta.map((file) => `${file.name}:${file.size}`),
     );
-    const excelTasks: Promise<void>[] = [];
+    const excelFiles: File[] = [];
     let duplicateExcelCount = 0;
     const unsupportedFileNames: string[] = [];
 
@@ -1714,7 +1722,7 @@ export default function OrderConvertPage() {
         if (!ensureCourierTemplateReady('convert')) return;
 
         setUploadedExcelFile(file);
-        excelTasks.push(parseExcelFile(file));
+        excelFiles.push(file);
         continue;
       }
 
@@ -1734,8 +1742,44 @@ export default function OrderConvertPage() {
       unsupportedFileNames.push(file.name);
     }
 
-    if (excelTasks.length > 0) {
-      await Promise.all(excelTasks);
+    if (excelFiles.length === 1) {
+      await parseExcelFile(excelFiles[0]);
+    } else if (excelFiles.length > 1) {
+      const chunks = (
+        await Promise.all(
+          excelFiles.map((file) => parseExcelFile(file, { appendPreview: false })),
+        )
+      ).filter((chunk): chunk is ParsedExcelPreviewChunk => Boolean(chunk));
+
+      if (chunks.length > 0) {
+        const rowsToAdd = chunks.flatMap((chunk) => chunk.previewRows);
+        const rowIdsToAdd = chunks.flatMap((chunk) => chunk.rowIds);
+        setPreviewRows((prev) => [...rowsToAdd, ...prev]);
+        setOrderStandardRowsByRowId((prev) =>
+          chunks.reduce(
+            (acc, chunk) =>
+              registerOrderSnapshotsForPreviewChunk(acc, chunk.rowIds, chunk.standardRows),
+            prev,
+          ),
+        );
+        setNewRows((prev) => {
+          const updated = new Set(prev);
+          rowIdsToAdd.forEach((id) => updated.add(id));
+          return updated;
+        });
+        setTimeout(() => {
+          setNewRows((prev) => {
+            const updated = new Set(prev);
+            rowIdsToAdd.forEach((id) => updated.delete(id));
+            return updated;
+          });
+        }, 3000);
+        setCourierHeaders(chunks[chunks.length - 1].courierHeaders);
+        setUploadedFileMeta((prev) => [
+          ...chunks.map((chunk) => ({ name: chunk.file.name, size: chunk.file.size })),
+          ...prev,
+        ]);
+      }
     }
 
     if (duplicateExcelCount > 0) {
@@ -2257,7 +2301,11 @@ export default function OrderConvertPage() {
     void processOrderInputFiles(files);
   };
 
-  const parseExcelFile = async (file: File) => {
+  const parseExcelFile = async (
+    file: File,
+    options?: { appendPreview?: boolean },
+  ): Promise<ParsedExcelPreviewChunk | null> => {
+    const appendPreview = options?.appendPreview ?? true;
     const processingToken = fileProcessingTokenRef.current + 1;
     fileProcessingTokenRef.current = processingToken;
     setFileProcessingStatus("processing");
@@ -2270,7 +2318,7 @@ export default function OrderConvertPage() {
     if (!user) {
       setFileProcessingStatus('idle');
       setRequiresAccountModalOpen(true);
-      return;
+      return null;
     }
 
     // 중복 검사 로직
@@ -2279,7 +2327,7 @@ export default function OrderConvertPage() {
     )) {
       alert('이미 업로드된 파일입니다.');
       setFileProcessingStatus("idle");
-      return;
+      return null;
     }
 
     try {
@@ -2289,7 +2337,7 @@ export default function OrderConvertPage() {
     } catch (unlockError) {
       if (unlockError instanceof ExcelUnlockCancelledError) {
         setFileProcessingStatus('idle');
-        return;
+        return null;
       }
       throw unlockError;
     }
@@ -2414,40 +2462,54 @@ export default function OrderConvertPage() {
       
       // previewRows 상단 prepend 구조 적용
       const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
-      setPreviewRows(prev => [
-        ...stage3Result.previewRows.map((row, index) => ({
+      const previewRowsWithIds = stage3Result.previewRows.map((row, index) => ({
           rowId: newRowIds[index],
           data: row
-        })),
-        ...prev
-      ]);
-      setOrderStandardRowsByRowId((prev) =>
-        registerOrderSnapshotsForPreviewChunk(prev, newRowIds, stage2Result.rows ?? []),
-      );
-      
-      // 새로 생성된 행을 newRows에 추가
-      setNewRows(prev => {
-        const updated = new Set(prev);
-        newRowIds.forEach(id => updated.add(id));
-        return updated;
-      });
-      
-      // 3초 후 자동 제거
-      setTimeout(() => {
+        }));
+
+      if (appendPreview) {
+        setPreviewRows(prev => [
+          ...previewRowsWithIds,
+          ...prev
+        ]);
+        setOrderStandardRowsByRowId((prev) =>
+          registerOrderSnapshotsForPreviewChunk(prev, newRowIds, stage2Result.rows ?? []),
+        );
+        
+        // 새로 생성된 행을 newRows에 추가
         setNewRows(prev => {
           const updated = new Set(prev);
-          newRowIds.forEach(id => updated.delete(id));
+          newRowIds.forEach(id => updated.add(id));
           return updated;
         });
-      }, 3000);
+        
+        // 3초 후 자동 제거
+        setTimeout(() => {
+          setNewRows(prev => {
+            const updated = new Set(prev);
+            newRowIds.forEach(id => updated.delete(id));
+            return updated;
+          });
+        }, 3000);
+      }
       
       setCourierHeaders(stage3Result.courierHeaders);
 
       // Stage3 성공 후 메타데이터 저장
-      setUploadedFileMeta(prev => [
-        { name: file.name, size: file.size },
-        ...prev
-      ]);
+      if (appendPreview) {
+        setUploadedFileMeta(prev => [
+          { name: file.name, size: file.size },
+          ...prev
+        ]);
+      }
+
+      return {
+        file,
+        rowIds: newRowIds,
+        previewRows: previewRowsWithIds,
+        standardRows: stage2Result.rows ?? [],
+        courierHeaders: stage3Result.courierHeaders,
+      };
     } else {
       console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
     }
@@ -2456,6 +2518,7 @@ export default function OrderConvertPage() {
       (window as any).__lastOrderResult = stage2Result;
       (window as any).__lastOrderFile = file.name;
     }
+    return null;
     } catch (error) {
       console.error('[OrderConvertPage] parseExcelFile', error);
       setStage2ChunkLabel(null);
@@ -2465,6 +2528,7 @@ export default function OrderConvertPage() {
           ? error.message
           : '엑셀 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
       );
+      return null;
     }
   };
 
