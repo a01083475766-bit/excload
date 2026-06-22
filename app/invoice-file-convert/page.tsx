@@ -2038,10 +2038,16 @@ export default function InvoiceFileConvertPage() {
 
       if (combinedUnknownHeaders.length > 0) {
         setUnknownHeadersWarning(combinedUnknownHeaders);
+        const orderUnknownHeaders = orderStage2.unknownHeaders ?? [];
+        const invoiceUnknownHeaders = invoiceStage2.unknownHeaders ?? [];
         setUnknownHeaderSamples(
           mergeUnknownHeaderSamples(
-            buildUnknownHeaderSamples(orderStage2.unknownHeaders ?? [], orderCleanInput),
-            buildUnknownHeaderSamples(invoiceStage2.unknownHeaders ?? [], invoiceCleanInput),
+            orderUnknownHeaders.length > 0
+              ? buildUnknownHeaderSamples(orderUnknownHeaders, orderCleanInput)
+              : {},
+            invoiceUnknownHeaders.length > 0
+              ? buildUnknownHeaderSamples(invoiceUnknownHeaders, invoiceCleanInput)
+              : {},
           ),
         );
       } else {

@@ -2586,10 +2586,10 @@ export default function OrderConvertPage() {
     const stage2UnknownHeaders = Array.isArray(stage2Result.unknownHeaders)
       ? stage2Result.unknownHeaders
       : [];
-    const stage2UnknownHeaderSamples = buildUnknownHeaderSamples(
-      stage2UnknownHeaders,
-      cleanInputFile,
-    );
+    const stage2UnknownHeaderSamples =
+      stage2UnknownHeaders.length > 0
+        ? buildUnknownHeaderSamples(stage2UnknownHeaders, cleanInputFile)
+        : {};
 
     // unknownHeaders 처리
     if (appendPreview) {
