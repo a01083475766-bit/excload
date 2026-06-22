@@ -212,15 +212,6 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
-            <div className="w-full pt-12 pb-4 lg:pt-16 lg:pb-6">
-              <div className="mx-auto w-full max-w-6xl">
-                <div className="rounded-2xl border border-blue-200 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-7 lg:p-8">
-                  <LandingHowToSteps variant="embedded" />
-                </div>
-              </div>
-            </div>
-
             {/* 데모 하단: 가격 강조 (한 줄) — 상하 여백 대칭, 아래 체험 박스와 간격 확보 */}
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto px-3 py-8 lg:py-10">
               <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
@@ -239,6 +230,15 @@ export default function HomePage() {
                 </Link>
                 로 이동할 수 있습니다.
               </p>
+            </div>
+
+            {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
+            <div className="w-full pt-12 pb-4 lg:pt-16 lg:pb-6">
+              <div className="mx-auto w-full max-w-6xl">
+                <div className="rounded-2xl border border-blue-200 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-7 lg:p-8">
+                  <LandingHowToSteps variant="embedded" />
+                </div>
+              </div>
             </div>
           </div>
         </section>

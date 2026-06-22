@@ -20,7 +20,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
+import { Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import {
   buildTemplateHeaderLogPayload,
@@ -4980,61 +4980,38 @@ export function LogisticsConvertClient({
             aria-labelledby="trial-download-modal-title"
             aria-describedby="trial-download-modal-desc"
           >
-            <div className="flex gap-3 items-start mb-4">
-              <div
-                className="flex-shrink-0 w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center border border-emerald-200/80 dark:border-emerald-800"
-                aria-hidden
-              >
-                <FileSpreadsheet className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2
-                  id="trial-download-modal-title"
-                  className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug"
-                >
-                  표 정리는 여기까지예요. 엑셀은 가입 후 이어가세요
-                </h2>
-                <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                  발송·송장 업무에 쓰실 파일은 정식 서비스에서 받으실 수 있어요
-                </p>
-              </div>
-            </div>
+            <h2
+              id="trial-download-modal-title"
+              className="text-xl font-bold text-zinc-950 dark:text-zinc-100 leading-snug"
+            >
+              주문 정리가 잘 되었나요?
+            </h2>
 
             <div
               id="trial-download-modal-desc"
-              className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed"
+              className="mt-5 space-y-3 text-base text-zinc-800 dark:text-zinc-300 leading-relaxed"
             >
               <p>
-                체험판은 <strong>미리보기 확인</strong>까지 제공됩니다.
+                확인한 주문 내용을 엑셀로 저장하려면
                 <br />
-                <strong>엑셀 저장·다운로드는 회원가입 후</strong> 이용할 수 있습니다.
-              </p>
-              <p>
-                <strong>무료 회원가입 후</strong> 지금과 같은 흐름으로 계속 작업하실 수 있습니다.
+                무료 회원가입 후 다운로드해 주세요.
               </p>
             </div>
 
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end sm:items-center">
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
               <button
                 type="button"
-                className="sm:order-1 w-full sm:w-auto px-4 py-2.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors"
+                className="w-full sm:w-auto px-4 py-2.5 text-base rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
-                나중에 하기
+                다시 확인하기
               </button>
               <Link
-                href="/pricing"
-                className="sm:order-2 w-full sm:w-auto px-4 py-2.5 text-sm rounded-lg border border-blue-200 dark:border-blue-700/70 text-center text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                onClick={() => setShowTrialDownloadModal(false)}
-              >
-                요금제 보기
-              </Link>
-              <Link
                 href="/auth?mode=login"
-                className="sm:order-3 w-full sm:w-auto px-4 py-2.5 text-sm rounded-lg bg-emerald-600 text-white text-center font-medium hover:bg-emerald-700"
+                className="w-full sm:w-auto px-4 py-2.5 text-base rounded-lg border border-blue-200 bg-blue-50 text-center font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-700/70 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/40"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
-                무료 가입하고 엑셀 받기
+                무료 가입 후 다운로드
               </Link>
             </div>
           </div>
