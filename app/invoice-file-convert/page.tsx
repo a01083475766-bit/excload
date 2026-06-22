@@ -2767,12 +2767,13 @@ export default function InvoiceFileConvertPage() {
                 {unknownHeadersWarning.length > 0 && (
                   <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg text-sm text-amber-800 mx-6 mb-4">
                     <p className="font-semibold mb-2">
-                      주문파일 또는 송장번호파일의 일부 헤더를 어느 항목에 사용해야 할지 판단하지 못했습니다.
+                      주문파일 또는 송장번호파일의 일부 헤더를 송장 업로드양식의 어느 항목에 넣어야 할지 판단하지 못했습니다.
                     </p>
 
                     <p className="mb-3 leading-relaxed">
-                      아래 항목은 어떤 정보인지 자동으로 확인되지 않아 송장 정리에 반영하지 않았습니다.
-                      내용을 살펴보고 필요한 정보인지 확인해 주세요.
+                      아래 항목은 주문 관리나 배송 확인에는 필요한 정보일 수 있지만, 현재 등록된 송장
+                      업로드양식에서 사용할 항목으로 자동 확인되지 않아 변환 결과에 반영하지 않았습니다.
+                      내용을 살펴보고 쇼핑몰 송장 업로드에 필요한 정보인지 확인해 주세요.
                     </p>
 
                     <div className="mb-2 text-blue-600 font-semibold text-base">
@@ -2804,10 +2805,12 @@ export default function InvoiceFileConvertPage() {
 
                     <div className="text-xs text-amber-700 leading-relaxed">
                       <strong>필요한 정보라면</strong><br />
-                      미리보기에서 알맞은 항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
+                      송장 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은
+                      항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
                       <br /><br />
                       <strong>필요하지 않은 정보라면</strong><br />
-                      그대로 진행하고 다운로드하셔도 됩니다.
+                      송장 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고
+                      다운로드하셔도 됩니다.
                       <br /><br />
                       ※ 다운로드 전 송장 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.
                     </div>
