@@ -3476,11 +3476,12 @@ export default function OrderConvertPage() {
                 {unknownHeadersWarning.length > 0 && (
                   <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg text-sm text-amber-800 mx-6 mb-4">
                     <p className="font-semibold mb-2">
-                      자동변환에 적용하지 못한 헤더가 있습니다.
+                      주문파일의 일부 헤더를 어느 항목에 사용해야 할지 판단하지 못했습니다.
                     </p>
 
-                    <p className="mb-2">
-                      파일의 일부 헤더를 어느 항목에 사용해야 할지 판단하지 못했습니다.
+                    <p className="mb-3 leading-relaxed">
+                      아래 항목은 어떤 정보인지 자동으로 확인되지 않아 주문 정리에 반영하지 않았습니다.
+                      내용을 살펴보고 필요한 정보인지 확인해 주세요.
                     </p>
 
                     <div className="mb-2 text-blue-600 font-semibold text-base">
@@ -3506,21 +3507,18 @@ export default function OrderConvertPage() {
                       })}
                     </div>
 
-                    <p className="mb-3">
-                      예시 값은 원본을 그대로 저장하지 않고 화면 확인용으로만 일부 마스킹해 보여드립니다.
-                      필요한 정보라면 미리보기에서 확인 후 수정해 주세요.
-                      <br />
-                      비어있거나 꼭 필요한 정보가 아니라면 그대로 다운로드하셔도 됩니다.
+                    <p className="mb-3 text-xs leading-relaxed text-amber-700">
+                      ※ 표시된 내용은 확인을 돕기 위한 예시이며, 개인정보는 일부 가려서 보여드립니다.
                     </p>
 
                     <div className="text-xs text-amber-700 leading-relaxed">
-                      <strong>이렇게 해결할 수 있습니다.</strong><br />
-                      • 파일에서 헤더 이름을 상품명 / 수량 / 주소 등 일반적인 이름으로 수정 후 다시 업로드<br />
-                      • 또는 아래 미리보기에서 직접 수정 후 다운로드
-                    </div>
-
-                    <div className="mt-2 text-xs text-amber-800">
-                      ※ 다운로드 전에 주문 정보가 올바르게 정리되었는지 확인해주세요.
+                      <strong>필요한 정보라면</strong><br />
+                      미리보기에서 알맞은 항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
+                      <br /><br />
+                      <strong>필요하지 않은 정보라면</strong><br />
+                      그대로 진행하고 다운로드하셔도 됩니다.
+                      <br /><br />
+                      ※ 다운로드 전 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.
                     </div>
                   </div>
                 )}
