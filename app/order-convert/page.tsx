@@ -259,6 +259,10 @@ type ParsedExcelPreviewChunk = {
 };
 
 type UnknownHeaderSamples = Record<string, string[]>;
+type UnknownHeaderSampleInput = {
+  headers: readonly string[];
+  rows: ReadonlyArray<ReadonlyArray<unknown>>;
+};
 
 function maskUnknownHeaderSampleValue(rawValue: unknown): string {
   const value = String(rawValue ?? '').trim();
@@ -293,7 +297,7 @@ function maskUnknownHeaderSampleValue(rawValue: unknown): string {
 
 function buildUnknownHeaderSamples(
   unknownHeaders: string[],
-  inputFile: Pick<CleanInputFile, 'headers' | 'rows'> | null | undefined,
+  inputFile: UnknownHeaderSampleInput | null | undefined,
 ): UnknownHeaderSamples {
   if (!inputFile || unknownHeaders.length === 0) return {};
 
@@ -2693,7 +2697,7 @@ export default function OrderConvertPage() {
 
   const handleUnifiedPipelinesCompleted = (
     result: UnifiedInputPipelineResult,
-    cleanInputFile?: Pick<CleanInputFile, 'headers' | 'rows'>,
+    cleanInputFile?: UnknownHeaderSampleInput,
   ) => {
     if (!result.mergeResult) {
       return null;
