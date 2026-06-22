@@ -247,6 +247,8 @@ type ParsedExcelPreviewChunk = {
   previewRows: PreviewRowWithId[];
   standardRows: Record<string, string>[];
   courierHeaders: string[];
+  unknownHeaders: string[];
+  unknownHeaderSamples: UnknownHeaderSamples;
   metrics: {
     fileName: string;
     originalRows: number;
@@ -1875,7 +1877,21 @@ export default function OrderConvertPage() {
       if (chunks.length > 0) {
         const rowsToAdd = chunks.flatMap((chunk) => chunk.previewRows);
         const rowIdsToAdd = chunks.flatMap((chunk) => chunk.rowIds);
+        const mergedUnknownHeaders = chunks.reduce<string[]>(
+          (acc, chunk) => mergeUnknownHeaders(acc, chunk.unknownHeaders),
+          [],
+        );
+        const mergedUnknownHeaderSamples = chunks.reduce<UnknownHeaderSamples>(
+          (acc, chunk) => mergeUnknownHeaderSamples(acc, chunk.unknownHeaderSamples),
+          {},
+        );
         const finalRows = rowsToAdd.length;
+        if (mergedUnknownHeaders.length > 0) {
+          setUnknownHeadersWarning((prev) => mergeUnknownHeaders(prev, mergedUnknownHeaders));
+          setUnknownHeaderSamples((prev) =>
+            mergeUnknownHeaderSamples(prev, mergedUnknownHeaderSamples),
+          );
+        }
         setPreviewRows((prev) => [...rowsToAdd, ...prev]);
         setOrderStandardRowsByRowId((prev) =>
           chunks.reduce(
@@ -2567,15 +2583,20 @@ export default function OrderConvertPage() {
       return null;
     }
 
+    const stage2UnknownHeaders = Array.isArray(stage2Result.unknownHeaders)
+      ? stage2Result.unknownHeaders
+      : [];
+    const stage2UnknownHeaderSamples = buildUnknownHeaderSamples(
+      stage2UnknownHeaders,
+      cleanInputFile,
+    );
+
     // unknownHeaders 처리
     if (appendPreview) {
-      if (stage2Result.unknownHeaders?.length > 0) {
-        setUnknownHeadersWarning((prev) => mergeUnknownHeaders(prev, stage2Result.unknownHeaders));
+      if (stage2UnknownHeaders.length > 0) {
+        setUnknownHeadersWarning((prev) => mergeUnknownHeaders(prev, stage2UnknownHeaders));
         setUnknownHeaderSamples((prev) =>
-          mergeUnknownHeaderSamples(
-            prev,
-            buildUnknownHeaderSamples(stage2Result.unknownHeaders, cleanInputFile),
-          ),
+          mergeUnknownHeaderSamples(prev, stage2UnknownHeaderSamples),
         );
       }
     }
@@ -2693,6 +2714,8 @@ export default function OrderConvertPage() {
         previewRows: previewRowsWithIds,
         standardRows: stage2Result.rows ?? [],
         courierHeaders: stage3Result.courierHeaders,
+        unknownHeaders: stage2UnknownHeaders,
+        unknownHeaderSamples: stage2UnknownHeaderSamples,
         metrics,
       };
     } else {
