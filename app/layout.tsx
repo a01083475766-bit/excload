@@ -30,7 +30,13 @@ export const metadata: Metadata = {
   title: DEFAULT_TITLE,
   description: DEFAULT_DESCRIPTION,
   icons: {
-    icon: "/favicon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/favicon.png", type: "image/png", sizes: "32x32" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
   },
   openGraph: buildOpenGraph(DEFAULT_TITLE, DEFAULT_DESCRIPTION, "/"),
   verification: {
