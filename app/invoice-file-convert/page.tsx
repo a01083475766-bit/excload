@@ -2771,9 +2771,9 @@ export default function InvoiceFileConvertPage() {
                     </p>
 
                     <p className="mb-3 leading-relaxed">
-                      아래 항목은 주문 관리나 배송 확인에는 필요한 정보일 수 있지만, 현재 등록된 송장
-                      업로드양식에서 사용할 항목으로 자동 확인되지 않아 변환 결과에 반영하지 않았습니다.
-                      내용을 살펴보고 쇼핑몰 송장 업로드에 필요한 정보인지 확인해 주세요.
+                      아래 항목은 주문 관리나 배송 확인에는 필요할 수 있지만, 현재 송장 업로드양식에 넣을 항목으로 확인되지 않았습니다.
+                      <br />
+                      쇼핑몰 송장 업로드에 필요한 정보인지 확인해 주세요.
                     </p>
 
                     <div className="mb-2 text-blue-600 font-semibold text-base">
