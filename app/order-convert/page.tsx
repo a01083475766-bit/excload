@@ -329,6 +329,26 @@ function buildUnknownHeaderSamples(
   }, {});
 }
 
+function mergeUnknownHeaders(previous: string[], next: string[]): string[] {
+  return [...previous, ...next].filter((header, index, headers) => headers.indexOf(header) === index);
+}
+
+function mergeUnknownHeaderSamples(
+  previous: UnknownHeaderSamples,
+  next: UnknownHeaderSamples,
+): UnknownHeaderSamples {
+  const merged: UnknownHeaderSamples = { ...previous };
+
+  for (const [header, samples] of Object.entries(next)) {
+    const previousSamples = merged[header] ?? [];
+    merged[header] = [...previousSamples, ...samples].filter(
+      (sample, index, allSamples) => allSamples.indexOf(sample) === index,
+    ).slice(0, 3);
+  }
+
+  return merged;
+}
+
 const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean => {
   if (template === null) return false;
   if (!Array.isArray(template.headers)) return false;
@@ -2550,11 +2570,13 @@ export default function OrderConvertPage() {
     // unknownHeaders 처리
     if (appendPreview) {
       if (stage2Result.unknownHeaders?.length > 0) {
-        setUnknownHeadersWarning(stage2Result.unknownHeaders);
-        setUnknownHeaderSamples(buildUnknownHeaderSamples(stage2Result.unknownHeaders, cleanInputFile));
-      } else {
-        setUnknownHeadersWarning([]);
-        setUnknownHeaderSamples({});
+        setUnknownHeadersWarning((prev) => mergeUnknownHeaders(prev, stage2Result.unknownHeaders));
+        setUnknownHeaderSamples((prev) =>
+          mergeUnknownHeaderSamples(
+            prev,
+            buildUnknownHeaderSamples(stage2Result.unknownHeaders, cleanInputFile),
+          ),
+        );
       }
     }
     
@@ -2705,13 +2727,15 @@ export default function OrderConvertPage() {
 
     // unknownHeaders 처리
     if (result.orderStandardFile?.unknownHeaders?.length > 0) {
-      setUnknownHeadersWarning(result.orderStandardFile.unknownHeaders);
-      setUnknownHeaderSamples(
-        buildUnknownHeaderSamples(result.orderStandardFile.unknownHeaders, cleanInputFile),
+      setUnknownHeadersWarning((prev) =>
+        mergeUnknownHeaders(prev, result.orderStandardFile.unknownHeaders),
       );
-    } else {
-      setUnknownHeadersWarning([]);
-      setUnknownHeaderSamples({});
+      setUnknownHeaderSamples((prev) =>
+        mergeUnknownHeaderSamples(
+          prev,
+          buildUnknownHeaderSamples(result.orderStandardFile.unknownHeaders, cleanInputFile),
+        ),
+      );
     }
 
     const { courierHeaders: mergedCourierHeaders, previewRows: mergedPreviewRows } = result.mergeResult;
