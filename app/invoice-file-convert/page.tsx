@@ -112,6 +112,93 @@ type PreviewRowWithId = {
   data: PreviewRow;
 };
 
+type UnknownHeaderSamples = Record<string, string[]>;
+type UnknownHeaderSampleInput = {
+  headers: readonly string[];
+  rows: ReadonlyArray<ReadonlyArray<unknown>>;
+};
+
+function maskUnknownHeaderSampleValue(rawValue: unknown): string {
+  const value = String(rawValue ?? '').trim();
+  if (!value) return '';
+
+  return value
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part)) return part;
+
+      const chars = Array.from(part);
+      if (chars.length <= 2) return part;
+
+      let masked = '';
+      for (let i = 0; i < chars.length; i += 4) {
+        const chunk = chars.slice(i, i + 4);
+        if (chunk.length === 1) {
+          masked += chunk[0];
+        } else if (chunk.length === 2 && i > 0) {
+          masked += `${chunk[0]}*`;
+        } else {
+          masked += chunk
+            .map((char, index) => (index < 2 ? char : '*'))
+            .join('');
+        }
+      }
+
+      return masked;
+    })
+    .join('');
+}
+
+function buildUnknownHeaderSamples(
+  unknownHeaders: string[],
+  inputFile: UnknownHeaderSampleInput | null | undefined,
+): UnknownHeaderSamples {
+  if (!inputFile || unknownHeaders.length === 0) return {};
+
+  const exactHeaderIndex = new Map<string, number>();
+  const trimmedHeaderIndex = new Map<string, number>();
+  inputFile.headers.forEach((header, index) => {
+    exactHeaderIndex.set(header, index);
+    trimmedHeaderIndex.set(header.trim(), index);
+  });
+
+  return unknownHeaders.reduce<UnknownHeaderSamples>((acc, header) => {
+    const columnIndex = exactHeaderIndex.get(header) ?? trimmedHeaderIndex.get(header.trim());
+    const samples: string[] = [];
+    const seen = new Set<string>();
+
+    if (typeof columnIndex === 'number') {
+      for (const row of inputFile.rows) {
+        const masked = maskUnknownHeaderSampleValue(row[columnIndex]);
+        if (!masked || seen.has(masked)) continue;
+
+        seen.add(masked);
+        samples.push(masked);
+        if (samples.length >= 3) break;
+      }
+    }
+
+    acc[header] = samples;
+    return acc;
+  }, {});
+}
+
+function mergeUnknownHeaderSamples(
+  previous: UnknownHeaderSamples,
+  next: UnknownHeaderSamples,
+): UnknownHeaderSamples {
+  const merged: UnknownHeaderSamples = { ...previous };
+
+  for (const [header, samples] of Object.entries(next)) {
+    const previousSamples = merged[header] ?? [];
+    merged[header] = [...previousSamples, ...samples].filter(
+      (sample, index, allSamples) => allSamples.indexOf(sample) === index,
+    ).slice(0, 3);
+  }
+
+  return merged;
+}
+
 interface CourierUploadHeader {
   name: string;
   index: number;
@@ -415,6 +502,7 @@ export default function InvoiceFileConvertPage() {
   const [downloadModalFileName, setDownloadModalFileName] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "processing" | "done">("idle");
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
+  const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   const [previewReady, setPreviewReady] = useState(false);
   const [conversionProgress, setConversionProgress] = useState(0);
@@ -747,6 +835,7 @@ export default function InvoiceFileConvertPage() {
       setEditingValue('');
       setSortConfig(null);
       setUnknownHeadersWarning([]);
+      setUnknownHeaderSamples({});
       setFileProcessingStatus('idle');
       setPreviewReady(false);
       setConversionProgress(0);
@@ -1892,6 +1981,7 @@ export default function InvoiceFileConvertPage() {
     setNewRows(new Set());
     setUserOverrides({});
     setUnknownHeadersWarning([]);
+    setUnknownHeaderSamples({});
     setOrderStandardFile(null);
     setInvoiceStandardFile(null);
     if (previewRevealTimeoutRef.current) {
@@ -1948,8 +2038,15 @@ export default function InvoiceFileConvertPage() {
 
       if (combinedUnknownHeaders.length > 0) {
         setUnknownHeadersWarning(combinedUnknownHeaders);
+        setUnknownHeaderSamples(
+          mergeUnknownHeaderSamples(
+            buildUnknownHeaderSamples(orderStage2.unknownHeaders ?? [], orderCleanInput),
+            buildUnknownHeaderSamples(invoiceStage2.unknownHeaders ?? [], invoiceCleanInput),
+          ),
+        );
       } else {
         setUnknownHeadersWarning([]);
+        setUnknownHeaderSamples({});
       }
 
       // Stage2에는 파일별 표준화 결과만 유지합니다.
@@ -2220,6 +2317,7 @@ export default function InvoiceFileConvertPage() {
           setUserOverrides({});
           setSortConfig(null);
           setUnknownHeadersWarning([]);
+          setUnknownHeaderSamples({});
           setSelectedFileName(null);
           setOrderStandardFile(null);
           setInvoiceStandardFile(null);
@@ -2257,6 +2355,7 @@ export default function InvoiceFileConvertPage() {
     setUserOverrides({});
     setSortConfig(null);
     setUnknownHeadersWarning([]);
+    setUnknownHeaderSamples({});
     setSelectedRows([]);
     setNewRows(new Set());
     setEditingCell(null);
@@ -2668,35 +2767,49 @@ export default function InvoiceFileConvertPage() {
                 {unknownHeadersWarning.length > 0 && (
                   <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg text-sm text-amber-800 mx-6 mb-4">
                     <p className="font-semibold mb-2">
-                      자동변환에 적용하지 못한 헤더가 있습니다.
+                      주문파일 또는 송장번호파일의 일부 헤더를 어느 항목에 사용해야 할지 판단하지 못했습니다.
                     </p>
 
-                    <p className="mb-2">
-                      파일의 일부 헤더를 어느 항목에 사용해야 할지 판단하지 못했습니다.
+                    <p className="mb-3 leading-relaxed">
+                      아래 항목은 어떤 정보인지 자동으로 확인되지 않아 송장 정리에 반영하지 않았습니다.
+                      내용을 살펴보고 필요한 정보인지 확인해 주세요.
                     </p>
 
                     <div className="mb-2 text-blue-600 font-semibold text-base">
                       자동 변환되지 않은 헤더
                     </div>
 
-                    <div className="mb-3 text-blue-600 font-semibold text-base">
-                      {unknownHeadersWarning.join(', ')}
+                    <div className="mb-3 space-y-2">
+                      {unknownHeadersWarning.map((header) => {
+                        const samples = unknownHeaderSamples[header] ?? [];
+                        return (
+                          <div
+                            key={header}
+                            className="rounded-md border border-amber-200 bg-white/70 px-3 py-2"
+                          >
+                            <div className="font-semibold text-blue-700">
+                              {header}
+                            </div>
+                            <div className="mt-1 text-xs leading-relaxed text-amber-800">
+                              예시 값: {samples.length > 0 ? samples.join(' / ') : '값 없음'}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    <p className="mb-3">
-                      이 헤더의 정보들이 필요한 정보라면 미리보기에서 확인 후 수정해 주세요.
-                      <br />
-                      비어있거나 꼭 필요한 정보가 아니라면 그대로 다운로드하셔도 됩니다.
+                    <p className="mb-3 text-xs leading-relaxed text-amber-700">
+                      ※ 표시된 내용은 확인을 돕기 위한 예시이며, 개인정보는 일부 가려서 보여드립니다.
                     </p>
 
                     <div className="text-xs text-amber-700 leading-relaxed">
-                      <strong>이렇게 해결할 수 있습니다.</strong><br />
-                      • 파일에서 헤더 이름을 상품명 / 수량 / 주소 등 일반적인 이름으로 수정 후 다시 업로드<br />
-                      • 또는 아래 미리보기에서 직접 수정 후 다운로드
-                    </div>
-
-                    <div className="mt-2 text-xs text-amber-800">
-                      ※ 다운로드 전에 주문 정보가 올바르게 정리되었는지 확인해주세요.
+                      <strong>필요한 정보라면</strong><br />
+                      미리보기에서 알맞은 항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
+                      <br /><br />
+                      <strong>필요하지 않은 정보라면</strong><br />
+                      그대로 진행하고 다운로드하셔도 됩니다.
+                      <br /><br />
+                      ※ 다운로드 전 송장 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.
                     </div>
                   </div>
                 )}

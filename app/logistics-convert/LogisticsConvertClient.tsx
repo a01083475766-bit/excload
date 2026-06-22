@@ -185,7 +185,100 @@ type ParsedExcelPreviewChunk = {
   previewRows: PreviewRowWithId[];
   standardRows: Record<string, string>[];
   courierHeaders: string[];
+  unknownHeaders: string[];
+  unknownHeaderSamples: UnknownHeaderSamples;
 };
+
+type UnknownHeaderSamples = Record<string, string[]>;
+type UnknownHeaderSampleInput = {
+  headers: readonly string[];
+  rows: ReadonlyArray<ReadonlyArray<unknown>>;
+};
+
+function maskUnknownHeaderSampleValue(rawValue: unknown): string {
+  const value = String(rawValue ?? '').trim();
+  if (!value) return '';
+
+  return value
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part)) return part;
+
+      const chars = Array.from(part);
+      if (chars.length <= 2) return part;
+
+      let masked = '';
+      for (let i = 0; i < chars.length; i += 4) {
+        const chunk = chars.slice(i, i + 4);
+        if (chunk.length === 1) {
+          masked += chunk[0];
+        } else if (chunk.length === 2 && i > 0) {
+          masked += `${chunk[0]}*`;
+        } else {
+          masked += chunk
+            .map((char, index) => (index < 2 ? char : '*'))
+            .join('');
+        }
+      }
+
+      return masked;
+    })
+    .join('');
+}
+
+function buildUnknownHeaderSamples(
+  unknownHeaders: string[],
+  inputFile: UnknownHeaderSampleInput | null | undefined,
+): UnknownHeaderSamples {
+  if (!inputFile || unknownHeaders.length === 0) return {};
+
+  const exactHeaderIndex = new Map<string, number>();
+  const trimmedHeaderIndex = new Map<string, number>();
+  inputFile.headers.forEach((header, index) => {
+    exactHeaderIndex.set(header, index);
+    trimmedHeaderIndex.set(header.trim(), index);
+  });
+
+  return unknownHeaders.reduce<UnknownHeaderSamples>((acc, header) => {
+    const columnIndex = exactHeaderIndex.get(header) ?? trimmedHeaderIndex.get(header.trim());
+    const samples: string[] = [];
+    const seen = new Set<string>();
+
+    if (typeof columnIndex === 'number') {
+      for (const row of inputFile.rows) {
+        const masked = maskUnknownHeaderSampleValue(row[columnIndex]);
+        if (!masked || seen.has(masked)) continue;
+
+        seen.add(masked);
+        samples.push(masked);
+        if (samples.length >= 3) break;
+      }
+    }
+
+    acc[header] = samples;
+    return acc;
+  }, {});
+}
+
+function mergeUnknownHeaders(previous: string[], next: string[]): string[] {
+  return [...previous, ...next].filter((header, index, headers) => headers.indexOf(header) === index);
+}
+
+function mergeUnknownHeaderSamples(
+  previous: UnknownHeaderSamples,
+  next: UnknownHeaderSamples,
+): UnknownHeaderSamples {
+  const merged: UnknownHeaderSamples = { ...previous };
+
+  for (const [header, samples] of Object.entries(next)) {
+    const previousSamples = merged[header] ?? [];
+    merged[header] = [...previousSamples, ...samples].filter(
+      (sample, index, allSamples) => allSamples.indexOf(sample) === index,
+    ).slice(0, 3);
+  }
+
+  return merged;
+}
 
 interface CourierUploadHeader {
   name: string;
@@ -1223,6 +1316,7 @@ export function LogisticsConvertClient({
   /** 체험판: 다운로드 클릭 시 상세 안내 모달 */
   const [showTrialDownloadModal, setShowTrialDownloadModal] = useState(false);
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
+  const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -1534,6 +1628,7 @@ export function LogisticsConvertClient({
     setUserOverrides({});
     setSortConfig(null);
     setUnknownHeadersWarning([]);
+    setUnknownHeaderSamples({});
     setSelectedFileName(null);
     setColumnCodeMappingSnapshots({});
     setColumnMappingStaging({});
@@ -1836,6 +1931,7 @@ export function LogisticsConvertClient({
       setEditingValue('');
       setSortConfig(null);
       setUnknownHeadersWarning([]);
+      setUnknownHeaderSamples({});
       setFileProcessingStatus('idle');
       setStage2ChunkLabel(null);
       setSelectedFileName(null);
@@ -3764,8 +3860,22 @@ export function LogisticsConvertClient({
       if (chunks.length > 0) {
         const rowsToAdd = chunks.flatMap((chunk) => chunk.previewRows);
         const rowIdsToAdd = chunks.flatMap((chunk) => chunk.rowIds);
+        const mergedUnknownHeaders = chunks.reduce<string[]>(
+          (acc, chunk) => mergeUnknownHeaders(acc, chunk.unknownHeaders),
+          [],
+        );
+        const mergedUnknownHeaderSamples = chunks.reduce<UnknownHeaderSamples>(
+          (acc, chunk) => mergeUnknownHeaderSamples(acc, chunk.unknownHeaderSamples),
+          {},
+        );
         setProductCodeMappingNotice(null);
         resetProductCodeColumnToggle();
+        if (mergedUnknownHeaders.length > 0) {
+          setUnknownHeadersWarning((prev) => mergeUnknownHeaders(prev, mergedUnknownHeaders));
+          setUnknownHeaderSamples((prev) =>
+            mergeUnknownHeaderSamples(prev, mergedUnknownHeaderSamples),
+          );
+        }
         setPreviewRows((prev) =>
           prependPreviewRowsWithAutoMapping(
             rowsToAdd,
@@ -4286,7 +4396,7 @@ export function LogisticsConvertClient({
         return;
       }
 
-      const appendResult = handleUnifiedPipelinesCompleted(pipelineResult);
+      const appendResult = handleUnifiedPipelinesCompleted(pipelineResult, cleanInputFile);
       if (!appendResult) {
         setErrorMessageTextImage(
           trialMode
@@ -4489,12 +4599,21 @@ export function LogisticsConvertClient({
       return null;
     }
     
+    const stage2UnknownHeaders = Array.isArray(stage2Result.unknownHeaders)
+      ? stage2Result.unknownHeaders
+      : [];
+    const stage2UnknownHeaderSamples = buildUnknownHeaderSamples(
+      stage2UnknownHeaders,
+      cleanInputFile,
+    );
+
     // unknownHeaders 처리
     if (appendPreview) {
-      if (stage2Result.unknownHeaders?.length > 0) {
-        setUnknownHeadersWarning(stage2Result.unknownHeaders);
-      } else {
-        setUnknownHeadersWarning([]);
+      if (stage2UnknownHeaders.length > 0) {
+        setUnknownHeadersWarning((prev) => mergeUnknownHeaders(prev, stage2UnknownHeaders));
+        setUnknownHeaderSamples((prev) =>
+          mergeUnknownHeaderSamples(prev, stage2UnknownHeaderSamples),
+        );
       }
     }
     
@@ -4615,6 +4734,8 @@ export function LogisticsConvertClient({
         previewRows: newPreviewChunk,
         standardRows: stage2Result.rows ?? [],
         courierHeaders: stage3Result.courierHeaders,
+        unknownHeaders: stage2UnknownHeaders,
+        unknownHeaderSamples: stage2UnknownHeaderSamples,
       };
     } else {
       console.warn('[UI] Stage3 실행 불가: templateBridgeFile이 없습니다.');
@@ -4638,16 +4759,25 @@ export function LogisticsConvertClient({
     }
   };
 
-  const handleUnifiedPipelinesCompleted = (result: UnifiedInputPipelineResult) => {
+  const handleUnifiedPipelinesCompleted = (
+    result: UnifiedInputPipelineResult,
+    cleanInputFile?: UnknownHeaderSampleInput,
+  ) => {
     if (!result.mergeResult) {
       return null;
     }
 
     // unknownHeaders 처리
     if (result.orderStandardFile?.unknownHeaders?.length > 0) {
-      setUnknownHeadersWarning(result.orderStandardFile.unknownHeaders);
-    } else {
-      setUnknownHeadersWarning([]);
+      setUnknownHeadersWarning((prev) =>
+        mergeUnknownHeaders(prev, result.orderStandardFile.unknownHeaders),
+      );
+      setUnknownHeaderSamples((prev) =>
+        mergeUnknownHeaderSamples(
+          prev,
+          buildUnknownHeaderSamples(result.orderStandardFile.unknownHeaders, cleanInputFile),
+        ),
+      );
     }
 
     const { courierHeaders: mergedCourierHeaders, previewRows: mergedPreviewRows } = result.mergeResult;
@@ -5499,41 +5629,53 @@ export function LogisticsConvertClient({
                 {unknownHeadersWarning.length > 0 && (
                   <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg text-sm text-amber-800 mx-6 mb-4">
                     <p className="font-semibold mb-2">
-                      자동변환에 적용하지 못한 헤더가 있습니다.
+                      주문파일의 일부 헤더를 어느 항목에 사용해야 할지 판단하지 못했습니다.
                     </p>
 
-                    <p className="mb-2">
-                      파일의 일부 헤더를 어느 항목에 사용해야 할지 판단하지 못했습니다.
+                    <p className="mb-3 leading-relaxed">
+                      아래 항목은 어떤 정보인지 자동으로 확인되지 않아 주문 정리에 반영하지 않았습니다.
+                      내용을 살펴보고 필요한 정보인지 확인해 주세요.
                     </p>
 
                     <div className="mb-2 text-emerald-600 font-semibold text-base">
                       자동 변환되지 않은 헤더
                     </div>
 
-                    <div className="mb-3 text-emerald-600 font-semibold text-base">
-                      {unknownHeadersWarning.join(', ')}
+                    <div className="mb-3 space-y-2">
+                      {unknownHeadersWarning.map((header) => {
+                        const samples = unknownHeaderSamples[header] ?? [];
+                        return (
+                          <div
+                            key={header}
+                            className="rounded-md border border-amber-200 bg-white/70 px-3 py-2"
+                          >
+                            <div className="font-semibold text-emerald-700">
+                              {header}
+                            </div>
+                            <div className="mt-1 text-xs leading-relaxed text-amber-800">
+                              예시 값: {samples.length > 0 ? samples.join(' / ') : '값 없음'}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    <p className="mb-3">
-                      이 헤더의 정보들이 필요한 정보라면 미리보기에서 확인 후 수정해 주세요.
-                      <br />
-                      {trialMode
-                        ? '비어있거나 꼭 필요한 정보가 아니라면 그대로 결과를 확인하셔도 됩니다.'
-                        : '비어있거나 꼭 필요한 정보가 아니라면 그대로 다운로드하셔도 됩니다.'}
+                    <p className="mb-3 text-xs leading-relaxed text-amber-700">
+                      ※ 표시된 내용은 확인을 돕기 위한 예시이며, 개인정보는 일부 가려서 보여드립니다.
                     </p>
 
                     <div className="text-xs text-amber-700 leading-relaxed">
-                      <strong>이렇게 해결할 수 있습니다.</strong><br />
-                      • 파일에서 헤더 이름을 상품명 / 수량 / 주소 등 일반적인 이름으로 수정 후 다시 업로드<br />
+                      <strong>필요한 정보라면</strong><br />
+                      미리보기에서 알맞은 항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
+                      <br /><br />
+                      <strong>필요하지 않은 정보라면</strong><br />
                       {trialMode
-                        ? '• 또는 아래 미리보기에서 직접 수정해 결과를 확인하세요 (체험판에서는 다운로드되지 않습니다)'
-                        : '• 또는 아래 미리보기에서 직접 수정 후 다운로드'}
-                    </div>
-
-                    <div className="mt-2 text-xs text-amber-800">
+                        ? '그대로 진행하고 결과를 확인하셔도 됩니다.'
+                        : '그대로 진행하고 다운로드하셔도 됩니다.'}
+                      <br /><br />
                       {trialMode
-                        ? '※ 미리보기에서 주문 정보가 올바르게 정리되었는지 확인해 보세요.'
-                        : '※ 다운로드 전에 주문 정보가 올바르게 정리되었는지 확인해주세요.'}
+                        ? '※ 미리보기에서 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.'
+                        : '※ 다운로드 전 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.'}
                     </div>
                   </div>
                 )}
@@ -6503,7 +6645,7 @@ export function LogisticsConvertClient({
                       return (
                         <div
                           key={`${format.id}-${index}`}
-                          className="w-full px-4 py-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-left transition-colors min-h-[120px]"
+                          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-3 text-left transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 sm:px-4"
                         >
                           <div className="flex items-start gap-3">
                             <div className="flex-shrink-0 pt-0.5">
@@ -6517,10 +6659,10 @@ export function LogisticsConvertClient({
                             </div>
 
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
+                              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="flex-1 min-w-0">
                                   {isEditing ? (
-                                    <div className="flex items-center gap-2 flex-nowrap">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-nowrap">
                                       <input
                                         type="text"
                                         value={editingDisplayName}
@@ -6533,7 +6675,7 @@ export function LogisticsConvertClient({
                                           }
                                         }}
                                         autoFocus
-                                        className="w-[40%] min-w-0 sm:min-w-[240px] px-2 py-1 text-sm rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"
+                                        className="w-full min-w-0 rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 sm:min-w-[240px]"
                                         placeholder="양식 이름을 입력하세요"
                                       />
                                       <button
@@ -6541,7 +6683,7 @@ export function LogisticsConvertClient({
                                           e.stopPropagation();
                                           handleConfirmEditName(format.id);
                                         }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs sm:whitespace-nowrap"
+                                        className="rounded bg-emerald-600 px-3 py-1 text-xs text-white hover:bg-emerald-700 sm:whitespace-nowrap"
                                       >
                                         확인
                                       </button>
@@ -6550,18 +6692,18 @@ export function LogisticsConvertClient({
                                           e.stopPropagation();
                                           handleCancelEditName();
                                         }}
-                                        className="bg-white border border-gray-300 text-gray-900 px-3 py-1 rounded text-xs sm:whitespace-nowrap"
+                                        className="rounded border border-gray-300 bg-white px-3 py-1 text-xs text-gray-900 sm:whitespace-nowrap"
                                       >
                                         취소
                                       </button>
                                     </div>
                                   ) : (
-                                    <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                                    <span className="block break-keep text-sm font-bold leading-relaxed text-zinc-900 dark:text-zinc-100">
                                       {format.displayName || defaultDisplayName}
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="flex flex-wrap items-center gap-1.5 text-left sm:flex-shrink-0 sm:justify-end sm:gap-2">
                                   {!isEditing && (
                                     <>
                                       <button
@@ -6575,7 +6717,7 @@ export function LogisticsConvertClient({
                                             ? '체험용 예시 양식 이름은 변경할 수 없습니다.'
                                             : undefined
                                         }
-                                        className={`${trialMode && isTrialDefaultProtectedFormat(format) ? 'ex-tooltip-target' : ''} px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 transition-colors ${
+                                        className={`${trialMode && isTrialDefaultProtectedFormat(format) ? 'ex-tooltip-target' : ''} rounded border border-zinc-300 px-2 py-1 text-xs transition-colors dark:border-zinc-700 ${
                                           isProtectedFormat(format, trialMode)
                                             ? 'text-zinc-400 cursor-not-allowed opacity-60'
                                             : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
@@ -6586,7 +6728,7 @@ export function LogisticsConvertClient({
                                       {isProtectedFormat(format, trialMode) ? (
                                         <span
                                           data-ex-tooltip="체험용 예시 양식은 삭제할 수 없습니다."
-                                          className="ex-tooltip-target px-2 py-1 text-xs text-zinc-400 cursor-default"
+                                          className="ex-tooltip-target cursor-default px-2 py-1 text-xs text-zinc-400"
                                         >
                                           삭제 불가
                                         </span>
@@ -6596,14 +6738,14 @@ export function LogisticsConvertClient({
                                             e.stopPropagation();
                                             handleDeleteFormat(format.id);
                                           }}
-                                          className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                          className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700"
                                         >
                                           삭제
                                         </button>
                                       )}
                                     </>
                                   )}
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 sm:ml-1">{dateStr}</span>
                                 </div>
                               </div>
 
@@ -6619,11 +6761,11 @@ export function LogisticsConvertClient({
 
                               <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
                                 {Array.isArray(format.columnOrder) && format.columnOrder.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
+                                  <div className="flex max-h-32 flex-wrap gap-1 overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
                                     {format.columnOrder.map((headerName, idx) => (
                                       <span
                                         key={`${headerName}-${idx}`}
-                                        className="inline-flex items-center px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                        className="inline-flex max-w-full items-center break-keep rounded bg-zinc-100 px-2 py-0.5 leading-relaxed text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
                                       >
                                         {headerName || '(빈 헤더)'}
                                       </span>
