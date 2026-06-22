@@ -258,6 +258,73 @@ type ParsedExcelPreviewChunk = {
   };
 };
 
+type UnknownHeaderSamples = Record<string, string[]>;
+
+function maskUnknownHeaderSampleValue(rawValue: unknown): string {
+  const value = String(rawValue ?? '').trim();
+  if (!value) return '';
+
+  return value
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part)) return part;
+
+      const chars = Array.from(part);
+      if (chars.length <= 2) return part;
+
+      let masked = '';
+      for (let i = 0; i < chars.length; i += 4) {
+        const chunk = chars.slice(i, i + 4);
+        if (chunk.length === 1) {
+          masked += chunk[0];
+        } else if (chunk.length === 2 && i > 0) {
+          masked += `${chunk[0]}*`;
+        } else {
+          masked += chunk
+            .map((char, index) => (index < 2 ? char : '*'))
+            .join('');
+        }
+      }
+
+      return masked;
+    })
+    .join('');
+}
+
+function buildUnknownHeaderSamples(
+  unknownHeaders: string[],
+  inputFile: Pick<CleanInputFile, 'headers' | 'rows'> | null | undefined,
+): UnknownHeaderSamples {
+  if (!inputFile || unknownHeaders.length === 0) return {};
+
+  const exactHeaderIndex = new Map<string, number>();
+  const trimmedHeaderIndex = new Map<string, number>();
+  inputFile.headers.forEach((header, index) => {
+    exactHeaderIndex.set(header, index);
+    trimmedHeaderIndex.set(header.trim(), index);
+  });
+
+  return unknownHeaders.reduce<UnknownHeaderSamples>((acc, header) => {
+    const columnIndex = exactHeaderIndex.get(header) ?? trimmedHeaderIndex.get(header.trim());
+    const samples: string[] = [];
+    const seen = new Set<string>();
+
+    if (typeof columnIndex === 'number') {
+      for (const row of inputFile.rows) {
+        const masked = maskUnknownHeaderSampleValue(row[columnIndex]);
+        if (!masked || seen.has(masked)) continue;
+
+        seen.add(masked);
+        samples.push(masked);
+        if (samples.length >= 3) break;
+      }
+    }
+
+    acc[header] = samples;
+    return acc;
+  }, {});
+}
+
 const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean => {
   if (template === null) return false;
   if (!Array.isArray(template.headers)) return false;
@@ -489,6 +556,7 @@ export default function OrderConvertPage() {
   const [downloadModalFileName, setDownloadModalFileName] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "processing" | "done">("idle");
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
+  const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   /** 대용량 Stage2 청크 호출 시에만 표시 */
   const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
@@ -901,6 +969,7 @@ export default function OrderConvertPage() {
       setEditingValue('');
       setSortConfig(null);
       setUnknownHeadersWarning([]);
+      setUnknownHeaderSamples({});
       setFileProcessingStatus('idle');
       setStage2ChunkLabel(null);
       setSelectedFileName(null);
@@ -2271,7 +2340,7 @@ export default function OrderConvertPage() {
         return;
       }
 
-      const appendResult = handleUnifiedPipelinesCompleted(pipelineResult);
+      const appendResult = handleUnifiedPipelinesCompleted(pipelineResult, cleanInputFile);
       if (!appendResult) {
         setErrorMessageTextImage('텍스트 주문 변환에 실패했습니다. 다시 시도해주세요.');
         return;
@@ -2478,8 +2547,10 @@ export default function OrderConvertPage() {
     if (appendPreview) {
       if (stage2Result.unknownHeaders?.length > 0) {
         setUnknownHeadersWarning(stage2Result.unknownHeaders);
+        setUnknownHeaderSamples(buildUnknownHeaderSamples(stage2Result.unknownHeaders, cleanInputFile));
       } else {
         setUnknownHeadersWarning([]);
+        setUnknownHeaderSamples({});
       }
     }
     
@@ -2620,7 +2691,10 @@ export default function OrderConvertPage() {
     }
   };
 
-  const handleUnifiedPipelinesCompleted = (result: UnifiedInputPipelineResult) => {
+  const handleUnifiedPipelinesCompleted = (
+    result: UnifiedInputPipelineResult,
+    cleanInputFile?: Pick<CleanInputFile, 'headers' | 'rows'>,
+  ) => {
     if (!result.mergeResult) {
       return null;
     }
@@ -2628,8 +2702,12 @@ export default function OrderConvertPage() {
     // unknownHeaders 처리
     if (result.orderStandardFile?.unknownHeaders?.length > 0) {
       setUnknownHeadersWarning(result.orderStandardFile.unknownHeaders);
+      setUnknownHeaderSamples(
+        buildUnknownHeaderSamples(result.orderStandardFile.unknownHeaders, cleanInputFile),
+      );
     } else {
       setUnknownHeadersWarning([]);
+      setUnknownHeaderSamples({});
     }
 
     const { courierHeaders: mergedCourierHeaders, previewRows: mergedPreviewRows } = result.mergeResult;
@@ -2848,6 +2926,7 @@ export default function OrderConvertPage() {
           setUserOverrides({});
           setSortConfig(null);
           setUnknownHeadersWarning([]);
+          setUnknownHeaderSamples({});
           setSelectedFileName(null);
           resetBundleShippingUi();
 
@@ -2879,6 +2958,7 @@ export default function OrderConvertPage() {
     setUserOverrides({});
     setSortConfig(null);
     setUnknownHeadersWarning([]);
+    setUnknownHeaderSamples({});
     setSelectedFileName(null);
     setSelectedRows([]);
     setNewRows(new Set());
@@ -3379,12 +3459,28 @@ export default function OrderConvertPage() {
                       자동 변환되지 않은 헤더
                     </div>
 
-                    <div className="mb-3 text-blue-600 font-semibold text-base">
-                      {unknownHeadersWarning.join(', ')}
+                    <div className="mb-3 space-y-2">
+                      {unknownHeadersWarning.map((header) => {
+                        const samples = unknownHeaderSamples[header] ?? [];
+                        return (
+                          <div
+                            key={header}
+                            className="rounded-md border border-amber-200 bg-white/70 px-3 py-2"
+                          >
+                            <div className="font-semibold text-blue-700">
+                              {header}
+                            </div>
+                            <div className="mt-1 text-xs leading-relaxed text-amber-800">
+                              예시 값: {samples.length > 0 ? samples.join(' / ') : '값 없음'}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <p className="mb-3">
-                      이 헤더의 정보들이 필요한 정보라면 미리보기에서 확인 후 수정해 주세요.
+                      예시 값은 원본을 그대로 저장하지 않고 화면 확인용으로만 일부 마스킹해 보여드립니다.
+                      필요한 정보라면 미리보기에서 확인 후 수정해 주세요.
                       <br />
                       비어있거나 꼭 필요한 정보가 아니라면 그대로 다운로드하셔도 됩니다.
                     </p>
