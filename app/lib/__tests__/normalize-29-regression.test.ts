@@ -28,6 +28,9 @@ describe('normalize-29 회귀 — 단일 프롬프트·필드', () => {
     expect(prompt).toContain('라벨 없이 보내는사람*로 복사 금지');
     expect(prompt).toContain('전화가 줄 끝');
     expect(prompt).toContain('보내는사람 홍길동 인천시');
+    expect(prompt).toContain('OCR 표');
+    expect(prompt).toContain('상품명이 없는 거래처');
+    expect(prompt).toContain('부농녹자재');
   });
 
   it('회귀 케이스 텍스트는 라우팅 없이 동일 프롬프트 대상', () => {
