@@ -494,6 +494,24 @@ export default function AkmanClient() {
 
       <h2 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>바로가기</h2>
       <div style={cardGrid}>
+        <a
+          href="https://vercel.com/youngsoons-projects/excload3/analytics"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            ...menuCard,
+            textDecoration: 'none',
+            color: 'inherit',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+            <div style={linkStyle}>방문 통계</div>
+            <span style={{ fontSize: '12px', color: '#71717a' }}>Vercel</span>
+          </div>
+          <div style={{ fontSize: '14px', color: '#666' }}>
+            방문자·페이지 조회·유입 경로 확인
+          </div>
+        </a>
         {menuItems.map((item) => {
           const badgeCount = menuBadges[item.href] ?? 0;
           return (
