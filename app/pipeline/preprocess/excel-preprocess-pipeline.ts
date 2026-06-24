@@ -7,7 +7,29 @@
  */
 
 import { CleanInputFile } from './types'
-import { detectHeaderRowIndex, isExcelHeaderRowText } from '@/app/lib/excel/sheet-header'
+import { detectHeaderRowIndex } from '@/app/lib/excel/sheet-header'
+
+function normalizeHeaderCell(cell: unknown): string {
+  return String(cell ?? '').replace(/\s+/g, '').trim()
+}
+
+function isRepeatedHeaderRow(row: any[], headerRow: any[]): boolean {
+  const headerCells = headerRow
+    .map(normalizeHeaderCell)
+    .filter((cell) => cell !== '')
+  const rowCells = row
+    .map(normalizeHeaderCell)
+    .filter((cell) => cell !== '')
+
+  if (headerCells.length === 0 || rowCells.length === 0) {
+    return false
+  }
+
+  const headerCellSet = new Set(headerCells)
+  const exactMatchCount = rowCells.filter((cell) => headerCellSet.has(cell)).length
+
+  return exactMatchCount >= 3 || (exactMatchCount >= 2 && exactMatchCount / rowCells.length >= 0.5)
+}
 
 export class ExcelPreprocessPipeline {
   run(rawFile: any): CleanInputFile {
@@ -115,13 +137,12 @@ export class ExcelPreprocessPipeline {
     const result: any[][] = [headerRow]
 
     // 5️⃣ 헤더 이후는 "행 전체 값 유무"로 유지하고,
-    // 반복 헤더(키워드가 다시 등장하는 행)는 데이터로 취급하지 않기 위해 제외한다.
+    // 실제 헤더 셀들이 다시 등장하는 반복 헤더만 제외한다.
     for (let i = 1; i < sliced.length; i++) {
       const row = sliced[i]
       if (!Array.isArray(row)) continue
 
-      const rowText = Object.values(row).join(" ")
-      if (isExcelHeaderRowText(rowText)) continue
+      if (isRepeatedHeaderRow(row, headerRow)) continue
 
       result.push(row)
     }
