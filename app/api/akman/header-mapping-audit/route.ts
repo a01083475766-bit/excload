@@ -299,6 +299,25 @@ export async function DELETE(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
+    const ids = Array.isArray(body?.ids)
+      ? [
+          ...new Set(
+            body.ids
+              .filter((item: unknown): item is string => typeof item === 'string')
+              .map((item: string) => item.trim())
+              .filter(Boolean),
+          ),
+        ]
+      : [];
+
+    if (ids.length > 0) {
+      const result = await prisma.headerMappingAuditLog.deleteMany({
+        where: { id: { in: ids } },
+      });
+
+      return NextResponse.json({ ok: true, deletedCount: result.count });
+    }
+
     const id = typeof body?.id === 'string' ? body.id.trim() : '';
     if (!id) {
       return NextResponse.json({ error: '삭제할 헤더 매핑 감사 로그 ID가 필요합니다.' }, { status: 400 });
@@ -308,7 +327,7 @@ export async function DELETE(request: NextRequest) {
       where: { id },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, deletedCount: 1 });
   } catch (error) {
     const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
     if (code === 'P2025') {

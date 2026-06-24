@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CONTACT_INQUIRY_STATUS_LABELS,
@@ -34,7 +34,9 @@ export default function AkmanContactInquiriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | ContactInquiryStatus>('ALL');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedInquiryIds, setSelectedInquiryIds] = useState<string[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingSelected, setDeletingSelected] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
 
   const loadRows = async (filter: typeof statusFilter = statusFilter) => {
@@ -60,10 +62,12 @@ export default function AkmanContactInquiriesPage() {
 
   useEffect(() => {
     void loadRows();
-     
   }, []);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
+  const visibleInquiryIds = useMemo(() => rows.map((row) => row.id), [rows]);
+  const allVisibleSelected =
+    visibleInquiryIds.length > 0 && visibleInquiryIds.every((id) => selectedInquiryIds.includes(id));
 
   useEffect(() => {
     setNoteDraft(selected?.adminNote ?? '');
@@ -110,6 +114,58 @@ export default function AkmanContactInquiriesPage() {
       alert(e instanceof Error ? e.message : '메모 저장에 실패했습니다.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const toggleInquirySelection = (id: string) => {
+    setSelectedInquiryIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const toggleAllVisibleInquiries = () => {
+    if (allVisibleSelected) {
+      setSelectedInquiryIds((prev) => prev.filter((id) => !visibleInquiryIds.includes(id)));
+      return;
+    }
+
+    setSelectedInquiryIds((prev) => [...new Set([...prev, ...visibleInquiryIds])]);
+  };
+
+  const deleteSelectedInquiries = async () => {
+    const targetIds = selectedInquiryIds;
+    if (targetIds.length === 0) {
+      alert('삭제할 고객문의를 선택해 주세요.');
+      return;
+    }
+
+    if (!confirm(`선택한 ${targetIds.length}개의 고객문의를 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    setDeletingSelected(true);
+    try {
+      const res = await fetch('/api/akman/contact-inquiries', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ids: targetIds }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || '고객문의 삭제에 실패했습니다.');
+      }
+
+      setRows((prev) => prev.filter((row) => !targetIds.includes(row.id)));
+      setSelectedInquiryIds((prev) => prev.filter((id) => !targetIds.includes(id)));
+      if (selectedId && targetIds.includes(selectedId)) {
+        setSelectedId(null);
+      }
+      void loadRows();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '고객문의 삭제에 실패했습니다.');
+    } finally {
+      setDeletingSelected(false);
     }
   };
 
@@ -173,6 +229,22 @@ export default function AkmanContactInquiriesPage() {
         >
           새로고침
         </button>
+        <button
+          type="button"
+          disabled={selectedInquiryIds.length === 0 || deletingSelected}
+          onClick={() => void deleteSelectedInquiries()}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: '1px solid #fecdca',
+            background: selectedInquiryIds.length === 0 || deletingSelected ? '#f2f4f7' : '#d92d20',
+            color: selectedInquiryIds.length === 0 || deletingSelected ? '#667085' : '#fff',
+            cursor: selectedInquiryIds.length === 0 || deletingSelected ? 'not-allowed' : 'pointer',
+            fontSize: 13,
+          }}
+        >
+          {deletingSelected ? '선택 삭제 중' : `선택 삭제 (${selectedInquiryIds.length})`}
+        </button>
       </div>
 
       {loading && <p style={{ color: '#667085' }}>불러오는 중…</p>}
@@ -189,56 +261,95 @@ export default function AkmanContactInquiriesPage() {
       {!loading && !error && rows.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
           <div style={{ border: '1px solid #eaecf0', borderRadius: 10, overflow: 'hidden' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 14px',
+                borderBottom: '1px solid #eaecf0',
+                background: '#f9fafb',
+                fontSize: 13,
+                color: '#344054',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleAllVisibleInquiries}
+                aria-label="현재 고객문의 목록 전체 선택"
+              />
+              현재 목록 전체 선택
+            </label>
             <div style={{ maxHeight: 640, overflowY: 'auto' }}>
               {rows.map((row) => (
-                <button
+                <div
                   key={row.id}
-                  type="button"
-                  onClick={() => setSelectedId(row.id)}
                   style={{
-                    display: 'block',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
                     width: '100%',
-                    textAlign: 'left',
                     padding: '12px 14px',
-                    border: 'none',
                     borderTop: '1px solid #f2f4f7',
                     background: selectedId === row.id ? '#eff4ff' : '#fff',
-                    cursor: 'pointer',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#175cd3' }}>{row.typeLabel}</span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        padding: '2px 8px',
-                        borderRadius: 999,
-                        background:
-                          row.status === 'NEW'
-                            ? '#fef0c7'
-                            : row.status === 'IN_PROGRESS'
-                              ? '#e0eaff'
-                              : '#ecfdf3',
-                        color:
-                          row.status === 'NEW'
-                            ? '#b54708'
-                            : row.status === 'IN_PROGRESS'
-                              ? '#175cd3'
-                              : '#027a48',
-                      }}
-                    >
-                      {CONTACT_INQUIRY_STATUS_LABELS[row.status]}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#101828' }}>{row.subject}</div>
-                  <div style={{ fontSize: 12, color: '#667085', marginTop: 4 }}>
-                    {row.name} · {row.email}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#98a2b3', marginTop: 4 }}>
-                    {new Date(row.createdAt).toLocaleString('ko-KR')}
-                    {!row.mailSent && ' · 메일 미발송'}
-                  </div>
-                </button>
+                  <input
+                    type="checkbox"
+                    checked={selectedInquiryIds.includes(row.id)}
+                    onChange={() => toggleInquirySelection(row.id)}
+                    aria-label={`${row.subject} 선택`}
+                    style={{ marginTop: 3 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(row.id)}
+                    style={{
+                      display: 'block',
+                      flex: 1,
+                      minWidth: 0,
+                      textAlign: 'left',
+                      padding: 0,
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#175cd3' }}>{row.typeLabel}</span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          background:
+                            row.status === 'NEW'
+                              ? '#fef0c7'
+                              : row.status === 'IN_PROGRESS'
+                                ? '#e0eaff'
+                                : '#ecfdf3',
+                          color:
+                            row.status === 'NEW'
+                              ? '#b54708'
+                              : row.status === 'IN_PROGRESS'
+                                ? '#175cd3'
+                                : '#027a48',
+                        }}
+                      >
+                        {CONTACT_INQUIRY_STATUS_LABELS[row.status]}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#101828' }}>{row.subject}</div>
+                    <div style={{ fontSize: 12, color: '#667085', marginTop: 4 }}>
+                      {row.name} · {row.email}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#98a2b3', marginTop: 4 }}>
+                      {new Date(row.createdAt).toLocaleString('ko-KR')}
+                      {!row.mailSent && ' · 메일 미발송'}
+                    </div>
+                  </button>
+                </div>
               ))}
             </div>
           </div>

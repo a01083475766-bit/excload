@@ -4,7 +4,7 @@
  * 관리자 — 헤더 수집: 사용 횟수 집계(메인) + 미매핑 TOP + 최근 수집 로그
  */
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { TemplateHeaderLogMappedEntry } from '@/app/lib/template-header-log';
@@ -106,6 +106,10 @@ export default function AkmanTemplateHeaderLogsPage() {
   const [logsLoading, setLogsLoading] = useState(true);
   const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [selectedGroupKeys, setSelectedGroupKeys] = useState<string[]>([]);
+  const [deletingSelectedGroups, setDeletingSelectedGroups] = useState(false);
+  const [resettingUsageTop, setResettingUsageTop] = useState(false);
+  const [resettingUnknownTop, setResettingUnknownTop] = useState(false);
 
   const [usagePageFilter, setUsagePageFilter] = useState('');
   const [usageHeaderSearch, setUsageHeaderSearch] = useState('');
@@ -117,6 +121,7 @@ export default function AkmanTemplateHeaderLogsPage() {
   const [courierName, setCourierName] = useState('');
   const [hasUnknown, setHasUnknown] = useState('');
   const [headerSearch, setHeaderSearch] = useState('');
+  const [logLimit, setLogLimit] = useState(20);
   const [showLogFilters, setShowLogFilters] = useState(false);
 
   const fetchUsageTop = useCallback(async () => {
@@ -162,7 +167,7 @@ export default function AkmanTemplateHeaderLogsPage() {
     try {
       const params = new URLSearchParams({
         groupByHeaderSet: 'true',
-        limit: '20',
+        limit: String(logLimit),
       });
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
@@ -184,7 +189,7 @@ export default function AkmanTemplateHeaderLogsPage() {
     } finally {
       setLogsLoading(false);
     }
-  }, [dateFrom, dateTo, page, source, courierName, hasUnknown, headerSearch, router]);
+  }, [dateFrom, dateTo, page, source, courierName, hasUnknown, headerSearch, logLimit, router]);
 
   useEffect(() => {
     fetchUsageTop();
@@ -196,6 +201,138 @@ export default function AkmanTemplateHeaderLogsPage() {
     fetchUsageTop();
     fetchUnknownTop();
     fetchRecentLogs();
+  };
+
+  const visibleGroupKeys = useMemo(() => logGroups.map((group) => group.fingerprint), [logGroups]);
+  const allVisibleGroupsSelected =
+    visibleGroupKeys.length > 0 && visibleGroupKeys.every((key) => selectedGroupKeys.includes(key));
+
+  const selectedLogIds = useMemo(
+    () =>
+      logGroups
+        .filter((group) => selectedGroupKeys.includes(group.fingerprint))
+        .flatMap((group) => group.logs.map((log) => log.id)),
+    [logGroups, selectedGroupKeys],
+  );
+
+  const toggleGroupSelection = (fingerprint: string) => {
+    setSelectedGroupKeys((prev) =>
+      prev.includes(fingerprint) ? prev.filter((key) => key !== fingerprint) : [...prev, fingerprint],
+    );
+  };
+
+  const toggleAllVisibleGroups = () => {
+    if (allVisibleGroupsSelected) {
+      setSelectedGroupKeys((prev) => prev.filter((key) => !visibleGroupKeys.includes(key)));
+      return;
+    }
+
+    setSelectedGroupKeys((prev) => [...new Set([...prev, ...visibleGroupKeys])]);
+  };
+
+  const deleteSelectedGroups = async () => {
+    if (selectedLogIds.length === 0) {
+      alert('삭제할 수집 로그 그룹을 선택해 주세요.');
+      return;
+    }
+
+    const ok = confirm(
+      `선택한 ${selectedGroupKeys.length}개 그룹의 실제 업로드 로그 ${selectedLogIds.length}건을 삭제하시겠습니까?\n삭제 후 TOP 집계도 함께 갱신됩니다.`,
+    );
+    if (!ok) return;
+
+    setDeletingSelectedGroups(true);
+    try {
+      const response = await fetch('/api/akman/template-header-logs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedLogIds }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (response.status === 401 || response.status === 403) {
+        router.push('/');
+        return;
+      }
+      if (!response.ok || !json.ok) {
+        throw new Error(json.error || '선택한 수집 로그 삭제에 실패했습니다.');
+      }
+
+      setSelectedGroupKeys([]);
+      setExpandedGroupKey(null);
+      setExpandedLogId(null);
+      refreshAll();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '선택한 수집 로그 삭제에 실패했습니다.');
+    } finally {
+      setDeletingSelectedGroups(false);
+    }
+  };
+
+  const resetUsageTop = async () => {
+    const filterText = usagePageFilter || usageHeaderSearch.trim() ? '현재 조회 조건의 ' : '';
+    const ok = confirm(
+      `${filterText}최근 30일 헤더 사용 집계 원천 로그를 초기화하시겠습니까?\n이 작업은 최근 수집 로그에도 반영됩니다.`,
+    );
+    if (!ok) return;
+
+    setResettingUsageTop(true);
+    try {
+      const response = await fetch('/api/akman/template-header-logs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reset: 'usageTop30',
+          page: usagePageFilter || undefined,
+          headerSearch: usageHeaderSearch.trim() || undefined,
+        }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (response.status === 401 || response.status === 403) {
+        router.push('/');
+        return;
+      }
+      if (!response.ok || !json.ok) {
+        throw new Error(json.error || '헤더 사용 TOP 초기화에 실패했습니다.');
+      }
+
+      setSelectedGroupKeys([]);
+      refreshAll();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '헤더 사용 TOP 초기화에 실패했습니다.');
+    } finally {
+      setResettingUsageTop(false);
+    }
+  };
+
+  const resetUnknownTop = async () => {
+    const ok = confirm(
+      '최근 30일 미매핑 헤더 TOP 원천 로그를 초기화하시겠습니까?\n미매핑 헤더가 포함된 최근 수집 로그도 함께 삭제됩니다.',
+    );
+    if (!ok) return;
+
+    setResettingUnknownTop(true);
+    try {
+      const response = await fetch('/api/akman/template-header-logs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset: 'unknownTop30' }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (response.status === 401 || response.status === 403) {
+        router.push('/');
+        return;
+      }
+      if (!response.ok || !json.ok) {
+        throw new Error(json.error || '미매핑 헤더 TOP 초기화에 실패했습니다.');
+      }
+
+      setSelectedGroupKeys([]);
+      refreshAll();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '미매핑 헤더 TOP 초기화에 실패했습니다.');
+    } finally {
+      setResettingUnknownTop(false);
+    }
   };
 
   return (
@@ -231,6 +368,22 @@ export default function AkmanTemplateHeaderLogsPage() {
             }}
           >
             새로고침
+          </button>
+          <button
+            type="button"
+            disabled={resettingUsageTop}
+            onClick={() => void resetUsageTop()}
+            style={{
+              padding: '6px 12px',
+              fontSize: 13,
+              border: '1px solid #fecaca',
+              borderRadius: 6,
+              background: resettingUsageTop ? '#f4f4f5' : '#fff',
+              color: '#b91c1c',
+              cursor: resettingUsageTop ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {resettingUsageTop ? '초기화 중' : '초기화하기'}
           </button>
         </div>
 
@@ -338,9 +491,27 @@ export default function AkmanTemplateHeaderLogsPage() {
 
       {/* 2. 미매핑 TOP */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ marginBottom: 12, fontSize: 18, fontWeight: 600 }}>
-          최근 30일 미매핑 헤더 TOP 100
-        </h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
+            최근 30일 미매핑 헤더 TOP 100
+          </h2>
+          <button
+            type="button"
+            disabled={resettingUnknownTop}
+            onClick={() => void resetUnknownTop()}
+            style={{
+              padding: '6px 12px',
+              fontSize: 13,
+              border: '1px solid #fecaca',
+              borderRadius: 6,
+              background: resettingUnknownTop ? '#f4f4f5' : '#fff',
+              color: '#b91c1c',
+              cursor: resettingUnknownTop ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {resettingUnknownTop ? '초기화 중' : '초기화하기'}
+          </button>
+        </div>
         {unknownLoading ? (
           <p style={{ color: '#71717a' }}>집계 중…</p>
         ) : unknownTop.length === 0 ? (
@@ -373,24 +544,55 @@ export default function AkmanTemplateHeaderLogsPage() {
       <section>
         <h2 style={{ marginBottom: 8, fontSize: 18, fontWeight: 600 }}>최근 수집 로그</h2>
         <p style={{ marginBottom: 12, fontSize: 13, color: '#71717a' }}>
-          동일한 헤더 구성은 묶어 표시합니다. 기본 최근 20그룹.
+          동일한 헤더 구성은 묶어 표시합니다. 표시 개수는 20~500그룹까지 선택할 수 있습니다.
         </p>
 
-        <button
-          type="button"
-          onClick={() => setShowLogFilters((v) => !v)}
-          style={{
-            marginBottom: 12,
-            padding: '6px 12px',
-            fontSize: 13,
-            border: '1px solid #d1d5db',
-            borderRadius: 6,
-            background: '#fff',
-            cursor: 'pointer',
-          }}
-        >
-          {showLogFilters ? '상세 필터 닫기' : '상세 필터 열기'}
-        </button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <button
+            type="button"
+            onClick={() => setShowLogFilters((v) => !v)}
+            style={{
+              padding: '6px 12px',
+              fontSize: 13,
+              border: '1px solid #d1d5db',
+              borderRadius: 6,
+              background: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            {showLogFilters ? '상세 필터 닫기' : '상세 필터 열기'}
+          </button>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            표시 그룹
+            <select
+              value={logLimit}
+              onChange={(e) => setLogLimit(Number(e.target.value))}
+              style={{ padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 6 }}
+            >
+              {[20, 100, 200, 500].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={selectedLogIds.length === 0 || deletingSelectedGroups}
+            onClick={() => void deleteSelectedGroups()}
+            style={{
+              padding: '6px 12px',
+              fontSize: 13,
+              border: '1px solid #fecaca',
+              borderRadius: 6,
+              background: selectedLogIds.length === 0 || deletingSelectedGroups ? '#f4f4f5' : '#dc2626',
+              color: selectedLogIds.length === 0 || deletingSelectedGroups ? '#71717a' : '#fff',
+              cursor: selectedLogIds.length === 0 || deletingSelectedGroups ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {deletingSelectedGroups ? '선택 삭제 중' : `선택 삭제 (${selectedLogIds.length})`}
+          </button>
+        </div>
 
         {showLogFilters && (
           <div
@@ -508,6 +710,14 @@ export default function AkmanTemplateHeaderLogsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#e4e4e7', textAlign: 'left' }}>
+                  <th style={{ padding: 8, border: '1px solid #d4d4d8', textAlign: 'center', width: 44 }}>
+                    <input
+                      type="checkbox"
+                      checked={allVisibleGroupsSelected}
+                      onChange={toggleAllVisibleGroups}
+                      aria-label="현재 수집 로그 그룹 전체 선택"
+                    />
+                  </th>
                   <th style={{ padding: 8, border: '1px solid #d4d4d8' }}>최근 등록일</th>
                   <th style={{ padding: 8, border: '1px solid #d4d4d8' }}>반복</th>
                   <th style={{ padding: 8, border: '1px solid #d4d4d8' }}>유형</th>
@@ -522,6 +732,14 @@ export default function AkmanTemplateHeaderLogsPage() {
                 {logGroups.map((group) => (
                   <Fragment key={group.fingerprint}>
                     <tr>
+                      <td style={{ padding: 8, border: '1px solid #e4e4e7', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedGroupKeys.includes(group.fingerprint)}
+                          onChange={() => toggleGroupSelection(group.fingerprint)}
+                          aria-label={`${PAGE_LABELS[group.page] ?? group.page} 수집 로그 그룹 선택`}
+                        />
+                      </td>
                       <td style={{ padding: 8, border: '1px solid #e4e4e7', whiteSpace: 'nowrap' }}>
                         {formatDate(group.latestCreatedAt)}
                       </td>
@@ -576,7 +794,7 @@ export default function AkmanTemplateHeaderLogsPage() {
                     </tr>
                     {expandedGroupKey === group.fingerprint && (
                       <tr>
-                        <td colSpan={8} style={{ padding: 12, border: '1px solid #e4e4e7', background: '#fafafa' }}>
+                        <td colSpan={9} style={{ padding: 12, border: '1px solid #e4e4e7', background: '#fafafa' }}>
                           <p style={{ margin: '0 0 8px', fontWeight: 600 }}>
                             헤더 구성 ({group.headerCount}개)
                           </p>

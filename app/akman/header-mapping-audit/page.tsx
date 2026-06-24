@@ -244,9 +244,11 @@ export default function HeaderMappingAuditPage() {
   const [savingBaseHeaderEntryId, setSavingBaseHeaderEntryId] = useState<string | null>(null);
   const [aliasAddingEntryId, setAliasAddingEntryId] = useState<string | null>(null);
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
+  const [deletingSelectedLogs, setDeletingSelectedLogs] = useState(false);
   const [aliasStates, setAliasStates] = useState<Record<string, AliasLocalState>>({});
   const [baseHeaders, setBaseHeaders] = useState<string[]>([]);
   const [selectedBaseHeaders, setSelectedBaseHeaders] = useState<Record<string, string>>({});
+  const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const [status, setStatus] = useState('');
@@ -274,6 +276,10 @@ export default function HeaderMappingAuditPage() {
     if (source.trim()) params.set('source', source.trim());
     return params.toString();
   }, [adminStatus, baseHeader, method, originalHeader, page, pageSize, sampleValueType, source, status]);
+
+  const visibleLogIds = useMemo(() => logs.map((log) => log.id), [logs]);
+  const allVisibleSelected =
+    visibleLogIds.length > 0 && visibleLogIds.every((id) => selectedLogIds.includes(id));
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -371,6 +377,7 @@ export default function HeaderMappingAuditPage() {
       }
 
       setLogs((prev) => prev.filter((item) => item.id !== log.id));
+      setSelectedLogIds((prev) => prev.filter((id) => id !== log.id));
       setPagination((prev) => ({
         ...prev,
         total: Math.max(0, prev.total - 1),
@@ -383,6 +390,73 @@ export default function HeaderMappingAuditPage() {
       setActionError(err instanceof Error ? err.message : '헤더 매핑 검토 로그 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeletingLogId(null);
+    }
+  };
+
+  const toggleLogSelection = (logId: string) => {
+    setSelectedLogIds((prev) =>
+      prev.includes(logId) ? prev.filter((id) => id !== logId) : [...prev, logId],
+    );
+  };
+
+  const toggleAllVisibleLogs = () => {
+    if (allVisibleSelected) {
+      setSelectedLogIds((prev) => prev.filter((id) => !visibleLogIds.includes(id)));
+      return;
+    }
+
+    setSelectedLogIds((prev) => [...new Set([...prev, ...visibleLogIds])]);
+  };
+
+  const deleteSelectedAuditLogs = async () => {
+    const targetIds = selectedLogIds;
+    if (targetIds.length === 0) {
+      setActionError('삭제할 헤더 매핑 검토 로그를 선택해 주세요.');
+      return;
+    }
+
+    const ok = confirm(
+      `선택한 ${targetIds.length}개의 헤더 매핑 검토 로그 묶음을 삭제하시겠습니까?\n삭제하면 각 묶음 안의 상세 헤더 기록도 함께 삭제됩니다.`,
+    );
+    if (!ok) return;
+
+    setActionError('');
+    setDeletingSelectedLogs(true);
+    try {
+      const response = await fetch('/api/akman/header-mapping-audit', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: targetIds }),
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        router.push('/');
+        return;
+      }
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body?.error || '선택한 헤더 매핑 검토 로그 삭제에 실패했습니다.');
+      }
+
+      setSelectedLogIds((prev) => prev.filter((id) => !targetIds.includes(id)));
+      setLogs((prev) => prev.filter((item) => !targetIds.includes(item.id)));
+      setPagination((prev) => {
+        const nextTotal = Math.max(0, prev.total - targetIds.length);
+        return {
+          ...prev,
+          total: nextTotal,
+          totalPages: Math.max(0, Math.ceil(nextTotal / prev.pageSize)),
+        };
+      });
+      if (expandedLogId && targetIds.includes(expandedLogId)) {
+        setExpandedLogId(null);
+      }
+      await fetchLogs();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '선택한 헤더 매핑 검토 로그 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingSelectedLogs(false);
     }
   };
 
@@ -653,81 +727,119 @@ export default function HeaderMappingAuditPage() {
           조회 조건에 맞는 헤더 매핑 검토 로그가 없습니다.
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', border: '1px solid #e4e4e7', borderRadius: 8 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#eff6ff' }}>
-                <th style={thStyle}>생성일</th>
-                <th style={thStyle}>사용자 이메일</th>
-                <th style={thStyle}>출처</th>
-                <th style={thStyle}>전체 헤더 수</th>
-                <th style={thStyle}>자동 매핑</th>
-                <th style={thStyle}>미매핑</th>
-                <th style={thStyle}>낮은 신뢰도</th>
-                <th style={thStyle}>검토 필요</th>
-                <th style={thStyle}>마스킹 샘플</th>
-                <th style={thStyle}>상세</th>
-                <th style={thStyle}>삭제</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => {
-                const expanded = expandedLogId === log.id;
-                return (
-                  <Fragment key={log.id}>
-                    <tr>
-                      <td style={tdStyle}>{formatDate(log.createdAt)}</td>
-                      <td
-                        style={{
-                          ...tdStyle,
-                          maxWidth: 210,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                        title={log.userEmail ?? '—'}
-                      >
-                        {log.userEmail ?? '—'}
-                      </td>
-                      <td style={tdStyle}>{labelFor(SOURCE_LABELS, log.source, '—')}</td>
-                      <td style={tdStyle}>{log.totalHeaders}</td>
-                      <td style={tdStyle}>{log.autoMatchedCount}</td>
-                      <td style={tdStyle}>{log.unmappedCount}</td>
-                      <td style={tdStyle}>{log.lowConfidenceCount}</td>
-                      <td style={tdStyle}>{log.needsReviewCount}</td>
-                      <td style={tdStyle}>{log.entriesWithMaskedSamplesCount}</td>
-                      <td style={tdStyle}>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedLogId(expanded ? null : log.id)}
-                          style={{ padding: '4px 8px', border: '1px solid #d4d4d8', borderRadius: 6, background: '#fff', cursor: 'pointer' }}
-                        >
-                          {expanded ? '접기' : '펼치기'}
-                        </button>
-                      </td>
-                      <td style={tdStyle}>
-                        <button
-                          type="button"
-                          disabled={deletingLogId === log.id}
-                          onClick={() => deleteAuditLog(log)}
-                          style={{
-                            padding: '4px 8px',
-                            border: '1px solid #fecaca',
-                            borderRadius: 6,
-                            background: deletingLogId === log.id ? '#fef2f2' : '#fff',
-                            color: '#991b1b',
-                            cursor: deletingLogId === log.id ? 'not-allowed' : 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {deletingLogId === log.id ? '삭제 중' : '삭제'}
-                        </button>
-                      </td>
-                    </tr>
-                    {expanded && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <button
+              type="button"
+              disabled={selectedLogIds.length === 0 || deletingSelectedLogs}
+              onClick={deleteSelectedAuditLogs}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #fecaca',
+                borderRadius: 6,
+                background: selectedLogIds.length === 0 || deletingSelectedLogs ? '#f4f4f5' : '#dc2626',
+                color: selectedLogIds.length === 0 || deletingSelectedLogs ? '#71717a' : '#fff',
+                cursor: selectedLogIds.length === 0 || deletingSelectedLogs ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {deletingSelectedLogs ? '선택 삭제 중' : '선택 삭제'}
+            </button>
+            <span style={{ fontSize: 13, color: '#52525b' }}>
+              선택 {selectedLogIds.length}개
+            </span>
+          </div>
+          <div style={{ overflowX: 'auto', border: '1px solid #e4e4e7', borderRadius: 8 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#eff6ff' }}>
+                  <th style={{ ...thStyle, textAlign: 'center', width: 44 }}>
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleAllVisibleLogs}
+                      aria-label="현재 페이지 전체 선택"
+                    />
+                  </th>
+                  <th style={thStyle}>생성일</th>
+                  <th style={thStyle}>사용자 이메일</th>
+                  <th style={thStyle}>출처</th>
+                  <th style={thStyle}>전체 헤더 수</th>
+                  <th style={thStyle}>자동 매핑</th>
+                  <th style={thStyle}>미매핑</th>
+                  <th style={thStyle}>낮은 신뢰도</th>
+                  <th style={thStyle}>검토 필요</th>
+                  <th style={thStyle}>마스킹 샘플</th>
+                  <th style={thStyle}>상세</th>
+                  <th style={thStyle}>삭제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => {
+                  const expanded = expandedLogId === log.id;
+                  return (
+                    <Fragment key={log.id}>
                       <tr>
-                        <td colSpan={11} style={{ padding: 0, borderBottom: '1px solid #e4e4e7', background: '#fff' }}>
-                          <div style={{ overflowX: 'auto', padding: 12 }}>
-                            <table style={{ minWidth: 1320, borderCollapse: 'collapse', fontSize: 12, background: '#fff' }}>
+                        <td style={{ ...tdStyle, textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedLogIds.includes(log.id)}
+                            onChange={() => toggleLogSelection(log.id)}
+                            aria-label={`${formatDate(log.createdAt)} 헤더 매핑 검토 로그 선택`}
+                          />
+                        </td>
+                        <td style={tdStyle}>{formatDate(log.createdAt)}</td>
+                        <td
+                          style={{
+                            ...tdStyle,
+                            maxWidth: 210,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                          title={log.userEmail ?? '—'}
+                        >
+                          {log.userEmail ?? '—'}
+                        </td>
+                        <td style={tdStyle}>{labelFor(SOURCE_LABELS, log.source, '—')}</td>
+                        <td style={tdStyle}>{log.totalHeaders}</td>
+                        <td style={tdStyle}>{log.autoMatchedCount}</td>
+                        <td style={tdStyle}>{log.unmappedCount}</td>
+                        <td style={tdStyle}>{log.lowConfidenceCount}</td>
+                        <td style={tdStyle}>{log.needsReviewCount}</td>
+                        <td style={tdStyle}>{log.entriesWithMaskedSamplesCount}</td>
+                        <td style={tdStyle}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedLogId(expanded ? null : log.id)}
+                            style={{ padding: '4px 8px', border: '1px solid #d4d4d8', borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+                          >
+                            {expanded ? '접기' : '펼치기'}
+                          </button>
+                        </td>
+                        <td style={tdStyle}>
+                          <button
+                            type="button"
+                            disabled={deletingLogId === log.id}
+                            onClick={() => deleteAuditLog(log)}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #fecaca',
+                              borderRadius: 6,
+                              background: deletingLogId === log.id ? '#fef2f2' : '#fff',
+                              color: '#991b1b',
+                              cursor: deletingLogId === log.id ? 'not-allowed' : 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {deletingLogId === log.id ? '삭제 중' : '삭제'}
+                          </button>
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr>
+                          <td colSpan={12} style={{ padding: 0, borderBottom: '1px solid #e4e4e7', background: '#fff' }}>
+                            <div style={{ overflowX: 'auto', padding: 12 }}>
+                              <table style={{ minWidth: 1320, borderCollapse: 'collapse', fontSize: 12, background: '#fff' }}>
                               <thead>
                                 <tr>
                                   <th style={excelThStyle}>DB 별칭</th>
@@ -789,9 +901,10 @@ export default function HeaderMappingAuditPage() {
                   </Fragment>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 16 }}>

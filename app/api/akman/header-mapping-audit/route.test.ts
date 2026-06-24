@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   count: vi.fn(),
   findMany: vi.fn(),
   deleteLog: vi.fn(),
+  deleteManyLogs: vi.fn(),
   findHeaderAliases: vi.fn(),
 }));
 
@@ -27,6 +28,7 @@ vi.mock('@/app/lib/prisma', () => ({
       count: mocks.count,
       findMany: mocks.findMany,
       delete: mocks.deleteLog,
+      deleteMany: mocks.deleteManyLogs,
     },
     headerAlias: {
       findMany: mocks.findHeaderAliases,
@@ -391,6 +393,7 @@ describe('DELETE /api/akman/header-mapping-audit', () => {
     mocks.getServerSession.mockResolvedValue({ user: { email: 'admin@example.com' } });
     mocks.isAdminEmail.mockReturnValue(true);
     mocks.deleteLog.mockResolvedValue(activeLog);
+    mocks.deleteManyLogs.mockResolvedValue({ count: 2 });
   });
 
   it('관리자가 아니면 삭제할 수 없다', async () => {
@@ -405,6 +408,7 @@ describe('DELETE /api/akman/header-mapping-audit', () => {
 
     expect(res.status).toBe(403);
     expect(mocks.deleteLog).not.toHaveBeenCalled();
+    expect(mocks.deleteManyLogs).not.toHaveBeenCalled();
   });
 
   it('로그 묶음을 삭제한다', async () => {
@@ -418,7 +422,26 @@ describe('DELETE /api/akman/header-mapping-audit', () => {
 
     expect(res.status).toBe(200);
     expect(json.ok).toBe(true);
+    expect(json.deletedCount).toBe(1);
     expect(mocks.deleteLog).toHaveBeenCalledWith({ where: { id: 'log-1' } });
+  });
+
+  it('선택한 로그 묶음을 일괄 삭제한다', async () => {
+    const res = await DELETE(
+      new Request('http://localhost/api/akman/header-mapping-audit', {
+        method: 'DELETE',
+        body: JSON.stringify({ ids: ['log-1', 'log-2', 'log-1', ''] }),
+      }) as never,
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.deletedCount).toBe(2);
+    expect(mocks.deleteManyLogs).toHaveBeenCalledWith({
+      where: { id: { in: ['log-1', 'log-2'] } },
+    });
+    expect(mocks.deleteLog).not.toHaveBeenCalled();
   });
 
   it('삭제할 로그 ID가 없으면 400을 반환한다', async () => {
@@ -431,5 +454,6 @@ describe('DELETE /api/akman/header-mapping-audit', () => {
 
     expect(res.status).toBe(400);
     expect(mocks.deleteLog).not.toHaveBeenCalled();
+    expect(mocks.deleteManyLogs).not.toHaveBeenCalled();
   });
 });

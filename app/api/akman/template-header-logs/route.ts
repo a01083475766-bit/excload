@@ -35,6 +35,10 @@ function headersContainSearch(headers: unknown, search: string): boolean {
   return headers.some((h) => String(h ?? '').toLowerCase().includes(q));
 }
 
+function hasUnknownHeaders(unknownHeaders: unknown): boolean {
+  return Array.isArray(unknownHeaders) && unknownHeaders.length > 0;
+}
+
 function mapLogRow(row: {
   id: string;
   createdAt: Date;
@@ -219,6 +223,94 @@ export async function GET(request: NextRequest) {
     console.error('[akman/template-header-logs] GET error:', error);
     return NextResponse.json(
       { error: '로그 조회 중 오류가 발생했습니다.' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+      return NextResponse.json({ error: '관리자 권한 필요' }, { status: 403 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      ids?: unknown[];
+      reset?: 'usageTop30' | 'unknownTop30';
+      page?: string;
+      headerSearch?: string;
+    };
+    const ids = Array.isArray(body.ids)
+      ? [
+          ...new Set(
+            body.ids
+              .filter((item): item is string => typeof item === 'string')
+              .map((item) => item.trim())
+              .filter(Boolean),
+          ),
+        ]
+      : [];
+
+    if (ids.length > 0) {
+      const result = await prisma.templateHeaderLog.deleteMany({
+        where: { id: { in: ids } },
+      });
+
+      return NextResponse.json({ ok: true, deletedCount: result.count });
+    }
+
+    if (body.reset === 'usageTop30' || body.reset === 'unknownTop30') {
+      const since = new Date();
+      since.setUTCDate(since.getUTCDate() - 30);
+      since.setUTCHours(0, 0, 0, 0);
+
+      const where: Prisma.TemplateHeaderLogWhereInput = {
+        createdAt: { gte: since },
+      };
+      if (body.page && isTemplateHeaderLogPage(body.page)) {
+        where.page = body.page;
+      }
+
+      const headerSearch = typeof body.headerSearch === 'string' ? sanitizeHeaderLabel(body.headerSearch) : '';
+      const rows = await prisma.templateHeaderLog.findMany({
+        where,
+        select: {
+          id: true,
+          headers: true,
+          unknownHeaders: true,
+        },
+        take: 5000,
+      });
+
+      const targetIds = rows
+        .filter((row) => {
+          if (body.reset === 'unknownTop30' && !hasUnknownHeaders(row.unknownHeaders)) {
+            return false;
+          }
+          if (headerSearch) {
+            return headersContainSearch(row.headers, headerSearch);
+          }
+          return true;
+        })
+        .map((row) => row.id);
+
+      if (targetIds.length === 0) {
+        return NextResponse.json({ ok: true, deletedCount: 0 });
+      }
+
+      const result = await prisma.templateHeaderLog.deleteMany({
+        where: { id: { in: targetIds } },
+      });
+
+      return NextResponse.json({ ok: true, deletedCount: result.count });
+    }
+
+    return NextResponse.json({ error: '삭제할 헤더 수집 로그 ID가 필요합니다.' }, { status: 400 });
+  } catch (error) {
+    console.error('[akman/template-header-logs] DELETE error:', error);
+    return NextResponse.json(
+      { error: '로그 삭제 중 오류가 발생했습니다.' },
       { status: 500 },
     );
   }

@@ -70,3 +70,64 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+/**
+ * DELETE /api/akman/point-history
+ * 관리자 전용: 사용량 제공·결제 이력 행 삭제
+ * 현재 사용자 포인트 잔액은 변경하지 않습니다.
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    if (!isAdminEmail(session.user.email)) {
+      return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      id?: string;
+      ids?: unknown[];
+    };
+    const ids = Array.isArray(body.ids)
+      ? [
+          ...new Set(
+            body.ids
+              .filter((item): item is string => typeof item === 'string')
+              .map((item) => item.trim())
+              .filter(Boolean),
+          ),
+        ]
+      : typeof body.id === 'string' && body.id.trim()
+        ? [body.id.trim()]
+        : [];
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: '삭제할 사용량 이력 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    const result = await prisma.pointHistory.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: result.count,
+    });
+  } catch (error) {
+    console.error('[Admin Point History API] DELETE 에러:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : '사용량 이력 삭제에 실패했습니다.',
+      },
+      { status: 500 },
+    );
+  }
+}

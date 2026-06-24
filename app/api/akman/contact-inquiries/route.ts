@@ -129,3 +129,44 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: '고객문의 수정 실패' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const denied = requireAdmin(session);
+    if (denied) return denied;
+
+    const body = (await request.json().catch(() => ({}))) as {
+      id?: string;
+      ids?: unknown[];
+    };
+    const ids = Array.isArray(body.ids)
+      ? [
+          ...new Set(
+            body.ids
+              .filter((item): item is string => typeof item === 'string')
+              .map((item) => item.trim())
+              .filter(Boolean),
+          ),
+        ]
+      : typeof body.id === 'string' && body.id.trim()
+        ? [body.id.trim()]
+        : [];
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: '삭제할 고객문의 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    const result = await prisma.contactInquiry.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: result.count,
+    });
+  } catch (error) {
+    console.error('[Akman Contact Inquiries API][DELETE] error:', error);
+    return NextResponse.json({ error: '고객문의 삭제 실패' }, { status: 500 });
+  }
+}

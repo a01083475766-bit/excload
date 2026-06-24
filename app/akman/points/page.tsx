@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -22,6 +22,8 @@ export default function PointLogPage() {
   const [logs, setLogs] = useState<PointLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
+  const [deletingSelected, setDeletingSelected] = useState(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -51,6 +53,64 @@ export default function PointLogPage() {
   useEffect(() => {
     void fetchLogs();
   }, [fetchLogs]);
+
+  const visibleLogIds = useMemo(() => logs.map((log) => log.id), [logs]);
+  const allVisibleSelected =
+    visibleLogIds.length > 0 && visibleLogIds.every((id) => selectedLogIds.includes(id));
+
+  const toggleLogSelection = (id: string) => {
+    setSelectedLogIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const toggleAllVisibleLogs = () => {
+    if (allVisibleSelected) {
+      setSelectedLogIds((prev) => prev.filter((id) => !visibleLogIds.includes(id)));
+      return;
+    }
+
+    setSelectedLogIds((prev) => [...new Set([...prev, ...visibleLogIds])]);
+  };
+
+  const deleteSelectedLogs = async () => {
+    const targetIds = selectedLogIds;
+    if (targetIds.length === 0) {
+      alert('삭제할 사용량 이력을 선택해 주세요.');
+      return;
+    }
+
+    if (!confirm(`선택한 ${targetIds.length}개의 사용량 이력을 삭제하시겠습니까?\n현재 사용자 포인트 잔액은 변경되지 않습니다.`)) {
+      return;
+    }
+
+    setDeletingSelected(true);
+    try {
+      const res = await fetch('/api/akman/point-history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: targetIds }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401 || res.status === 403) {
+        router.push('/');
+        return;
+      }
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || '사용량 이력 삭제에 실패했습니다.');
+      }
+
+      setLogs((prev) => prev.filter((log) => !targetIds.includes(log.id)));
+      setSelectedLogIds((prev) => prev.filter((id) => !targetIds.includes(id)));
+      void fetchLogs();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '사용량 이력 삭제에 실패했습니다.');
+    } finally {
+      setDeletingSelected(false);
+    }
+  };
 
   return (
     <div style={{ padding: '40px', fontFamily: 'system-ui, sans-serif' }}>
@@ -116,9 +176,27 @@ export default function PointLogPage() {
           </button>
         </div>
       ) : (
-        <p style={{ color: '#666', marginBottom: '30px' }}>
-          총 {logs.length}건 (지급·결제 기준 최근 100건)
-        </p>
+        <div style={{ marginBottom: '30px' }}>
+          <p style={{ color: '#666', marginBottom: '12px' }}>
+            총 {logs.length}건 (지급·결제 기준 최근 100건)
+          </p>
+          <button
+            type="button"
+            disabled={selectedLogIds.length === 0 || deletingSelected}
+            onClick={() => void deleteSelectedLogs()}
+            style={{
+              padding: '8px 12px',
+              fontSize: '13px',
+              backgroundColor: selectedLogIds.length === 0 || deletingSelected ? '#e9ecef' : '#dc3545',
+              color: selectedLogIds.length === 0 || deletingSelected ? '#6c757d' : 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: selectedLogIds.length === 0 || deletingSelected ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {deletingSelected ? '선택 삭제 중' : `선택 삭제 (${selectedLogIds.length})`}
+          </button>
+        </div>
       )}
 
       {!error && (
@@ -132,6 +210,14 @@ export default function PointLogPage() {
         >
           <thead>
             <tr style={{ backgroundColor: '#f5f5f5' }}>
+              <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'center', width: '44px' }}>
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleAllVisibleLogs}
+                  aria-label="현재 사용량 이력 전체 선택"
+                />
+              </th>
               <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>
                 이메일
               </th>
@@ -151,7 +237,7 @@ export default function PointLogPage() {
             {loading ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   style={{
                     border: '1px solid #ccc',
                     padding: '20px',
@@ -165,7 +251,7 @@ export default function PointLogPage() {
             ) : logs.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   style={{
                     border: '1px solid #ccc',
                     padding: '20px',
@@ -179,6 +265,14 @@ export default function PointLogPage() {
             ) : (
               logs.map((log) => (
                 <tr key={log.id}>
+                  <td style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedLogIds.includes(log.id)}
+                      onChange={() => toggleLogSelection(log.id)}
+                      aria-label={`${log.email || '알 수 없음'} 사용량 이력 선택`}
+                    />
+                  </td>
                   <td style={{ border: '1px solid #ccc', padding: '12px' }}>
                     {log.email || '알 수 없음'}
                   </td>
