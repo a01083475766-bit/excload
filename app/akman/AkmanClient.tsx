@@ -495,7 +495,7 @@ export default function AkmanClient() {
       <h2 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>바로가기</h2>
       <div style={cardGrid}>
         <a
-          href="https://vercel.com/youngsoons-projects/excload3/analytics"
+          href="https://vercel.com/youngsoons/projects/excload3/analytics"
           target="_blank"
           rel="noopener noreferrer"
           style={{
