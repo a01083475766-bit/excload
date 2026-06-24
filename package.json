@@ -17,6 +17,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@react-three/fiber": "^9.5.0",
+    "@vercel/analytics": "^2.0.1",
     "adm-zip": "^0.5.17",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^12.33.0",
