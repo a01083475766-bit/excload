@@ -9,6 +9,16 @@ import { prisma } from '@/app/lib/prisma';
 import { isAdminEmail } from '@/app/lib/admin-auth';
 import { grantsOnlyPointHistoryFilter } from '@/app/lib/point-history-filter';
 
+function parseStringIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value.flatMap((item) => {
+    if (typeof item !== 'string') return [];
+    const id = item.trim();
+    return id ? [id] : [];
+  });
+  return [...new Set(ids)];
+}
+
 /**
  * GET /api/akman/point-history
  * scope=grants (기본): 지급·결제·관리자 조정만 (다운로드·텍스트 변환 차감 제외)
@@ -92,15 +102,8 @@ export async function DELETE(request: NextRequest) {
       id?: string;
       ids?: unknown[];
     };
-    const ids = Array.isArray(body.ids)
-      ? [
-          ...new Set(
-            body.ids
-              .filter((item): item is string => typeof item === 'string')
-              .map((item) => item.trim())
-              .filter(Boolean),
-          ),
-        ]
+    const ids = body.ids !== undefined
+      ? parseStringIds(body.ids)
       : typeof body.id === 'string' && body.id.trim()
         ? [body.id.trim()]
         : [];

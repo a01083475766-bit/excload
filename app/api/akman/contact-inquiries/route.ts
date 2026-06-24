@@ -18,6 +18,16 @@ function requireAdmin(session: { user?: { email?: string | null } } | null) {
   return null;
 }
 
+function parseStringIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value.flatMap((item) => {
+    if (typeof item !== 'string') return [];
+    const id = item.trim();
+    return id ? [id] : [];
+  });
+  return [...new Set(ids)];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -140,15 +150,8 @@ export async function DELETE(request: NextRequest) {
       id?: string;
       ids?: unknown[];
     };
-    const ids = Array.isArray(body.ids)
-      ? [
-          ...new Set(
-            body.ids
-              .filter((item): item is string => typeof item === 'string')
-              .map((item) => item.trim())
-              .filter(Boolean),
-          ),
-        ]
+    const ids = body.ids !== undefined
+      ? parseStringIds(body.ids)
       : typeof body.id === 'string' && body.id.trim()
         ? [body.id.trim()]
         : [];

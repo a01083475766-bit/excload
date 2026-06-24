@@ -75,6 +75,16 @@ function parseSearch(value: string | null): string | undefined {
   return v ? v.slice(0, 100) : undefined;
 }
 
+function parseStringIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value.flatMap((item) => {
+    if (typeof item !== 'string') return [];
+    const id = item.trim();
+    return id ? [id] : [];
+  });
+  return [...new Set(ids)];
+}
+
 function buildEntryWhere(searchParams: URLSearchParams): Prisma.HeaderMappingAuditEntryWhereInput {
   const status = parseEnum(searchParams.get('status'), HEADER_MAPPING_STATUSES);
   const method = parseEnum(searchParams.get('method'), HEADER_MAPPING_METHODS);
@@ -299,16 +309,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const ids = Array.isArray(body?.ids)
-      ? [
-          ...new Set(
-            body.ids
-              .filter((item: unknown): item is string => typeof item === 'string')
-              .map((item: string) => item.trim())
-              .filter(Boolean),
-          ),
-        ]
-      : [];
+    const ids = parseStringIds(body?.ids);
 
     if (ids.length > 0) {
       const result = await prisma.headerMappingAuditLog.deleteMany({

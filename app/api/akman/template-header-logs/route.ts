@@ -39,6 +39,16 @@ function hasUnknownHeaders(unknownHeaders: unknown): boolean {
   return Array.isArray(unknownHeaders) && unknownHeaders.length > 0;
 }
 
+function parseStringIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value.flatMap((item) => {
+    if (typeof item !== 'string') return [];
+    const id = item.trim();
+    return id ? [id] : [];
+  });
+  return [...new Set(ids)];
+}
+
 function mapLogRow(row: {
   id: string;
   createdAt: Date;
@@ -241,16 +251,7 @@ export async function DELETE(request: NextRequest) {
       page?: string;
       headerSearch?: string;
     };
-    const ids = Array.isArray(body.ids)
-      ? [
-          ...new Set(
-            body.ids
-              .filter((item): item is string => typeof item === 'string')
-              .map((item) => item.trim())
-              .filter(Boolean),
-          ),
-        ]
-      : [];
+    const ids = parseStringIds(body.ids);
 
     if (ids.length > 0) {
       const result = await prisma.templateHeaderLog.deleteMany({
