@@ -1182,6 +1182,17 @@ export default function OrderConvertPage() {
     );
   }, [manualTemplateExampleQuery]);
 
+  const manualTemplateEnteredHeaders = useMemo(
+    () =>
+      manualTemplateHeaders
+        .map((header, index) => ({
+          index,
+          name: header.trim(),
+        }))
+        .filter((header) => header.name !== ''),
+    [manualTemplateHeaders],
+  );
+
   useEffect(() => {
     defaultCjSeedAppliedRef.current = false;
   }, [storageUserId]);
@@ -4340,8 +4351,29 @@ export default function OrderConvertPage() {
                 </table>
               </div>
 
-              <div className="border-t border-zinc-200 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                현재 선택 칸: {manualTemplateActiveIndex + 1}번째
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-zinc-200 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                <span className="font-medium">
+                  현재 선택 칸: {manualTemplateActiveIndex + 1}번째
+                </span>
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    현재까지 입력:
+                  </span>
+                  {manualTemplateEnteredHeaders.length > 0 ? (
+                    manualTemplateEnteredHeaders.map((header) => (
+                      <span
+                        key={`${header.index}-${header.name}`}
+                        className="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
+                      >
+                        {header.index + 1}. {header.name}(지정)
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-zinc-400 dark:text-zinc-500">
+                      아직 입력된 헤더가 없습니다.
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
