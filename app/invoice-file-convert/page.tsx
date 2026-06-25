@@ -790,6 +790,35 @@ export default function InvoiceFileConvertPage() {
     setPreviewScrollTop(e.currentTarget.scrollTop);
   }, []);
 
+  useLayoutEffect(() => {
+    if (!previewReady || previewRows.length === 0 || courierHeaders.length === 0) return;
+    if (typeof window === 'undefined') return;
+
+    let rafId = 0;
+    const syncVisiblePreview = () => {
+      const node = previewScrollContainerRef.current;
+      if (!node) return;
+
+      if (node.scrollTop !== 0 && previewRows.length <= PREVIEW_BATCH_SIZE) {
+        node.scrollTop = 0;
+        setPreviewScrollTop(0);
+      }
+      setPreviewViewportHeight(node.clientHeight || 260);
+      setRenderedRowCount((prev) => {
+        if (isPreviewExpanded) return previewRows.length;
+        const next = Math.min(PREVIEW_BATCH_SIZE, previewRows.length);
+        return prev > 0 ? prev : next;
+      });
+    };
+
+    syncVisiblePreview();
+    rafId = window.requestAnimationFrame(syncVisiblePreview);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+    };
+  }, [previewReady, previewRows.length, courierHeaders.length, isPreviewExpanded]);
+
   useEffect(() => {
     const node = previewScrollContainerRef.current;
     if (!node) return;
@@ -2134,6 +2163,10 @@ export default function InvoiceFileConvertPage() {
     setSelectedRows([]);
     setNewRows(new Set());
     setUserOverrides({});
+    setPreviewScrollTop(0);
+    if (previewScrollContainerRef.current) {
+      previewScrollContainerRef.current.scrollTop = 0;
+    }
     setUnknownHeadersWarning([]);
     setUnknownHeaderSamples({});
     setOrderStandardFile(null);
