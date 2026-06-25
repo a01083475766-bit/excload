@@ -250,9 +250,11 @@ export default function HomePage() {
                 에서 확인할 수 있습니다.
               </p>
               <div className="mt-8 w-full">
-                <InvoiceFileConvertTrialModeProvider trialMode>
-                  <InvoiceTrialEmbed />
-                </InvoiceFileConvertTrialModeProvider>
+                <div className="invoice-native-theme">
+                  <InvoiceFileConvertTrialModeProvider trialMode>
+                    <InvoiceTrialEmbed />
+                  </InvoiceFileConvertTrialModeProvider>
+                </div>
                 <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
                   송장변환 전체 화면이 필요하면{' '}
                   <Link

@@ -516,6 +516,38 @@ body {
   color: #ffffff !important;
 }
 
+/* 홈 랜딩에 임베드된 송장변환 체험은 본페이지의 안내 색상을 그대로 유지 */
+.blue-unified-theme .invoice-native-theme [class~="bg-amber-50"],
+.blue-unified-theme .invoice-native-theme [class*="bg-amber-50/"],
+.blue-unified-theme .invoice-native-theme [class*="hover:bg-amber-50"]:hover {
+  background-color: #fffbeb !important; /* amber-50 */
+}
+
+.blue-unified-theme .invoice-native-theme [class*="bg-amber-100"],
+.blue-unified-theme .invoice-native-theme [class*="hover:bg-amber-100"]:hover {
+  background-color: #fef3c7 !important; /* amber-100 */
+}
+
+.blue-unified-theme .invoice-native-theme [class*="text-amber-700"] {
+  color: #b45309 !important; /* amber-700 */
+}
+
+.blue-unified-theme .invoice-native-theme [class*="text-amber-800"] {
+  color: #92400e !important; /* amber-800 */
+}
+
+.blue-unified-theme .invoice-native-theme [class*="text-amber-900"] {
+  color: #78350f !important; /* amber-900 */
+}
+
+.blue-unified-theme .invoice-native-theme [class*="border-amber-300"] {
+  border-color: #fcd34d !important; /* amber-300 */
+}
+
+.blue-unified-theme .invoice-native-theme [class*="border-amber-500"] {
+  border-color: rgb(245 158 11 / 0.8) !important; /* amber-500/80 */
+}
+
 /* 홈 임베드 무료체험: 상태 라벨 칩은 진한색 대신 연한 파랑으로 가독성 유지 */
 .blue-unified-theme .trial-soft-chip {
   background-color: #dbeafe !important; /* blue-100 */

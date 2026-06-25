@@ -2753,12 +2753,7 @@ export default function InvoiceFileConvertPage() {
               ) : null}
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
                 {trialMode ? (
-                  <div
-                    data-ex-tooltip="저장 기능 없이 미리보기 중심으로 제공됩니다. 변환 파일 다운로드는 로그인 이후 가능합니다."
-                    className="ex-tooltip-target flex h-[38px] w-full min-w-0 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-sm font-semibold text-white shadow-md sm:w-[200px]"
-                  >
-                    다운로드는 가입 후
-                  </div>
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
                 ) : user ? (
                   <div className="flex h-[38px] w-full min-w-0 items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white shadow-md sm:w-[200px]">
                     <Coins className="h-4 w-4 shrink-0" />
