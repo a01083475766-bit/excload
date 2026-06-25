@@ -11,8 +11,12 @@ export function DefaultSmartstoreInvoiceTemplateNotice({
   onRegisterCustom,
   onOpenFixedInput,
 }: DefaultSmartstoreInvoiceTemplateNoticeProps) {
+  const firstLine = '스마트스토어에서 많이 사용하는 기본 송장 업로드 양식으로 설정되어 있습니다.';
+  const remainingBanner = DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY.banner
+    .replace(firstLine, '')
+    .trim();
   const [beforeFixed, afterFixed] =
-    DEFAULT_SMARTSTORE_INVOICE_INTRO_COPY.banner.split('「고정 입력 정보 설정」');
+    remainingBanner.split('「고정 입력 정보 설정」');
 
   return (
     <div
@@ -20,6 +24,8 @@ export function DefaultSmartstoreInvoiceTemplateNotice({
       role="status"
     >
       <p className="text-xs leading-relaxed text-blue-800 dark:text-blue-200">
+        {firstLine}
+        <br />
         {beforeFixed}
         {onOpenFixedInput ? (
           <button
