@@ -74,6 +74,28 @@ describe('롯데 ALLOGIS 기본형 — 매핑·출력·다운로드', () => {
     expect(preview['박스타입']).toBe('A');
   });
 
+  it('상품주문번호 출력 칸은 상품주문번호가 없으면 주문번호로 보완한다', () => {
+    const bridge = buildTrialBridgeFile(['상품주문번호', '송장번호']);
+    const standardRow = createEmptyBaseHeaderRow() as StandardOrderRow;
+    standardRow['주문번호'] = '403481828';
+    standardRow['운송장번호'] = '2597067486551';
+
+    const preview = buildPreviewRowFromStandardRow(standardRow, bridge, {});
+
+    expect(preview['상품주문번호']).toBe('403481828');
+    expect(preview['송장번호']).toBe('2597067486551');
+  });
+
+  it('주문번호 출력 칸은 주문번호가 없으면 상품주문번호로 보완한다', () => {
+    const bridge = buildTrialBridgeFile(['주문번호']);
+    const standardRow = createEmptyBaseHeaderRow() as StandardOrderRow;
+    standardRow['상품주문번호'] = 'NP-10001';
+
+    const preview = buildPreviewRowFromStandardRow(standardRow, bridge, {});
+
+    expect(preview['주문번호']).toBe('NP-10001');
+  });
+
   it('박스타입·지점코드가 비어 있어도 다운로드 xlsx 생성 가능', () => {
     const rows = [
       {

@@ -2615,14 +2615,14 @@ export default function InvoiceFileConvertPage() {
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                className="px-4 py-2 text-sm border rounded hover:bg-gray-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                className="rounded border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
                 onClick={() => setIsPreviewResetModalOpen(false)}
               >
                 취소
               </button>
               <button
                 type="button"
-                className="px-4 py-2 text-sm rounded bg-amber-600 text-white hover:bg-amber-700"
+                className="rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700"
                 onClick={applyInvoicePreviewWorkspaceReset}
               >
                 초기화
