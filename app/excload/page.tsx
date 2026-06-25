@@ -5,6 +5,7 @@ import {
   LandingPrePricingCta,
   LandingWhyHowCarriers,
 } from '@/app/components/landing/LandingReferenceSections';
+import { InvoiceFileConvertTrialModeProvider } from '@/app/invoice-file-convert/trial-mode-context';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -23,6 +24,14 @@ const TrialEmbed = dynamic(
     ),
   },
 );
+const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+      송장변환 체험 화면을 불러오는 중입니다...
+    </div>
+  ),
+});
 
 type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
 type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
@@ -230,6 +239,31 @@ export default function HomePage() {
                 </Link>
                 로 이동할 수 있습니다.
               </p>
+              <p className="mt-1 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
+                송장변환도 테스트하려면{' '}
+                <Link
+                  href="/invoice-file-convert/trial"
+                  className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300"
+                >
+                  송장변환 체험 페이지
+                </Link>
+                에서 확인할 수 있습니다.
+              </p>
+              <div className="mt-8 w-full">
+                <InvoiceFileConvertTrialModeProvider trialMode>
+                  <InvoiceTrialEmbed />
+                </InvoiceFileConvertTrialModeProvider>
+                <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
+                  송장변환 전체 화면이 필요하면{' '}
+                  <Link
+                    href="/invoice-file-convert/trial"
+                    className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300"
+                  >
+                    송장변환 체험 전용 페이지
+                  </Link>
+                  로 이동할 수 있습니다.
+                </p>
+              </div>
             </div>
 
             {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}

@@ -108,6 +108,7 @@ import {
 } from '@/app/lib/order-standard-row-snapshot';
 import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-preview';
 import { mergeOrderAndInvoiceStandardFiles } from '@/app/pipeline/invoice/merge-order-invoice-standard';
+import { useInvoiceFileConvertTrialMode } from '@/app/invoice-file-convert/trial-mode-context';
 import {
   buildCourierTemplateFromHeaders,
   buildTrialBridgeFile,
@@ -406,9 +407,12 @@ const saveRecentExcelFormat = (
 };
 
 export default function InvoiceFileConvertPage() {
+  const embeddedTrialMode = useInvoiceFileConvertTrialMode();
+  const [queryTrialMode, setQueryTrialMode] = useState(false);
+  const trialMode = embeddedTrialMode || queryTrialMode;
   const router = useRouter();
   const user = useUserStore((state) => state.user);
-  const { data: feedbackEventStatus } = useFeedbackEventStatus(true);
+  const { data: feedbackEventStatus } = useFeedbackEventStatus(!trialMode);
   const [feedbackEventPopupOpen, setFeedbackEventPopupOpen] = useState(false);
   const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
@@ -427,10 +431,11 @@ export default function InvoiceFileConvertPage() {
   const [workspaceStorageHydrated, setWorkspaceStorageHydrated] = useState(false);
   const [isPreviewSessionRestoring, setIsPreviewSessionRestoring] = useState(true);
   const previewSessionEnabled =
+    !trialMode &&
     authAssetsReady &&
     workspaceStorageHydrated &&
     (authStatus === 'unauthenticated' || Boolean(storageUserId));
-  const isAccountScopedReady = authAssetsReady && workspaceStorageHydrated;
+  const isAccountScopedReady = trialMode || (authAssetsReady && workspaceStorageHydrated);
   const isFormStatusChecking = !workspaceStorageHydrated;
   const invoiceCourierHydratedRef = useRef(false);
   const defaultSmartstoreSeedAppliedRef = useRef(false);
@@ -513,6 +518,7 @@ export default function InvoiceFileConvertPage() {
     useState<WorkspaceFileMetaSnapshot | null>(null);
   const [downloadModalFileName, setDownloadModalFileName] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<"idle" | "processing" | "done">("idle");
+  const [showTrialDownloadModal, setShowTrialDownloadModal] = useState(false);
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
@@ -568,8 +574,15 @@ export default function InvoiceFileConvertPage() {
   courierUploadTemplateRef.current = courierUploadTemplate;
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setQueryTrialMode(params.get('trial') === '1');
+  }, []);
+
+  useEffect(() => {
+    if (trialMode) return;
     fetchUser();
-  }, [fetchUser]);
+  }, [fetchUser, trialMode]);
 
   const needsAccount = !user && !isLoading;
 
@@ -663,6 +676,7 @@ export default function InvoiceFileConvertPage() {
   );
 
   const ensureLoggedInForInvoiceInput = (): boolean => {
+    if (trialMode) return true;
     if (isAccountScopedReady && user) return true;
     if (isLoading || (authStatus === 'authenticated' && !isAccountScopedReady)) return false;
     setRequiresAccountModalOpen(true);
@@ -801,6 +815,17 @@ export default function InvoiceFileConvertPage() {
 
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
+    if (trialMode) {
+      const seed = buildDefaultSmartstoreInvoiceSeed();
+      setCourierUploadTemplate(seed.template);
+      setTemplateBridgeFile(seed.bridgeFile);
+      setRecentExcelFormats([seed.recentFormat]);
+      setFixedHeaderValues({ 배송방법: DEFAULT_SMARTSTORE_FIXED_INPUT.배송방법 });
+      setWorkspaceStorageHydrated(true);
+      invoiceCourierHydratedRef.current = true;
+      prevAccountBoundaryRef.current = '__invoice_trial__';
+      return;
+    }
     if (!authAssetsReady) {
       setWorkspaceStorageHydrated(false);
       invoiceCourierHydratedRef.current = false;
@@ -903,7 +928,7 @@ export default function InvoiceFileConvertPage() {
     }
     invoiceCourierHydratedRef.current = true;
     setWorkspaceStorageHydrated(true);
-  }, [authAssetsReady, storageUserId, templateScopeUserIds]);
+  }, [authAssetsReady, storageUserId, templateScopeUserIds, trialMode]);
 
   const activeTemplateHeaderNames = useMemo(() => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !courierUploadTemplate) {
@@ -925,6 +950,7 @@ export default function InvoiceFileConvertPage() {
 
   /** 양식 미등록 시 스마트스토어 발송 필수 4열 기본 양식 자동 등록 */
   useEffect(() => {
+    if (trialMode) return;
     if (!authAssetsReady || !workspaceStorageHydrated) return;
 
     const storedTemplate = loadCourierUploadTemplate(storageUserId);
@@ -1018,7 +1044,7 @@ export default function InvoiceFileConvertPage() {
     setTemplateBridgeFile(seed.bridgeFile);
     setRecentExcelFormats(updatedFormats);
     setTempSelectedFormatId(DEFAULT_SMARTSTORE_INVOICE_FORMAT_ID);
-  }, [authAssetsReady, workspaceStorageHydrated, storageUserId, templateScopeUserIds]);
+  }, [authAssetsReady, workspaceStorageHydrated, storageUserId, templateScopeUserIds, trialMode]);
 
   const handleInvoicePreviewSessionRestored = useCallback(() => {
     setPreviewReady(true);
@@ -1183,6 +1209,7 @@ export default function InvoiceFileConvertPage() {
   ]);
 
   useEffect(() => {
+    if (trialMode) return;
     try {
       writeLocalStorageForUser(
         INVOICE_FILE_CONVERT_KEYS.fixedHeaders,
@@ -1192,7 +1219,7 @@ export default function InvoiceFileConvertPage() {
     } catch (error) {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
-  }, [fixedHeaderValues, storageUserId, authAssetsReady]);
+  }, [fixedHeaderValues, storageUserId, authAssetsReady, trialMode]);
 
   // 점 애니메이션 처리 (파일 처리용)
   useEffect(() => {
@@ -2297,6 +2324,10 @@ export default function InvoiceFileConvertPage() {
   }, [courierInvoiceFile, templateBridgeFile, ensureBothFilesUnlocked]);
 
   const handleDownloadPreview = async () => {
+    if (trialMode) {
+      setShowTrialDownloadModal(true);
+      return;
+    }
     if (!isValidCourierTemplate(courierUploadTemplate) || !templateBridgeFile) {
       alert('쇼핑몰 송장 업로드 양식을 먼저 등록해 주세요.');
       return;
@@ -2524,7 +2555,7 @@ export default function InvoiceFileConvertPage() {
       {excelUnlockUi}
 
       <RequiresAccountOrderModal
-        open={requiresAccountModalOpen}
+        open={!trialMode && requiresAccountModalOpen}
         onClose={() => setRequiresAccountModalOpen(false)}
       />
 
@@ -2601,12 +2632,63 @@ export default function InvoiceFileConvertPage() {
         </div>
       )}
 
+      {showTrialDownloadModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowTrialDownloadModal(false)}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="invoice-trial-download-modal-title"
+            aria-describedby="invoice-trial-download-modal-desc"
+          >
+            <h2
+              id="invoice-trial-download-modal-title"
+              className="text-xl font-bold leading-snug text-zinc-950 dark:text-zinc-100"
+            >
+              송장변환 결과를 확인하셨나요?
+            </h2>
+            <p
+              id="invoice-trial-download-modal-desc"
+              className="mt-5 text-base leading-relaxed text-zinc-800 dark:text-zinc-300"
+            >
+              체험 화면에서는 미리보기로 변환 흐름을 확인할 수 있습니다.
+              <br />
+              변환된 엑셀 파일 다운로드는 무료 회원가입 후 이용해 주세요.
+            </p>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-base text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 sm:w-auto"
+                onClick={() => setShowTrialDownloadModal(false)}
+              >
+                다시 확인하기
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-center text-base font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-700/70 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/40 sm:w-auto"
+                onClick={() => {
+                  setShowTrialDownloadModal(false);
+                  router.push('/auth?mode=login');
+                }}
+              >
+                무료 가입 후 다운로드
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="pt-1.5 pb-4 bg-zinc-50 dark:bg-black">
       <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
+        <div className={trialMode ? 'trial-focus-outline' : ''}>
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
         <section className="relative pt-1 pb-3">
           <h1 className="mb-2 text-center text-lg font-semibold text-gray-900 sm:text-xl">
-            송장파일변환
+            {trialMode ? '송장변환 무료 체험' : '송장파일변환'}
           </h1>
           <p className="mb-3 text-center text-sm leading-relaxed text-gray-600 px-2">
             택배사에서 내려받은 송장번호 파일을 주문 데이터와 맞춰 정리할 수 있습니다.
@@ -2616,16 +2698,35 @@ export default function InvoiceFileConvertPage() {
             {/* 좌·우 200px 슬롯 고정 → 가운데 flex-1 (택배주문변환과 동일 레이아웃) */}
             <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-start">
-                <button
-                  type="button"
-                  onClick={() => router.push('/order/fetch')}
-                  className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
-                >
-                  즐겨찾는 쇼핑몰
-                </button>
+                {trialMode ? (
+                  <div className="hidden h-[38px] shrink-0 sm:block sm:w-[200px]" aria-hidden />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/order/fetch')}
+                    className="flex h-[38px] w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
+                  >
+                    즐겨찾는 쇼핑몰
+                  </button>
+                )}
               </div>
+              {trialMode ? (
+                <p
+                  data-ex-tooltip="체험 화면에서는 주문 파일과 송장 파일을 올려 미리보기를 확인할 수 있습니다. 다운로드는 가입 후 이용할 수 있습니다."
+                  className="ex-tooltip-target order-first min-w-0 flex-1 self-center px-1 text-center text-xl font-bold leading-snug text-blue-500 sm:order-none"
+                >
+                  지금 바로 송장변환을 테스트 해보세요
+                </p>
+              ) : null}
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
-                {user ? (
+                {trialMode ? (
+                  <div
+                    data-ex-tooltip="저장 기능 없이 미리보기 중심으로 제공됩니다. 변환 파일 다운로드는 로그인 이후 가능합니다."
+                    className="ex-tooltip-target flex h-[38px] w-full min-w-0 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-sm font-semibold text-white shadow-md sm:w-[200px]"
+                  >
+                    다운로드는 가입 후
+                  </div>
+                ) : user ? (
                   <div className="flex h-[38px] w-full min-w-0 items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white shadow-md sm:w-[200px]">
                     <Coins className="h-4 w-4 shrink-0" />
                     <span className="shrink-0 text-sm font-medium">잔여 사용량</span>
@@ -2655,6 +2756,11 @@ export default function InvoiceFileConvertPage() {
                   <div
                     role="button"
                     tabIndex={0}
+                    data-ex-tooltip={
+                      trialMode
+                        ? '쇼핑몰에서 내려받은 원본 주문 엑셀을 넣는 곳입니다. 송장번호와 맞춰 미리보기에 정리됩니다.'
+                        : undefined
+                    }
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
@@ -2667,7 +2773,7 @@ export default function InvoiceFileConvertPage() {
                       fileInputRef.current?.click();
                     }}
                     style={{ cursor: 'pointer' }}
-                    className={`w-full h-[180px] border-2 border-dashed rounded-lg p-4 overflow-hidden flex flex-col ${
+                    className={`${trialMode ? 'ex-tooltip-target ' : ''}w-full h-[180px] border-2 border-dashed rounded-lg p-4 overflow-hidden flex flex-col ${
                       orderDropzoneFlashPlaying ? '' : 'transition-colors'
                     } ${
                       isDraggingOrder
@@ -2739,6 +2845,11 @@ export default function InvoiceFileConvertPage() {
                   <div
                     role="button"
                     tabIndex={0}
+                    data-ex-tooltip={
+                      trialMode
+                        ? '택배사에서 내려받은 송장번호 엑셀을 넣는 곳입니다. 주문 파일과 함께 맞춰집니다.'
+                        : undefined
+                    }
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
@@ -2751,7 +2862,7 @@ export default function InvoiceFileConvertPage() {
                       courierInvoiceFileInputRef.current?.click();
                     }}
                     style={{ cursor: 'pointer' }}
-                    className={`w-full h-[180px] border-2 border-dashed rounded-lg p-4 overflow-hidden flex flex-col ${
+                    className={`${trialMode ? 'ex-tooltip-target ' : ''}w-full h-[180px] border-2 border-dashed rounded-lg p-4 overflow-hidden flex flex-col ${
                       courierDropzoneFlashPlaying ? '' : 'transition-colors'
                     } ${
                       isDraggingCourier
@@ -2806,7 +2917,8 @@ export default function InvoiceFileConvertPage() {
                 <div className="row-start-1 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
-                      className="inline-flex h-9 w-20 flex-shrink-0 items-center justify-center rounded border text-sm transition"
+                      data-ex-tooltip={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
+                      className={`${trialMode ? 'ex-tooltip-target ' : ''}inline-flex h-9 w-20 flex-shrink-0 items-center justify-center rounded border text-sm transition`}
                       onClick={() => setIsPreviewExpanded(prev => !prev)}
                     >
                       {isPreviewExpanded ? '닫기' : '펼치기'}
@@ -2816,7 +2928,8 @@ export default function InvoiceFileConvertPage() {
                   {previewRows.length > 0 && courierHeaders.length > 0 && (
                     <button
                       type="button"
-                      className="inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
+                      data-ex-tooltip={trialMode ? '주문 파일·송장 파일과 미리보기만 비우고 처음 상태로 되돌립니다.' : undefined}
+                      className={`${trialMode ? 'ex-tooltip-target ' : ''}inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
                       onClick={() => setIsPreviewResetModalOpen(true)}
                     >
                       미리보기 초기화
@@ -3148,8 +3261,13 @@ export default function InvoiceFileConvertPage() {
             {/* 카드 1: 쇼핑몰 송장 업로드 양식 */}
             <button
               type="button"
+              data-ex-tooltip={
+                trialMode
+                  ? '쇼핑몰에 송장을 일괄 업로드할 때 쓰는 엑셀 양식입니다. 체험 화면에는 기본 예시 양식이 준비되어 있습니다.'
+                  : undefined
+              }
               onClick={handleOpenCourierTemplateModal}
-              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
+              className={`${trialMode ? 'ex-tooltip-target ' : ''}h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
@@ -3174,8 +3292,13 @@ export default function InvoiceFileConvertPage() {
             {/* 카드 2: 고정입력 */}
             <button
               type="button"
+              data-ex-tooltip={
+                trialMode
+                  ? '배송방법처럼 모든 행에 공통으로 들어갈 값을 미리 지정하는 영역입니다.'
+                  : undefined
+              }
               onClick={handleOpenSenderModal}
-              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
+              className={`${trialMode ? 'ex-tooltip-target ' : ''}h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
@@ -3195,9 +3318,14 @@ export default function InvoiceFileConvertPage() {
             {/* 카드 3: 송장 업로드 파일 다운로드 */}
             <button
               type="button"
+              data-ex-tooltip={
+                trialMode
+                  ? '체험에서는 미리보기만 확인할 수 있습니다. 변환 파일 다운로드는 무료 가입 후 이용할 수 있습니다.'
+                  : undefined
+              }
               onClick={handleDownloadPreview}
               disabled={downloadStatus === "processing"}
-              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`${trialMode ? 'ex-tooltip-target ' : ''}h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
@@ -3230,6 +3358,7 @@ export default function InvoiceFileConvertPage() {
           )}
         </section>
 
+        </div>
       </main>
 
       {isCourierTemplateModalOpen && (
