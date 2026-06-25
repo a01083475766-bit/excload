@@ -144,17 +144,17 @@ const MANUAL_TEMPLATE_INITIAL_HEADERS = ['', '', '', ''];
 const MANUAL_TEMPLATE_HEADER_EXAMPLES = [
   '주문 번호',
   '보내는 사람',
-  '보내는 사람 전화1',
-  '보내는 사람 전화2',
+  '보내는 사람 전화',
+  '보내는 사람 추가 전화',
   '보내는 사람 우편번호',
-  '보내는 사람 주소1',
-  '보내는 사람 주소2',
+  '보내는 사람 주소',
+  '보내는 사람 상세 주소',
   '받는 사람',
-  '받는 사람 전화1',
-  '받는 사람 전화2',
+  '받는 사람 전화',
+  '받는 사람 추가 전화',
   '받는 사람 우편번호',
-  '받는 사람 주소1',
-  '받는 사람 주소2',
+  '받는 사람 주소',
+  '받는 사람 상세 주소',
   '주문자',
   '주문자 연락처',
   '주문 일시',
@@ -163,7 +163,7 @@ const MANUAL_TEMPLATE_HEADER_EXAMPLES = [
   '상품명',
   '추가 상품',
   '상품 옵션',
-  '상품 옵션1',
+  '상품 옵션 상세',
   '수량',
   '배송 메시지',
   '상품별 추가 메시지',
@@ -4034,6 +4034,10 @@ export default function OrderConvertPage() {
                 >
                   내 출력 양식 만들기
                 </button>
+                <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-[13px] leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                  내 출력 양식: 택배사 업로드용뿐 아니라 거래처 제출용, 자체 관리용 등
+                  원하는 열 순서로 직접 만드는 “다운로드 엑셀 양식”입니다.
+                </p>
                 {registrationSuccessMessage && (
                   <p className="mt-2 text-xs text-green-600 dark:text-green-400">
                     {registrationSuccessMessage}
@@ -4347,9 +4351,14 @@ export default function OrderConvertPage() {
                   <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     입력 예시
                   </h3>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    예시문을 선택하거나 참고하여 직접 입력하세요.
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      예시문을 선택하거나 참고하여 직접 입력하세요.
+                    </p>
+                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-200">
+                      보내는분 / 연락처 / 상품명 등 보편적으로 사용하는 이름을 권장합니다.
+                    </p>
+                  </div>
                 </div>
                 <input
                   type="text"
