@@ -72,6 +72,7 @@ import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusB
 import { DefaultCjTemplateNotice } from '@/app/components/DefaultCjTemplateNotice';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
+import { ManualOutputTemplateBuilderModal } from '@/app/components/ManualOutputTemplateBuilderModal';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBridgeChange';
 import {
@@ -148,11 +149,13 @@ import {
   TRIAL_DEFAULT_FORMAT_DISPLAY_NAME,
   TRIAL_EXTRA_SAMPLE_FORMATS,
   TRIAL_SEED_FORMAT_IDS,
+  buildCourierTemplateFromHeaders,
   buildTrialBridgeFile,
   isTrialSeedFormatId,
   repairTrialBridgeFileIfNeeded,
   trialBridgeNeedsAliasRefresh,
 } from '@/app/logistics-convert/trial-sample-formats';
+import { MANUAL_TEMPLATE_INITIAL_HEADERS } from '@/app/lib/manual-output-template-builder';
 import {
   BundleShippingModal,
   type BundleShippingApplyPayload,
@@ -1130,6 +1133,12 @@ export function LogisticsConvertClient({
   const [editingFormatId, setEditingFormatId] = useState<string | null>(null);
   const [editingDisplayName, setEditingDisplayName] = useState('');
   const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState<string | null>(null);
+  const [isManualTemplateBuilderOpen, setIsManualTemplateBuilderOpen] = useState(false);
+  const [manualTemplateHeaders, setManualTemplateHeaders] = useState<string[]>([
+    ...MANUAL_TEMPLATE_INITIAL_HEADERS,
+  ]);
+  const [manualTemplateActiveIndex, setManualTemplateActiveIndex] = useState(0);
+  const [manualTemplateExampleQuery, setManualTemplateExampleQuery] = useState('');
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [settingsCheckOverlayOpen, setSettingsCheckOverlayOpen] = useState(false);
@@ -3477,6 +3486,122 @@ export function LogisticsConvertClient({
     } finally {
       e.target.value = '';
     }
+  };
+
+  const handleManualTemplateHeaderChange = (index: number, value: string) => {
+    setManualTemplateHeaders((prev) => prev.map((header, headerIndex) => (
+      headerIndex === index ? value : header
+    )));
+  };
+
+  const handleAddManualTemplateHeader = () => {
+    setManualTemplateHeaders((prev) => {
+      setManualTemplateActiveIndex(prev.length);
+      return [...prev, ''];
+    });
+  };
+
+  const handleRemoveManualTemplateHeader = (index: number) => {
+    setManualTemplateHeaders((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((_, headerIndex) => headerIndex !== index);
+      setManualTemplateActiveIndex((current) => Math.min(current, next.length - 1));
+      return next;
+    });
+  };
+
+  const handleInsertManualTemplateExample = (example: string) => {
+    setManualTemplateHeaders((prev) => {
+      const targetIndex = Math.min(manualTemplateActiveIndex, Math.max(prev.length - 1, 0));
+      return prev.map((header, headerIndex) => (
+        headerIndex === targetIndex ? example : header
+      ));
+    });
+  };
+
+  const handleCreateManualTemplate = () => {
+    const headers = manualTemplateHeaders.map((header) => header.trim()).filter(Boolean);
+    if (headers.length === 0) {
+      alert('헤더명을 1개 이상 입력해 주세요.');
+      return;
+    }
+
+    const seenHeaders = new Set<string>();
+    const duplicateHeader = headers.find((header) => {
+      const normalized = header.replace(/\s/g, '').toLowerCase();
+      if (seenHeaders.has(normalized)) return true;
+      seenHeaders.add(normalized);
+      return false;
+    });
+
+    if (duplicateHeader) {
+      alert(`중복된 헤더명이 있습니다: ${duplicateHeader}`);
+      return;
+    }
+
+    const manualTemplateSessionId = `manual-${crypto.randomUUID()}`;
+    const bridgeFile = buildTrialBridgeFile(headers);
+    const builtTemplate = buildCourierTemplateFromHeaders(headers);
+    const template: CourierUploadTemplate = {
+      courierType: null,
+      headers: builtTemplate.headers,
+      requiresSender:
+        builtTemplate.requiresSender ||
+        builtTemplate.headers.some((header) => !header.isEmpty && isSenderColumn(header.name)),
+    };
+
+    setTemplateFileSessionId(manualTemplateSessionId);
+    setCurrentFilePreviewData([]);
+    setOrderStandardFile(null);
+    setUploadedFileMeta([]);
+    setTemplateBridgeFile(bridgeFile);
+
+    if (typeof window !== 'undefined') {
+      try {
+        if (trialMode) {
+          localStorage.setItem(TRIAL_LOGISTICS_BRIDGE_KEY, JSON.stringify(bridgeFile));
+        } else {
+          writeLocalStorageForUser(LOGISTICS_MAIN_KEYS.bridge, userId, JSON.stringify(bridgeFile));
+        }
+      } catch (error) {
+        console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
+      }
+    }
+
+    const newFormatId = saveRecentExcelFormat(
+      template,
+      setRecentExcelFormats,
+      trialMode,
+      userId,
+      bridgeFile,
+      '직접 만든 출력 양식',
+    );
+
+    setCourierUploadTemplate(template);
+    saveCourierUploadTemplate(template, trialMode, userId);
+
+    if (newFormatId) {
+      setTempSelectedFormatId(newFormatId);
+      setShowRecentTemplate(true);
+    }
+
+    logTemplateHeaderUpload(
+      buildTemplateHeaderLogPayload(bridgeFile, {
+        page: 'logistics-convert',
+        fileSessionId: manualTemplateSessionId,
+        templateId: newFormatId ?? undefined,
+        templateName: '직접 만든 출력 양식',
+      }),
+    );
+
+    setIsManualTemplateBuilderOpen(false);
+    setManualTemplateHeaders([...MANUAL_TEMPLATE_INITIAL_HEADERS]);
+    setManualTemplateActiveIndex(0);
+    setManualTemplateExampleQuery('');
+    setRegistrationSuccessMessage('내 출력 양식 만들기가 완료되었습니다');
+    setTimeout(() => {
+      setRegistrationSuccessMessage(null);
+    }, 3500);
   };
 
   const saveFormatDisplayName = (formatId: string, displayName: string) => {
@@ -6605,11 +6730,23 @@ export function LogisticsConvertClient({
                   className="hidden"
                 />
                 <button
+                  type="button"
                   onClick={handleTemplateFileClick}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 rounded-lg font-medium text-sm"
                 >
                   내 업로드 파일 등록하기
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setIsManualTemplateBuilderOpen(true)}
+                  className="mt-2 w-full border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 h-11 rounded-lg font-medium text-sm dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/70"
+                >
+                  내 출력 양식 만들기
+                </button>
+                <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-[13px] leading-relaxed text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  내 출력 양식: 물류센터 업로드용뿐 아니라 거래처 제출용, 자체 관리용 등
+                  원하는 열 순서로 직접 만드는 “다운로드 엑셀 양식”입니다.
+                </p>
                 {registrationSuccessMessage && (
                   <p className="mt-2 text-xs text-green-600 dark:text-green-400">
                     {registrationSuccessMessage}
@@ -6819,6 +6956,22 @@ export function LogisticsConvertClient({
             ? '텍스트·이미지로 넣으신 주문이 있었다면, 해당 입력도 다시 진행해 주세요.'
             : undefined
         }
+      />
+
+      <ManualOutputTemplateBuilderModal
+        open={isManualTemplateBuilderOpen}
+        headers={manualTemplateHeaders}
+        activeIndex={manualTemplateActiveIndex}
+        exampleQuery={manualTemplateExampleQuery}
+        accent="emerald"
+        onClose={() => setIsManualTemplateBuilderOpen(false)}
+        onHeaderChange={handleManualTemplateHeaderChange}
+        onActiveIndexChange={setManualTemplateActiveIndex}
+        onAddHeader={handleAddManualTemplateHeader}
+        onRemoveHeader={handleRemoveManualTemplateHeader}
+        onInsertExample={handleInsertManualTemplateExample}
+        onExampleQueryChange={setManualTemplateExampleQuery}
+        onCreate={handleCreateManualTemplate}
       />
 
       {/* 더미 없음 안내 모달 */}
