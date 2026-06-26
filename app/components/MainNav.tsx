@@ -16,7 +16,7 @@ import {
   LogIn,
   Shield,
   MessageCircle,
-  Gift,
+  Wrench,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
@@ -33,6 +33,7 @@ const primaryMenuItems: MenuItem[] = [
   { href: '/invoice-file-convert', label: '송장파일변환', icon: Package },
   { href: '/history', label: '변환내역', icon: Clock },
   { href: '/user-guide', label: '사용가이드', icon: BookOpen },
+  { href: '/free-tools', label: '무료도구', icon: Wrench },
 ];
 
 /** 2단: 안내·계정 등 보조 메뉴 */
@@ -41,6 +42,8 @@ const secondaryMenuItems: MenuItem[] = [
   { href: '/pricing', label: '가격', icon: CreditCard },
   { href: '/contact', label: '고객문의', icon: MessageCircle },
 ];
+
+const hiddenNavHrefs = new Set(['/feedback-event']);
 
 /** 본문 영역 기준선 유지 + 모바일 세로에서 좌우 패딩 축소 */
 const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-3 sm:px-5 lg:px-8';
@@ -78,17 +81,13 @@ export default function MainNav() {
   const isAdmin = session?.user?.isAdmin === true;
 
   const adminMenuItem: MenuItem = { href: '/akman', label: '관리자페이지', icon: Shield };
-  const feedbackEventMenuItem: MenuItem = {
-    href: '/feedback-event',
-    label: '피드백 이벤트',
-    icon: Gift,
-  };
   const primaryMenuForUser = primaryMenuItems.filter(
-    (item) => item.href !== '/history' || isLoggedIn,
+    (item) => !hiddenNavHrefs.has(item.href) && (item.href !== '/history' || isLoggedIn),
   );
-  /** status API 없이 항상 노출 — 종료 여부는 피드백 페이지에서만 확인 */
-  const primaryWithEvent = [...primaryMenuForUser, feedbackEventMenuItem];
-  const displayPrimaryItems = isAdmin ? [adminMenuItem, ...primaryWithEvent] : primaryWithEvent;
+  const displayPrimaryItems = (isAdmin ? [adminMenuItem, ...primaryMenuForUser] : primaryMenuForUser).filter(
+    (item) => !hiddenNavHrefs.has(item.href),
+  );
+  const displaySecondaryItems = secondaryMenuItems.filter((item) => !hiddenNavHrefs.has(item.href));
 
   const isLogoActive = pathname === '/excload' || pathname === '/';
 
@@ -127,6 +126,7 @@ export default function MainNav() {
             const Icon = item.icon;
             const isActive =
               pathname === item.href ||
+              (item.href === '/free-tools' && pathname?.startsWith('/free-tools/')) ||
               (item.href === '/akman' &&
                 (pathname?.startsWith('/akman/') || pathname?.startsWith('/admin/')));
 
@@ -155,9 +155,11 @@ export default function MainNav() {
         <div
           className={`${navInnerClass} flex flex-nowrap items-center justify-start sm:justify-end gap-x-0.5 gap-y-0.5 overflow-x-auto overflow-y-hidden py-0.5 whitespace-nowrap`}
         >
-          {secondaryMenuItems.map((item) => {
+          {displaySecondaryItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href ||
+              (item.href === '/free-tools' && pathname?.startsWith('/free-tools/'));
 
             return (
               <Link

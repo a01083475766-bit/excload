@@ -72,6 +72,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /free-tools 쇼핑몰 운영 무료도구
+  if (pathname.startsWith('/free-tools')) {
+    return NextResponse.next();
+  }
+
   // /feedback-event 오픈 피드백 이벤트
   if (pathname.startsWith('/feedback-event')) {
     return NextResponse.next();
@@ -190,6 +195,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public 폴더의 파일들
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|ttf|otf|woff|woff2)).*)',
   ],
 };
