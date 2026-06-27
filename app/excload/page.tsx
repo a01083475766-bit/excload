@@ -186,7 +186,7 @@ export default function HomePage() {
         {/* Hero 섹션 */}
         <section className="blue-unified-theme pt-12 pb-8 lg:pt-20 lg:pb-12">
           <div className="relative z-10 flex flex-col gap-8">
-            <div className="relative mx-auto mb-28 w-full max-w-6xl overflow-hidden rounded-[2rem] px-4 py-12 text-center sm:px-8 lg:mb-36 lg:py-16">
+            <div className="relative mx-auto mb-14 w-full max-w-6xl overflow-hidden rounded-[2rem] px-4 py-12 text-center sm:mb-28 sm:px-8 lg:mb-36 lg:py-16">
               <LandingHeroBackgroundVideo />
               <div className="relative z-10">
               <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
