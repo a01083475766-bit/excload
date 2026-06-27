@@ -36,8 +36,8 @@ export default async function FreeToolDetailPage({ params }: PageProps) {
   return (
     <FreeToolsLayout
       activeSlug={tool.slug}
-      title={tool.name}
-      description={`${tool.shortDescription} 위쪽 또는 왼쪽 목록에서 다른 무료도구로 이동할 수 있습니다.`}
+      title="쇼핑몰 운영 무료도구"
+      description="온라인 판매와 주문 관리에 필요한 간단한 도구를 무료로 이용해 보세요. 별도의 프로그램 설치 없이 바로 사용할 수 있습니다."
     >
       <ToolWorkspace tool={tool} />
     </FreeToolsLayout>
