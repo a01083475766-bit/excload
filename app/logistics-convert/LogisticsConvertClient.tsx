@@ -5318,7 +5318,7 @@ export function LogisticsConvertClient({
                   }
                   className={`order-first min-w-0 flex-1 self-center px-1 text-center text-xl font-bold leading-snug text-blue-400 sm:order-none ${trialMode ? 'ex-tooltip-target' : ''}`}
                 >
-                  지금 바로 무료로 테스트 해보세요
+                  주문 엑셀이나 카톡 주문문구로 바로 테스트해보세요
                 </p>
               )}
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">

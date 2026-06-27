@@ -152,33 +152,34 @@ export default function ContactPage() {
   ];
 
   return (
-    <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen">
-      <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8 py-8">
+    <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
+      <main className="mx-auto max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
         {/* 헤더 */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl sm:text-4xl font-bold text-zinc-950 dark:text-zinc-100 mb-3">
+        <section className="mb-8 rounded-[2rem] border border-blue-100 bg-white px-5 py-10 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:mb-10 lg:px-12">
+          <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
+            CONTACT
+          </p>
+          <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 dark:text-zinc-100 sm:text-4xl">
             고객문의
           </h1>
-          <p className="text-lg text-zinc-600 dark:text-zinc-400">
-            궁금한 점이 있으시면 언제든지 문의해주세요.
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-lg">
+            이용 중 궁금한 점이나 오류 화면이 있으면 남겨주세요.
+            내용을 확인 후 입력하신 이메일로 연락드립니다.
           </p>
-          <p className="mt-3 text-sm sm:text-base text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
             엑클로드(EXCLOAD) 주문 엑셀 변환, 송장 파일 변환, 물류 주문 변환, 택배 엑셀 변환 서비스
             이용·요금·기능에 대한 문의를 남겨 주세요.
           </p>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            내용을 확인 후 입력하신 이메일로 연락드립니다.
-          </p>
-          <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-500">
+          <p className="mt-4 inline-flex rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400 sm:text-sm">
             운영시간: 평일 10:00 ~ 18:00 (주말·공휴일 휴무)
           </p>
-        </div>
+        </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
           {/* 문의 폼 */}
           <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-8 space-y-6">
-              <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">
+            <div className="space-y-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-8">
+              <h2 className="mb-6 text-2xl font-black text-zinc-950 dark:text-zinc-100">
                 문의하기
               </h2>
               
@@ -299,7 +300,7 @@ export default function ContactPage() {
                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                       첨부파일 (선택)
                     </label>
-                    <label className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40 cursor-pointer hover:border-blue-500 hover:bg-blue-50/60 dark:hover:bg-zinc-800/60 transition-colors">
+                    <label className="flex flex-col items-start justify-between gap-3 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 transition-colors hover:border-blue-500 hover:bg-blue-50/60 dark:border-zinc-700 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/60 sm:flex-row sm:items-center">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
                           <Paperclip className="w-4 h-4" />
@@ -313,7 +314,7 @@ export default function ContactPage() {
                           </span>
                         </div>
                       </div>
-                      <span className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1 max-w-[160px] text-right">
+                      <span className="line-clamp-1 max-w-full text-left text-[11px] text-zinc-500 dark:text-zinc-400 sm:max-w-[160px] sm:text-right sm:text-xs">
                         {attachmentName ?? '선택된 파일 없음'}
                       </span>
                       <input
@@ -365,8 +366,8 @@ export default function ContactPage() {
 
           {/* 연락처 정보 */}
           <div className="space-y-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 lg:p-6">
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-6">
+              <h3 className="mb-4 text-lg font-black text-zinc-950 dark:text-zinc-100">
                 문의 및 안내
               </h3>
               
@@ -400,8 +401,8 @@ export default function ContactPage() {
             </div>
 
             {/* FAQ */}
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 lg:p-6">
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-6">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-zinc-950 dark:text-zinc-100">
                 <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 자주 묻는 질문
               </h3>

@@ -37,10 +37,24 @@ export function LandingHowToSteps({ variant = 'default' }: { variant?: LandingHo
         />
         <div className="relative z-10 text-center">
           <div className="relative z-10 mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400 md:mb-6">
-            <Upload className="h-10 w-10" strokeWidth={1.5} aria-hidden />
+            <SquareCheck className="h-10 w-10" strokeWidth={1.5} aria-hidden />
           </div>
           <span className="mb-2 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 md:mb-3">
             STEP 01
+          </span>
+          <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 sm:text-xl md:mb-3">
+            택배사 양식 선택
+          </h3>
+          <p className="mx-auto max-w-xs text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
+            사용 중이신 택배사 양식을 선택하세요. 이미 등록된 내 양식이 있다면 그대로 적용됩니다.
+          </p>
+        </div>
+        <div className="relative z-10 text-center">
+          <div className="relative z-10 mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400 md:mb-6">
+            <Upload className="h-10 w-10" strokeWidth={1.5} aria-hidden />
+          </div>
+          <span className="mb-2 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 md:mb-3">
+            STEP 02
           </span>
           <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 sm:text-xl md:mb-3">
             엑셀/이미지 업로드
@@ -48,20 +62,6 @@ export function LandingHowToSteps({ variant = 'default' }: { variant?: LandingHo
           <p className="mx-auto max-w-xs text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
             주문이 담긴 엑셀 파일이나 스크린샷 이미지를 드래그 앤 드롭으로 올리세요. 카카오톡 주문 텍스트도
             붙여넣기 가능합니다.
-          </p>
-        </div>
-        <div className="relative z-10 text-center">
-          <div className="relative z-10 mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:border-blue-800 dark:from-blue-950/50 dark:to-zinc-900 dark:text-blue-400 md:mb-6">
-            <SquareCheck className="h-10 w-10" strokeWidth={1.5} aria-hidden />
-          </div>
-          <span className="mb-2 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 md:mb-3">
-            STEP 02
-          </span>
-          <h3 className="mb-2 text-lg font-bold text-zinc-900 dark:text-zinc-100 sm:text-xl md:mb-3">
-            택배사 양식 선택
-          </h3>
-          <p className="mx-auto max-w-xs text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
-            사용 중이신 택배사 양식을 선택하세요. 이미 등록된 내 양식이 있다면 그대로 적용됩니다.
           </p>
         </div>
         <div className="relative z-10 text-center">

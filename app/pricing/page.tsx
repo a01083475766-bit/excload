@@ -78,55 +78,64 @@ export default function PricingPage() {
       showVat: true,
     },
   ];
+  const comparisonRows = [
+    { label: '무료체험', free: '가능', monthly: '가능', yearly: '가능' },
+    { label: '월 사용량', free: '5,000', monthly: '400,000', yearly: '400,000' },
+    { label: '엑셀 다운로드', free: '차감 방식', monthly: '무제한', yearly: '무제한' },
+    { label: '추천 대상', free: '처음 테스트', monthly: '꾸준한 운영', yearly: '장기 이용' },
+  ];
 
   return (
-    <div className="pt-12 bg-zinc-50 dark:bg-black min-h-screen">
-      <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8 py-8">
+    <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
+      <main className="mx-auto max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
         {/* 헤더 */}
-        <div className="text-center mb-16">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-zinc-950 dark:text-zinc-100 mb-4">
-            가격 플랜
-          </h1>
-          <p className="text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-            당신의 비즈니스에 맞는 플랜을 선택하세요
+        <div className="mb-12 rounded-[2rem] border border-blue-100 bg-white px-5 py-12 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:mb-16 lg:px-12">
+          <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
+            PRICE PLAN
           </p>
-          <p className="mt-4 text-sm sm:text-base text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+          <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 dark:text-zinc-100 sm:text-4xl lg:text-5xl">
+            무료로 먼저 써보고, 필요할 때만 업그레이드
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-lg">
             엑클로드(EXCLOAD)는 주문 엑셀 변환, 송장 파일 변환, 물류 주문 변환을 하나의 서비스에서
-            이용할 수 있습니다. 택배 엑셀 변환·물류 업로드 양식 변환에 맞는 요금을 확인해 보세요.
+            이용할 수 있습니다.
+          </p>
+          <p className="mx-auto mt-3 inline-flex rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+            추천: 무료체험으로 결과를 먼저 확인해보세요.
           </p>
         </div>
 
         {/* 플랜 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-16">
-          {plans.map((plan, index) => (
+        <div className="mb-12 grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-5">
+          {plans.map((plan) => (
             <div
               key={plan.planKey}
-              className={`relative rounded-2xl border-2 p-6 lg:p-8 ${
+              className={`relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-zinc-900 md:min-h-[520px] lg:p-8 ${
                 plan.popular
-                  ? 'border-blue-500 bg-white dark:bg-zinc-900 shadow-xl scale-105'
-                  : 'border-black dark:border-black bg-white dark:bg-zinc-900'
+                  ? 'border-blue-500 ring-1 ring-blue-100 dark:ring-blue-950'
+                  : 'border-zinc-200 dark:border-zinc-800'
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-600 text-white text-sm font-semibold rounded-full">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-4 py-1 text-sm font-bold text-white">
                   인기 플랜
                 </div>
               )}
               
-              <div className="mb-6">
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+              <div className="mb-7 text-center">
+                <h3 className="text-2xl font-black text-zinc-950 dark:text-zinc-100">
                   {plan.name}
                 </h3>
-                <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">
+                <p className="mx-auto mt-3 min-h-[2.5rem] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
                   {plan.description}
                 </p>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-zinc-900 dark:text-zinc-100">
+                <div className="mt-5 flex flex-col items-center gap-1">
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-4xl font-black tracking-tight text-zinc-950 dark:text-zinc-100">
                       {plan.price === '0' ? '무료' : `₩${parseInt(plan.price.replace(/,/g, '')).toLocaleString()}`}
                     </span>
                     {plan.price !== '0' && (
-                      <span className="text-zinc-600 dark:text-zinc-400">
+                      <span className="font-semibold text-zinc-500 dark:text-zinc-400">
                         / {plan.period}
                       </span>
                     )}
@@ -139,7 +148,7 @@ export default function PricingPage() {
                 </div>
               </div>
               
-              <ul className="space-y-2.5 mb-8">
+              <ul className="mb-8 space-y-2.5">
                 {plan.features.map((feature, featureIndex) => (
                   <li key={featureIndex} className="flex items-start gap-2.5">
                     <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
@@ -149,7 +158,7 @@ export default function PricingPage() {
               </ul>
               
               {/* 이런 분께 추천합니다 섹션 */}
-              <div className="mb-8 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+              <div className="mb-8 flex-1 border-t border-zinc-200 pt-6 dark:border-zinc-800">
                 <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3.5">
                   이런 분께 추천합니다
                 </h4>
@@ -168,8 +177,30 @@ export default function PricingPage() {
           ))}
         </div>
 
+        <div className="mb-12 overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="min-w-[560px]">
+            <div className="grid grid-cols-4 bg-zinc-50 text-center text-sm font-bold text-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-200">
+              <div className="px-3 py-3 text-left">비교 항목</div>
+              <div className="px-3 py-3">무료</div>
+              <div className="px-3 py-3">프로</div>
+              <div className="px-3 py-3">연간</div>
+            </div>
+            {comparisonRows.map((row) => (
+              <div
+                key={row.label}
+                className="grid grid-cols-4 border-t border-zinc-100 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+              >
+                <div className="px-3 py-3 text-left font-semibold text-zinc-900 dark:text-zinc-100">{row.label}</div>
+                <div className="px-3 py-3">{row.free}</div>
+                <div className="px-3 py-3 font-semibold text-blue-700 dark:text-blue-300">{row.monthly}</div>
+                <div className="px-3 py-3">{row.yearly}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <p className="mb-10 max-w-3xl mx-auto text-center text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
-          결제 진행 시 정기결제에 동의하는 것으로 간주됩니다.
+          선택한 플랜 주기에 따라 정기결제가 진행됩니다. 결제 전 이용 조건을 확인해 주세요.
         </p>
 
         {/* 결제·환불 안내 (토스 심사 대응: 가격 페이지에서 결제 조건 명시) */}
