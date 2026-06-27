@@ -19,17 +19,17 @@ export function ToolWorkspace({ tool }: Props) {
   const Icon = tool.icon;
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex gap-4">
-            <span className="rounded-2xl bg-blue-50 p-3 text-blue-600">
-              <Icon className="size-7" aria-hidden />
+    <div className="space-y-4 sm:space-y-5">
+      <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="flex gap-3 sm:gap-4">
+            <span className="h-fit rounded-2xl bg-blue-50 p-2.5 text-blue-600 sm:p-3">
+              <Icon className="size-6 sm:size-7" aria-hidden />
             </span>
             <div>
               <p className="mb-1 text-xs font-semibold text-blue-600">{tool.category}</p>
-              <h2 className="text-2xl font-bold text-zinc-950">{tool.name}</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600">
+              <h2 className="text-xl font-bold text-zinc-950 sm:text-2xl">{tool.name}</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:mt-3">
                 {tool.description}
               </p>
             </div>

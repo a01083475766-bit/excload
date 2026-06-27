@@ -8,14 +8,14 @@ type Props = {
 export function FreeToolsSidebar({ activeSlug }: Props) {
   return (
     <aside className="lg:sticky lg:top-24 lg:self-start">
-      <div className="mb-3 flex items-center justify-between lg:block">
+      <div className="mb-2 flex items-center justify-between lg:mb-3 lg:block">
         <h2 className="text-sm font-semibold text-zinc-900">무료도구 목록</h2>
         <span className="text-xs text-zinc-500 lg:mt-1 lg:block">회원가입 없이 바로 사용</span>
       </div>
 
       <nav
         aria-label="무료도구 목록"
-        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2 lg:mx-0 lg:block lg:space-y-2 lg:overflow-visible lg:px-0 lg:pb-0"
+        className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none] lg:mx-0 lg:block lg:space-y-2 lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden"
       >
         {freeTools.map((tool) => {
           const Icon = tool.icon;
@@ -25,12 +25,12 @@ export function FreeToolsSidebar({ activeSlug }: Props) {
             <Link
               key={tool.slug}
               href={`/free-tools/${tool.slug}`}
-              className={`flex h-[88px] min-w-[210px] items-start gap-3 rounded-xl border bg-white p-3 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50 lg:min-w-0 ${
+              className={`flex min-w-[138px] items-center gap-2 rounded-full border bg-white px-3 py-2 text-left shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50 lg:h-[88px] lg:min-w-0 lg:items-start lg:gap-3 lg:rounded-xl lg:p-3 ${
                 active ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-100' : 'border-zinc-200'
               }`}
             >
               <span
-                className={`mt-0.5 rounded-lg p-2 ${
+                className={`rounded-lg p-1.5 lg:mt-0.5 lg:p-2 ${
                   active ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-600'
                 }`}
               >
@@ -40,7 +40,7 @@ export function FreeToolsSidebar({ activeSlug }: Props) {
                 <span className="block truncate text-sm font-semibold text-zinc-900">
                   {tool.name}
                 </span>
-                <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-zinc-500">
+                <span className="mt-1 hidden text-xs leading-relaxed text-zinc-500 lg:line-clamp-2 lg:block">
                   {tool.shortDescription}
                 </span>
               </span>

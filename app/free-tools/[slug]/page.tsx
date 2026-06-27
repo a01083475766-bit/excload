@@ -37,7 +37,7 @@ export default async function FreeToolDetailPage({ params }: PageProps) {
     <FreeToolsLayout
       activeSlug={tool.slug}
       title={tool.name}
-      description="왼쪽 목록에서 다른 무료도구로 이동할 수 있습니다. 현재는 페이지 구성 UI를 먼저 준비한 상태입니다."
+      description={`${tool.shortDescription} 위쪽 또는 왼쪽 목록에서 다른 무료도구로 이동할 수 있습니다.`}
     >
       <ToolWorkspace tool={tool} />
     </FreeToolsLayout>
