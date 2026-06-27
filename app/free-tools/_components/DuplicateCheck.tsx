@@ -717,7 +717,7 @@ export function DuplicateCheck() {
   return (
     <>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:items-start">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <FileSpreadsheet className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -744,7 +744,7 @@ export function DuplicateCheck() {
                 event.stopPropagation();
                 void loadFiles(Array.from(event.dataTransfer.files));
               }}
-              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-8 text-center hover:bg-blue-50"
+              className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-8 text-center hover:bg-blue-50"
             >
               <Upload className="size-8 text-blue-600" aria-hidden />
               <span className="mt-3 text-sm font-bold text-zinc-950">
@@ -995,16 +995,16 @@ export function DuplicateCheck() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">검사 결과</h3>
         {!result ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-5 text-sm leading-relaxed text-zinc-600">
+          <p className="mt-3 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-5 text-sm leading-relaxed text-zinc-600">
             파일과 중복 기준을 선택한 뒤 중복 검사하기를 누르면 결과가 표시됩니다.
           </p>
         ) : (
           <div className="mt-4 space-y-4">
             {cleanupNotice?.cleaned && (
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed text-blue-800">
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-relaxed text-blue-800">
                 <p className="font-semibold">
                   파일에 불필요한 빈 서식 행이 많이 포함되어 있어 자동으로 정리한 뒤 검사했습니다.
                 </p>
@@ -1017,7 +1017,7 @@ export function DuplicateCheck() {
             )}
 
             <div
-              className={`rounded-2xl border p-4 ${
+              className={`rounded-xl border p-4 ${
                 result.duplicateGroupCount === 0
                   ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
                   : 'border-amber-100 bg-amber-50 text-amber-900'
@@ -1082,7 +1082,7 @@ export function DuplicateCheck() {
                 ))}
               </div>
 
-              <div className="mt-3 h-[420px] max-w-full overflow-auto rounded-2xl border border-zinc-200">
+              <div className="mt-3 h-[420px] max-w-full overflow-auto rounded-lg border border-zinc-200">
                 <table className="min-w-max text-left text-xs">
                   <thead className="bg-zinc-100 text-zinc-700">
                     <tr>
@@ -1149,7 +1149,7 @@ export function DuplicateCheck() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="dedupe-download-title"
-            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl"
+            className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-6 shadow-xl"
           >
             <h3 id="dedupe-download-title" className="text-lg font-bold text-zinc-950">
               중복 제거 파일을 다운로드할까요?

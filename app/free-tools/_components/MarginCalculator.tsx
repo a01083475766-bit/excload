@@ -398,7 +398,7 @@ export function MarginCalculator() {
         </span>
         <span className="text-xs text-zinc-500">{field.description}</span>
       </span>
-      <div className="mt-2 flex overflow-hidden rounded-xl border border-zinc-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+      <div className="mt-2 flex overflow-hidden rounded-lg border border-zinc-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
         <input
           value={displayInputAmount(form[field.key])}
           onChange={(event) => updateAmountField(field.key, event.target.value)}
@@ -415,7 +415,7 @@ export function MarginCalculator() {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:items-start">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <Calculator className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -448,7 +448,7 @@ export function MarginCalculator() {
             {renderAmountField(amountFieldByKey.otherCost)}
           </div>
 
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-zinc-900">추가 비용 항목</p>
@@ -460,7 +460,7 @@ export function MarginCalculator() {
                 type="button"
                 onClick={addAdditionalCost}
                 disabled={additionalCosts.length >= MAX_ADDITIONAL_COSTS}
-                className="inline-flex w-fit items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400"
+                className="inline-flex w-fit items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-5 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:text-zinc-400"
               >
                 <Plus className="size-4" aria-hidden />
                 비용 항목 추가
@@ -475,7 +475,7 @@ export function MarginCalculator() {
                   return (
                     <div
                       key={cost.id}
-                      className="grid gap-2 rounded-xl border border-zinc-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end"
+                      className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end"
                     >
                       <label className="block">
                         <span className="text-xs font-medium text-zinc-600">항목명</span>
@@ -540,7 +540,7 @@ export function MarginCalculator() {
                 <span className="text-base font-bold text-zinc-950">쇼핑몰 수수료율</span>
                 <span className="text-xs text-zinc-500">0 이상 100 미만, 소수 입력 가능</span>
               </span>
-              <div className="mt-2 flex overflow-hidden rounded-xl border border-zinc-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+              <div className="mt-2 flex overflow-hidden rounded-lg border border-zinc-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
                 <input
                   value={form.feeRate}
                   onChange={(event) => updatePercentField('feeRate', event.target.value)}
@@ -559,7 +559,7 @@ export function MarginCalculator() {
                 <span className="text-base font-bold text-zinc-950">목표 마진율</span>
                 <span className="text-xs text-zinc-500">목표 판매가 계산에 사용</span>
               </span>
-              <div className="mt-2 flex overflow-hidden rounded-xl border border-zinc-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+              <div className="mt-2 flex overflow-hidden rounded-lg border border-zinc-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
                 <input
                   value={form.targetMarginRate}
                   onChange={(event) => updatePercentField('targetMarginRate', event.target.value)}
@@ -573,7 +573,7 @@ export function MarginCalculator() {
               </div>
             </label>
 
-            <fieldset className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <fieldset className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
               <legend className="px-1 text-sm font-semibold text-zinc-900">수수료 계산 기준</legend>
               <p className="mt-1 text-xs text-zinc-500">
                 쇼핑몰마다 배송비의 수수료 포함 여부가 다를 수 있습니다.
@@ -585,7 +585,7 @@ export function MarginCalculator() {
                 ].map((option) => (
                   <label
                     key={option.value}
-                    className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium ${
                       form.feeMode === option.value
                         ? 'border-blue-400 bg-blue-50 text-blue-800'
                         : 'border-zinc-200 bg-white text-zinc-700'
@@ -609,7 +609,7 @@ export function MarginCalculator() {
 
         {error && (
           <div
-            className="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+            className="mt-5 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
             role="alert"
             aria-live="polite"
           >
@@ -622,7 +622,7 @@ export function MarginCalculator() {
           <button
             type="button"
             onClick={calculate}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+            className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
           >
             계산하기
           </button>
@@ -630,7 +630,7 @@ export function MarginCalculator() {
             <button
               type="button"
               onClick={fillExample}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
             >
               <Sparkles className="size-4" aria-hidden />
               예시값 입력
@@ -638,7 +638,7 @@ export function MarginCalculator() {
             <button
               type="button"
               onClick={reset}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
             >
               <RotateCcw className="size-4" aria-hidden />
               초기화
@@ -651,7 +651,7 @@ export function MarginCalculator() {
         </p>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">결과 표시 영역</h3>
         {!result && (
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
@@ -661,7 +661,7 @@ export function MarginCalculator() {
         )}
         <div className="mt-4 space-y-3">
           <div
-            className={`rounded-2xl border p-5 ${
+            className={`rounded-xl border p-5 ${
               result && !profitPositive
                 ? 'border-red-200 bg-red-50'
                 : 'border-emerald-100 bg-emerald-50/70'
@@ -693,13 +693,13 @@ export function MarginCalculator() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
             <p className="mb-3 font-semibold text-zinc-800">판매가 안내</p>
             {result ? (
               <>
                 <ResultRow label="손익분기 최소 판매가" value={formatWon(result.breakEvenSalePrice)} />
                 <p
-                  className={`my-3 rounded-xl border p-3 text-sm font-semibold leading-relaxed break-words ${
+                  className={`my-3 rounded-lg border p-3 text-sm font-semibold leading-relaxed break-words ${
                     getBreakEvenDiffMessage(result.breakEvenDiff).className
                   }`}
                 >
@@ -710,7 +710,7 @@ export function MarginCalculator() {
                   value={result.targetSalePrice === null ? '-' : formatWon(result.targetSalePrice)}
                 />
                 {result.targetSalePriceMessage && (
-                  <p className="mt-3 rounded-xl bg-white p-3 text-xs leading-relaxed text-zinc-600">
+                  <p className="mt-3 rounded-lg bg-white p-3 text-xs leading-relaxed text-zinc-600">
                     {result.targetSalePriceMessage}
                   </p>
                 )}
@@ -720,7 +720,7 @@ export function MarginCalculator() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
             <p className="mb-3 font-semibold text-zinc-800">상세 결과</p>
             {result ? (
               <>
@@ -759,7 +759,7 @@ export function MarginCalculator() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
             <p className="mb-3 font-semibold text-zinc-800">확인 필요 항목</p>
             <ul className="space-y-2 text-zinc-600">
               <li>실제 수수료는 쇼핑몰, 상품 카테고리, 결제 방식에 따라 달라질 수 있습니다.</li>

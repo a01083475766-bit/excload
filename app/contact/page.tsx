@@ -155,7 +155,7 @@ export default function ContactPage() {
     <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
       <main className="mx-auto max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
         {/* 헤더 */}
-        <section className="mb-8 rounded-[2rem] border border-blue-100 bg-white px-5 py-10 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:mb-10 lg:px-12">
+        <section className="mb-8 rounded-xl border border-blue-100 bg-white px-5 py-10 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:mb-10 lg:px-12">
           <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
             CONTACT
           </p>
@@ -178,7 +178,7 @@ export default function ContactPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
           {/* 문의 폼 */}
           <div className="lg:col-span-2">
-            <div className="space-y-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-8">
+            <div className="space-y-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-8">
               <h2 className="mb-6 text-2xl font-black text-zinc-950 dark:text-zinc-100">
                 문의하기
               </h2>
@@ -366,7 +366,7 @@ export default function ContactPage() {
 
           {/* 연락처 정보 */}
           <div className="space-y-6">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-6">
+            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-6">
               <h3 className="mb-4 text-lg font-black text-zinc-950 dark:text-zinc-100">
                 문의 및 안내
               </h3>
@@ -401,7 +401,7 @@ export default function ContactPage() {
             </div>
 
             {/* FAQ */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-6">
+            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-6">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-zinc-950 dark:text-zinc-100">
                 <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 자주 묻는 질문

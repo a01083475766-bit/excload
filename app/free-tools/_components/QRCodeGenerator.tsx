@@ -292,7 +292,7 @@ export function QRCodeGenerator() {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] xl:items-start">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <QrCode className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -513,7 +513,7 @@ export function QRCodeGenerator() {
             </div>
           )}
 
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
             <p className="text-sm font-bold text-zinc-950">기본 설정</p>
             <label className="mt-3 block">
               <span className="text-xs font-medium text-zinc-600">QR코드 크기</span>
@@ -632,7 +632,7 @@ export function QRCodeGenerator() {
             </button>
           </div>
 
-          <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
+          <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
             입력한 주소, 문구, 연락처, 이메일 및 와이파이 정보는 서버로 전송되지 않습니다. QR코드는
             사용자의 브라우저에서만 생성됩니다. 페이지를 닫거나 새로고침하면 입력한 내용과 생성 결과는
             사라집니다.
@@ -640,7 +640,7 @@ export function QRCodeGenerator() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">QR코드 결과 미리보기</h3>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           생성한 QR코드는 PNG 또는 SVG 파일로 받을 수 있습니다. 보통은 PNG를 받으면 되고, 크게 인쇄하거나
@@ -648,13 +648,13 @@ export function QRCodeGenerator() {
         </p>
 
         {!result ? (
-          <div className="mt-5 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-sm leading-relaxed text-zinc-500">
+          <div className="mt-5 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-sm leading-relaxed text-zinc-500">
             내용을 입력하고 QR코드 만들기를 누르면 결과가 여기에 표시됩니다.
           </div>
         ) : (
           <div className="mt-5 space-y-4">
             <div
-              className={`rounded-2xl border p-4 text-center ${
+              className={`rounded-xl border p-4 text-center ${
                 resultState === 'stale' ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 bg-emerald-50'
               }`}
             >
@@ -675,14 +675,14 @@ export function QRCodeGenerator() {
               <img
                 src={result.pngUrl}
                 alt={`${result.typeLabel} QR코드`}
-                className={`mx-auto mt-4 h-auto max-w-full rounded-2xl bg-white p-4 ${
+                className={`mx-auto mt-4 h-auto max-w-full rounded-lg bg-white p-4 ${
                   resultState === 'stale' ? 'opacity-40' : ''
                 }`}
                 style={{ width: Math.min(size, 360) }}
               />
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-bold text-zinc-950">결과 요약</p>
               <dl className="mt-3 space-y-2 text-sm">
                 <div className="flex gap-2">

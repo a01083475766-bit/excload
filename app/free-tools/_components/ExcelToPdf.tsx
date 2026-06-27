@@ -1145,7 +1145,7 @@ export function ExcelToPdf() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5 text-sm leading-relaxed text-blue-950 sm:p-6">
+      <section className="rounded-lg border border-blue-100 bg-blue-50/70 p-5 text-sm leading-relaxed text-blue-950 sm:p-6">
         <p className="font-semibold">엑셀과 CSV의 표 데이터를 PDF 문서로 변환할 수 있습니다.</p>
         <p className="mt-1">파일은 서버로 전송되지 않고 사용자의 브라우저에서만 처리됩니다.</p>
         <p className="mt-2 text-blue-900">
@@ -1157,7 +1157,7 @@ export function ExcelToPdf() {
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+        <section className="space-y-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
           <div>
             <h3 className="text-lg font-bold text-zinc-950">파일 업로드</h3>
             <p className="mt-1 text-sm text-zinc-600">엑셀 또는 CSV 파일을 선택하거나 드래그해서 첨부해 주세요.</p>
@@ -1175,7 +1175,7 @@ export function ExcelToPdf() {
               event.preventDefault();
               handleFiles(event.dataTransfer.files);
             }}
-            className="flex min-h-40 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex min-h-40 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Upload className="size-8 text-blue-600" aria-hidden />
             <span className="mt-3 text-sm font-semibold text-zinc-900">
@@ -1196,7 +1196,7 @@ export function ExcelToPdf() {
           />
 
           {loadedFile ? (
-            <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
               <h4 className="font-semibold text-zinc-900">파일 관리</h4>
               <p className="mt-1 text-xs leading-relaxed text-zinc-500">
                 현재 파일을 다른 엑셀·CSV로 바꾸거나, 첨부한 파일과 생성 결과를 모두 지울 수 있습니다.
@@ -1225,7 +1225,7 @@ export function ExcelToPdf() {
           ) : null}
 
           {loadedFile?.kind === 'csv' ? (
-            <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
               <h4 className="font-semibold text-zinc-900">CSV 읽기 설정</h4>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="text-sm font-medium text-zinc-700">
@@ -1271,7 +1271,7 @@ export function ExcelToPdf() {
           ) : null}
 
           {loadedFile && loadedFile.kind === 'excel' && loadedFile.sheets.length > 1 ? (
-            <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
               <h4 className="font-semibold text-zinc-900">엑셀 시트 선택</h4>
               <div className="mt-3 space-y-2 text-sm text-zinc-700">
                 <label className="flex items-center gap-2">
@@ -1336,7 +1336,7 @@ export function ExcelToPdf() {
             </div>
           ) : null}
 
-          <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
             <h4 className="font-semibold text-zinc-900">PDF 출력 설정</h4>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium text-zinc-700">
@@ -1457,7 +1457,7 @@ export function ExcelToPdf() {
           </div>
         </section>
 
-        <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+        <section className="space-y-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
           <div>
             <div>
               <h3 className="text-lg font-bold text-zinc-950">파일 정보와 결과</h3>
@@ -1466,7 +1466,7 @@ export function ExcelToPdf() {
           </div>
 
           {error ? (
-            <div role="alert" aria-live="assertive" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div role="alert" aria-live="assertive" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               <div className="flex gap-2">
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
                 <p>{error}</p>
@@ -1475,7 +1475,7 @@ export function ExcelToPdf() {
           ) : null}
 
           {progress ? (
-            <div aria-live="polite" className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+            <div aria-live="polite" className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
               <p className="font-semibold">{progress.step}</p>
               {typeof progress.percent === 'number' ? (
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100">
@@ -1490,7 +1490,7 @@ export function ExcelToPdf() {
 
           {loadedFile ? (
             <>
-              <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+              <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
                 <div className="flex items-start gap-3">
                   <FileText className="mt-0.5 size-5 text-blue-600" aria-hidden />
                   <div className="min-w-0 flex-1">
@@ -1508,31 +1508,31 @@ export function ExcelToPdf() {
               </div>
 
               {loadedFile.cleanupStats?.cleaned ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   파일에 불필요한 빈 서식 행이 포함되어 있어 자동으로 제외했습니다.
                   {loadedFile.cleanupStats.removedEmptyRows > 0 ? ` 제외한 빈 행: ${loadedFile.cleanupStats.removedEmptyRows.toLocaleString('ko-KR')}개` : ''}
                 </div>
               ) : null}
 
               {loadedFile.featureWarning ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   {loadedFile.featureWarning}
                 </div>
               ) : null}
 
               {summary.columnCount > 18 && settings.fitMode === 'fit-width' ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   열이 많아 글자가 매우 작게 표시될 수 있습니다. 가로 방향이나 ‘읽기 쉬운 크기로 열 나누기’를 선택해 주세요.
                 </div>
               ) : null}
 
               {resultState === 'stale' ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   파일이나 PDF 설정이 변경되었습니다. PDF를 다시 만들어 주세요.
                 </div>
               ) : null}
 
-              <div className="rounded-2xl border border-zinc-100 bg-white p-4">
+              <div className="rounded-xl border border-zinc-100 bg-white p-4">
                 <h4 className="font-semibold text-zinc-900">PDF 구성 요약</h4>
                 <dl className="mt-3 grid gap-2 text-sm text-zinc-600 sm:grid-cols-2">
                   <div><dt className="font-medium text-zinc-800">변환 시트</dt><dd className="truncate">{selectedSheetNames.join(', ')}</dd></div>
@@ -1575,7 +1575,7 @@ export function ExcelToPdf() {
               </p>
 
               {result ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                   <h4 className="font-bold">PDF 변환 완료</h4>
                   <dl className="mt-3 grid gap-2 sm:grid-cols-2">
                     <div><dt className="font-medium">원본 파일</dt><dd className="truncate">{loadedFile.file.name}</dd></div>
@@ -1605,7 +1605,7 @@ export function ExcelToPdf() {
               ) : null}
             </>
           ) : (
-            <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
+            <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
               엑셀 또는 CSV 파일을 올리면 파일 정보, 데이터 미리보기, PDF 구성 요약이 표시됩니다.
             </div>
           )}
@@ -1613,7 +1613,7 @@ export function ExcelToPdf() {
       </div>
 
       {activePreviewSheet ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h3 className="text-lg font-bold text-zinc-950">표 데이터 미리보기</h3>
@@ -1642,7 +1642,7 @@ export function ExcelToPdf() {
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 text-sm leading-relaxed text-zinc-600 sm:p-6">
+      <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 text-sm leading-relaxed text-zinc-600 sm:p-6">
         <p className="font-semibold text-zinc-900">개인정보 안내</p>
         <p className="mt-2">업로드한 엑셀과 CSV 파일은 서버로 전송되지 않습니다. 파일 읽기와 PDF 생성은 사용자의 브라우저에서만 처리됩니다.</p>
         <p className="mt-1">페이지를 닫거나 새로고침하면 업로드한 파일과 생성 결과는 사라집니다.</p>
@@ -1657,7 +1657,7 @@ export function ExcelToPdf() {
             if (event.target === event.currentTarget) setPreviewOpen(false);
           }}
         >
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
               <div>
                 <h3 className="font-bold text-zinc-950">PDF 미리보기</h3>

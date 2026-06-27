@@ -254,7 +254,7 @@ function PreviewFrame({
         </span>
         <span className="truncate text-xs text-zinc-500">{meta}</span>
       </div>
-      <div className="flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-[linear-gradient(45deg,#f4f4f5_25%,transparent_25%),linear-gradient(-45deg,#f4f4f5_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f4f4f5_75%),linear-gradient(-45deg,transparent_75%,#f4f4f5_75%)] bg-[length:18px_18px] bg-[position:0_0,0_9px,9px_-9px,-9px_0]">
+      <div className="flex h-36 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-[linear-gradient(45deg,#f4f4f5_25%,transparent_25%),linear-gradient(-45deg,#f4f4f5_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f4f4f5_75%),linear-gradient(-45deg,transparent_75%,#f4f4f5_75%)] bg-[length:18px_18px] bg-[position:0_0,0_9px,9px_-9px,-9px_0]">
         {src ? (
           <img src={src} alt={alt} className="max-h-full max-w-full object-contain" />
         ) : (
@@ -709,7 +709,7 @@ export function ImageCompressor() {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)] xl:items-start">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <ImageIcon className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -744,7 +744,7 @@ export function ImageCompressor() {
                 event.stopPropagation();
                 addFiles(event.dataTransfer.files);
               }}
-              className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 text-center ${
+              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-8 text-center ${
                 canEdit
                   ? 'border-blue-200 bg-blue-50/50 hover:bg-blue-50'
                   : 'border-zinc-200 bg-zinc-50 text-zinc-400'
@@ -768,7 +768,7 @@ export function ImageCompressor() {
             </label>
 
             {error && (
-              <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
                 {error}
               </div>
@@ -780,7 +780,7 @@ export function ImageCompressor() {
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={!canEdit}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:bg-zinc-100 disabled:text-zinc-400"
+              className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:bg-zinc-100 disabled:text-zinc-400"
             >
               이미지 추가
             </button>
@@ -788,7 +788,7 @@ export function ImageCompressor() {
               type="button"
               onClick={clearAll}
               disabled={!canEdit}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
+              className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
             >
               전체 삭제
             </button>
@@ -796,16 +796,16 @@ export function ImageCompressor() {
               type="button"
               onClick={resetSettings}
               disabled={!canEdit}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
             >
               <RotateCcw className="size-4" aria-hidden />
               설정 초기화
             </button>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
             <p className="text-sm font-bold text-zinc-950">크기 설정</p>
-            <div className="mt-3 rounded-xl border border-blue-100 bg-white p-3">
+            <div className="mt-3 rounded-lg border border-blue-100 bg-white p-3">
               <p className="text-xs font-bold text-zinc-800">설정 적용 방식</p>
               <div className="mt-2 space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-zinc-700">
@@ -873,7 +873,7 @@ export function ImageCompressor() {
                     value={percentPreset}
                     disabled={!canEdit}
                     onChange={(event) => updateSetting(() => setPercentPreset(event.target.value))}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                   >
                     <option value="90">90%</option>
                     <option value="80">80%</option>
@@ -889,7 +889,7 @@ export function ImageCompressor() {
                       value={customPercent}
                       disabled={!canEdit}
                       onChange={(event) => updateSetting(() => setCustomPercent(event.target.value.replace(/\D/g, '').slice(0, 3)))}
-                      className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                     />
                   </label>
                 )}
@@ -904,7 +904,7 @@ export function ImageCompressor() {
                     value={maxWidthPreset}
                     disabled={!canEdit}
                     onChange={(event) => updateSetting(() => setMaxWidthPreset(event.target.value))}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                   >
                     <option value="1920">1920px</option>
                     <option value="1280">1280px</option>
@@ -920,7 +920,7 @@ export function ImageCompressor() {
                       value={customMaxWidth}
                       disabled={!canEdit}
                       onChange={(event) => updateSetting(() => setCustomMaxWidth(event.target.value.replace(/\D/g, '').slice(0, 5)))}
-                      className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                     />
                   </label>
                 )}
@@ -928,7 +928,7 @@ export function ImageCompressor() {
             )}
 
             {resizeMode === 'pixel-width' && (
-              <div className="mt-4 rounded-xl border border-blue-100 bg-white p-4">
+              <div className="mt-4 rounded-lg border border-blue-100 bg-white p-4">
                 <label className="block">
                   <span className="text-xs font-medium text-zinc-600">가로 크기 입력</span>
                   <div className="mt-1 flex items-center gap-2">
@@ -936,7 +936,7 @@ export function ImageCompressor() {
                       value={pixelWidthInput}
                       disabled={!canEdit}
                       onChange={(event) => updateSetting(() => setPixelWidthInput(event.target.value.replace(/\D/g, '').slice(0, 5)))}
-                      className={`w-full rounded-xl border bg-white px-3 py-2 text-sm ${
+                      className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${
                         globalPixelWidthError ? 'border-red-300' : 'border-zinc-200'
                       }`}
                     />
@@ -960,7 +960,7 @@ export function ImageCompressor() {
             )}
 
             {resizeMode === 'pixel-height' && (
-              <div className="mt-4 rounded-xl border border-blue-100 bg-white p-4">
+              <div className="mt-4 rounded-lg border border-blue-100 bg-white p-4">
                 <label className="block">
                   <span className="text-xs font-medium text-zinc-600">세로 크기 입력</span>
                   <div className="mt-1 flex items-center gap-2">
@@ -968,7 +968,7 @@ export function ImageCompressor() {
                       value={pixelHeightInput}
                       disabled={!canEdit}
                       onChange={(event) => updateSetting(() => setPixelHeightInput(event.target.value.replace(/\D/g, '').slice(0, 5)))}
-                      className={`w-full rounded-xl border bg-white px-3 py-2 text-sm ${
+                      className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${
                         globalPixelHeightError ? 'border-red-300' : 'border-zinc-200'
                       }`}
                     />
@@ -992,7 +992,7 @@ export function ImageCompressor() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
             <p className="text-sm font-bold text-zinc-950">품질과 결과 형식</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="block">
@@ -1001,7 +1001,7 @@ export function ImageCompressor() {
                   value={qualityMode}
                   disabled={!canEdit}
                   onChange={(event) => updateSetting(() => setQualityMode(event.target.value as QualityMode))}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                 >
                   <option value="high">높은 품질 90%</option>
                   <option value="normal">일반 품질 80%</option>
@@ -1017,7 +1017,7 @@ export function ImageCompressor() {
                     value={customQuality}
                     disabled={!canEdit}
                     onChange={(event) => updateSetting(() => setCustomQuality(event.target.value.replace(/\D/g, '').slice(0, 3)))}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                   />
                 </label>
               )}
@@ -1028,7 +1028,7 @@ export function ImageCompressor() {
                   value={outputFormat}
                   disabled={!canEdit}
                   onChange={(event) => updateSetting(() => setOutputFormat(event.target.value as OutputFormat))}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                 >
                   <option value="original">원본 형식 유지</option>
                   <option value="image/jpeg">JPG</option>
@@ -1046,19 +1046,19 @@ export function ImageCompressor() {
             type="button"
             onClick={processImages}
             disabled={processing}
-            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+            className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
           >
             {processing ? '처리 중...' : '이미지 줄이기'}
           </button>
 
-          <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
+          <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
             업로드한 이미지는 서버로 전송되지 않습니다. 이미지 크기 조절과 용량 줄이기는 사용자의
             브라우저에서만 처리됩니다. 페이지를 닫거나 새로고침하면 작업 내용은 사라집니다.
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-lg font-bold text-zinc-950">이미지 목록과 결과</h3>
@@ -1076,7 +1076,7 @@ export function ImageCompressor() {
         </div>
 
         {items.length === 0 ? (
-          <p className="mt-5 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-5 text-center text-sm text-zinc-500">
+          <p className="mt-5 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-5 text-center text-sm text-zinc-500">
             이미지를 추가하면 이곳에 처리 결과가 표시됩니다.
           </p>
         ) : (
@@ -1093,7 +1093,7 @@ export function ImageCompressor() {
                   ? getPixelSizeError('세로', effectiveSettings.pixelHeight)
                   : null;
               return (
-                <div key={item.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <div key={item.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1165,7 +1165,7 @@ export function ImageCompressor() {
                   </div>
 
                   {applyMode === 'individual' && item.settingsOpen && (
-                    <div className="mt-4 rounded-2xl border border-blue-100 bg-white p-4">
+                    <div className="mt-4 rounded-lg border border-blue-100 bg-white p-4">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm font-bold text-zinc-950">이 이미지 개별 설정</p>
                         <button
@@ -1187,7 +1187,7 @@ export function ImageCompressor() {
                             onChange={(event) =>
                               updateItemCustomSettings(item.id, { resizeMode: event.target.value as ResizeMode })
                             }
-                            className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                           >
                             <option value="original">원본 크기 유지</option>
                             <option value="percent">비율로 줄이기</option>
@@ -1208,7 +1208,7 @@ export function ImageCompressor() {
                                   percent: event.target.value === 'custom' ? effectiveSettings.percent : Number(event.target.value),
                                 })
                               }
-                              className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                             >
                               <option value="90">90%</option>
                               <option value="80">80%</option>
@@ -1230,7 +1230,7 @@ export function ImageCompressor() {
                                   percent: Math.min(100, Math.max(10, Number(event.target.value.replace(/\D/g, '')) || 10)),
                                 })
                               }
-                              className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                             />
                           </label>
                         )}
@@ -1246,7 +1246,7 @@ export function ImageCompressor() {
                                   maxWidth: event.target.value === 'custom' ? effectiveSettings.maxWidth : Number(event.target.value),
                                 })
                               }
-                              className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                             >
                               <option value="1920">1920px</option>
                               <option value="1280">1280px</option>
@@ -1268,7 +1268,7 @@ export function ImageCompressor() {
                                   maxWidth: Math.max(1, Number(event.target.value.replace(/\D/g, '')) || 1),
                                 })
                               }
-                              className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                             />
                           </label>
                         )}
@@ -1285,7 +1285,7 @@ export function ImageCompressor() {
                                     pixelWidth: Number(event.target.value.replace(/\D/g, '').slice(0, 5)),
                                   })
                                 }
-                                className={`w-full rounded-xl border bg-white px-3 py-2 text-sm ${
+                                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${
                                   itemPixelWidthError ? 'border-red-300' : 'border-zinc-200'
                                 }`}
                               />
@@ -1315,7 +1315,7 @@ export function ImageCompressor() {
                                     pixelHeight: Number(event.target.value.replace(/\D/g, '').slice(0, 5)),
                                   })
                                 }
-                                className={`w-full rounded-xl border bg-white px-3 py-2 text-sm ${
+                                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${
                                   itemPixelHeightError ? 'border-red-300' : 'border-zinc-200'
                                 }`}
                               />
@@ -1343,7 +1343,7 @@ export function ImageCompressor() {
                                 quality: event.target.value === 'custom' ? effectiveSettings.quality : Number(event.target.value),
                               })
                             }
-                            className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                           >
                             <option value="0.9">높은 품질 90%</option>
                             <option value="0.8">일반 품질 80%</option>
@@ -1364,7 +1364,7 @@ export function ImageCompressor() {
                                     Math.min(100, Math.max(10, Number(event.target.value.replace(/\D/g, '')) || 80)) / 100,
                                 })
                               }
-                              className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                             />
                           </label>
                         )}
@@ -1377,7 +1377,7 @@ export function ImageCompressor() {
                             onChange={(event) =>
                               updateItemCustomSettings(item.id, { outputFormat: event.target.value as OutputFormat })
                             }
-                            className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
                           >
                             <option value="original">원본 형식 유지</option>
                             <option value="image/jpeg">JPG</option>
@@ -1456,7 +1456,7 @@ export function ImageCompressor() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="image-preview-dialog-title"
-            className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6"
+            className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-xl bg-white p-5 shadow-xl sm:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">

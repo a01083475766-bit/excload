@@ -33,7 +33,7 @@ export default function AboutPage() {
   return (
     <main className="min-h-screen bg-zinc-50 px-3 py-12 dark:bg-black sm:px-6 lg:py-16">
       <div className="mx-auto max-w-6xl">
-        <section className="overflow-hidden rounded-[2rem] border border-blue-100 bg-white px-5 py-12 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:px-12 lg:py-16">
+        <section className="overflow-hidden rounded-xl border border-blue-100 bg-white px-5 py-12 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:px-12 lg:py-16">
           <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
             EXCLOAD SERVICE
           </p>
@@ -65,9 +65,9 @@ export default function AboutPage() {
           {valueCards.map((card) => (
             <article
               key={card.title}
-              className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+              className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
             >
-              <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
+              <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
                 <Check className="h-5 w-5" />
               </span>
               <h2 className="text-lg font-extrabold text-zinc-950 dark:text-zinc-100">{card.title}</h2>
@@ -76,7 +76,7 @@ export default function AboutPage() {
           ))}
         </section>
 
-        <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-8">
+        <section className="mt-8 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-8">
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-black text-zinc-950 dark:text-zinc-100">서비스 이용 흐름</h2>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
@@ -87,9 +87,9 @@ export default function AboutPage() {
             {steps.map((step, index) => {
               const Icon = step.icon;
               return (
-                <div key={step.title} className="rounded-2xl bg-zinc-50 p-5 dark:bg-zinc-950/50">
+                <div key={step.title} className="rounded-lg bg-zinc-50 p-5 dark:bg-zinc-950/50">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
                       <Icon className="h-5 w-5" />
                     </span>
                     <span className="text-xs font-bold text-blue-600 dark:text-blue-400">STEP 0{index + 1}</span>
@@ -102,7 +102,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-8">
+        <section className="mt-8 rounded-xl border border-zinc-200 bg-white p-6 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-8">
           <h2 className="text-xl font-black text-zinc-950 dark:text-zinc-100">요금 안내 요약</h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
             FREE, PRO, YEARLY 플랜이 있으며, 사용량과 다운로드 조건에 따라 선택할 수 있습니다.

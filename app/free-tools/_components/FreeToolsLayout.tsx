@@ -18,7 +18,7 @@ export function FreeToolsLayout({
   children,
 }: Props) {
   const heroSection = (
-    <section className="mb-5 overflow-hidden rounded-[2rem] border border-blue-100 bg-white px-5 py-8 text-center shadow-sm sm:mb-8 sm:px-8 sm:py-10 lg:px-12">
+    <section className="mb-5 overflow-hidden rounded-xl border border-blue-100 bg-white px-5 py-8 text-center shadow-sm sm:mb-8 sm:px-8 sm:py-10 lg:px-12">
       <p className="mb-3 text-[11px] font-bold tracking-[0.22em] text-blue-600 sm:text-xs">{eyebrow}</p>
       <h1 className="text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">{title}</h1>
       <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:text-base">
@@ -39,7 +39,7 @@ export function FreeToolsLayout({
           <Link
             href="/free-tools"
             aria-label="무료도구 전체 목록으로 이동"
-            className="block rounded-2xl transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:rounded-3xl"
+            className="block rounded-xl transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             {heroSection}
           </Link>

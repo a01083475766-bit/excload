@@ -11,10 +11,10 @@ export function FreeToolCard({ tool }: Props) {
   return (
     <Link
       href={`/free-tools/${tool.slug}`}
-      className="group flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg sm:p-6"
+      className="group flex h-full flex-col rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg sm:p-6"
     >
       <div className="mb-5 flex items-start justify-between gap-3">
-        <span className="rounded-2xl bg-blue-50 p-3 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
+        <span className="rounded-lg bg-blue-50 p-3 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white">
           <Icon className="size-6" aria-hidden />
         </span>
         <span

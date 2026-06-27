@@ -89,7 +89,7 @@ export default function PricingPage() {
     <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
       <main className="mx-auto max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
         {/* 헤더 */}
-        <div className="mb-12 rounded-[2rem] border border-blue-100 bg-white px-5 py-12 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:mb-16 lg:px-12">
+        <div className="mb-12 rounded-xl border border-blue-100 bg-white px-5 py-12 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:mb-16 lg:px-12">
           <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
             PRICE PLAN
           </p>
@@ -110,7 +110,7 @@ export default function PricingPage() {
           {plans.map((plan) => (
             <div
               key={plan.planKey}
-              className={`relative flex flex-col rounded-2xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-zinc-900 md:min-h-[520px] lg:p-8 ${
+              className={`relative flex flex-col rounded-xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-zinc-900 md:min-h-[520px] lg:p-8 ${
                 plan.popular
                   ? 'border-blue-500 ring-1 ring-blue-100 dark:ring-blue-950'
                   : 'border-zinc-200 dark:border-zinc-800'
@@ -177,7 +177,7 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <div className="mb-12 overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mb-12 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="min-w-[560px]">
             <div className="grid grid-cols-4 bg-zinc-50 text-center text-sm font-bold text-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-200">
               <div className="px-3 py-3 text-left">비교 항목</div>
@@ -205,7 +205,7 @@ export default function PricingPage() {
 
         {/* 결제·환불 안내 (토스 심사 대응: 가격 페이지에서 결제 조건 명시) */}
         <div className="max-w-3xl mx-auto space-y-6 mb-16">
-          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 lg:p-8">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 lg:p-8">
             <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
               결제 안내
             </h2>
@@ -225,7 +225,7 @@ export default function PricingPage() {
             </ul>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 lg:p-8">
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 lg:p-8">
             <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
               환불 정책
             </h2>
@@ -246,7 +246,7 @@ export default function PricingPage() {
         </div>
 
         {/* FAQ 섹션 */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-10">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-10">
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-8 text-center">
             자주 묻는 질문
           </h2>
@@ -297,7 +297,7 @@ export default function PricingPage() {
 
         {/* CTA 섹션 */}
         <div className="mt-12 lg:mt-16 text-center">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 lg:p-12">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-8 lg:p-12">
             <h2 className="text-3xl font-bold text-white mb-4">
               더 많은 정보가 필요하신가요?
             </h2>

@@ -424,7 +424,7 @@ export function ExcelCsvConverter() {
   return (
     <>
     <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] xl:items-start">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <FileSpreadsheet className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -460,7 +460,7 @@ export function ExcelCsvConverter() {
                 const file = event.dataTransfer.files[0];
                 if (file) void loadFile(file);
               }}
-              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-8 text-center hover:bg-blue-50"
+              className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-8 text-center hover:bg-blue-50"
             >
               <Upload className="size-8 text-blue-600" aria-hidden />
               <span className="mt-3 text-sm font-bold text-zinc-950">엑셀 또는 CSV 파일을 올려 주세요.</span>
@@ -504,7 +504,7 @@ export function ExcelCsvConverter() {
           </div>
 
           {loadedFile?.kind === 'excel' && (
-            <div className="space-y-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-bold text-zinc-950">엑셀 → CSV 설정</p>
               {loadedFile.sheetNames.length > 1 && (
                 <div className="space-y-2">
@@ -586,7 +586,7 @@ export function ExcelCsvConverter() {
           )}
 
           {loadedFile?.kind === 'csv' && (
-            <div className="space-y-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-bold text-zinc-950">CSV → 엑셀 설정</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
@@ -675,22 +675,22 @@ export function ExcelCsvConverter() {
             </button>
           </div>
 
-          <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
+          <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
             업로드한 엑셀과 CSV 파일은 서버로 전송되지 않습니다. 파일 읽기와 변환은 사용자의 브라우저에서만
             처리됩니다. 페이지를 닫거나 새로고침하면 업로드한 파일과 변환 결과는 사라집니다.
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">파일 정보와 미리보기</h3>
         {!loadedFile ? (
-          <p className="mt-5 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
+          <p className="mt-5 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
             파일을 올리면 정보와 데이터 미리보기가 표시됩니다.
           </p>
         ) : (
           <div className="mt-5 space-y-4">
-            <div className="grid gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm sm:grid-cols-2">
+            <div className="grid gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm sm:grid-cols-2">
               <p><span className="font-semibold text-zinc-600">파일명:</span> {loadedFile.file.name}</p>
               <p><span className="font-semibold text-zinc-600">형식:</span> {loadedFile.extension.toUpperCase()}</p>
               <p><span className="font-semibold text-zinc-600">크기:</span> {formatBytes(loadedFile.file.size)}</p>
@@ -707,7 +707,7 @@ export function ExcelCsvConverter() {
               <p className="text-sm font-bold text-zinc-950">
                 미리보기: 처음 {Math.min(PREVIEW_ROWS, loadedFile.rows.length)}행
               </p>
-              <div className="mt-3 max-h-[420px] max-w-full overflow-auto rounded-2xl border border-zinc-200">
+              <div className="mt-3 max-h-[420px] max-w-full overflow-auto rounded-lg border border-zinc-200">
                 <table className="min-w-max text-left text-xs">
                   <tbody>
                     {previewRows.map((row, rowIndex) => (
@@ -734,7 +734,7 @@ export function ExcelCsvConverter() {
 
             {result && (
               <div
-                className={`rounded-2xl border p-4 ${
+                className={`rounded-xl border p-4 ${
                   resultState === 'stale'
                     ? 'border-amber-200 bg-amber-50 text-amber-800'
                     : 'border-emerald-100 bg-emerald-50 text-emerald-800'

@@ -531,7 +531,7 @@ export function ImageToPdf() {
   };
 
   const settingsSummary = (
-    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm">
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm">
       <p className="font-bold text-zinc-950">예상 PDF 구성</p>
       <div className="mt-3 grid gap-2 text-zinc-600 sm:grid-cols-2">
         <span>총 {items.length.toLocaleString('ko-KR')}페이지</span>
@@ -547,7 +547,7 @@ export function ImageToPdf() {
   return (
     <>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:items-start">
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start gap-3">
             <ImageIcon className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
             <div>
@@ -581,7 +581,7 @@ export function ImageToPdf() {
                 event.stopPropagation();
                 if (!processing) void addFiles(Array.from(event.dataTransfer.files));
               }}
-              className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 text-center ${
+              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-8 text-center ${
                 processing ? 'cursor-not-allowed border-zinc-200 bg-zinc-50' : 'cursor-pointer border-blue-200 bg-blue-50/50 hover:bg-blue-50'
               }`}
             >
@@ -645,7 +645,7 @@ export function ImageToPdf() {
             </div>
 
             {items.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
+              <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
                 이미지를 추가하면 PDF 페이지 순서대로 목록이 표시됩니다.
               </p>
             ) : (
@@ -668,7 +668,7 @@ export function ImageToPdf() {
                         event.preventDefault();
                         reorderByDrop(item.id);
                       }}
-                      className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm"
+                      className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row">
                         <div className="flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-[linear-gradient(45deg,#f4f4f5_25%,transparent_25%),linear-gradient(-45deg,#f4f4f5_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f4f4f5_75%),linear-gradient(-45deg,transparent_75%,#f4f4f5_75%)] bg-[length:18px_18px] bg-[position:0_0,0_9px,9px_-9px,-9px_0] sm:w-36 sm:shrink-0">
@@ -715,7 +715,7 @@ export function ImageToPdf() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
           <div className="flex items-start gap-3">
             <FileText className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
             <div>
@@ -837,7 +837,7 @@ export function ImageToPdf() {
             </div>
 
             {items.length > 0 ? settingsSummary : (
-              <p className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-5 text-center text-sm leading-relaxed text-zinc-500">
+              <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-5 text-center text-sm leading-relaxed text-zinc-500">
                 이미지를 추가하고 순서를 정한 뒤 PDF 만들기를 눌러 주세요.
               </p>
             )}
@@ -859,7 +859,7 @@ export function ImageToPdf() {
 
             {result && (
               <div
-                className={`rounded-2xl border p-4 ${
+                className={`rounded-xl border p-4 ${
                   resultState === 'stale' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-100 bg-emerald-50 text-emerald-800'
                 }`}
               >
@@ -912,7 +912,7 @@ export function ImageToPdf() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
+            <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
               업로드한 이미지는 서버로 전송되지 않습니다. 이미지 읽기와 PDF 생성은 사용자의 브라우저에서만
               처리됩니다. 페이지를 닫거나 새로고침하면 업로드한 이미지와 생성 결과는 사라집니다.
             </div>
@@ -937,7 +937,7 @@ export function ImageToPdf() {
             if (event.target === event.currentTarget) setPreviewOpen(false);
           }}
         >
-          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
               <p className="min-w-0 truncate text-sm font-bold text-zinc-950">PDF 미리보기: {result.fileName}</p>
               <button

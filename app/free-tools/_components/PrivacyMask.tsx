@@ -546,7 +546,7 @@ export function PrivacyMask() {
   return (
     <>
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:items-start">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <FileLock2 className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -574,7 +574,7 @@ export function PrivacyMask() {
                 const file = event.dataTransfer.files[0];
                 if (file) void loadFile(file);
               }}
-              className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-8 text-center hover:bg-blue-50"
+              className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-8 text-center hover:bg-blue-50"
             >
               <Upload className="size-8 text-blue-600" aria-hidden />
               <span className="mt-3 text-sm font-bold text-zinc-950">
@@ -675,7 +675,7 @@ export function PrivacyMask() {
                 </select>
               </label>
 
-              <div className="rounded-2xl border border-blue-100 bg-white/95 p-4 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:z-10">
+              <div className="rounded-xl border border-blue-100 bg-white/95 p-4 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:z-10">
                 <p className="text-xs leading-relaxed text-zinc-600">
                   체크박스와 가림 방식을 바꾸면 오른쪽 미리보기는 바로 반영됩니다. 다운로드할 파일은
                   현재 설정을 확인한 뒤 아래 버튼으로 생성해 주세요.
@@ -690,7 +690,7 @@ export function PrivacyMask() {
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+              <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4">
                 <p className="text-sm font-bold text-blue-950">개인정보 열 선택</p>
                 <p className="mt-1 text-xs leading-relaxed text-blue-900">
                   열 제목을 기준으로 개인정보로 보이는 항목을 자동 추천했습니다. 적용 전 선택 내용을 확인해 주세요.
@@ -727,7 +727,7 @@ export function PrivacyMask() {
                   const maskedValue = setting ? applyMask(firstValue, setting) : '';
 
                   return (
-                    <div key={column.index} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div key={column.index} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                       <label className="flex items-start gap-3">
                         <input
                           type="checkbox"
@@ -840,21 +840,21 @@ export function PrivacyMask() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">미리보기·처리 결과</h3>
         <p className="mt-2 text-xs leading-relaxed text-amber-700">
           미리보기에는 원본 정보가 표시될 수 있으므로 공용 화면에서는 주의해 주세요.
         </p>
 
         {!activeSheet ? (
-          <p className="mt-4 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-5 text-sm leading-relaxed text-zinc-600">
+          <p className="mt-4 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-5 text-sm leading-relaxed text-zinc-600">
             파일을 선택하면 개인정보 열 추천과 미리보기가 표시됩니다.
           </p>
         ) : (
           <div className="mt-4 space-y-4">
             {result && (
               <div
-                className={`rounded-2xl border p-4 ${
+                className={`rounded-xl border p-4 ${
                   result.errorCellCount > 0
                     ? 'border-amber-100 bg-amber-50 text-amber-900'
                     : 'border-emerald-100 bg-emerald-50 text-emerald-800'
@@ -899,7 +899,7 @@ export function PrivacyMask() {
               </button>
             </div>
 
-            <div className="h-[420px] max-w-full overflow-auto rounded-2xl border border-zinc-200">
+            <div className="h-[420px] max-w-full overflow-auto rounded-lg border border-zinc-200">
               <table className="min-w-max text-left text-xs">
                 <thead className="bg-zinc-100 text-zinc-700">
                   <tr>

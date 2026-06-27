@@ -20,10 +20,10 @@ export function ToolWorkspace({ tool }: Props) {
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-7">
+      <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-7">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex gap-3 sm:gap-4">
-            <span className="h-fit rounded-2xl bg-blue-50 p-2.5 text-blue-600 sm:p-3">
+            <span className="h-fit rounded-lg bg-blue-50 p-2.5 text-blue-600 sm:p-3">
               <Icon className="size-6 sm:size-7" aria-hidden />
             </span>
             <div>
@@ -64,7 +64,7 @@ export function ToolWorkspace({ tool }: Props) {
         <PdfMerger />
       ) : (
         <>
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
             <h3 className="text-lg font-bold text-zinc-950">입력 영역</h3>
             <p className="mt-2 text-sm text-zinc-600">
               실제 기능 구현 단계에서 이 영역에 입력 폼과 실행 버튼을 연결합니다.
@@ -74,7 +74,7 @@ export function ToolWorkspace({ tool }: Props) {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
             <h3 className="text-lg font-bold text-zinc-950">결과 표시 영역</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {['결과 요약', '상세 결과', '확인 필요 항목', '다음 작업 안내'].map((label) => (
@@ -93,7 +93,7 @@ export function ToolWorkspace({ tool }: Props) {
         </>
       )}
 
-      <section className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5 sm:p-6">
+      <section className="rounded-lg border border-blue-100 bg-blue-50/60 p-5 sm:p-6">
         <p className="text-sm font-semibold text-blue-950">
           쇼핑몰 주문 파일도 반복해서 직접 정리하고 계신가요?
         </p>

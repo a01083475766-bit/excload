@@ -109,7 +109,7 @@ function LandingHeroBackgroundVideo() {
   };
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-full overflow-hidden rounded-[2rem] bg-zinc-200 sm:h-[430px] lg:h-[520px]" aria-hidden>
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-full overflow-hidden rounded-2xl bg-zinc-200 sm:h-[430px] lg:h-[520px]" aria-hidden>
       <video
         className="absolute -inset-1 h-[calc(100%+0.5rem)] w-[calc(100%+0.5rem)] max-w-none object-cover opacity-100 brightness-[0.72] contrast-[1.08] saturate-[0.95]"
         muted
@@ -222,7 +222,7 @@ export default function HomePage() {
         {/* Hero 섹션 */}
         <section className="blue-unified-theme pt-7 pb-8 lg:pt-12 lg:pb-12">
           <div className="relative z-10 flex flex-col gap-8">
-            <div className="relative isolate mx-auto mb-6 w-full max-w-6xl overflow-hidden rounded-[2rem] bg-zinc-200 px-4 py-12 text-center sm:mb-12 sm:px-8 lg:mb-14 lg:py-16">
+            <div className="relative isolate mx-auto mb-6 w-full max-w-6xl overflow-hidden rounded-2xl bg-zinc-200 px-4 py-12 text-center sm:mb-12 sm:px-8 lg:mb-14 lg:py-16">
               <LandingHeroBackgroundVideo />
               <div className="relative z-10">
               <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>

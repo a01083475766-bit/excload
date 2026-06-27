@@ -641,7 +641,7 @@ export function PdfMerger() {
   return (
     <>
       <div className="space-y-5">
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start gap-3">
             <FileText className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
             <div>
@@ -655,7 +655,7 @@ export function PdfMerger() {
         </section>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:items-start">
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
             <label
               tabIndex={0}
               onKeyDown={(event) => {
@@ -677,7 +677,7 @@ export function PdfMerger() {
                 event.stopPropagation();
                 void addFiles(Array.from(event.dataTransfer.files));
               }}
-              className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 text-center ${
+              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-8 text-center ${
                 processing || loadingFiles
                   ? 'cursor-not-allowed border-zinc-200 bg-zinc-50'
                   : 'cursor-pointer border-blue-200 bg-blue-50/50 hover:bg-blue-50'
@@ -773,7 +773,7 @@ export function PdfMerger() {
               </p>
 
               {files.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
+                <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
                   <p>PDF를 추가하면 파일 순서와 페이지 수가 표시됩니다.</p>
                   {error && (
                     <p className="mt-2 text-xs leading-relaxed text-zinc-500">
@@ -796,7 +796,7 @@ export function PdfMerger() {
                         event.preventDefault();
                         reorderByDrop(file.id);
                       }}
-                      className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm"
+                      className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 sm:w-24 sm:shrink-0">
@@ -835,9 +835,9 @@ export function PdfMerger() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
             <h3 className="text-lg font-bold text-zinc-950">PDF 구성 요약</h3>
-            <div className="mt-4 grid gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 sm:grid-cols-2">
+            <div className="mt-4 grid gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 sm:grid-cols-2">
               <span>업로드 파일: {files.length.toLocaleString('ko-KR')}개</span>
               <span>원본 전체 페이지: {originalPageCount.toLocaleString('ko-KR')}페이지</span>
               <span>결과 포함 페이지: {includedPages.length.toLocaleString('ko-KR')}페이지</span>
@@ -891,7 +891,7 @@ export function PdfMerger() {
               {processing ? 'PDF 파일을 처리하고 있습니다.' : files.length === 1 ? '편집한 PDF 만들기' : 'PDF 합치기'}
             </button>
 
-            <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">
+            <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900">
               <p>전자서명이 포함된 PDF를 편집하거나 합치면 기존 서명이 유효하지 않게 될 수 있습니다.</p>
               <p className="mt-1">입력 양식, 특수 주석, 첨부 파일 또는 고급 PDF 기능은 결과 문서에서 완전히 유지되지 않을 수 있습니다.</p>
             </div>
@@ -903,7 +903,7 @@ export function PdfMerger() {
             )}
 
             {result && resultState === 'done' && (
-              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-800">
+              <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-emerald-800">
                 <p className="font-semibold">PDF 만들기 완료</p>
                 <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                   <span>사용한 파일: {result.usedFileCount.toLocaleString('ko-KR')}개</span>
@@ -936,7 +936,7 @@ export function PdfMerger() {
               </div>
             )}
 
-            <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
+            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
               업로드한 PDF 파일은 서버로 전송되지 않습니다. PDF 읽기, 페이지 선택, 회전 및 합치기는 사용자의
               브라우저에서만 처리됩니다. 페이지를 닫거나 새로고침하면 업로드한 파일과 생성 결과는 사라집니다.
             </div>
@@ -944,7 +944,7 @@ export function PdfMerger() {
         </div>
 
         {files.length > 0 && (
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-lg font-bold text-zinc-950">페이지 구성</h3>
@@ -962,7 +962,7 @@ export function PdfMerger() {
                 const filePages = pages.filter((page) => page.fileId === file.id).sort((a, b) => a.pageIndex - b.pageIndex);
                 const includedCount = filePages.filter((page) => page.included).length;
                 return (
-                  <div key={file.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div key={file.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
                         <p title={file.name} className="truncate text-sm font-bold text-zinc-950">{file.name}</p>
@@ -1007,7 +1007,7 @@ export function PdfMerger() {
                       {filePages.map((page) => (
                         <article
                           key={page.id}
-                          className={`rounded-2xl border p-3 ${
+                          className={`rounded-xl border p-3 ${
                             page.included ? 'border-zinc-200 bg-white' : 'border-zinc-200 bg-zinc-100 opacity-70'
                           }`}
                         >
@@ -1073,7 +1073,7 @@ export function PdfMerger() {
             if (event.target === event.currentTarget) setPreviewUrl(null);
           }}
         >
-          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
               <p className="min-w-0 truncate text-sm font-bold text-zinc-950">{previewTitle}</p>
               <button type="button" onClick={() => setPreviewUrl(null)} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
