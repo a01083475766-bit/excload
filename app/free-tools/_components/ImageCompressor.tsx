@@ -270,6 +270,7 @@ function PreviewFrame({
 export function ImageCompressor() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemsRef = useRef<ImageItem[]>([]);
+  const lastAutoProcessSignatureRef = useRef('');
   const [items, setItems] = useState<ImageItem[]>([]);
   const [applyMode, setApplyMode] = useState<ApplyMode>('global');
   const [resizeMode, setResizeMode] = useState<ResizeMode>('original');
@@ -687,6 +688,26 @@ export function ImageCompressor() {
     resizeMode === 'pixel-width' ? getPixelSizeError('가로', globalSettings.pixelWidth) : null;
   const globalPixelHeightError =
     resizeMode === 'pixel-height' ? getPixelSizeError('세로', globalSettings.pixelHeight) : null;
+  const autoProcessSignature = JSON.stringify({
+    applyMode,
+    globalSettings,
+    items: items.map((item) => ({
+      id: item.id,
+      customSettings: item.customSettings ?? null,
+    })),
+  });
+
+  useEffect(() => {
+    if (items.length === 0 || processing || globalPixelWidthError || globalPixelHeightError) return undefined;
+    if (lastAutoProcessSignatureRef.current === autoProcessSignature) return undefined;
+
+    lastAutoProcessSignatureRef.current = autoProcessSignature;
+    const timeoutId = window.setTimeout(() => {
+      void processImages();
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [autoProcessSignature, globalPixelHeightError, globalPixelWidthError, items.length, processing]);
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)] xl:items-start">
@@ -1081,7 +1102,7 @@ export function ImageCompressor() {
                         <p className="truncate font-semibold text-zinc-950">{item.name}</p>
                         {applyMode === 'individual' && item.customSettings && (
                           <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                            개별 설정
+                            개별설정 적용
                           </span>
                         )}
                       </div>
@@ -1111,7 +1132,7 @@ export function ImageCompressor() {
                           disabled={!canEdit}
                           className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:text-zinc-400"
                         >
-                          개별 설정
+                          개별설정
                         </button>
                       )}
                       {hasOutput && (
