@@ -109,7 +109,7 @@ function LandingHeroBackgroundVideo() {
   };
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 hidden h-[430px] overflow-hidden rounded-[2rem] sm:block lg:h-[520px]" aria-hidden>
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-full overflow-hidden rounded-[2rem] sm:h-[430px] lg:h-[520px]" aria-hidden>
       <video
         className="h-full w-full object-cover opacity-100 brightness-[0.72] contrast-[1.08] saturate-[0.95]"
         src="/landing/videos/quick-order-bg.mp4"
