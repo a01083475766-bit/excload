@@ -33,6 +33,10 @@ const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'
   ),
 });
 
+const LANDING_HERO_VIDEO_START_SECONDS = 0;
+const LANDING_HERO_VIDEO_END_OFFSET_SECONDS = 0;
+const LANDING_HERO_VIDEO_PLAYBACK_RATE = 0.5;
+
 type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
 type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
 
@@ -91,6 +95,48 @@ function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
   );
 }
 
+function LandingHeroBackgroundVideo() {
+  const seekToStart = (video: HTMLVideoElement) => {
+    video.playbackRate = LANDING_HERO_VIDEO_PLAYBACK_RATE;
+    if (video.duration > LANDING_HERO_VIDEO_START_SECONDS) {
+      video.currentTime = LANDING_HERO_VIDEO_START_SECONDS;
+    }
+  };
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 hidden h-[430px] overflow-hidden rounded-[2rem] sm:block lg:h-[520px]" aria-hidden>
+      <video
+        className="h-full w-full object-cover opacity-100 brightness-[0.72] contrast-[1.08] saturate-[0.95]"
+        src="/landing/videos/quick-order-bg.mp4"
+        muted
+        playsInline
+        autoPlay
+        loop
+        preload="metadata"
+        onLoadedMetadata={(event) => {
+          seekToStart(event.currentTarget);
+          void event.currentTarget.play().catch(() => undefined);
+        }}
+        onTimeUpdate={(event) => {
+          const video = event.currentTarget;
+          if (
+            video.duration > LANDING_HERO_VIDEO_START_SECONDS + LANDING_HERO_VIDEO_END_OFFSET_SECONDS &&
+            video.currentTime >= video.duration - LANDING_HERO_VIDEO_END_OFFSET_SECONDS
+          ) {
+            seekToStart(video);
+          }
+        }}
+        onEnded={(event) => {
+          seekToStart(event.currentTarget);
+          void event.currentTarget.play().catch(() => undefined);
+        }}
+      />
+      <div className="absolute inset-0 bg-blue-950/10 dark:bg-black/35" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/10 to-zinc-50/25 dark:from-black/55 dark:via-black/25 dark:to-black/55" />
+    </div>
+  );
+}
+
 export default function HomePage() {
   const plans = [
     {
@@ -124,8 +170,10 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-6">
         {/* Hero 섹션 */}
         <section className="blue-unified-theme pt-12 pb-8 lg:pt-20 lg:pb-12">
-          <div className="flex flex-col gap-8">
-            <div className="relative mx-auto mb-28 max-w-5xl text-center lg:mb-36">
+          <div className="relative z-10 flex flex-col gap-8">
+            <div className="relative mx-auto mb-28 w-full max-w-6xl overflow-hidden rounded-[2rem] px-4 py-12 text-center sm:px-8 lg:mb-36 lg:py-16">
+              <LandingHeroBackgroundVideo />
+              <div className="relative z-10">
               <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
               <h1 className="mt-4 text-[clamp(1.47rem,4.2vw,3.36rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
                 복잡한 기능은 빼고
@@ -137,7 +185,7 @@ export default function HomePage() {
                 <br />
                 택배사 양식에 맞는 파일로 빠르게 정리됩니다.
               </p>
-              <div className="mx-auto mt-7 flex max-w-3xl items-center gap-3 rounded-2xl border border-blue-100 bg-white px-5 py-4 text-left shadow-[0_14px_40px_rgba(37,99,235,0.10)] dark:border-blue-900/70 dark:bg-zinc-900 sm:px-6">
+              <div className="mx-auto mt-7 flex max-w-3xl items-center gap-3 rounded-2xl border border-white/70 bg-white/72 px-5 py-4 text-left shadow-[0_14px_40px_rgba(37,99,235,0.10)] backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-6">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
                   <Check className="h-5 w-5" />
                 </span>
@@ -148,6 +196,7 @@ export default function HomePage() {
                   </span>
                   됩니다.
                 </p>
+              </div>
               </div>
             </div>
 
