@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowDownRight, Download, Image as ImageIcon, RotateCcw, Trash2, Upload, X } from 'lucide-react';
 import JSZip from 'jszip';
+import { canvasToBlobWithFallback, safeRandomId } from '@/app/free-tools/_utils/browserCompatibility';
 
 type ResizeMode = 'original' | 'percent' | 'max-width' | 'pixel-width' | 'pixel-height';
 type QualityMode = 'high' | 'normal' | 'small' | 'custom';
@@ -149,26 +150,10 @@ function downloadBlob(blob: Blob, fileName: string) {
 }
 
 async function blobFromCanvas(canvas: HTMLCanvasElement, mime: string, quality: number) {
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error('blob_failed'));
-          return;
-        }
-        resolve(blob);
-      },
-      mime,
-      mime === 'image/png' ? undefined : quality,
-    );
-  });
+  return canvasToBlobWithFallback(canvas, mime, mime === 'image/png' ? undefined : quality);
 }
 
-async function loadBitmap(file: File) {
-  if ('createImageBitmap' in window) {
-    return createImageBitmap(file, { imageOrientation: 'from-image' });
-  }
-
+async function loadImageElement(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -182,6 +167,19 @@ async function loadBitmap(file: File) {
     };
     image.src = url;
   });
+}
+
+async function loadBitmap(file: File) {
+  if ('createImageBitmap' in window) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } catch {
+      // Some mobile browsers expose createImageBitmap but fail on certain JPGs/options.
+      return loadImageElement(file);
+    }
+  }
+
+  return loadImageElement(file);
 }
 
 function calculateTargetSize(
@@ -484,7 +482,7 @@ export function ImageCompressor() {
       }
 
       nextItems.push({
-        id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+        id: `${file.name}-${file.size}-${file.lastModified}-${safeRandomId('image')}`,
         file,
         name: file.name,
         size: file.size,

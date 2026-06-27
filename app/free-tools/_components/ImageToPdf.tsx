@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { PDFDocument, rgb } from 'pdf-lib';
+import { canvasToBlobWithFallback, safeRandomId } from '@/app/free-tools/_utils/browserCompatibility';
 
 type ImageRotation = 0 | 90 | 180 | 270;
 type PageSizeMode = 'a4' | 'image';
@@ -146,11 +147,7 @@ function nextFrame() {
   });
 }
 
-async function loadBitmap(file: File) {
-  if ('createImageBitmap' in window) {
-    return createImageBitmap(file, { imageOrientation: 'from-image' });
-  }
-
+async function loadImageElement(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -166,24 +163,24 @@ async function loadBitmap(file: File) {
   });
 }
 
+async function loadBitmap(file: File) {
+  if ('createImageBitmap' in window) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } catch {
+      return loadImageElement(file);
+    }
+  }
+
+  return loadImageElement(file);
+}
+
 function closeBitmap(bitmap: ImageBitmap | HTMLImageElement) {
   if ('close' in bitmap) bitmap.close();
 }
 
 async function canvasToJpeg(canvas: HTMLCanvasElement, quality: number) {
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error('pdf_image_failed'));
-          return;
-        }
-        resolve(blob);
-      },
-      'image/jpeg',
-      quality,
-    );
-  });
+  return canvasToBlobWithFallback(canvas, 'image/jpeg', quality);
 }
 
 async function makePdfImageBlob(item: ImageItem, qualityMode: QualityMode) {
@@ -379,7 +376,7 @@ export function ImageToPdf() {
         nextItems = [
           ...nextItems,
           {
-            id: crypto.randomUUID(),
+            id: safeRandomId('image-pdf'),
             file,
             name: file.name,
             size: file.size,

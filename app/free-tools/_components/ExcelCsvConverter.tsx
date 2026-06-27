@@ -6,6 +6,7 @@ import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
+import { decodeTextWithFallback } from '@/app/free-tools/_utils/browserCompatibility';
 
 type FileKind = 'excel' | 'csv';
 type CsvDelimiter = 'auto' | ',' | '\t' | ';';
@@ -151,16 +152,16 @@ function parseCsv(text: string, delimiter: Exclude<CsvDelimiter, 'auto'>) {
 
 function decodeCsv(buffer: ArrayBuffer, encoding: CsvEncoding) {
   if (encoding === 'utf-8') {
-    return { text: new TextDecoder('utf-8').decode(buffer), detectedEncoding: 'utf-8' as const };
+    return { text: decodeTextWithFallback(buffer, ['utf-8']), detectedEncoding: 'utf-8' as const };
   }
   if (encoding === 'euc-kr') {
-    return { text: new TextDecoder('euc-kr').decode(buffer), detectedEncoding: 'euc-kr' as const };
+    return { text: decodeTextWithFallback(buffer, ['euc-kr', 'cp949', 'utf-8']), detectedEncoding: 'euc-kr' as const };
   }
 
   try {
-    return { text: new TextDecoder('utf-8', { fatal: true }).decode(buffer), detectedEncoding: 'utf-8' as const };
+    return { text: decodeTextWithFallback(buffer, ['utf-8'], { fatal: true }), detectedEncoding: 'utf-8' as const };
   } catch {
-    return { text: new TextDecoder('euc-kr').decode(buffer), detectedEncoding: 'euc-kr' as const };
+    return { text: decodeTextWithFallback(buffer, ['euc-kr', 'cp949', 'utf-8']), detectedEncoding: 'euc-kr' as const };
   }
 }
 

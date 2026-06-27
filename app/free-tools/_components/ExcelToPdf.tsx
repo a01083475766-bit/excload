@@ -6,6 +6,7 @@ import JSZip from 'jszip';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
 import { createSafeExcelParseTask } from '@/app/free-tools/_utils/safeExcelParser';
+import { canvasToBlobWithFallback, decodeTextWithFallback } from '@/app/free-tools/_utils/browserCompatibility';
 import type { ExcelCleanupStats, ParsedExcelSheet } from '@/app/free-tools/_utils/safeExcelParser';
 
 type FileKind = 'excel' | 'csv';
@@ -267,16 +268,16 @@ function parseCsv(text: string, delimiter: Exclude<CsvDelimiter, 'auto'>) {
 
 function decodeCsv(buffer: ArrayBuffer, encoding: CsvEncoding) {
   if (encoding === 'utf-8') {
-    return { text: new TextDecoder('utf-8').decode(buffer), detectedEncoding: 'utf-8' as const };
+    return { text: decodeTextWithFallback(buffer, ['utf-8']), detectedEncoding: 'utf-8' as const };
   }
   if (encoding === 'euc-kr') {
-    return { text: new TextDecoder('euc-kr').decode(buffer), detectedEncoding: 'euc-kr' as const };
+    return { text: decodeTextWithFallback(buffer, ['euc-kr', 'cp949', 'utf-8']), detectedEncoding: 'euc-kr' as const };
   }
 
   try {
-    return { text: new TextDecoder('utf-8', { fatal: true }).decode(buffer), detectedEncoding: 'utf-8' as const };
+    return { text: decodeTextWithFallback(buffer, ['utf-8'], { fatal: true }), detectedEncoding: 'utf-8' as const };
   } catch {
-    return { text: new TextDecoder('euc-kr').decode(buffer), detectedEncoding: 'euc-kr' as const };
+    return { text: decodeTextWithFallback(buffer, ['euc-kr', 'cp949', 'utf-8']), detectedEncoding: 'euc-kr' as const };
   }
 }
 
@@ -382,15 +383,7 @@ function yieldToBrowser() {
 }
 
 async function canvasToPngBlob(canvas: HTMLCanvasElement) {
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error('canvas_pdf_failed'));
-        return;
-      }
-      resolve(blob);
-    }, 'image/png');
-  });
+  return canvasToBlobWithFallback(canvas, 'image/png');
 }
 
 function getColumnGroupsForPdf(columnCount: number, settings: PdfSettings) {

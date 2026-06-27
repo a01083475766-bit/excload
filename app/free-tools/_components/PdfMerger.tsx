@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
+import { canvasToBlobWithFallback, safeRandomId } from '@/app/free-tools/_utils/browserCompatibility';
 
 type PageRotation = 0 | 90 | 180 | 270;
 type ResultState = 'empty' | 'done' | 'stale';
@@ -152,15 +153,7 @@ async function renderPageThumbnail(file: File, pageNumber: number, rotation: Pag
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvas, canvasContext: context, viewport }).promise;
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((nextBlob) => {
-        if (!nextBlob) {
-          reject(new Error('thumbnail_failed'));
-          return;
-        }
-        resolve(nextBlob);
-      }, 'image/jpeg', 0.78);
-    });
+    const blob = await canvasToBlobWithFallback(canvas, 'image/jpeg', 0.78);
     canvas.width = 0;
     canvas.height = 0;
     return URL.createObjectURL(blob);
@@ -387,7 +380,7 @@ export function PdfMerger() {
           continue;
         }
 
-        const fileId = crypto.randomUUID();
+        const fileId = safeRandomId('pdf-file');
         const previewUrl = URL.createObjectURL(file);
         const fileItem: PdfFileItem = {
           id: fileId,
@@ -557,7 +550,7 @@ export function PdfMerger() {
     }
 
     workerRef.current?.terminate();
-    const jobId = crypto.randomUUID();
+    const jobId = safeRandomId('pdf-merge');
     jobIdRef.current = jobId;
     setProcessing(true);
     setError(null);

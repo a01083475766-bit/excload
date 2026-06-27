@@ -1,3 +1,5 @@
+import { safeRandomId } from '@/app/free-tools/_utils/browserCompatibility';
+
 export type ParsedExcelSheet = {
   name: string;
   rows: string[][];
@@ -48,7 +50,7 @@ export function createSafeExcelParseTask(
   onStatus?: (message: string) => void,
   sourceBuffer?: ArrayBuffer,
 ): SafeExcelParseTask {
-  const id = crypto.randomUUID();
+  const id = safeRandomId('excel-parse');
   const worker = new Worker(new URL('../_workers/excelParser.worker.ts', import.meta.url), {
     type: 'module',
   });

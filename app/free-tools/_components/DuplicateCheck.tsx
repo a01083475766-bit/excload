@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Download, FileSpreadsheet, RotateCcw, Upload, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { createSafeExcelParseTask } from '@/app/free-tools/_utils/safeExcelParser';
+import { safeRandomId } from '@/app/free-tools/_utils/browserCompatibility';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
 import type { ExcelCleanupStats, SafeExcelParseTask } from '@/app/free-tools/_utils/safeExcelParser';
@@ -401,7 +402,7 @@ export function DuplicateCheck() {
   const loadFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
-    const loadRequestId = crypto.randomUUID();
+    const loadRequestId = safeRandomId('duplicate-check');
     loadRequestIdRef.current = loadRequestId;
     excelParseTaskRef.current?.worker.terminate();
     excelParseTaskRef.current = null;

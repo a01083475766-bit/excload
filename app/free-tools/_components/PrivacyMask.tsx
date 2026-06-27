@@ -675,7 +675,7 @@ export function PrivacyMask() {
                 </select>
               </label>
 
-              <div className="sticky top-24 z-10 rounded-2xl border border-blue-100 bg-white/95 p-4 shadow-sm backdrop-blur">
+              <div className="rounded-2xl border border-blue-100 bg-white/95 p-4 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:z-10">
                 <p className="text-xs leading-relaxed text-zinc-600">
                   체크박스와 가림 방식을 바꾸면 오른쪽 미리보기는 바로 반영됩니다. 다운로드할 파일은
                   현재 설정을 확인한 뒤 아래 버튼으로 생성해 주세요.
