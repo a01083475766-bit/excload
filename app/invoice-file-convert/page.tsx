@@ -1795,6 +1795,11 @@ export default function InvoiceFileConvertPage() {
   }, [templateStorageUserId]);
 
   useLayoutEffect(() => {
+    if (trialMode) {
+      setIsTemplateOnboardingModalOpen(false);
+      return;
+    }
+
     if (!authAssetsReady || !workspaceStorageHydrated) {
       setIsTemplateOnboardingModalOpen(false);
       return;
@@ -1829,6 +1834,7 @@ export default function InvoiceFileConvertPage() {
     dismissedTemplateGuideThisVisit,
     readDefaultSmartstoreIntroSuppressUntil,
     templateStorageUserId,
+    trialMode,
   ]);
 
   const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3723,7 +3729,7 @@ export default function InvoiceFileConvertPage() {
       )}
 
       {/* 스마트스토어 기본 4열 양식 안내 모달 */}
-      {isTemplateOnboardingModalOpen && (
+      {!trialMode && isTemplateOnboardingModalOpen && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={handleCloseTemplateOnboardingModal}
