@@ -34,7 +34,7 @@ const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'
 });
 
 const LANDING_HERO_VIDEO_START_SECONDS = 0;
-const LANDING_HERO_VIDEO_END_OFFSET_SECONDS = 0;
+const LANDING_HERO_VIDEO_END_OFFSET_SECONDS = 0.2;
 const LANDING_HERO_VIDEO_PLAYBACK_RATE = 0.5;
 
 type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
@@ -96,8 +96,13 @@ function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
 }
 
 function LandingHeroBackgroundVideo() {
-  const seekToStart = (video: HTMLVideoElement) => {
+  const applyPlaybackSettings = (video: HTMLVideoElement) => {
+    video.defaultPlaybackRate = LANDING_HERO_VIDEO_PLAYBACK_RATE;
     video.playbackRate = LANDING_HERO_VIDEO_PLAYBACK_RATE;
+  };
+
+  const seekToStart = (video: HTMLVideoElement) => {
+    applyPlaybackSettings(video);
     if (video.duration > LANDING_HERO_VIDEO_START_SECONDS) {
       video.currentTime = LANDING_HERO_VIDEO_START_SECONDS;
     }
@@ -111,11 +116,21 @@ function LandingHeroBackgroundVideo() {
         muted
         playsInline
         autoPlay
-        loop
         preload="metadata"
         onLoadedMetadata={(event) => {
           seekToStart(event.currentTarget);
           void event.currentTarget.play().catch(() => undefined);
+        }}
+        onCanPlay={(event) => {
+          applyPlaybackSettings(event.currentTarget);
+        }}
+        onPlay={(event) => {
+          applyPlaybackSettings(event.currentTarget);
+        }}
+        onRateChange={(event) => {
+          if (event.currentTarget.playbackRate !== LANDING_HERO_VIDEO_PLAYBACK_RATE) {
+            applyPlaybackSettings(event.currentTarget);
+          }
         }}
         onTimeUpdate={(event) => {
           const video = event.currentTarget;
