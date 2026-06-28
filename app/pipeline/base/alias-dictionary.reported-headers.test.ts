@@ -15,6 +15,9 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['해외배송지']).toBe('받는사람주소1');
     expect(ALIAS_DICTIONARY['받는곳']).toBe('받는사람주소1');
     expect(ALIAS_DICTIONARY['배송지']).toBe('받는사람주소1');
+    expect(ALIAS_DICTIONARY['받는분상세주소(분할)']).toBe('받는사람주소2');
+    expect(ALIAS_DICTIONARY['주문자성명']).toBe('주문자');
+    expect(ALIAS_DICTIONARY['주문자전화번호']).toBe('주문자연락처');
     expect(ALIAS_DICTIONARY['주문자휴대전화']).toBe('주문자연락처');
     expect(ALIAS_DICTIONARY['출고수량']).toBe('수량');
     expect(ALIAS_DICTIONARY['희망배송메시지']).toBe('배송메시지');
@@ -26,6 +29,9 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['취소']).toBe('주문상태');
     expect(ALIAS_DICTIONARY['진행단계']).toBe('주문상태');
     expect(ALIAS_DICTIONARY['통관용수취인전화번호']).toBe('통관용구매자전화번호');
+    expect(ALIAS_DICTIONARY['물품가액']).toBe('결제금액');
+    expect(ALIAS_DICTIONARY['기본운임']).toBe('운임');
+    expect(ALIAS_DICTIONARY['내품코드']).toBe('옵션코드');
   });
 
   it('충돌하거나 기준헤더 의미와 어긋나는 헤더는 매핑하지 않는다', () => {
@@ -34,5 +40,8 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['취소일']).toBeUndefined();
     expect(ALIAS_DICTIONARY['순번']).toBeUndefined();
     expect(ALIAS_DICTIONARY['발행쿠폰번호']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['집하예정일']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['배송예정일']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['주문자기타연락처']).toBeUndefined();
   });
 });
