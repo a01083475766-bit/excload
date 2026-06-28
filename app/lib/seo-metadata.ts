@@ -10,11 +10,25 @@ export const DEFAULT_DESCRIPTION =
 
 const OPEN_GRAPH_SITE_NAME = '엑클로드 EXCLOAD';
 
+type MetadataImage = {
+  url: string;
+  alt: string;
+  width?: number;
+  height?: number;
+};
+
+type PageMetadataOptions = {
+  image?: MetadataImage;
+};
+
 export function buildOpenGraph(
   title: string,
   description: string,
   pathname: string,
+  options: PageMetadataOptions = {},
 ): NonNullable<Metadata['openGraph']> {
+  const image = options.image;
+
   return {
     title,
     description,
@@ -22,6 +36,19 @@ export function buildOpenGraph(
     siteName: OPEN_GRAPH_SITE_NAME,
     locale: 'ko_KR',
     type: 'website',
+    ...(image
+      ? {
+          images: [
+            {
+              url: image.url,
+              width: image.width ?? 1200,
+              height: image.height ?? 630,
+              alt: image.alt,
+              type: 'image/png',
+            },
+          ],
+        }
+      : {}),
   };
 }
 
@@ -30,17 +57,35 @@ export function pageMetadata(
   title: string,
   description: string,
   pathname: string,
+  options: PageMetadataOptions = {},
 ): Metadata {
+  const image = options.image;
+
   return {
     title,
     description,
     alternates: { canonical: `${SITE_URL}${pathname}` },
-    openGraph: buildOpenGraph(title, description, pathname),
+    openGraph: buildOpenGraph(title, description, pathname, options),
+    ...(image
+      ? {
+          twitter: {
+            card: 'summary_large_image',
+            title,
+            description,
+            images: [image.url],
+          },
+        }
+      : {}),
   };
 }
 
 export const PAGE_SEO = {
-  home: pageMetadata(DEFAULT_TITLE, DEFAULT_DESCRIPTION, '/'),
+  home: pageMetadata(DEFAULT_TITLE, DEFAULT_DESCRIPTION, '/', {
+    image: {
+      url: '/og/home.png',
+      alt: '엑클로드 빠른 주문 정리 서비스 미리보기',
+    },
+  }),
   orderConvert: pageMetadata(
     '택배주문변환 - 쇼핑몰 주문 엑셀 택배사 양식 변환 | 엑클로드',
     '쇼핑몰 주문 엑셀, 텍스트, 이미지를 택배사 업로드 양식에 맞게 정리하고 변환할 수 있습니다. 엑클로드(EXCLOAD) 택배 엑셀 변환 서비스.',

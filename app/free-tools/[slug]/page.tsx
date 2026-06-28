@@ -24,6 +24,12 @@ export async function generateMetadata({ params }: PageProps) {
     `${tool.name} - 쇼핑몰 운영 무료도구 | 엑클로드`,
     tool.description,
     `/free-tools/${tool.slug}`,
+    {
+      image: {
+        url: tool.ogImagePath,
+        alt: `${tool.name} 무료도구 미리보기`,
+      },
+    },
   );
 }
 

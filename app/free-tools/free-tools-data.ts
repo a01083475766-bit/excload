@@ -19,6 +19,7 @@ export type FreeTool = {
   icon: LucideIcon;
   category: string;
   enabled: boolean;
+  ogImagePath: string;
 };
 
 export const freeTools: FreeTool[] = [
@@ -31,6 +32,7 @@ export const freeTools: FreeTool[] = [
     icon: Calculator,
     category: '계산',
     enabled: true,
+    ogImagePath: '/og/free-tools-margin-calculator.png',
   },
   {
     slug: 'duplicate-check',
@@ -41,6 +43,7 @@ export const freeTools: FreeTool[] = [
     icon: FileCheck2,
     category: '엑셀',
     enabled: true,
+    ogImagePath: '/og/free-tools-duplicate-check.png',
   },
   {
     slug: 'privacy-mask',
@@ -51,6 +54,7 @@ export const freeTools: FreeTool[] = [
     icon: ScanText,
     category: '보안',
     enabled: true,
+    ogImagePath: '/og/free-tools-privacy-mask.png',
   },
   {
     slug: 'image-resize',
@@ -61,6 +65,7 @@ export const freeTools: FreeTool[] = [
     icon: ImageIcon,
     category: '이미지',
     enabled: true,
+    ogImagePath: '/og/free-tools-image-resize.png',
   },
   {
     slug: 'qr-code',
@@ -71,6 +76,7 @@ export const freeTools: FreeTool[] = [
     icon: QrCode,
     category: '마케팅',
     enabled: true,
+    ogImagePath: '/og/free-tools-qr-code.png',
   },
   {
     slug: 'excel-csv',
@@ -81,6 +87,7 @@ export const freeTools: FreeTool[] = [
     icon: FileSpreadsheet,
     category: '엑셀',
     enabled: true,
+    ogImagePath: '/og/free-tools-excel-csv.png',
   },
   {
     slug: 'excel-to-pdf',
@@ -91,6 +98,7 @@ export const freeTools: FreeTool[] = [
     icon: FileDown,
     category: '문서',
     enabled: true,
+    ogImagePath: '/og/free-tools-excel-to-pdf.png',
   },
   {
     slug: 'image-to-pdf',
@@ -101,6 +109,7 @@ export const freeTools: FreeTool[] = [
     icon: Files,
     category: '문서',
     enabled: true,
+    ogImagePath: '/og/free-tools-image-to-pdf.png',
   },
   {
     slug: 'pdf-merge',
@@ -111,6 +120,7 @@ export const freeTools: FreeTool[] = [
     icon: FileStack,
     category: '문서',
     enabled: true,
+    ogImagePath: '/og/free-tools-pdf-merge.png',
   },
 ];
 

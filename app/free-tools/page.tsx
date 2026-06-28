@@ -7,6 +7,12 @@ export const metadata = pageMetadata(
   '쇼핑몰 운영 무료도구 - 엑클로드(EXCLOAD)',
   '온라인 판매와 주문 관리에 필요한 간단한 무료도구를 설치 없이 바로 사용할 수 있습니다.',
   '/free-tools',
+  {
+    image: {
+      url: '/og/free-tools.png',
+      alt: '엑클로드 쇼핑몰 운영 무료도구 미리보기',
+    },
+  },
 );
 
 export default function FreeToolsPage() {
