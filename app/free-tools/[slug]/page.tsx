@@ -21,8 +21,8 @@ export async function generateMetadata({ params }: PageProps) {
   }
 
   return pageMetadata(
-    `${tool.name} - 쇼핑몰 운영 무료도구 | 엑클로드`,
-    tool.pageDescription ?? tool.description,
+    tool.seoTitle ?? `${tool.name} - 쇼핑몰 운영 무료도구 | 엑클로드`,
+    tool.seoDescription ?? tool.pageDescription ?? tool.description,
     `/free-tools/${tool.slug}`,
     {
       image: {

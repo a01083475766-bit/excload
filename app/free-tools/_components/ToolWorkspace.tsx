@@ -6,6 +6,7 @@ import { ExcelToPdf } from '@/app/free-tools/_components/ExcelToPdf';
 import { ImageCompressor } from '@/app/free-tools/_components/ImageCompressor';
 import { ImageTextExtractor } from '@/app/free-tools/_components/ImageTextExtractor';
 import { ImageToPdf } from '@/app/free-tools/_components/ImageToPdf';
+import { KakaoCardMaker } from '@/app/free-tools/_components/KakaoCardMaker';
 import { MarginCalculator } from '@/app/free-tools/_components/MarginCalculator';
 import { PdfMerger } from '@/app/free-tools/_components/PdfMerger';
 import { PrivacyMask } from '@/app/free-tools/_components/PrivacyMask';
@@ -57,6 +58,8 @@ export function ToolWorkspace({ tool }: Props) {
         <ImageTextExtractor />
       ) : tool.slug === 'qr-code' ? (
         <QRCodeGenerator />
+      ) : tool.slug === 'kakao-card' ? (
+        <KakaoCardMaker />
       ) : tool.slug === 'excel-csv' ? (
         <ExcelCsvConverter />
       ) : tool.slug === 'excel-to-pdf' ? (
