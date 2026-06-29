@@ -24,11 +24,20 @@ type LoadedImage = {
 };
 
 type ToolStatus = 'initial' | 'ready' | 'processing' | 'done' | 'error';
-type ReadMode = 'general' | 'capture' | 'table';
 type Rect = { x: number; y: number; width: number; height: number };
 type NaturalSize = { width: number; height: number };
-type PreprocessProfile = 'default' | 'capture' | 'table' | 'high-contrast';
-type ExtractionAttempt = { label: string; source: File | HTMLCanvasElement; profile?: PreprocessProfile };
+type PreprocessProfile = 'balanced' | 'small-text' | 'high-contrast' | 'light-text';
+type PreprocessSettings = {
+  targetWidth: number;
+  maxScale: number;
+  contrast: number;
+  brightness: number;
+  threshold: number;
+  binarize: boolean;
+  invert: boolean;
+  sharpen: boolean;
+};
+type ExtractionAttempt = { label: string; source: HTMLCanvasElement; psm: number };
 type ExtractionResult = { text: string; confidence: number; label: string };
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -36,11 +45,8 @@ const ACCEPTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const EMPTY_RESULT_MESSAGE = '글자를 찾지 못했습니다. 더 선명한 이미지로 다시 시도해 주세요.';
 const DOWNLOAD_BASENAME = 'extracted-text';
-const readModeOptions: { value: ReadMode; label: string; description: string }[] = [
-  { value: 'general', label: '일반 이미지', description: '사진이나 일반 이미지에 적합합니다.' },
-  { value: 'capture', label: '화면 캡처', description: '스크린샷과 작은 글자에 적합합니다.' },
-  { value: 'table', label: '표·목록 이미지', description: '줄바꿈과 행 구조를 최대한 유지합니다.' },
-];
+const OCR_TARGET_WIDTH = 1600;
+const OCR_MIN_WIDTH = 1200;
 
 function getExtension(fileName: string) {
   return fileName.split('.').pop()?.toLowerCase() ?? '';
@@ -93,23 +99,53 @@ function makeCsv(text: string) {
     .join('\n');
 }
 
-function getPsmForMode(mode: ReadMode) {
-  if (mode === 'table') return 4;
-  if (mode === 'capture') return 6;
-  return 3;
-}
-
-function getProfileForMode(mode: ReadMode): PreprocessProfile {
-  if (mode === 'capture') return 'capture';
-  if (mode === 'table') return 'table';
-  return 'default';
-}
-
 function getProfileSettings(profile: PreprocessProfile) {
-  if (profile === 'capture') return { scale: 3, contrast: 1.45, brightness: 8, threshold: 180, binarize: false };
-  if (profile === 'table') return { scale: 2.5, contrast: 1.35, brightness: 6, threshold: 178, binarize: false };
-  if (profile === 'high-contrast') return { scale: 3, contrast: 1.7, brightness: 10, threshold: 170, binarize: true };
-  return { scale: 2, contrast: 1.25, brightness: 4, threshold: 180, binarize: false };
+  if (profile === 'small-text') {
+    return {
+      targetWidth: 1800,
+      maxScale: 4,
+      contrast: 1.42,
+      brightness: 8,
+      threshold: 178,
+      binarize: false,
+      invert: false,
+      sharpen: true,
+    };
+  }
+  if (profile === 'high-contrast') {
+    return {
+      targetWidth: OCR_TARGET_WIDTH,
+      maxScale: 4,
+      contrast: 1.72,
+      brightness: 10,
+      threshold: 170,
+      binarize: true,
+      invert: false,
+      sharpen: true,
+    };
+  }
+  if (profile === 'light-text') {
+    return {
+      targetWidth: OCR_TARGET_WIDTH,
+      maxScale: 4,
+      contrast: 1.58,
+      brightness: 0,
+      threshold: 168,
+      binarize: false,
+      invert: true,
+      sharpen: true,
+    };
+  }
+  return {
+    targetWidth: OCR_TARGET_WIDTH,
+    maxScale: 4,
+    contrast: 1.28,
+    brightness: 5,
+    threshold: 180,
+    binarize: false,
+    invert: false,
+    sharpen: true,
+  };
 }
 
 function loadImageElement(file: File) {
@@ -180,17 +216,33 @@ function sharpenImageData(imageData: ImageData) {
   }
 }
 
-function preprocessCanvas(source: HTMLCanvasElement, profile: PreprocessProfile) {
-  const settings = getProfileSettings(profile);
+function getScaleForOcr(width: number, targetWidth = OCR_TARGET_WIDTH, maxScale = 4) {
+  if (width <= 0) return 1;
+  if (width < OCR_MIN_WIDTH) return Math.min(maxScale, Math.max(OCR_MIN_WIDTH / width, targetWidth / width));
+  if (width < targetWidth) return Math.min(maxScale, targetWidth / width);
+  return 1;
+}
+
+function resizeCanvasForOcr(source: HTMLCanvasElement, targetWidth = OCR_TARGET_WIDTH, maxScale = 4) {
+  const scale = getScaleForOcr(source.width, targetWidth, maxScale);
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(source.width * settings.scale));
-  canvas.height = Math.max(1, Math.round(source.height * settings.scale));
-  const context = canvas.getContext('2d', { willReadFrequently: true });
+  canvas.width = Math.max(1, Math.round(source.width * scale));
+  canvas.height = Math.max(1, Math.round(source.height * scale));
+  const context = canvas.getContext('2d');
 
   if (!context) throw new Error('canvas_failed');
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
   context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+function preprocessCanvas(source: HTMLCanvasElement, profile: PreprocessProfile) {
+  const settings = getProfileSettings(profile);
+  const canvas = resizeCanvasForOcr(source, settings.targetWidth, settings.maxScale);
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+
+  if (!context) throw new Error('canvas_failed');
 
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
   const { data } = imageData;
@@ -199,6 +251,8 @@ function preprocessCanvas(source: HTMLCanvasElement, profile: PreprocessProfile)
   for (let index = 0; index < data.length; index += 4) {
     const gray = data[index] * 0.299 + data[index + 1] * 0.587 + data[index + 2] * 0.114;
     let value = (gray - 128) * contrast + 128 + settings.brightness;
+
+    if (settings.invert) value = 255 - value;
 
     if (settings.binarize) {
       value = value > settings.threshold ? 255 : 0;
@@ -214,7 +268,7 @@ function preprocessCanvas(source: HTMLCanvasElement, profile: PreprocessProfile)
     data[index + 2] = normalized;
   }
 
-  sharpenImageData(imageData);
+  if (settings.sharpen) sharpenImageData(imageData);
   context.putImageData(imageData, 0, 0);
   return canvas;
 }
@@ -230,11 +284,11 @@ function scoreExtractionResult(result: ExtractionResult) {
   return result.confidence + Math.min(15, letters / 20) - noisy * 5;
 }
 
-async function recognizeSource(source: File | HTMLCanvasElement, mode: ReadMode, label: string): Promise<ExtractionResult> {
+async function recognizeSource(source: HTMLCanvasElement, psm: number, label: string): Promise<ExtractionResult> {
   const Tesseract = (await import('tesseract.js')).default;
   const result = await Tesseract.recognize(source, 'kor+eng', {
     preserve_interword_spaces: '1',
-    tessedit_pageseg_mode: getPsmForMode(mode),
+    tessedit_pageseg_mode: psm,
   } as Parameters<typeof Tesseract.recognize>[2]);
 
   return {
@@ -244,19 +298,19 @@ async function recognizeSource(source: File | HTMLCanvasElement, mode: ReadMode,
   };
 }
 
-async function extractTextFromImage(file: File, mode: ReadMode, rect: Rect | null, enhanced: boolean) {
+async function extractTextFromImage(file: File, rect: Rect | null) {
   const sourceCanvas = await buildSourceCanvas(file, rect);
-  const attempts: ExtractionAttempt[] = enhanced
-    ? [
-        { label: '원본', source: sourceCanvas },
-        { label: '자동 보정', source: preprocessCanvas(sourceCanvas, getProfileForMode(mode)) },
-        { label: '정확도 높이기', source: preprocessCanvas(sourceCanvas, 'high-contrast') },
-      ]
-    : [{ label: '자동 보정', source: preprocessCanvas(sourceCanvas, getProfileForMode(mode)) }];
+  const attempts: ExtractionAttempt[] = [
+    { label: '원본 확대', source: resizeCanvasForOcr(sourceCanvas), psm: 3 },
+    { label: '자동 보정', source: preprocessCanvas(sourceCanvas, 'balanced'), psm: 6 },
+    { label: '작은 글씨 보정', source: preprocessCanvas(sourceCanvas, 'small-text'), psm: 6 },
+    { label: '대비 보정', source: preprocessCanvas(sourceCanvas, 'high-contrast'), psm: 6 },
+    { label: '밝은 글씨 보정', source: preprocessCanvas(sourceCanvas, 'light-text'), psm: 6 },
+  ];
 
   const results: ExtractionResult[] = [];
   for (const attempt of attempts) {
-    results.push(await recognizeSource(attempt.source, mode, attempt.label));
+    results.push(await recognizeSource(attempt.source, attempt.psm, attempt.label));
   }
 
   return results.sort((a, b) => scoreExtractionResult(b) - scoreExtractionResult(a))[0] ?? {
@@ -289,7 +343,6 @@ export function ImageTextExtractor() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [pasteHintVisible, setPasteHintVisible] = useState(false);
-  const [readMode, setReadMode] = useState<ReadMode>('capture');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectionRect, setSelectionRect] = useState<Rect | null>(null);
   const [naturalSize, setNaturalSize] = useState<NaturalSize | null>(null);
@@ -360,7 +413,7 @@ export function ImageTextExtractor() {
     pasteHintTimerRef.current = window.setTimeout(() => setPasteHintVisible(false), 2500);
   };
 
-  const runExtraction = async (enhanced = false) => {
+  const runExtraction = async () => {
     if (!loadedImage) {
       setStatus('error');
       setError('이미지 파일을 올리거나 캡처 이미지를 붙여넣어 주세요.');
@@ -376,7 +429,7 @@ export function ImageTextExtractor() {
     setStatus('processing');
 
     try {
-      const result = await extractTextFromImage(loadedImage.file, readMode, selectionRect, enhanced);
+      const result = await extractTextFromImage(loadedImage.file, selectionRect);
       if (extractionRunRef.current !== runId) return;
       if (!result.text) {
         setStatus('error');
@@ -497,6 +550,7 @@ export function ImageTextExtractor() {
 
   const confidenceLabel =
     resultConfidence === null ? null : resultConfidence >= 80 ? '좋음' : resultConfidence >= 60 ? '보통' : '낮음';
+  const isSmallImage = naturalSize ? naturalSize.width < 800 || naturalSize.height < 400 : false;
   const selectionStyle =
     selectionRect && naturalSize
       ? {
@@ -603,34 +657,9 @@ export function ImageTextExtractor() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-            <p className="text-sm font-bold text-zinc-950">읽기 방식</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {readModeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    setReadMode(option.value);
-                    setResultConfidence(null);
-                    if (status === 'done') setStatus('ready');
-                  }}
-                  disabled={processing}
-                  className={`rounded-lg border px-3 py-3 text-left transition disabled:opacity-60 ${
-                    readMode === option.value
-                      ? 'border-blue-300 bg-blue-50 text-blue-900 ring-1 ring-blue-100'
-                      : 'border-zinc-200 bg-white text-zinc-700 hover:border-blue-200'
-                  }`}
-                >
-                  <span className="block text-sm font-bold">{option.label}</span>
-                  <span className="mt-1 block text-xs leading-relaxed text-zinc-500">{option.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-sm leading-relaxed text-blue-900">
-            업로드하거나 붙여넣은 이미지는 글자 추출 용도로만 사용되며 저장하지 않습니다.
+            작은 이미지도 자동으로 확대하고 여러 보정 결과를 비교해 가장 잘 읽힌 결과를 사용합니다. 업로드하거나 붙여넣은
+            이미지는 글자 추출 용도로만 사용되며 저장하지 않습니다.
           </div>
 
           {loadedImage ? (
@@ -674,6 +703,12 @@ export function ImageTextExtractor() {
                     {formatBytes(loadedImage.size)}
                   </span>
                 </div>
+                {isSmallImage ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
+                    이미지 크기가 작아 일부 글자가 다르게 인식될 수 있습니다. 자동 확대 보정을 적용하지만, 가능하면 더 크게
+                    캡처하거나 읽을 영역만 선택해 주세요.
+                  </div>
+                ) : null}
                 <div className="rounded-lg bg-white/90 p-3 text-xs leading-relaxed text-zinc-600 ring-1 ring-blue-100">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -756,7 +791,7 @@ export function ImageTextExtractor() {
               추출한 글자는 직접 수정한 뒤 복사하거나 TXT, CSV, 엑셀 파일로 다운로드할 수 있습니다.
             </p>
             <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-              글자가 작거나 흐리게 보이면 정확도 높여서 다시 읽기를 눌러보세요.
+              글자가 작거나 배경이 복잡한 이미지는 자동 보정 후에도 일부 글자가 다르게 인식될 수 있습니다.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
@@ -775,21 +810,6 @@ export function ImageTextExtractor() {
               {copied ? '복사됨' : '복사하기'}
             </button>
           </div>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-2 rounded-lg border border-blue-100 bg-blue-50/60 p-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs leading-relaxed text-blue-900">
-            자동 보정으로 다시 비교해 더 잘 읽힌 결과를 사용합니다.
-          </p>
-          <button
-            type="button"
-            onClick={() => void runExtraction(true)}
-            disabled={!loadedImage || processing}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-400"
-          >
-            {processing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ScanText className="size-4" aria-hidden />}
-            정확도 높여서 다시 읽기
-          </button>
         </div>
 
         {processing ? (
@@ -857,8 +877,8 @@ export function ImageTextExtractor() {
           </p>
         ) : null}
         <p className="mt-4 text-xs leading-relaxed text-zinc-500">
-          이미지 글자 추출은 원본 이미지의 선명도에 따라 결과가 달라질 수 있습니다. 글자가 작거나 흐리면
-          정확도 높여서 다시 읽기 또는 읽을 영역 선택을 사용해 주세요.
+          이미지 글자 추출은 원본 이미지의 선명도에 따라 결과가 달라질 수 있습니다. 글자가 작거나 주변 내용이 많다면 읽을
+          영역 선택을 사용해 주세요.
         </p>
       </section>
     </div>
