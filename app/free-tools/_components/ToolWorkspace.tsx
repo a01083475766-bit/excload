@@ -4,6 +4,7 @@ import { DuplicateCheck } from '@/app/free-tools/_components/DuplicateCheck';
 import { ExcelCsvConverter } from '@/app/free-tools/_components/ExcelCsvConverter';
 import { ExcelToPdf } from '@/app/free-tools/_components/ExcelToPdf';
 import { ImageCompressor } from '@/app/free-tools/_components/ImageCompressor';
+import { ImageTextExtractor } from '@/app/free-tools/_components/ImageTextExtractor';
 import { ImageToPdf } from '@/app/free-tools/_components/ImageToPdf';
 import { MarginCalculator } from '@/app/free-tools/_components/MarginCalculator';
 import { PdfMerger } from '@/app/free-tools/_components/PdfMerger';
@@ -52,6 +53,8 @@ export function ToolWorkspace({ tool }: Props) {
         <PrivacyMask />
       ) : tool.slug === 'image-resize' ? (
         <ImageCompressor />
+      ) : tool.slug === 'image-text-extractor' ? (
+        <ImageTextExtractor />
       ) : tool.slug === 'qr-code' ? (
         <QRCodeGenerator />
       ) : tool.slug === 'excel-csv' ? (

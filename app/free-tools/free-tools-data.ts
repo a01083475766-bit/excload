@@ -68,6 +68,17 @@ export const freeTools: FreeTool[] = [
     ogImagePath: '/og/free-tools-image-resize.png',
   },
   {
+    slug: 'image-text-extractor',
+    name: '이미지 글자 추출기',
+    shortDescription: '사진이나 스크린샷 속 글자를 텍스트로 바꿉니다.',
+    description:
+      '사진이나 스크린샷 속 글자를 자동으로 읽어 텍스트·엑셀 파일로 저장할 수 있습니다.',
+    icon: ScanText,
+    category: '이미지',
+    enabled: true,
+    ogImagePath: '/og/free-tools-image-text-extractor.png',
+  },
+  {
     slug: 'qr-code',
     name: 'QR코드 만들기',
     shortDescription: '링크와 문구를 QR코드 이미지로 만듭니다.',
