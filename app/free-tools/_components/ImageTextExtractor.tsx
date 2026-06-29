@@ -300,7 +300,7 @@ export function ImageTextExtractor() {
                 disabled={processing}
                 className="mt-5 inline-flex rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-600 disabled:bg-zinc-200 disabled:text-zinc-400"
               >
-                이미지 파일 선택
+                파일 선택
               </button>
               <span className="mt-3 text-xs text-zinc-500">JPG, JPEG, PNG, WEBP 지원 · 파일당 최대 20MB</span>
               <input
@@ -353,27 +353,23 @@ export function ImageTextExtractor() {
           </div>
 
           {loadedImage ? (
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <div className="grid gap-4 sm:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]">
-                <div className="flex min-h-48 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
+            <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm ring-1 ring-blue-100">
+              <div className="flex flex-col gap-3">
+                <div className="flex h-36 items-center justify-center overflow-hidden rounded-lg border border-blue-100 bg-white/90 sm:h-44">
                   <img
                     src={loadedImage.previewUrl}
                     alt="입력한 이미지 미리보기"
-                    className="max-h-72 w-full object-contain"
+                    className="max-h-full max-w-full object-contain"
                   />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-blue-600">{loadedImage.sourceLabel}</p>
-                  <p className="mt-1 truncate text-sm font-bold text-zinc-950">{loadedImage.name}</p>
-                  <p className="mt-1 text-xs text-zinc-500">{formatBytes(loadedImage.size)}</p>
-                  <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-                    {processing
-                      ? '이미지 속 글자를 읽는 중입니다...'
-                      : '미리보기를 확인한 뒤 글자 추출 버튼을 눌러 주세요.'}
-                  </p>
-                  <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-zinc-500 ring-1 ring-zinc-200">
-                    입력된 이미지를 크게 표시했습니다. 글자가 작게 보이면 더 크게 캡처하거나 선명한 파일로 다시 시도해 주세요.
-                  </p>
+                <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-white/90 px-3 py-2 ring-1 ring-blue-100">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-blue-700">{loadedImage.sourceLabel}</p>
+                    <p className="truncate text-sm font-bold text-zinc-950">{loadedImage.name}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                    {formatBytes(loadedImage.size)}
+                  </span>
                 </div>
               </div>
             </div>
