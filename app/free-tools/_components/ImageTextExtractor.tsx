@@ -100,11 +100,13 @@ export function ImageTextExtractor() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const extractionRunRef = useRef(0);
   const previewUrlRef = useRef<string | null>(null);
+  const pasteHintTimerRef = useRef<number | null>(null);
   const [loadedImage, setLoadedImage] = useState<LoadedImage | null>(null);
   const [text, setText] = useState('');
   const [status, setStatus] = useState<ToolStatus>('initial');
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [pasteHintVisible, setPasteHintVisible] = useState(false);
 
   const hasText = text.trim().length > 0;
   const processing = status === 'processing';
@@ -114,6 +116,7 @@ export function ImageTextExtractor() {
     extractionRunRef.current += 1;
     setCopied(false);
     setError(null);
+    setPasteHintVisible(false);
 
     if (!isSupportedImage(file)) {
       setStatus('error');
@@ -144,6 +147,7 @@ export function ImageTextExtractor() {
 
   const resetAll = () => {
     extractionRunRef.current += 1;
+    if (pasteHintTimerRef.current) window.clearTimeout(pasteHintTimerRef.current);
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     previewUrlRef.current = null;
     setLoadedImage(null);
@@ -151,7 +155,14 @@ export function ImageTextExtractor() {
     setStatus('initial');
     setError(null);
     setCopied(false);
+    setPasteHintVisible(false);
     if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const showPasteGuide = () => {
+    setPasteHintVisible(true);
+    if (pasteHintTimerRef.current) window.clearTimeout(pasteHintTimerRef.current);
+    pasteHintTimerRef.current = window.setTimeout(() => setPasteHintVisible(false), 2500);
   };
 
   const runExtraction = async () => {
@@ -237,6 +248,7 @@ export function ImageTextExtractor() {
   useEffect(() => {
     return () => {
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      if (pasteHintTimerRef.current) window.clearTimeout(pasteHintTimerRef.current);
     };
   }, []);
 
@@ -254,60 +266,87 @@ export function ImageTextExtractor() {
         </div>
 
         <div className="mt-6 space-y-5">
-          <label
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if ((event.key === 'Enter' || event.key === ' ') && !processing) {
+          <div className="grid gap-4 md:grid-cols-2">
+            <div
+              onDragEnter={(event) => {
                 event.preventDefault();
-                inputRef.current?.click();
-              }
-            }}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              event.dataTransfer.dropEffect = 'copy';
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              const file = event.dataTransfer.files[0];
-              if (file && !processing) setImageFromFile(file, '업로드한 이미지');
-            }}
-            className={`flex min-h-52 flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-8 text-center transition ${
-              processing
-                ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-400'
-                : 'cursor-pointer border-blue-200 bg-blue-50/50 hover:bg-blue-50'
-            }`}
-          >
-            <Upload className="size-8 text-blue-600" aria-hidden />
-            <span className="mt-3 text-sm font-bold text-zinc-950">
-              이미지 파일을 끌어다 놓거나 클릭해서 업로드하세요.
-            </span>
-            <span className="mt-2 text-sm font-semibold text-blue-700">
-              또는 화면을 캡처한 뒤 Ctrl + V로 바로 붙여넣을 수 있습니다.
-            </span>
-            <span className="mt-2 text-xs text-zinc-500">예: Win + Shift + S로 화면 캡처 → 이 화면에서 Ctrl + V</span>
-            <span className="mt-4 text-xs text-zinc-500">JPG, JPEG, PNG, WEBP 지원 · 파일당 최대 20MB</span>
-            <span className="mt-4 inline-flex rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white">
-              이미지 업로드하기
-            </span>
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-              disabled={processing}
-              className="sr-only"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) setImageFromFile(file, '업로드한 이미지');
-                event.currentTarget.value = '';
+                event.stopPropagation();
               }}
-            />
-          </label>
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.dataTransfer.dropEffect = 'copy';
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const file = event.dataTransfer.files[0];
+                if (file && !processing) setImageFromFile(file, '업로드한 이미지');
+              }}
+              className={`flex min-h-56 flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-7 text-center transition ${
+                processing
+                  ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 text-zinc-400'
+                  : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50'
+              }`}
+            >
+              <Upload className="size-8 text-blue-600" aria-hidden />
+              <span className="mt-3 text-base font-bold text-zinc-950">저장된 이미지 파일 업로드</span>
+              <span className="mt-2 text-sm leading-relaxed text-zinc-600">
+                저장된 이미지 파일이 있다면 선택하거나 이곳에 끌어다 놓으세요.
+              </span>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={processing}
+                className="mt-5 inline-flex rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-600 disabled:bg-zinc-200 disabled:text-zinc-400"
+              >
+                이미지 파일 선택
+              </button>
+              <span className="mt-3 text-xs text-zinc-500">JPG, JPEG, PNG, WEBP 지원 · 파일당 최대 20MB</span>
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                disabled={processing}
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) setImageFromFile(file, '업로드한 이미지');
+                  event.currentTarget.value = '';
+                }}
+              />
+            </div>
+
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={showPasteGuide}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  showPasteGuide();
+                }
+              }}
+              className="flex min-h-56 flex-col items-center justify-center rounded-lg border-2 border-dashed border-emerald-200 bg-emerald-50/50 px-4 py-7 text-center transition hover:bg-emerald-50"
+            >
+              <ClipboardCopy className="size-8 text-emerald-600" aria-hidden />
+              <span className="mt-3 text-base font-bold text-zinc-950">캡처 화면 바로 붙여넣기</span>
+              <span className="mt-2 text-sm leading-relaxed text-zinc-600">
+                방금 화면을 캡처했다면 파일을 찾을 필요 없이 이 화면에서 Ctrl + V를 눌러 붙여넣으세요.
+              </span>
+              <span className="mt-3 rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">
+                붙여넣기 대기 중
+              </span>
+              <span className="mt-3 text-xs leading-relaxed text-zinc-500">
+                예: Win + Shift + S → 캡처 영역 선택 → 이 화면에서 Ctrl + V
+              </span>
+              {pasteHintVisible ? (
+                <span className="mt-3 text-xs font-semibold text-emerald-700">
+                  캡처 후 Ctrl + V를 눌러 붙여넣어 주세요.
+                </span>
+              ) : null}
+            </div>
+          </div>
 
           <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-sm leading-relaxed text-blue-900">
             업로드하거나 붙여넣은 이미지는 글자 추출 용도로만 사용되며 저장하지 않습니다.
@@ -315,13 +354,15 @@ export function ImageTextExtractor() {
 
           {loadedImage ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <div className="flex items-start gap-3">
-                <img
-                  src={loadedImage.previewUrl}
-                  alt="입력한 이미지 미리보기"
-                  className="h-24 w-24 rounded-lg border border-zinc-200 object-cover"
-                />
-                <div className="min-w-0 flex-1">
+              <div className="grid gap-4 sm:grid-cols-[minmax(220px,260px)_minmax(0,1fr)]">
+                <div className="flex min-h-48 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-white">
+                  <img
+                    src={loadedImage.previewUrl}
+                    alt="입력한 이미지 미리보기"
+                    className="max-h-72 w-full object-contain"
+                  />
+                </div>
+                <div className="min-w-0">
                   <p className="text-xs font-semibold text-blue-600">{loadedImage.sourceLabel}</p>
                   <p className="mt-1 truncate text-sm font-bold text-zinc-950">{loadedImage.name}</p>
                   <p className="mt-1 text-xs text-zinc-500">{formatBytes(loadedImage.size)}</p>
@@ -329,6 +370,9 @@ export function ImageTextExtractor() {
                     {processing
                       ? '이미지 속 글자를 읽는 중입니다...'
                       : '미리보기를 확인한 뒤 글자 추출 버튼을 눌러 주세요.'}
+                  </p>
+                  <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-zinc-500 ring-1 ring-zinc-200">
+                    입력된 이미지를 크게 표시했습니다. 글자가 작게 보이면 더 크게 캡처하거나 선명한 파일로 다시 시도해 주세요.
                   </p>
                 </div>
               </div>
