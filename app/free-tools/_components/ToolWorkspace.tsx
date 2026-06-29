@@ -21,23 +21,25 @@ export function ToolWorkspace({ tool }: Props) {
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-7">
+      <section className="relative overflow-hidden rounded-[1.35rem] border border-slate-900/[0.08] bg-white/85 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-white/70 backdrop-blur-xl sm:p-7">
+        <span className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-blue-100/70 blur-3xl" />
+        <span className="pointer-events-none absolute bottom-0 left-12 h-24 w-24 rounded-full bg-teal-100/60 blur-3xl" />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="flex gap-3 sm:gap-4">
-            <span className="h-fit rounded-lg bg-blue-50 p-2.5 text-blue-600 sm:p-3">
+          <div className="relative flex gap-3 sm:gap-4">
+            <span className="h-fit rounded-2xl border border-blue-100 bg-blue-50/80 p-2.5 text-blue-600 shadow-sm sm:p-3">
               <Icon className="size-6 sm:size-7" aria-hidden />
             </span>
             <div>
-              <p className="mb-1 text-xs font-semibold text-blue-600">{tool.category}</p>
-              <h2 className="text-xl font-bold text-zinc-950 sm:text-2xl">{tool.name}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:mt-3">
+              <p className="mb-1 text-xs font-extrabold tracking-[0.16em] text-teal-600">{tool.category}</p>
+              <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950 sm:text-2xl">{tool.name}</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 sm:mt-3">
                 {tool.pageDescription ?? tool.description}
               </p>
             </div>
           </div>
           <span
-            className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${
-              tool.enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'
+            className={`relative w-fit rounded-full border px-3 py-1 text-xs font-bold ${
+              tool.enabled ? 'border-emerald-100 bg-emerald-50/90 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-500'
             }`}
           >
             {tool.enabled ? '사용 가능' : '기능 준비중'}
