@@ -3295,13 +3295,8 @@ export default function InvoiceFileConvertPage() {
             {/* 카드 1: 쇼핑몰 송장 업로드 양식 */}
             <button
               type="button"
-              data-ex-tooltip={
-                trialMode
-                  ? '쇼핑몰에 송장을 일괄 업로드할 때 쓰는 엑셀 양식입니다. 체험 화면에는 기본 예시 양식이 준비되어 있습니다.'
-                  : undefined
-              }
               onClick={handleOpenCourierTemplateModal}
-              className={`${trialMode ? 'ex-tooltip-target ' : ''}h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
+              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
@@ -3326,13 +3321,8 @@ export default function InvoiceFileConvertPage() {
             {/* 카드 2: 고정입력 */}
             <button
               type="button"
-              data-ex-tooltip={
-                trialMode
-                  ? '배송방법처럼 모든 행에 공통으로 들어갈 값을 미리 지정하는 영역입니다.'
-                  : undefined
-              }
               onClick={handleOpenSenderModal}
-              className={`${trialMode ? 'ex-tooltip-target ' : ''}h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100`}
+              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
@@ -3352,14 +3342,9 @@ export default function InvoiceFileConvertPage() {
             {/* 카드 3: 송장 업로드 파일 다운로드 */}
             <button
               type="button"
-              data-ex-tooltip={
-                trialMode
-                  ? '체험에서는 미리보기만 확인할 수 있습니다. 변환 파일 다운로드는 무료 가입 후 이용할 수 있습니다.'
-                  : undefined
-              }
               onClick={handleDownloadPreview}
               disabled={downloadStatus === "processing"}
-              className={`${trialMode ? 'ex-tooltip-target ' : ''}h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="h-[120px] bg-gray-200 border border-gray-300 rounded-xl p-5 flex flex-col justify-center transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center justify-center gap-3 mb-2">
                 <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100">
