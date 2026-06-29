@@ -31,7 +31,7 @@ export function ToolWorkspace({ tool }: Props) {
               <p className="mb-1 text-xs font-semibold text-blue-600">{tool.category}</p>
               <h2 className="text-xl font-bold text-zinc-950 sm:text-2xl">{tool.name}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:mt-3">
-                {tool.description}
+                {tool.pageDescription ?? tool.description}
               </p>
             </div>
           </div>

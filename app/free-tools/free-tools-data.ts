@@ -16,6 +16,7 @@ export type FreeTool = {
   name: string;
   shortDescription: string;
   description: string;
+  pageDescription?: string;
   icon: LucideIcon;
   category: string;
   enabled: boolean;
@@ -69,10 +70,12 @@ export const freeTools: FreeTool[] = [
   },
   {
     slug: 'image-text-extractor',
-    name: '이미지 글자 추출기',
-    shortDescription: '사진이나 스크린샷 속 글자를 텍스트로 바꿉니다.',
+    name: '이미지·캡처 글자 추출기',
+    shortDescription: '이미지 파일이나 캡처 화면 속 글자를 텍스트로 바꿉니다.',
     description:
-      '사진이나 스크린샷 속 글자를 자동으로 읽어 텍스트·엑셀 파일로 저장할 수 있습니다.',
+      '이미지 파일이나 캡처한 화면 속 글자를 자동으로 읽어 텍스트·엑셀 파일로 저장할 수 있습니다.',
+    pageDescription:
+      '이미지 파일을 올리거나 캡처한 화면을 바로 붙여넣으면, 안에 있는 글자를 자동으로 읽어 텍스트로 정리합니다. 추출한 글자는 복사하거나 TXT, CSV, 엑셀 파일로 다운로드할 수 있습니다.',
     icon: ScanText,
     category: '이미지',
     enabled: true,
