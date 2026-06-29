@@ -784,7 +784,7 @@ export function ImageTextExtractor() {
       </section>
 
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
           <div>
             <h3 className="text-lg font-bold text-zinc-950">추출된 글자</h3>
             <p className="mt-2 text-sm leading-relaxed text-zinc-600">
@@ -793,22 +793,22 @@ export function ImageTextExtractor() {
             <p className="mt-2 text-xs leading-relaxed text-zinc-500">
               글자가 작거나 배경이 복잡한 이미지는 자동 보정 후에도 일부 글자가 다르게 인식될 수 있습니다.
             </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:items-end">
-            {confidenceLabel ? (
-              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
-                읽기 상태: {confidenceLabel}
-              </span>
-            ) : null}
-            <button
-              type="button"
-              onClick={copyText}
-              disabled={!hasText || processing}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:bg-zinc-100 disabled:text-zinc-400"
-            >
-              <ClipboardCopy className="size-4" aria-hidden />
-              {copied ? '복사됨' : '복사하기'}
-            </button>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {confidenceLabel ? (
+                <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+                  읽기 상태: {confidenceLabel}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={copyText}
+                disabled={!hasText || processing}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:bg-zinc-100 disabled:text-zinc-400"
+              >
+                <ClipboardCopy className="size-4" aria-hidden />
+                {copied ? '복사됨' : '복사하기'}
+              </button>
+            </div>
           </div>
         </div>
 
