@@ -31,7 +31,7 @@ export function FreeToolCard({ tool }: Props) {
         <h2 className="text-xl font-black text-zinc-950">{tool.name}</h2>
         <p className="mt-3 flex-1 text-sm leading-relaxed text-zinc-600">{tool.description}</p>
         <span className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition group-hover:bg-blue-600 sm:w-fit sm:py-2.5">
-          {tool.ctaLabel ?? '무료로 사용하기'}
+          무료로 사용하기
         </span>
       </div>
     </Link>

@@ -1,6 +1,5 @@
 import {
   Calculator,
-  Contact,
   FileCheck2,
   FileDown,
   FileSpreadsheet,
@@ -18,9 +17,6 @@ export type FreeTool = {
   shortDescription: string;
   description: string;
   pageDescription?: string;
-  ctaLabel?: string;
-  seoTitle?: string;
-  seoDescription?: string;
   icon: LucideIcon;
   category: string;
   enabled: boolean;
@@ -95,23 +91,6 @@ export const freeTools: FreeTool[] = [
     category: '마케팅',
     enabled: true,
     ogImagePath: '/og/free-tools-qr-code.png',
-  },
-  {
-    slug: 'kakao-card',
-    name: '카톡 명함',
-    shortDescription: '카톡이나 문자로 보낼 이미지 명함을 만듭니다.',
-    description:
-      '이름과 연락처를 입력해 카톡이나 문자로 보낼 수 있는 이미지 명함을 만듭니다.',
-    pageDescription:
-      '이름, 연락처, 가게 정보를 입력하면 카톡이나 문자로 보낼 수 있는 이미지 명함을 만들 수 있습니다. 디자인 프로그램을 몰라도 괜찮습니다. 필요한 정보만 입력하면 이미지 명함이 자동으로 만들어집니다.',
-    ctaLabel: '명함 만들기',
-    seoTitle: '카톡 명함 만들기 - 이미지 명함 무료 제작',
-    seoDescription:
-      '이름, 전화번호, 가게 정보를 입력하면 카톡이나 문자로 보낼 수 있는 이미지 명함을 무료로 만들 수 있습니다. 배경 이미지 업로드, 랜덤 배경, QR코드 삽입을 지원합니다.',
-    icon: Contact,
-    category: '이미지',
-    enabled: true,
-    ogImagePath: '/og/free-tools-kakao-card.png',
   },
   {
     slug: 'excel-csv',
