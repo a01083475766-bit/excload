@@ -4739,9 +4739,11 @@ export default function OrderConvertPage() {
                 사용자 지정양식 만들기
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                주문 파일의 헤더를 기준으로 출력 양식을 만들어 보세요.
+                주문파일의 열을 원하는 이름과 순서로 바꿔 저장합니다.
                 <br />
-                원본 헤더명과 출력 헤더명을 연결해 저장하므로, 같은 헤더 구조의 파일에 사용할 때 정확하게 변환됩니다.
+                헤더명을 바꾸거나 출력 순서를 옮기면, 그 열에 들어 있는 주문 데이터도 함께 이동됩니다.
+                <br />
+                저장 후 같은 형식의 주문파일을 다시 업로드하면, 설정한 양식대로 변환됩니다.
               </p>
             </div>
             <button
@@ -4759,18 +4761,21 @@ export default function OrderConvertPage() {
           </div>
 
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-            2번 행에서 출력 헤더명을 바꾸면 해당 열의 셀값은 그대로 유지되고, 변경한 이름 아래로 이동합니다.
-            3번 행에 올린 항목만 출력되며, 이 양식은 등록할 때 사용한 파일 헤더 구조에 맞춰 저장됩니다.
+            위쪽 1번 줄은 현재 주문파일에 들어있는 원래 헤더명입니다.
+            <br />
+            가운데 2번 줄에서는 다운로드 파일에 표시될 이름을 바꿀 수 있습니다. 이름을 바꿔도 해당 열의 주문 값은 그대로 유지됩니다.
+            <br />
+            아래 3번 줄에는 최종 파일에 넣을 항목을 원하는 순서대로 올려 주세요. 3번 줄에 올린 항목만 저장되며, 헤더와 그 아래 데이터가 함께 이동됩니다.
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
             <table className="border-collapse text-sm">
               <tbody>
                 <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                  <th className="sticky left-0 z-20 min-w-[260px] max-w-[260px] border-b border-r border-zinc-200 bg-zinc-100 px-4 py-3 text-left dark:border-zinc-700 dark:bg-zinc-800">
-                    <div>1. 현재 파일 헤더명</div>
+                  <th className="sticky left-0 z-20 min-w-[338px] max-w-[338px] border-b border-r border-zinc-200 bg-zinc-100 px-4 py-3 text-left dark:border-zinc-700 dark:bg-zinc-800">
+                    <div>1. 원본 주문파일 헤더</div>
                     <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
-                      주문파일에서 읽은 원래 헤더입니다. 기준 확인용이며 여기서는 수정하지 않습니다.
+                      현재 주문파일에 들어있는 원래 열 이름입니다. 어떤 주문 값을 가져올지 확인하는 줄이며, 수정할 수 없습니다.
                     </div>
                   </th>
                   {directMappingSourceHeaders.map((sourceHeader, index) => (
@@ -4792,10 +4797,10 @@ export default function OrderConvertPage() {
                   ))}
                 </tr>
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-[260px] max-w-[260px] border-b border-r border-zinc-200 bg-white px-4 py-3 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    <div>2. 명칭 변경</div>
+                  <th className="sticky left-0 z-10 min-w-[338px] max-w-[338px] border-b border-r border-zinc-200 bg-white px-4 py-3 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    <div>2. 다운로드 파일에 표시될 이름</div>
                     <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
-                      다운로드 파일에 보일 이름을 입력합니다. 아래 카드를 3번 행으로 끌어 넣으면 출력 항목에 추가됩니다.
+                      최종 엑셀 파일에서 사용할 열 이름을 입력합니다. 예를 들어 원본 헤더가 &lsquo;받는사람&rsquo;이어도 &lsquo;받는 분&rsquo;으로 바꿀 수 있습니다. 헤더 이름만 바뀌며, 그 아래 주문 값은 그대로 연결됩니다.
                     </div>
                   </th>
                   {directMappingSourceHeaders.map((sourceHeader, index) => {
@@ -4836,10 +4841,10 @@ export default function OrderConvertPage() {
                   })}
                 </tr>
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-[260px] max-w-[260px] border-r border-zinc-200 bg-white px-4 py-3 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                  <th className="sticky left-0 z-10 min-w-[338px] max-w-[338px] border-r border-zinc-200 bg-white px-4 py-3 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
                     <div>3. 최종 출력 순서</div>
                     <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
-                      2번 행에서 가져온 카드와 새 헤더만 출력됩니다. 카드를 좌우로 옮겨 다운로드 열 순서를 정합니다.
+                      다운로드 파일에 넣을 항목을 이 줄에 올려 주세요. 이 줄에 올린 항목만 저장되며, 왼쪽부터 엑셀 열 순서가 됩니다. 항목을 옮기면 헤더뿐 아니라 해당 열의 주문 데이터도 함께 이동됩니다.
                     </div>
                     <div className="mt-3">
                       {directMappingCustomHeaderInputOpen ? (
@@ -4883,7 +4888,7 @@ export default function OrderConvertPage() {
                         <button
                           type="button"
                           onClick={() => setDirectMappingCustomHeaderInputOpen(true)}
-                          className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
+                          className="w-full rounded border border-blue-200 bg-blue-50 px-4 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
                         >
                           새 헤더 추가 +
                         </button>
@@ -4976,23 +4981,31 @@ export default function OrderConvertPage() {
               현재 출력 순서
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {directMappingOutputOrder.map((sourceIndex, orderIndex) => {
-                const outputHeader = getDirectMappingOutputHeaderName(sourceIndex);
-                return (
-                  <span
-                    key={`direct-order-chip-${outputHeader}-${sourceIndex}`}
-                    className="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
-                  >
-                    {orderIndex + 1}. {outputHeader}
-                  </span>
-                );
-              })}
+              {directMappingOutputOrder.length === 0 ? (
+                <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  아직 선택된 항목이 없습니다. 2번 줄의 항목을 아래로 옮기면 다운로드 파일에 포함됩니다.
+                </p>
+              ) : (
+                directMappingOutputOrder.map((sourceIndex, orderIndex) => {
+                  const outputHeader = getDirectMappingOutputHeaderName(sourceIndex);
+                  return (
+                    <span
+                      key={`direct-order-chip-${outputHeader}-${sourceIndex}`}
+                      className="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
+                    >
+                      {orderIndex + 1}. {outputHeader}
+                    </span>
+                  );
+                })
+              )}
             </div>
           </div>
 
           <div className="mt-4 flex flex-shrink-0 items-center justify-between gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-              등록 후에는 현재 미리보기가 초기화됩니다. 같은 주문파일을 다시 첨부하면 등록한 이름과 순서대로 변환됩니다.
+              양식을 등록하면 현재 미리보기는 초기화됩니다.
+              <br />
+              등록 후 같은 형식의 주문파일을 다시 업로드하면, 방금 설정한 헤더명과 출력 순서대로 주문 데이터가 함께 변환됩니다.
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -5011,7 +5024,7 @@ export default function OrderConvertPage() {
                 onClick={handleCreateDirectMappingFormat}
                 className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
               >
-                사용자 지정양식 등록
+                사용자 지정양식 저장
               </button>
             </div>
           </div>
