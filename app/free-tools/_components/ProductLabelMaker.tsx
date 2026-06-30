@@ -5,6 +5,7 @@ import { AlertCircle, Barcode, Download, Info, RotateCcw, ShieldCheck } from 'lu
 import JsBarcode from 'jsbarcode';
 
 type LabelSizeKey = 'small' | 'medium' | 'wide';
+type BarcodeHeightKey = 'low' | 'normal' | 'high';
 
 type LabelSize = {
   key: LabelSizeKey;
@@ -28,11 +29,29 @@ type LabelForm = {
   memo: string;
 };
 
+type LabelOptions = {
+  showBarcodeValue: boolean;
+  barcodeHeight: BarcodeHeightKey;
+  showBorder: boolean;
+};
+
 const labelSizes: LabelSize[] = [
-  { key: 'small', label: '소형 라벨: 60mm × 40mm', widthMm: 60, heightMm: 40, previewWidth: 330 },
-  { key: 'medium', label: '중형 라벨: 80mm × 50mm', widthMm: 80, heightMm: 50, previewWidth: 430 },
-  { key: 'wide', label: '가로형 라벨: 100mm × 60mm', widthMm: 100, heightMm: 60, previewWidth: 520 },
+  { key: 'small', label: '소형 60×40mm · 작은 상품/봉투용', widthMm: 60, heightMm: 40, previewWidth: 330 },
+  { key: 'medium', label: '중형 80×50mm · 일반 상품용', widthMm: 80, heightMm: 50, previewWidth: 430 },
+  { key: 'wide', label: '대형 100×60mm · 박스/포장용', widthMm: 100, heightMm: 60, previewWidth: 520 },
 ];
+
+const barcodeHeightOptions: Record<BarcodeHeightKey, { label: string; jsBarcodeHeight: number; svgHeight: number; previewClassName: string }> = {
+  low: { label: '낮음', jsBarcodeHeight: 46, svgHeight: 66, previewClassName: 'h-12' },
+  normal: { label: '보통', jsBarcodeHeight: 64, svgHeight: 94, previewClassName: 'h-16' },
+  high: { label: '높음', jsBarcodeHeight: 84, svgHeight: 116, previewClassName: 'h-20' },
+};
+
+const initialOptions: LabelOptions = {
+  showBarcodeValue: true,
+  barcodeHeight: 'normal',
+  showBorder: true,
+};
 
 const initialForm: LabelForm = {
   productName: '참치회 세트',
@@ -71,7 +90,7 @@ function downloadBlob(content: BlobPart, fileName: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-function getSafeFileName(productName: string, extension: 'png' | 'svg') {
+function getSafeFileName(productName: string, extension: 'png' | 'svg' | 'pdf') {
   const safeName = productName
     .trim()
     .replace(/[\\/:*?"<>|]/g, '')
@@ -81,7 +100,7 @@ function getSafeFileName(productName: string, extension: 'png' | 'svg') {
   return safeName ? `product-label-${safeName}.${extension}` : `product-label.${extension}`;
 }
 
-function createBarcodeSvg(value: string) {
+function createBarcodeSvg(value: string, height: number) {
   if (!value.trim()) {
     return { markup: '', error: null };
   }
@@ -93,7 +112,7 @@ function createBarcodeSvg(value: string) {
       displayValue: false,
       margin: 0,
       width: 1.8,
-      height: 64,
+      height,
       lineColor: '#111827',
       background: '#ffffff',
     });
@@ -131,7 +150,7 @@ function svgText(text: string, x: number, y: number, className: string, anchor =
   return `<text x="${x}" y="${y}" class="${className}" text-anchor="${anchor}">${escapeXml(text)}</text>`;
 }
 
-function buildLabelSvg(form: LabelForm, size: LabelSize, barcodeMarkup: string) {
+function buildLabelSvg(form: LabelForm, size: LabelSize, barcodeMarkup: string, options: LabelOptions) {
   const width = size.widthMm * 8;
   const height = size.heightMm * 8;
   const padding = 28;
@@ -170,7 +189,7 @@ function buildLabelSvg(form: LabelForm, size: LabelSize, barcodeMarkup: string) 
   y += Math.ceil(labelItems.length / 2) * 22 + 8;
 
   const barcodeY = Math.min(y + 4, height - 148);
-  const barcodeHeight = size.key === 'small' ? 78 : 94;
+  const barcodeHeight = Math.min(barcodeHeightOptions[options.barcodeHeight].svgHeight, size.key === 'small' ? 78 : 116);
   const barcodeWidth = width - padding * 2;
   const code = form.barcodeValue.trim();
 
@@ -185,7 +204,7 @@ function buildLabelSvg(form: LabelForm, size: LabelSize, barcodeMarkup: string) 
     content.push(svgText('바코드 표시 불가', width / 2, barcodeY + barcodeHeight / 2 + 4, 'emptyText', 'middle'));
   }
 
-  if (code) {
+  if (code && options.showBarcodeValue) {
     content.push(svgText(code, width / 2, barcodeY + barcodeHeight + 22, 'code', 'middle'));
   }
 
@@ -205,9 +224,43 @@ function buildLabelSvg(form: LabelForm, size: LabelSize, barcodeMarkup: string) 
     .emptyText { font: 700 16px Arial, sans-serif; fill: #64748b; }
   </style>
   <rect width="100%" height="100%" rx="18" fill="#ffffff" />
-  <rect x="10" y="10" width="${width - 20}" height="${height - 20}" rx="16" fill="none" stroke="#cbd5e1" stroke-width="2" />
+  ${options.showBorder ? `<rect x="10" y="10" width="${width - 20}" height="${height - 20}" rx="16" fill="none" stroke="#cbd5e1" stroke-width="2" />` : ''}
   ${content.join('\n  ')}
 </svg>`;
+}
+
+function svgToPngDataUrl(labelSvg: string, size: LabelSize) {
+  return new Promise<string>((resolve, reject) => {
+    const svgBlob = new Blob([labelSvg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const image = new Image();
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size.widthMm * 8;
+      canvas.height = size.heightMm * 8;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        URL.revokeObjectURL(url);
+        reject(new Error('Canvas context is not available.'));
+        return;
+      }
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Label image rendering failed.'));
+    };
+
+    image.src = url;
+  });
 }
 
 function getFieldValue(form: LabelForm, key: keyof LabelForm) {
@@ -217,6 +270,7 @@ function getFieldValue(form: LabelForm, key: keyof LabelForm) {
 export function ProductLabelMaker() {
   const [form, setForm] = useState<LabelForm>(initialForm);
   const [sizeKey, setSizeKey] = useState<LabelSizeKey>('medium');
+  const [options, setOptions] = useState<LabelOptions>(initialOptions);
   const [barcodeSvg, setBarcodeSvg] = useState('');
   const [barcodeError, setBarcodeError] = useState<string | null>(null);
 
@@ -226,8 +280,8 @@ export function ProductLabelMaker() {
   );
 
   const labelSvg = useMemo(
-    () => buildLabelSvg(form, selectedSize, barcodeSvg),
-    [barcodeSvg, form, selectedSize],
+    () => buildLabelSvg(form, selectedSize, barcodeSvg, options),
+    [barcodeSvg, form, options, selectedSize],
   );
 
   const updateField = (key: keyof LabelForm, value: string) => {
@@ -235,50 +289,62 @@ export function ProductLabelMaker() {
   };
 
   useEffect(() => {
-    const result = createBarcodeSvg(form.barcodeValue);
+    const result = createBarcodeSvg(form.barcodeValue, barcodeHeightOptions[options.barcodeHeight].jsBarcodeHeight);
     setBarcodeSvg(result.markup);
     setBarcodeError(result.error);
-  }, [form.barcodeValue]);
+  }, [form.barcodeValue, options.barcodeHeight]);
 
   const downloadSvg = () => {
     downloadBlob(labelSvg, getSafeFileName(form.productName, 'svg'), 'image/svg+xml;charset=utf-8');
   };
 
-  const downloadPng = () => {
-    const svgBlob = new Blob([labelSvg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-    const image = new Image();
-
-    image.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = selectedSize.widthMm * 8;
-      canvas.height = selectedSize.heightMm * 8;
-      const context = canvas.getContext('2d');
-
-      if (!context) {
-        URL.revokeObjectURL(url);
-        return;
-      }
-
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-
-      const pngUrl = canvas.toDataURL('image/png');
+  const downloadPng = async () => {
+    try {
+      const pngUrl = await svgToPngDataUrl(labelSvg, selectedSize);
       const link = document.createElement('a');
       link.href = pngUrl;
       link.download = getSafeFileName(form.productName, 'png');
       document.body.appendChild(link);
       link.click();
       link.remove();
-    };
+    } catch {
+      setBarcodeError('PNG 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    }
+  };
 
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-    };
+  const downloadPdf = async () => {
+    try {
+      const [{ PDFDocument }, pngUrl] = await Promise.all([
+        import('pdf-lib'),
+        svgToPngDataUrl(labelSvg, selectedSize),
+      ]);
+      const pngBytes = await fetch(pngUrl).then((response) => response.arrayBuffer());
+      const pdfDocument = await PDFDocument.create();
+      const widthPt = (selectedSize.widthMm / 25.4) * 72;
+      const heightPt = (selectedSize.heightMm / 25.4) * 72;
+      const page = pdfDocument.addPage([widthPt, heightPt]);
+      const pngImage = await pdfDocument.embedPng(pngBytes);
 
-    image.src = url;
+      page.drawImage(pngImage, { x: 0, y: 0, width: widthPt, height: heightPt });
+
+      const pdfBytes = await pdfDocument.save();
+      const pdfArrayBuffer = pdfBytes.buffer.slice(
+        pdfBytes.byteOffset,
+        pdfBytes.byteOffset + pdfBytes.byteLength,
+      ) as ArrayBuffer;
+
+      downloadBlob(pdfArrayBuffer, getSafeFileName(form.productName, 'pdf'), 'application/pdf');
+    } catch {
+      setBarcodeError('PDF 파일을 만들지 못했습니다. PNG 또는 SVG 다운로드를 이용해 주세요.');
+    }
+  };
+
+  const loadExample = () => {
+    const confirmed = window.confirm('현재 입력한 내용이 예시값으로 바뀝니다. 예시를 다시 불러올까요?');
+    if (!confirmed) return;
+
+    setForm(initialForm);
+    setOptions(initialOptions);
   };
 
   const fields: { key: keyof LabelForm; label: string; placeholder?: string; rows?: number }[] = [
@@ -305,6 +371,9 @@ export function ProductLabelMaker() {
             <p className="mt-2 text-sm leading-relaxed text-zinc-600">
               이미 가지고 있는 바코드 번호나 내부 상품코드와 상품 정보를 입력하면 라벨 미리보기가 바로
               바뀝니다.
+            </p>
+            <p className="mt-2 text-xs font-semibold text-zinc-500">
+              입력하지 않은 항목은 라벨에서 자동으로 숨겨집니다.
             </p>
           </div>
         </div>
@@ -345,6 +414,54 @@ export function ProductLabelMaker() {
             </p>
           </div>
 
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+            <p className="text-sm font-bold text-zinc-950">표시 옵션</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-600">바코드 아래 번호 표시</span>
+                <select
+                  value={options.showBarcodeValue ? 'on' : 'off'}
+                  onChange={(event) =>
+                    setOptions((current) => ({ ...current, showBarcodeValue: event.target.value === 'on' }))
+                  }
+                  className={inputClassName}
+                >
+                  <option value="on">켜기</option>
+                  <option value="off">끄기</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-600">바코드 높이</span>
+                <select
+                  value={options.barcodeHeight}
+                  onChange={(event) =>
+                    setOptions((current) => ({ ...current, barcodeHeight: event.target.value as BarcodeHeightKey }))
+                  }
+                  className={inputClassName}
+                >
+                  {Object.entries(barcodeHeightOptions).map(([key, option]) => (
+                    <option key={key} value={key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-600">라벨 테두리 표시</span>
+                <select
+                  value={options.showBorder ? 'on' : 'off'}
+                  onChange={(event) =>
+                    setOptions((current) => ({ ...current, showBorder: event.target.value === 'on' }))
+                  }
+                  className={inputClassName}
+                >
+                  <option value="on">켜기</option>
+                  <option value="off">끄기</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             {fields.map((field) => (
               <label key={field.key} className={field.rows ? 'block sm:col-span-2' : 'block'}>
@@ -378,11 +495,11 @@ export function ProductLabelMaker() {
 
           <button
             type="button"
-            onClick={() => setForm(initialForm)}
+            onClick={loadExample}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 sm:w-fit"
           >
             <RotateCcw className="size-4" aria-hidden />
-            예시값으로 되돌리기
+            예시 다시 불러오기
           </button>
 
           <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-xs leading-relaxed text-blue-900">
@@ -405,7 +522,9 @@ export function ProductLabelMaker() {
 
         <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
           <div
-            className="mx-auto origin-top rounded-[18px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] ring-1 ring-slate-200"
+            className={`mx-auto origin-top rounded-[18px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] ${
+              options.showBorder ? 'ring-1 ring-slate-200' : ''
+            }`}
             style={{
               width: selectedSize.previewWidth,
               aspectRatio: `${selectedSize.widthMm} / ${selectedSize.heightMm}`,
@@ -446,7 +565,9 @@ export function ProductLabelMaker() {
 
               <div className="mt-auto pt-3">
                 {(barcodeSvg || form.barcodeValue.trim()) && (
-                  <div className="flex h-16 items-center justify-center overflow-hidden rounded-lg bg-white">
+                  <div
+                    className={`flex ${barcodeHeightOptions[options.barcodeHeight].previewClassName} items-center justify-center overflow-hidden rounded-lg bg-white`}
+                  >
                     {barcodeSvg ? (
                       <div className="w-full" dangerouslySetInnerHTML={{ __html: barcodeSvg }} />
                     ) : (
@@ -456,7 +577,7 @@ export function ProductLabelMaker() {
                     )}
                   </div>
                 )}
-                {form.barcodeValue.trim() && (
+                {form.barcodeValue.trim() && options.showBarcodeValue && (
                   <p className="mt-1 truncate text-center text-xs font-black tracking-[0.12em] text-slate-900">
                     {form.barcodeValue}
                   </p>
@@ -467,10 +588,15 @@ export function ProductLabelMaker() {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+          출력 후 실제 바코드 스캐너 또는 휴대폰 앱으로 인식 여부를 확인해 주세요. 바코드 주변 여백이 너무
+          좁거나 인쇄가 흐리면 스캔이 어려울 수 있습니다.
+        </p>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <button
             type="button"
-            onClick={downloadPng}
+            onClick={() => void downloadPng()}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
           >
             <Download className="size-4" aria-hidden />
@@ -483,6 +609,14 @@ export function ProductLabelMaker() {
           >
             <Download className="size-4" aria-hidden />
             SVG 다운로드
+          </button>
+          <button
+            type="button"
+            onClick={() => void downloadPdf()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-700 hover:bg-teal-100"
+          >
+            <Download className="size-4" aria-hidden />
+            인쇄용 PDF 다운로드
           </button>
         </div>
 
