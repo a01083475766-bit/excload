@@ -467,30 +467,6 @@ function buildDirectPreviewRowsFromCleanInput(
   });
 }
 
-function buildDefaultDirectMappingSelections(
-  bridgeFile: TemplateBridgeFile | null,
-  sourceHeaders: string[],
-  headerMapping: { mappedBaseHeaders?: (string | null)[] } | null,
-): Record<string, string> {
-  if (!bridgeFile) return {};
-
-  const sourceHeaderByBaseHeader = new Map<string, string>();
-  headerMapping?.mappedBaseHeaders?.forEach((baseHeader, index) => {
-    const sourceHeader = sourceHeaders[index];
-    if (baseHeader && sourceHeader && !sourceHeaderByBaseHeader.has(baseHeader)) {
-      sourceHeaderByBaseHeader.set(baseHeader, sourceHeader);
-    }
-  });
-
-  return bridgeFile.courierHeaders.reduce<Record<string, string>>((acc, courierHeader, index) => {
-    const mappedBaseHeader = bridgeFile.mappedBaseHeaders[index];
-    acc[courierHeader] = mappedBaseHeader
-      ? sourceHeaderByBaseHeader.get(mappedBaseHeader) ?? ''
-      : '';
-    return acc;
-  }, {});
-}
-
 function mergeUnknownHeaders(previous: string[], next: string[]): string[] {
   return [...previous, ...next].filter((header, index, headers) => headers.indexOf(header) === index);
 }
@@ -751,10 +727,8 @@ export default function OrderConvertPage() {
   const [directMappingModalOpen, setDirectMappingModalOpen] = useState(false);
   const [directMappingSourceHeaders, setDirectMappingSourceHeaders] = useState<string[]>([]);
   const [directMappingSourceSamples, setDirectMappingSourceSamples] = useState<UnknownHeaderSamples>({});
-  const [directMappingSelections, setDirectMappingSelections] = useState<Record<string, string>>({});
-  const [latestOrderHeaderMapping, setLatestOrderHeaderMapping] = useState<{
-    mappedBaseHeaders?: (string | null)[];
-  } | null>(null);
+  const [directMappingRenameValues, setDirectMappingRenameValues] = useState<string[]>([]);
+  const [directMappingOutputOrder, setDirectMappingOutputOrder] = useState<number[]>([]);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   /** 대용량 Stage2 청크 호출 시에만 표시 */
   const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
@@ -1171,8 +1145,8 @@ export default function OrderConvertPage() {
       setDirectMappingModalOpen(false);
       setDirectMappingSourceHeaders([]);
       setDirectMappingSourceSamples({});
-      setDirectMappingSelections({});
-      setLatestOrderHeaderMapping(null);
+      setDirectMappingRenameValues([]);
+      setDirectMappingOutputOrder([]);
       setFileProcessingStatus('idle');
       setStage2ChunkLabel(null);
       setSelectedFileName(null);
@@ -1589,8 +1563,8 @@ export default function OrderConvertPage() {
     setDirectMappingModalOpen(false);
     setDirectMappingSourceHeaders([]);
     setDirectMappingSourceSamples({});
-    setDirectMappingSelections({});
-    setLatestOrderHeaderMapping(null);
+    setDirectMappingRenameValues([]);
+    setDirectMappingOutputOrder([]);
     setTextInput('');
     clearWorkspaceInputTracking();
   }, [clearWorkspaceInputTracking]);
@@ -1950,21 +1924,27 @@ export default function OrderConvertPage() {
       return;
     }
 
-    setDirectMappingSelections(
-      buildDefaultDirectMappingSelections(
-        activeBridge,
-        directMappingSourceHeaders,
-        latestOrderHeaderMapping,
-      ),
-    );
+    setDirectMappingRenameValues([...directMappingSourceHeaders]);
+    setDirectMappingOutputOrder(directMappingSourceHeaders.map((_, index) => index));
     setDirectMappingModalOpen(true);
   };
 
-  const handleDirectMappingSelectionChange = (courierHeader: string, sourceHeader: string) => {
-    setDirectMappingSelections((prev) => ({
-      ...prev,
-      [courierHeader]: sourceHeader,
-    }));
+  const handleDirectMappingRenameChange = (sourceIndex: number, value: string) => {
+    setDirectMappingRenameValues((prev) =>
+      prev.map((header, index) => (index === sourceIndex ? value : header)),
+    );
+  };
+
+  const handleMoveDirectMappingOutputHeader = (sourceIndex: number, direction: -1 | 1) => {
+    setDirectMappingOutputOrder((prev) => {
+      const currentIndex = prev.indexOf(sourceIndex);
+      const nextIndex = currentIndex + direction;
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= prev.length) return prev;
+
+      const next = [...prev];
+      [next[currentIndex], next[nextIndex]] = [next[nextIndex]!, next[currentIndex]!];
+      return next;
+    });
   };
 
   const handleCreateDirectMappingFormat = () => {
@@ -1974,29 +1954,45 @@ export default function OrderConvertPage() {
       return;
     }
 
-    const directHeaderMappings = activeBridge.courierHeaders.reduce<DirectHeaderMapping>(
-      (acc, courierHeader) => {
-        const sourceHeader = directMappingSelections[courierHeader]?.trim();
-        acc[courierHeader] = sourceHeader || null;
-        return acc;
-      },
-      {},
-    );
+    const finalColumns = directMappingOutputOrder.map((sourceIndex) => ({
+      sourceHeader: directMappingSourceHeaders[sourceIndex] ?? '',
+      outputHeader: directMappingRenameValues[sourceIndex]?.trim() ?? '',
+    }));
 
-    const mappedCount = Object.values(directHeaderMappings).filter(Boolean).length;
-    if (mappedCount === 0) {
-      alert('주문파일에서 가져올 항목을 1개 이상 선택해 주세요.');
+    const emptyColumn = finalColumns.find((column) => !column.outputHeader);
+    if (emptyColumn) {
+      alert('2번 행의 변경할 헤더명을 모두 입력해 주세요.');
       return;
     }
 
+    const seenHeaders = new Set<string>();
+    const duplicateHeader = finalColumns.find((column) => {
+      const normalized = column.outputHeader.replace(/\s/g, '').toLowerCase();
+      if (seenHeaders.has(normalized)) return true;
+      seenHeaders.add(normalized);
+      return false;
+    });
+
+    if (duplicateHeader) {
+      alert(`중복된 최종 출력 헤더가 있습니다: ${duplicateHeader.outputHeader}`);
+      return;
+    }
+
+    const finalHeaders = finalColumns.map((column) => column.outputHeader);
+    const directHeaderMappings = finalColumns.reduce<DirectHeaderMapping>((acc, column) => {
+      acc[column.outputHeader] = column.sourceHeader || null;
+      return acc;
+    }, {});
+
     const directBridgeFile: TemplateBridgeFile = {
       ...activeBridge,
-      mappedBaseHeaders: activeBridge.courierHeaders.map(() => null),
+      courierHeaders: finalHeaders,
+      mappedBaseHeaders: finalHeaders.map(() => null),
       unknownHeaders: [],
       directHeaderMappings,
       directSourceHeaders: [...directMappingSourceHeaders],
     };
-    const template = buildCourierTemplateFromHeaders(activeBridge.courierHeaders);
+    const template = buildCourierTemplateFromHeaders(finalHeaders);
     const formatName = '직접 연결 양식';
     const directFormatId = saveRecentExcelFormat(
       template,
@@ -2038,8 +2034,8 @@ export default function OrderConvertPage() {
     setDirectMappingModalOpen(false);
     setDirectMappingSourceHeaders([]);
     setDirectMappingSourceSamples({});
-    setDirectMappingSelections({});
-    setLatestOrderHeaderMapping(null);
+    setDirectMappingRenameValues([]);
+    setDirectMappingOutputOrder([]);
     setSelectedFileName(null);
     setSelectedRows([]);
     setNewRows(new Set());
@@ -2996,7 +2992,6 @@ export default function OrderConvertPage() {
 
       setUnknownHeadersWarning([]);
       setUnknownHeaderSamples({});
-      setLatestOrderHeaderMapping(null);
       setOrderStandardFile(null);
 
       if (appendPreview) {
@@ -3069,7 +3064,6 @@ export default function OrderConvertPage() {
         }),
       );
     }
-    setLatestOrderHeaderMapping(headerMapping);
 
     if (isExcloudPipelineDebugClient()) {
       try {
@@ -3482,8 +3476,8 @@ export default function OrderConvertPage() {
           setDirectMappingModalOpen(false);
           setDirectMappingSourceHeaders([]);
           setDirectMappingSourceSamples({});
-          setDirectMappingSelections({});
-          setLatestOrderHeaderMapping(null);
+          setDirectMappingRenameValues([]);
+          setDirectMappingOutputOrder([]);
           setSelectedFileName(null);
           resetBundleShippingUi();
 
@@ -3519,8 +3513,8 @@ export default function OrderConvertPage() {
     setDirectMappingModalOpen(false);
     setDirectMappingSourceHeaders([]);
     setDirectMappingSourceSamples({});
-    setDirectMappingSelections({});
-    setLatestOrderHeaderMapping(null);
+    setDirectMappingRenameValues([]);
+    setDirectMappingOutputOrder([]);
     setSelectedFileName(null);
     setSelectedRows([]);
     setNewRows(new Set());
@@ -3545,8 +3539,6 @@ export default function OrderConvertPage() {
     if (courierFileInputRef.current) courierFileInputRef.current.value = '';
     setIsPreviewResetModalOpen(false);
   }, [resetBundleShippingUi, clearWorkspaceInputTracking, storageUserId]);
-
-  const directMappingBridgeForModal = directMappingModalOpen ? getActiveTemplateBridgeFile() : null;
 
   return (
     <>
@@ -4592,97 +4584,71 @@ export default function OrderConvertPage() {
               <tbody>
                 <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                   <th className="sticky left-0 z-20 min-w-[150px] border-b border-r border-zinc-200 bg-zinc-100 px-3 py-2 text-left dark:border-zinc-700 dark:bg-zinc-800">
-                    최종 출력 항목
+                    1. 현재 파일 헤더명
                   </th>
-                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => (
-                    <th
-                      key={`direct-output-${courierHeader}-${index}`}
-                      className="min-w-[220px] border-b border-r border-zinc-200 px-3 py-2 text-left font-semibold dark:border-zinc-700"
+                  {directMappingSourceHeaders.map((sourceHeader, index) => (
+                    <td
+                      key={`direct-source-${sourceHeader}-${index}`}
+                      className="min-w-[220px] border-b border-r border-zinc-200 px-3 py-2 font-semibold dark:border-zinc-700"
                     >
-                      {courierHeader}
-                    </th>
+                      {sourceHeader}
+                    </td>
                   ))}
                 </tr>
                 <tr>
                   <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    현재 연결 상태
+                    2. 명칭 변경
                   </th>
-                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
-                    const autoSourceHeader = buildDefaultDirectMappingSelections(
-                      directMappingBridgeForModal,
-                      directMappingSourceHeaders,
-                      latestOrderHeaderMapping,
-                    )[courierHeader];
-                    return (
-                      <td
-                        key={`direct-status-${courierHeader}-${index}`}
-                        className="border-b border-r border-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
-                      >
-                        {autoSourceHeader ? '자동 연결됨' : '확인 필요'}
-                      </td>
-                    );
-                  })}
-                </tr>
-                <tr>
-                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    주문파일 항목 선택
-                  </th>
-                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
-                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
-                    return (
-                      <td
-                        key={`direct-select-${courierHeader}-${index}`}
-                        className="border-b border-r border-zinc-100 px-3 py-2 dark:border-zinc-800"
-                      >
-                        <select
-                          value={selectedSourceHeader}
-                          onChange={(e) =>
-                            handleDirectMappingSelectionChange(courierHeader, e.target.value)
-                          }
-                          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                        >
-                          <option value="">비워두기</option>
-                          {directMappingSourceHeaders.map((sourceHeader, sourceIndex) => (
-                            <option key={`${sourceHeader}-${sourceIndex}`} value={sourceHeader}>
-                              {sourceHeader}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    );
-                  })}
-                </tr>
-                <tr>
-                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    예시값
-                  </th>
-                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
-                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
-                    const sampleValues = selectedSourceHeader
-                      ? directMappingSourceSamples[selectedSourceHeader] ?? []
-                      : [];
-                    return (
-                      <td
-                        key={`direct-sample-${courierHeader}-${index}`}
-                        className="border-b border-r border-zinc-100 px-3 py-2 text-xs leading-relaxed text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
-                      >
-                        {sampleValues.length > 0 ? sampleValues.join(' / ') : '-'}
-                      </td>
-                    );
-                  })}
+                  {directMappingSourceHeaders.map((sourceHeader, index) => (
+                    <td
+                      key={`direct-rename-${sourceHeader}-${index}`}
+                      className="border-b border-r border-zinc-100 px-3 py-2 dark:border-zinc-800"
+                    >
+                      <input
+                        type="text"
+                        value={directMappingRenameValues[index] ?? ''}
+                        onChange={(e) => handleDirectMappingRenameChange(index, e.target.value)}
+                        className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                      />
+                      <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                        예시값: {(directMappingSourceSamples[sourceHeader] ?? []).join(' / ') || '-'}
+                      </div>
+                    </td>
+                  ))}
                 </tr>
                 <tr>
                   <th className="sticky left-0 z-10 border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    처리 방식
+                    3. 최종 출력 순서
                   </th>
-                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
-                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
+                  {directMappingOutputOrder.map((sourceIndex, orderIndex) => {
+                    const sourceHeader = directMappingSourceHeaders[sourceIndex] ?? '';
+                    const outputHeader = directMappingRenameValues[sourceIndex]?.trim() || sourceHeader;
                     return (
                       <td
-                        key={`direct-method-${courierHeader}-${index}`}
-                        className="border-r border-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+                        key={`direct-final-${sourceHeader}-${sourceIndex}`}
+                        className="border-r border-zinc-100 px-3 py-2 dark:border-zinc-800"
                       >
-                        {selectedSourceHeader ? '주문파일 값' : '비워두기'}
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
+                          {outputHeader}
+                        </div>
+                        <div className="mt-2 flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveDirectMappingOutputHeader(sourceIndex, -1)}
+                            disabled={orderIndex === 0}
+                            className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
+                          >
+                            ←
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveDirectMappingOutputHeader(sourceIndex, 1)}
+                            disabled={orderIndex === directMappingOutputOrder.length - 1}
+                            className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
+                          >
+                            →
+                          </button>
+                        </div>
                       </td>
                     );
                   })}
