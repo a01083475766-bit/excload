@@ -7281,7 +7281,14 @@ export function LogisticsConvertClient({
                       key={`direct-source-${sourceHeader}-${index}`}
                       className="min-w-[220px] border-b border-r border-zinc-200 px-3 py-2 align-top font-semibold dark:border-zinc-700"
                     >
-                      <div className="flex min-h-[40px] items-start leading-5 line-clamp-2">
+                      <div
+                        className="h-[40px] overflow-hidden text-sm leading-5"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitBoxOrient: 'vertical',
+                          WebkitLineClamp: 2,
+                        }}
+                      >
                         {sourceHeader}
                       </div>
                     </td>
@@ -7326,8 +7333,17 @@ export function LogisticsConvertClient({
                         key={`direct-final-${sourceHeader}-${sourceIndex}`}
                         className="border-r border-zinc-100 px-3 py-2 align-top dark:border-zinc-800"
                       >
-                        <div className="flex min-h-[40px] items-start rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold leading-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
-                          {outputHeader}
+                        <div className="h-[56px] rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold leading-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
+                          <div
+                            className="h-[40px] overflow-hidden"
+                            style={{
+                              display: '-webkit-box',
+                              WebkitBoxOrient: 'vertical',
+                              WebkitLineClamp: 2,
+                            }}
+                          >
+                            {outputHeader}
+                          </div>
                         </div>
                         <div className="mt-2 flex items-center gap-1">
                           <button
