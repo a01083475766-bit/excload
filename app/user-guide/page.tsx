@@ -15,12 +15,13 @@ import { Fragment } from 'react';
 
 import { InvoiceFileUserGuideSection } from './InvoiceFileUserGuideSection';
 import { LogisticsUserGuideSection } from './LogisticsUserGuideSection';
+import { UserCustomFormatGuideBlock } from './UserCustomFormatGuideBlock';
 import UserGuidePreviewToolbar, { UserGuidePreviewHints } from './UserGuidePreviewToolbar';
 
 const USER_GUIDE_WORKFLOW_STEPS = [
   {
     label: '택배사 업로드 양식 등록',
-    tip: '택배사에 업로드할 때 쓰는 엑셀 양식을 먼저 등록합니다.\u000a아래 ‘택배 업로드 양식 등록’에서 진행합니다.',
+    tip: '택배사에 업로드할 때 쓰는 엑셀 양식을 먼저 등록합니다.\u000a아래 ‘택배 업로드 양식 등록’에서 진행합니다.\u000a양식 파일이 없거나 열 이름·순서를 직접 정하려면 「사용자 지정양식 만들기」를 사용할 수 있습니다.',
   },
   {
     label: '주문 파일 또는 주문 정보(텍스트·이미지) 입력',
@@ -232,6 +233,8 @@ export default function UserGuidePage() {
             </button>
           </div>
         </section>
+
+        <UserCustomFormatGuideBlock variant="courier" />
 
         {/* 권장 작업 순서 (랜딩·가이드용) */}
         <section className="relative pb-2 pt-2" aria-labelledby="user-guide-workflow-heading">

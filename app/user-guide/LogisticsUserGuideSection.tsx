@@ -8,11 +8,12 @@ import { ArrowDown, Coins, Search, Truck, Upload } from 'lucide-react';
 import { Fragment } from 'react';
 
 import UserGuidePreviewToolbar, { UserGuidePreviewHints } from './UserGuidePreviewToolbar';
+import { UserCustomFormatGuideBlock } from './UserCustomFormatGuideBlock';
 
 const LOGISTICS_WORKFLOW_STEPS = [
   {
     label: '물류센터 업로드 양식 등록',
-    tip: '물류센터(창고)에 업로드할 때 쓰는 엑셀 양식을 먼저 등록합니다.\u000a아래 ‘물류센터 업로드 양식 등록’에서 진행합니다.',
+    tip: '물류센터(창고)에 업로드할 때 쓰는 엑셀 양식을 먼저 등록합니다.\u000a아래 ‘물류센터 업로드 양식 등록’에서 진행합니다.\u000a양식 파일이 없거나 열 이름·순서를 직접 정하려면 「사용자 지정양식 만들기」를 사용할 수 있습니다.',
   },
   {
     label: '주문 파일 또는 주문 정보(텍스트·이미지) 입력',
@@ -214,6 +215,8 @@ export function LogisticsUserGuideSection() {
           </button>
         </div>
       </section>
+
+      <UserCustomFormatGuideBlock variant="logistics" />
 
       <section className="relative pb-2 pt-2" aria-labelledby="user-guide-logistics-workflow-heading">
         <div className="rounded-xl border-2 border-dashed border-zinc-300 bg-white px-4 py-5 shadow-sm dark:border-zinc-600 dark:bg-zinc-900/40 sm:px-6">
