@@ -4562,17 +4562,20 @@ export default function OrderConvertPage() {
                       )}:${String(savedDate.getMinutes()).padStart(2, '0')}`;
 
                       const isEditing = editingFormatId === format.id;
-                      const isDirectFileFormat = hasDirectHeaderMappings(format.bridgeFile);
+                      const directBridgeFile = hasDirectHeaderMappings(format.bridgeFile)
+                        ? format.bridgeFile
+                        : null;
+                      const isDirectFileFormat = Boolean(directBridgeFile);
                       const defaultDisplayName =
                         recentExcelFormats.length > 1 ? `등록된 엑셀 양식 ${index + 1}` : '등록된 엑셀 양식';
                       const displayName =
                         format.displayName === '직접 연결 양식'
                           ? '지정파일양식'
                           : format.displayName || defaultDisplayName;
-                      const directMappingEntries = isDirectFileFormat
+                      const directMappingEntries = directBridgeFile
                         ? format.columnOrder.map((outputHeader) => ({
                             outputHeader,
-                            sourceHeader: format.bridgeFile.directHeaderMappings[outputHeader] ?? '',
+                            sourceHeader: directBridgeFile.directHeaderMappings[outputHeader] ?? '',
                           }))
                         : [];
                       return (
