@@ -57,8 +57,6 @@ import {
 } from '@/app/lib/history-input-sources';
 import { useUserStore } from '@/app/store/userStore';
 import { shouldChargeDownloadPoints, hasProEntitlementClient } from '@/app/lib/feedback-event/client';
-import FeedbackEventDownloadModal from '@/app/components/feedback-event/FeedbackEventDownloadModal';
-import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
 import { FREE_TEXT_INPUT_MAX_CHARS } from '@/app/lib/plan-limits';
@@ -1091,8 +1089,6 @@ export function LogisticsConvertClient({
     y: 0,
   });
   const user = useUserStore((state) => state.user);
-  const { data: feedbackEventStatus } = useFeedbackEventStatus(!trialMode);
-  const [feedbackEventPopupOpen, setFeedbackEventPopupOpen] = useState(false);
   const isLoading = useUserStore((state) => state.isLoading);
   const userId = user?.userId ?? null;
   const { data: session, status: authStatus } = useSession();
@@ -5109,18 +5105,6 @@ export function LogisticsConvertClient({
         setDownloadModalFileName(fileName);
         setDownloadStatus("done");
 
-        const ev = feedbackEventStatus;
-        if (
-          !trialMode &&
-          ev?.event.isActive &&
-          user &&
-          shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt) &&
-          !ev.user.feedbackPopupSeen &&
-          !ev.user.feedbackTrialUsed
-        ) {
-          setFeedbackEventPopupOpen(true);
-        }
-
         setTimeout(() => {
           setDownloadStatus("idle");
           setDownloadModalFileName(null);
@@ -7705,13 +7689,6 @@ export function LogisticsConvertClient({
         </div>
       )}
 
-      {!trialMode && (
-        <FeedbackEventDownloadModal
-          open={feedbackEventPopupOpen}
-          endsAtLabel={feedbackEventStatus?.event.endsAtLabel ?? ''}
-          onClose={() => setFeedbackEventPopupOpen(false)}
-        />
-      )}
     </div>
     </>
   );

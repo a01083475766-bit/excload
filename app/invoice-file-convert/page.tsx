@@ -52,8 +52,6 @@ import {
 } from '@/app/lib/history-input-sources';
 import { useUserStore } from '@/app/store/userStore';
 import { shouldChargeDownloadPoints, hasProEntitlementClient } from '@/app/lib/feedback-event/client';
-import FeedbackEventDownloadModal from '@/app/components/feedback-event/FeedbackEventDownloadModal';
-import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
@@ -412,8 +410,6 @@ export default function InvoiceFileConvertPage() {
   const trialMode = embeddedTrialMode || queryTrialMode;
   const router = useRouter();
   const user = useUserStore((state) => state.user);
-  const { data: feedbackEventStatus } = useFeedbackEventStatus(!trialMode);
-  const [feedbackEventPopupOpen, setFeedbackEventPopupOpen] = useState(false);
   const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
@@ -2496,17 +2492,6 @@ export default function InvoiceFileConvertPage() {
         setDownloadModalFileName(fileName);
         setDownloadStatus("done");
 
-        const ev = feedbackEventStatus;
-        if (
-          ev?.event.isActive &&
-          user &&
-          shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt) &&
-          !ev.user.feedbackPopupSeen &&
-          !ev.user.feedbackTrialUsed
-        ) {
-          setFeedbackEventPopupOpen(true);
-        }
-
         setTimeout(() => {
           setDownloadStatus("idle");
           setDownloadModalFileName(null);
@@ -4097,11 +4082,6 @@ export default function InvoiceFileConvertPage() {
         </div>
       )}
 
-      <FeedbackEventDownloadModal
-        open={feedbackEventPopupOpen}
-        endsAtLabel={feedbackEventStatus?.event.endsAtLabel ?? ''}
-        onClose={() => setFeedbackEventPopupOpen(false)}
-      />
     </div>
     </>
   );

@@ -87,8 +87,6 @@ import { resolveNormalizeQualityNotice } from '@/app/lib/normalize-29/normalize2
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
 import { FREE_TEXT_INPUT_MAX_CHARS } from '@/app/lib/plan-limits';
 import { shouldChargeDownloadPoints, hasProEntitlementClient } from '@/app/lib/feedback-event/client';
-import FeedbackEventDownloadModal from '@/app/components/feedback-event/FeedbackEventDownloadModal';
-import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import {
   buildPreviewDownloadAoA,
   buildPreviewDownloadFileName,
@@ -525,8 +523,6 @@ const saveRecentExcelFormat = (
 export default function OrderConvertPage() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
-  const { data: feedbackEventStatus } = useFeedbackEventStatus(true);
-  const [feedbackEventPopupOpen, setFeedbackEventPopupOpen] = useState(false);
   const isLoading = useUserStore((state) => state.isLoading);
   const fetchUser = useUserStore((state) => state.fetchUser);
   const updatePoints = useUserStore((state) => state.updatePoints);
@@ -3174,17 +3170,6 @@ export default function OrderConvertPage() {
         setDownloadModalFileName(fileName);
         setDownloadStatus("done");
 
-        const ev = feedbackEventStatus;
-        if (
-          ev?.event.isActive &&
-          user &&
-          shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt) &&
-          !ev.user.feedbackPopupSeen &&
-          !ev.user.feedbackTrialUsed
-        ) {
-          setFeedbackEventPopupOpen(true);
-        }
-
         setTimeout(() => {
           setDownloadStatus("idle");
           setDownloadModalFileName(null);
@@ -5140,11 +5125,6 @@ export default function OrderConvertPage() {
         </div>
       )}
 
-      <FeedbackEventDownloadModal
-        open={feedbackEventPopupOpen}
-        endsAtLabel={feedbackEventStatus?.event.endsAtLabel ?? ''}
-        onClose={() => setFeedbackEventPopupOpen(false)}
-      />
     </div>
     </>
   );
