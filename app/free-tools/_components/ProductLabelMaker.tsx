@@ -418,7 +418,7 @@ export function ProductLabelMaker() {
             <p className="text-sm font-bold text-zinc-950">표시 옵션</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <label className="block">
-                <span className="text-xs font-medium text-zinc-600">바코드 아래 번호 표시</span>
+                <span className="text-xs font-medium text-zinc-600">바코드 번호 표시</span>
                 <select
                   value={options.showBarcodeValue ? 'on' : 'off'}
                   onChange={(event) =>
