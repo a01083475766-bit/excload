@@ -6587,7 +6587,7 @@ export function LogisticsConvertClient({
         <section className="relative pt-4 pb-4">
           <div
             className={`grid grid-cols-1 gap-2 lg:gap-3 ${
-              trialMode ? 'sm:grid-cols-2 lg:grid-cols-4' : 'lg:grid-cols-3'
+              trialMode && !landingEmbed ? 'sm:grid-cols-2 lg:grid-cols-4' : 'lg:grid-cols-3'
             }`}
           >
             {/* 카드 1: 업로드 엑셀 양식 */}
@@ -6622,7 +6622,7 @@ export function LogisticsConvertClient({
               </p>
             </button>
 
-            {trialMode && (
+            {trialMode && !landingEmbed && (
               <button
                 type="button"
                 onClick={handleOpenUserCustomFormatFlow}
