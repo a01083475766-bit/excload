@@ -7,6 +7,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 import type { TemplateHeaderLogMappedEntry } from '@/app/lib/template-header-log';
 
 type HeaderUsageTopRow = {
@@ -82,6 +83,30 @@ function formatMappingRate(rate: number | null | undefined) {
 function formatPages(pages: string[]) {
   if (pages.length === 0) return '—';
   return pages.map((p) => PAGE_LABELS[p] ?? p).join(', ');
+}
+
+function safeFileNamePart(value: string) {
+  return value.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-').slice(0, 40);
+}
+
+function downloadHeaderRowExcel(group: HeaderLogGroup) {
+  const headers = group.headers.map((header) => String(header ?? '').trim());
+  if (headers.length === 0) {
+    alert('다운로드할 헤더 구성이 없습니다.');
+    return;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+  worksheet['!cols'] = headers.map((header) => ({
+    wch: Math.min(Math.max(header.length + 2, 12), 40),
+  }));
+  XLSX.utils.book_append_sheet(workbook, worksheet, '헤더 구성');
+
+  const pageName = safeFileNamePart(PAGE_LABELS[group.page] ?? group.page);
+  const sourceName = safeFileNamePart(SOURCE_LABELS[group.source] ?? group.source);
+  const datePart = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(workbook, `헤더구성_${pageName}_${sourceName}_${datePart}.xlsx`);
 }
 
 const thStyle: React.CSSProperties = {
@@ -772,24 +797,41 @@ export default function AkmanTemplateHeaderLogsPage() {
                         {formatMappingRate(group.mappingSuccessRate)}
                       </td>
                       <td style={{ padding: 8, border: '1px solid #e4e4e7' }}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedGroupKey((prev) =>
-                              prev === group.fingerprint ? null : group.fingerprint,
-                            )
-                          }
-                          style={{
-                            padding: '4px 10px',
-                            fontSize: 12,
-                            border: '1px solid #a1a1aa',
-                            borderRadius: 4,
-                            background: '#fff',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {expandedGroupKey === group.fingerprint ? '닫기' : '헤더·업로드 보기'}
-                        </button>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedGroupKey((prev) =>
+                                prev === group.fingerprint ? null : group.fingerprint,
+                              )
+                            }
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: 12,
+                              border: '1px solid #a1a1aa',
+                              borderRadius: 4,
+                              background: '#fff',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {expandedGroupKey === group.fingerprint ? '닫기' : '헤더·업로드 보기'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadHeaderRowExcel(group)}
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: 12,
+                              border: '1px solid #93c5fd',
+                              borderRadius: 4,
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            헤더 엑셀 다운로드
+                          </button>
+                        </div>
                       </td>
                     </tr>
                     {expandedGroupKey === group.fingerprint && (
