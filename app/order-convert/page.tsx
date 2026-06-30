@@ -21,6 +21,7 @@ import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { ExcelPreprocessPipeline } from '@/app/pipeline/preprocess/excel-preprocess-pipeline';
 import type { CleanInputFile } from '@/app/pipeline/preprocess/types';
 import { runMergePipeline } from '@/app/pipeline/merge/merge-pipeline';
+import type { PreviewRow } from '@/app/pipeline/merge/types';
 import * as XLSX from 'xlsx';
 import {
   alignRowsFromHeader,
@@ -92,6 +93,10 @@ import {
   buildPreviewDownloadFileName,
   createPreviewDownloadWorkbook,
 } from '@/app/lib/excel/preview-download-xlsx';
+import {
+  isTrackingNumberUploadHeader,
+  sanitizeTrackingNumberForUpload,
+} from '@/app/lib/sanitize-tracking-number-for-upload';
 import {
   TextConvertResultReviewModal,
   buildTextConvertReviewRows,
@@ -344,6 +349,7 @@ type UnknownHeaderSampleInput = {
   headers: readonly string[];
   rows: ReadonlyArray<ReadonlyArray<unknown>>;
 };
+type DirectHeaderMapping = Record<string, string | null>;
 
 function maskUnknownHeaderSampleValue(rawValue: unknown): string {
   const value = String(rawValue ?? '').trim();
@@ -406,6 +412,81 @@ function buildUnknownHeaderSamples(
     }
 
     acc[header] = samples;
+    return acc;
+  }, {});
+}
+
+function buildHeaderSamples(inputFile: UnknownHeaderSampleInput): UnknownHeaderSamples {
+  return buildUnknownHeaderSamples([...inputFile.headers], inputFile);
+}
+
+function hasDirectHeaderMappings(
+  bridgeFile: TemplateBridgeFile | null | undefined,
+): bridgeFile is TemplateBridgeFile & { directHeaderMappings: DirectHeaderMapping } {
+  return Boolean(
+    bridgeFile &&
+      bridgeFile.directHeaderMappings &&
+      Object.keys(bridgeFile.directHeaderMappings).length > 0,
+  );
+}
+
+function buildDirectPreviewRowsFromCleanInput(
+  inputFile: CleanInputFile,
+  bridgeFile: TemplateBridgeFile & { directHeaderMappings: DirectHeaderMapping },
+  fixedInput: Record<string, string>,
+): PreviewRow[] {
+  const exactHeaderIndex = new Map<string, number>();
+  const trimmedHeaderIndex = new Map<string, number>();
+
+  inputFile.headers.forEach((header, index) => {
+    exactHeaderIndex.set(header, index);
+    trimmedHeaderIndex.set(header.trim(), index);
+  });
+
+  return inputFile.rows.map((row) => {
+    const previewRow: PreviewRow = {};
+
+    for (const courierHeader of bridgeFile.courierHeaders) {
+      const sourceHeader = bridgeFile.directHeaderMappings[courierHeader];
+      const sourceIndex = sourceHeader
+        ? exactHeaderIndex.get(sourceHeader) ?? trimmedHeaderIndex.get(sourceHeader.trim())
+        : undefined;
+      const orderValue =
+        typeof sourceIndex === 'number' ? String(row[sourceIndex] ?? '').trim() : '';
+      const fixedValue = String(fixedInput[courierHeader] ?? '').trim();
+      let cellValue = orderValue || fixedValue;
+
+      if (isTrackingNumberUploadHeader(courierHeader)) {
+        cellValue = sanitizeTrackingNumberForUpload(cellValue);
+      }
+
+      previewRow[courierHeader] = cellValue;
+    }
+
+    return previewRow;
+  });
+}
+
+function buildDefaultDirectMappingSelections(
+  bridgeFile: TemplateBridgeFile | null,
+  sourceHeaders: string[],
+  headerMapping: { mappedBaseHeaders?: (string | null)[] } | null,
+): Record<string, string> {
+  if (!bridgeFile) return {};
+
+  const sourceHeaderByBaseHeader = new Map<string, string>();
+  headerMapping?.mappedBaseHeaders?.forEach((baseHeader, index) => {
+    const sourceHeader = sourceHeaders[index];
+    if (baseHeader && sourceHeader && !sourceHeaderByBaseHeader.has(baseHeader)) {
+      sourceHeaderByBaseHeader.set(baseHeader, sourceHeader);
+    }
+  });
+
+  return bridgeFile.courierHeaders.reduce<Record<string, string>>((acc, courierHeader, index) => {
+    const mappedBaseHeader = bridgeFile.mappedBaseHeaders[index];
+    acc[courierHeader] = mappedBaseHeader
+      ? sourceHeaderByBaseHeader.get(mappedBaseHeader) ?? ''
+      : '';
     return acc;
   }, {});
 }
@@ -667,6 +748,13 @@ export default function OrderConvertPage() {
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
   const [unknownHeadersExpanded, setUnknownHeadersExpanded] = useState(false);
+  const [directMappingModalOpen, setDirectMappingModalOpen] = useState(false);
+  const [directMappingSourceHeaders, setDirectMappingSourceHeaders] = useState<string[]>([]);
+  const [directMappingSourceSamples, setDirectMappingSourceSamples] = useState<UnknownHeaderSamples>({});
+  const [directMappingSelections, setDirectMappingSelections] = useState<Record<string, string>>({});
+  const [latestOrderHeaderMapping, setLatestOrderHeaderMapping] = useState<{
+    mappedBaseHeaders?: (string | null)[];
+  } | null>(null);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   /** 대용량 Stage2 청크 호출 시에만 표시 */
   const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
@@ -1080,6 +1168,11 @@ export default function OrderConvertPage() {
       setSortConfig(null);
       setUnknownHeadersWarning([]);
       setUnknownHeaderSamples({});
+      setDirectMappingModalOpen(false);
+      setDirectMappingSourceHeaders([]);
+      setDirectMappingSourceSamples({});
+      setDirectMappingSelections({});
+      setLatestOrderHeaderMapping(null);
       setFileProcessingStatus('idle');
       setStage2ChunkLabel(null);
       setSelectedFileName(null);
@@ -1491,6 +1584,13 @@ export default function OrderConvertPage() {
     setSelectedFileName(null);
     setFileProcessingStatus('idle');
     setStage2ChunkLabel(null);
+    setUnknownHeadersWarning([]);
+    setUnknownHeaderSamples({});
+    setDirectMappingModalOpen(false);
+    setDirectMappingSourceHeaders([]);
+    setDirectMappingSourceSamples({});
+    setDirectMappingSelections({});
+    setLatestOrderHeaderMapping(null);
     setTextInput('');
     clearWorkspaceInputTracking();
   }, [clearWorkspaceInputTracking]);
@@ -1836,6 +1936,125 @@ export default function OrderConvertPage() {
         }
       }
     }
+  };
+
+  const handleOpenDirectMappingModal = () => {
+    const activeBridge = getActiveTemplateBridgeFile();
+    if (!activeBridge?.courierHeaders?.length) {
+      alert('먼저 택배 업로드 양식 또는 내 출력 양식을 선택해 주세요.');
+      return;
+    }
+
+    if (directMappingSourceHeaders.length === 0) {
+      alert('주문파일 헤더를 확인할 수 없습니다. 주문파일을 다시 업로드해 주세요.');
+      return;
+    }
+
+    setDirectMappingSelections(
+      buildDefaultDirectMappingSelections(
+        activeBridge,
+        directMappingSourceHeaders,
+        latestOrderHeaderMapping,
+      ),
+    );
+    setDirectMappingModalOpen(true);
+  };
+
+  const handleDirectMappingSelectionChange = (courierHeader: string, sourceHeader: string) => {
+    setDirectMappingSelections((prev) => ({
+      ...prev,
+      [courierHeader]: sourceHeader,
+    }));
+  };
+
+  const handleCreateDirectMappingFormat = () => {
+    const activeBridge = getActiveTemplateBridgeFile();
+    if (!activeBridge?.courierHeaders?.length) {
+      alert('등록할 출력 양식을 찾을 수 없습니다.');
+      return;
+    }
+
+    const directHeaderMappings = activeBridge.courierHeaders.reduce<DirectHeaderMapping>(
+      (acc, courierHeader) => {
+        const sourceHeader = directMappingSelections[courierHeader]?.trim();
+        acc[courierHeader] = sourceHeader || null;
+        return acc;
+      },
+      {},
+    );
+
+    const mappedCount = Object.values(directHeaderMappings).filter(Boolean).length;
+    if (mappedCount === 0) {
+      alert('주문파일에서 가져올 항목을 1개 이상 선택해 주세요.');
+      return;
+    }
+
+    const directBridgeFile: TemplateBridgeFile = {
+      ...activeBridge,
+      mappedBaseHeaders: activeBridge.courierHeaders.map(() => null),
+      unknownHeaders: [],
+      directHeaderMappings,
+      directSourceHeaders: [...directMappingSourceHeaders],
+    };
+    const template = buildCourierTemplateFromHeaders(activeBridge.courierHeaders);
+    const formatName = '직접 연결 양식';
+    const directFormatId = saveRecentExcelFormat(
+      template,
+      setRecentExcelFormats,
+      storageUserId,
+      directBridgeFile,
+      formatName,
+    );
+
+    setTemplateBridgeFile(directBridgeFile);
+    setCourierUploadTemplate(template);
+    saveCourierUploadTemplate(template, storageUserId);
+    if (directFormatId) {
+      setTempSelectedFormatId(directFormatId);
+      setShowRecentTemplate(true);
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        writeLocalStorageForUser(
+          ORDER_CONVERT_KEYS.bridge,
+          storageUserId,
+          JSON.stringify(directBridgeFile),
+        );
+      } catch (error) {
+        console.error('localStorage에 직접 연결 bridgeFile을 저장하는 중 오류 발생:', error);
+      }
+    }
+
+    clearPreviewWorkspace('order-convert', storageUserId);
+    void clearWorkspaceFiles('order-convert', storageUserId);
+    resetBundleShippingUi();
+    setPreviewRows([]);
+    setOrderStandardRowsByRowId({});
+    setUserOverrides({});
+    setSortConfig(null);
+    setUnknownHeadersWarning([]);
+    setUnknownHeaderSamples({});
+    setDirectMappingModalOpen(false);
+    setDirectMappingSourceHeaders([]);
+    setDirectMappingSourceSamples({});
+    setDirectMappingSelections({});
+    setLatestOrderHeaderMapping(null);
+    setSelectedFileName(null);
+    setSelectedRows([]);
+    setNewRows(new Set());
+    setSelectedFiles([]);
+    setUploadedExcelFile(null);
+    setUploadedFileMeta([]);
+    clearWorkspaceInputTracking();
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (excelFileInputRef.current) excelFileInputRef.current.value = '';
+
+    setIsTemplateChangeReuploadModalOpen(true);
+    setRegistrationSuccessMessage('직접 연결 양식이 등록되었습니다. 주문파일을 다시 첨부해 주세요.');
+    setTimeout(() => {
+      setRegistrationSuccessMessage(null);
+    }, 5000);
   };
 
   const handleDeleteFormat = (formatId: string) => {
@@ -2742,6 +2961,89 @@ export default function OrderConvertPage() {
     // ExcelPreprocessPipeline(Stage0)을 통과하여 CleanInputFile 생성
     const preprocessPipeline = new ExcelPreprocessPipeline();
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
+    setDirectMappingSourceHeaders([...cleanInputFile.headers]);
+    setDirectMappingSourceSamples(buildHeaderSamples(cleanInputFile));
+
+    const activeTemplateBridgeFile = getActiveTemplateBridgeFile();
+    if (!activeTemplateBridgeFile) {
+      setStage2ChunkLabel(null);
+      setFileProcessingStatus('idle');
+      setNoTemplateModalType('convert');
+      setIsNoTemplateModalOpen(true);
+      return null;
+    }
+
+    if (hasDirectHeaderMappings(activeTemplateBridgeFile)) {
+      const directPreviewRows = buildDirectPreviewRowsFromCleanInput(
+        cleanInputFile,
+        activeTemplateBridgeFile,
+        fixedHeaderValues,
+      );
+      const newRowIds = directPreviewRows.map(() => crypto.randomUUID());
+      const previewRowsWithIds = directPreviewRows.map((row, index) => ({
+        rowId: newRowIds[index]!,
+        data: row,
+      }));
+      const metrics = {
+        fileName: file.name,
+        originalRows: Math.max(0, alignedRawData.length - 1),
+        baseHeaderMatchedRows: directPreviewRows.length,
+        stage1Rows: cleanInputFile.rows?.length ?? 0,
+        stage2Rows: directPreviewRows.length,
+        stage3Rows: directPreviewRows.length,
+        stage4Rows: previewRowsWithIds.length,
+      };
+
+      setUnknownHeadersWarning([]);
+      setUnknownHeaderSamples({});
+      setLatestOrderHeaderMapping(null);
+      setOrderStandardFile(null);
+
+      if (appendPreview) {
+        setPreviewRows((prev) => [
+          ...previewRowsWithIds,
+          ...prev,
+        ]);
+        setOrderStandardRowsByRowId((prev) =>
+          registerOrderSnapshotsForPreviewChunk(prev, newRowIds, directPreviewRows),
+        );
+        setNewRows((prev) => {
+          const updated = new Set(prev);
+          newRowIds.forEach((id) => updated.add(id));
+          return updated;
+        });
+        setTimeout(() => {
+          setNewRows((prev) => {
+            const updated = new Set(prev);
+            newRowIds.forEach((id) => updated.delete(id));
+            return updated;
+          });
+        }, 3000);
+        setCourierHeaders(activeTemplateBridgeFile.courierHeaders);
+        setUploadedFileMeta((prev) => [
+          { name: file.name, size: file.size },
+          ...prev,
+        ]);
+        setStage2ChunkLabel(null);
+        setFileProcessingStatus('done');
+        setTimeout(() => {
+          if (fileProcessingTokenRef.current === processingToken) {
+            setFileProcessingStatus('idle');
+          }
+        }, 1500);
+      }
+
+      return {
+        file,
+        rowIds: newRowIds,
+        previewRows: previewRowsWithIds,
+        standardRows: directPreviewRows,
+        courierHeaders: activeTemplateBridgeFile.courierHeaders,
+        unknownHeaders: [],
+        unknownHeaderSamples: {},
+        metrics,
+      };
+    }
 
     // Stage2 실행 (대용량 시 행 청크로 서버 API 순차 호출)
     const { orderStandardFile: stage2Result, headerMapping } = await fetchOrderPipelineStage2(
@@ -2767,6 +3069,7 @@ export default function OrderConvertPage() {
         }),
       );
     }
+    setLatestOrderHeaderMapping(headerMapping);
 
     if (isExcloudPipelineDebugClient()) {
       try {
@@ -2790,15 +3093,6 @@ export default function OrderConvertPage() {
       } catch {
         // 로그 실패는 무시
       }
-    }
-
-    const activeTemplateBridgeFile = getActiveTemplateBridgeFile();
-    if (!activeTemplateBridgeFile) {
-      setStage2ChunkLabel(null);
-      setFileProcessingStatus('idle');
-      setNoTemplateModalType('convert');
-      setIsNoTemplateModalOpen(true);
-      return null;
     }
 
     const stage2UnknownHeaders = Array.isArray(stage2Result.unknownHeaders)
@@ -3185,6 +3479,11 @@ export default function OrderConvertPage() {
           setSortConfig(null);
           setUnknownHeadersWarning([]);
           setUnknownHeaderSamples({});
+          setDirectMappingModalOpen(false);
+          setDirectMappingSourceHeaders([]);
+          setDirectMappingSourceSamples({});
+          setDirectMappingSelections({});
+          setLatestOrderHeaderMapping(null);
           setSelectedFileName(null);
           resetBundleShippingUi();
 
@@ -3217,6 +3516,11 @@ export default function OrderConvertPage() {
     setSortConfig(null);
     setUnknownHeadersWarning([]);
     setUnknownHeaderSamples({});
+    setDirectMappingModalOpen(false);
+    setDirectMappingSourceHeaders([]);
+    setDirectMappingSourceSamples({});
+    setDirectMappingSelections({});
+    setLatestOrderHeaderMapping(null);
     setSelectedFileName(null);
     setSelectedRows([]);
     setNewRows(new Set());
@@ -3241,6 +3545,8 @@ export default function OrderConvertPage() {
     if (courierFileInputRef.current) courierFileInputRef.current.value = '';
     setIsPreviewResetModalOpen(false);
   }, [resetBundleShippingUi, clearWorkspaceInputTracking, storageUserId]);
+
+  const directMappingBridgeForModal = directMappingModalOpen ? getActiveTemplateBridgeFile() : null;
 
   return (
     <>
@@ -3715,15 +4021,24 @@ export default function OrderConvertPage() {
                       택배사 업로드에 필요한 정보인지 확인해 주세요.
                     </p>
 
-                    <button
-                      type="button"
-                      onClick={() => setUnknownHeadersExpanded((prev) => !prev)}
-                      className="rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                    >
-                      {unknownHeadersExpanded
-                        ? '자동 변환되지 않은 헤더 접기'
-                        : `자동 변환되지 않은 헤더 ${unknownHeadersWarning.length}개 보기`}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUnknownHeadersExpanded((prev) => !prev)}
+                        className="rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                      >
+                        {unknownHeadersExpanded
+                          ? '자동 변환되지 않은 헤더 접기'
+                          : `자동 변환되지 않은 헤더 ${unknownHeadersWarning.length}개 보기`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenDirectMappingModal}
+                        className="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                      >
+                        직접 연결해서 계속하기
+                      </button>
+                    </div>
 
                     {unknownHeadersExpanded && (
                       <div className="mt-3">
@@ -4236,6 +4551,169 @@ export default function OrderConvertPage() {
         onClose={() => setIsTemplateChangeReuploadModalOpen(false)}
         bodyExtra="텍스트·이미지로 넣으신 주문이 있었다면, 해당 입력도 다시 진행해 주세요."
       />
+
+      <WorkspaceBlockingModalOverlay
+        open={directMappingModalOpen}
+        aria-labelledby="direct-header-mapping-title"
+        panelClassName="w-full max-w-[1180px]"
+      >
+        <div className="flex h-[84vh] w-full max-w-[1180px] flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+          <div className="mb-4 flex flex-shrink-0 items-start justify-between gap-4">
+            <div>
+              <h2
+                id="direct-header-mapping-title"
+                className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+              >
+                부족한 항목 직접 연결
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                자동으로 연결하지 못한 항목이 있습니다. 최종 다운로드 파일의 각 항목에 주문파일의 어떤 값을 넣을지 선택해 주세요.
+                <br />
+                적용하면 직접 연결 양식으로 등록되고, 미리보기를 초기화한 뒤 같은 주문파일을 다시 첨부해 변환합니다.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDirectMappingModalOpen(false)}
+              className="rounded-lg p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              aria-label="닫기"
+            >
+              <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+            </button>
+          </div>
+
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+            이 양식은 기존 자동 변환이나 AI 매핑을 다시 타지 않고, 저장된 연결표대로 주문파일 헤더의 값을 출력 헤더에 바로 넣습니다.
+            필요 없는 항목은 비워두기로 저장됩니다.
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+            <table className="border-collapse text-sm">
+              <tbody>
+                <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                  <th className="sticky left-0 z-20 min-w-[150px] border-b border-r border-zinc-200 bg-zinc-100 px-3 py-2 text-left dark:border-zinc-700 dark:bg-zinc-800">
+                    최종 출력 항목
+                  </th>
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => (
+                    <th
+                      key={`direct-output-${courierHeader}-${index}`}
+                      className="min-w-[220px] border-b border-r border-zinc-200 px-3 py-2 text-left font-semibold dark:border-zinc-700"
+                    >
+                      {courierHeader}
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    현재 연결 상태
+                  </th>
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
+                    const autoSourceHeader = buildDefaultDirectMappingSelections(
+                      directMappingBridgeForModal,
+                      directMappingSourceHeaders,
+                      latestOrderHeaderMapping,
+                    )[courierHeader];
+                    return (
+                      <td
+                        key={`direct-status-${courierHeader}-${index}`}
+                        className="border-b border-r border-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+                      >
+                        {autoSourceHeader ? '자동 연결됨' : '확인 필요'}
+                      </td>
+                    );
+                  })}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    주문파일 항목 선택
+                  </th>
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
+                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
+                    return (
+                      <td
+                        key={`direct-select-${courierHeader}-${index}`}
+                        className="border-b border-r border-zinc-100 px-3 py-2 dark:border-zinc-800"
+                      >
+                        <select
+                          value={selectedSourceHeader}
+                          onChange={(e) =>
+                            handleDirectMappingSelectionChange(courierHeader, e.target.value)
+                          }
+                          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                        >
+                          <option value="">비워두기</option>
+                          {directMappingSourceHeaders.map((sourceHeader, sourceIndex) => (
+                            <option key={`${sourceHeader}-${sourceIndex}`} value={sourceHeader}>
+                              {sourceHeader}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    );
+                  })}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    예시값
+                  </th>
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
+                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
+                    const sampleValues = selectedSourceHeader
+                      ? directMappingSourceSamples[selectedSourceHeader] ?? []
+                      : [];
+                    return (
+                      <td
+                        key={`direct-sample-${courierHeader}-${index}`}
+                        className="border-b border-r border-zinc-100 px-3 py-2 text-xs leading-relaxed text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+                      >
+                        {sampleValues.length > 0 ? sampleValues.join(' / ') : '-'}
+                      </td>
+                    );
+                  })}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 z-10 border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    처리 방식
+                  </th>
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
+                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
+                    return (
+                      <td
+                        key={`direct-method-${courierHeader}-${index}`}
+                        className="border-r border-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+                      >
+                        {selectedSourceHeader ? '주문파일 값' : '비워두기'}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 flex flex-shrink-0 items-center justify-between gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+            <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              등록 후에는 현재 미리보기가 초기화됩니다. 같은 주문파일을 다시 첨부하면 저장된 연결표로 바로 변환됩니다.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDirectMappingModalOpen(false)}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateDirectMappingFormat}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+              >
+                직접 연결 양식 등록
+              </button>
+            </div>
+          </div>
+        </div>
+      </WorkspaceBlockingModalOverlay>
 
       <WorkspaceBlockingModalOverlay
         open={isManualTemplateBuilderOpen}

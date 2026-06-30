@@ -7275,47 +7275,52 @@ export function LogisticsConvertClient({
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-            <table className="min-w-full border-collapse text-sm">
-              <thead className="sticky top-0 z-10 bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                <tr>
-                  <th className="min-w-[220px] border-b border-zinc-200 px-3 py-2 text-left dark:border-zinc-700">
+            <table className="border-collapse text-sm">
+              <tbody>
+                <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                  <th className="sticky left-0 z-20 min-w-[150px] border-b border-r border-zinc-200 bg-zinc-100 px-3 py-2 text-left dark:border-zinc-700 dark:bg-zinc-800">
                     최종 출력 항목
                   </th>
-                  <th className="min-w-[160px] border-b border-zinc-200 px-3 py-2 text-left dark:border-zinc-700">
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => (
+                    <th
+                      key={`direct-output-${courierHeader}-${index}`}
+                      className="min-w-[220px] border-b border-r border-zinc-200 px-3 py-2 text-left font-semibold dark:border-zinc-700"
+                    >
+                      {courierHeader}
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
                     현재 연결 상태
                   </th>
-                  <th className="min-w-[260px] border-b border-zinc-200 px-3 py-2 text-left dark:border-zinc-700">
-                    주문파일에서 가져올 항목 선택
-                  </th>
-                  <th className="min-w-[220px] border-b border-zinc-200 px-3 py-2 text-left dark:border-zinc-700">
-                    예시값
-                  </th>
-                  <th className="min-w-[120px] border-b border-zinc-200 px-3 py-2 text-left dark:border-zinc-700">
-                    처리 방식
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
-                  const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
-                  const sampleValues = selectedSourceHeader
-                    ? directMappingSourceSamples[selectedSourceHeader] ?? []
-                    : [];
-                  const autoSourceHeader = buildDefaultDirectMappingSelections(
-                    directMappingBridgeForModal,
-                    directMappingSourceHeaders,
-                    latestOrderHeaderMapping,
-                  )[courierHeader];
-
-                  return (
-                    <tr key={`${courierHeader}-${index}`} className="border-b border-zinc-100 dark:border-zinc-800">
-                      <td className="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">
-                        {courierHeader}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-300">
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
+                    const autoSourceHeader = buildDefaultDirectMappingSelections(
+                      directMappingBridgeForModal,
+                      directMappingSourceHeaders,
+                      latestOrderHeaderMapping,
+                    )[courierHeader];
+                    return (
+                      <td
+                        key={`direct-status-${courierHeader}-${index}`}
+                        className="border-b border-r border-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+                      >
                         {autoSourceHeader ? '자동 연결됨' : '확인 필요'}
                       </td>
-                      <td className="px-3 py-2">
+                    );
+                  })}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    주문파일 항목 선택
+                  </th>
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
+                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
+                    return (
+                      <td
+                        key={`direct-select-${courierHeader}-${index}`}
+                        className="border-b border-r border-zinc-100 px-3 py-2 dark:border-zinc-800"
+                      >
                         <select
                           value={selectedSourceHeader}
                           onChange={(e) =>
@@ -7331,15 +7336,44 @@ export function LogisticsConvertClient({
                           ))}
                         </select>
                       </td>
-                      <td className="px-3 py-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+                    );
+                  })}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    예시값
+                  </th>
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
+                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
+                    const sampleValues = selectedSourceHeader
+                      ? directMappingSourceSamples[selectedSourceHeader] ?? []
+                      : [];
+                    return (
+                      <td
+                        key={`direct-sample-${courierHeader}-${index}`}
+                        className="border-b border-r border-zinc-100 px-3 py-2 text-xs leading-relaxed text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+                      >
                         {sampleValues.length > 0 ? sampleValues.join(' / ') : '-'}
                       </td>
-                      <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-300">
+                    );
+                  })}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 z-10 border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    처리 방식
+                  </th>
+                  {(directMappingBridgeForModal?.courierHeaders ?? []).map((courierHeader, index) => {
+                    const selectedSourceHeader = directMappingSelections[courierHeader] ?? '';
+                    return (
+                      <td
+                        key={`direct-method-${courierHeader}-${index}`}
+                        className="border-r border-zinc-100 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
+                      >
                         {selectedSourceHeader ? '주문파일 값' : '비워두기'}
                       </td>
-                    </tr>
-                  );
-                })}
+                    );
+                  })}
+                </tr>
               </tbody>
             </table>
           </div>
