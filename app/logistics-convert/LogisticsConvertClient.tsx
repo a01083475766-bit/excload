@@ -1322,6 +1322,7 @@ export function LogisticsConvertClient({
   const [showTrialDownloadModal, setShowTrialDownloadModal] = useState(false);
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
+  const [unknownHeadersExpanded, setUnknownHeadersExpanded] = useState(false);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -5747,47 +5748,61 @@ export function LogisticsConvertClient({
                       물류센터 업로드에 필요한 정보인지 확인해 주세요.
                     </p>
 
-                    <div className="mb-2 text-emerald-600 font-semibold text-base">
-                      자동 변환되지 않은 헤더
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUnknownHeadersExpanded((prev) => !prev)}
+                      className="rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                    >
+                      {unknownHeadersExpanded
+                        ? '자동 변환되지 않은 헤더 접기'
+                        : `자동 변환되지 않은 헤더 ${unknownHeadersWarning.length}개 보기`}
+                    </button>
 
-                    <div className="mb-3 space-y-2">
-                      {unknownHeadersWarning.map((header) => {
-                        const samples = unknownHeaderSamples[header] ?? [];
-                        return (
-                          <div
-                            key={header}
-                            className="rounded-md border border-amber-200 bg-white/70 px-3 py-2"
-                          >
-                            <div className="font-semibold text-emerald-700">
-                              {header}
-                            </div>
-                            <div className="mt-1 text-xs leading-relaxed text-amber-800">
-                              예시 값: {samples.length > 0 ? samples.join(' / ') : '값 없음'}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {unknownHeadersExpanded && (
+                      <div className="mt-3">
+                        <div className="mb-2 text-emerald-600 font-semibold text-base">
+                          자동 변환되지 않은 헤더
+                        </div>
 
-                    <p className="mb-3 text-xs leading-relaxed text-amber-700">
-                      ※ 표시된 내용은 확인을 돕기 위한 예시이며, 개인정보는 일부 가려서 보여드립니다.
-                    </p>
+                        <div className="mb-3 space-y-2">
+                          {unknownHeadersWarning.map((header) => {
+                            const samples = unknownHeaderSamples[header] ?? [];
+                            return (
+                              <div
+                                key={header}
+                                className="rounded-md border border-amber-200 bg-white/70 px-3 py-2"
+                              >
+                                <div className="font-semibold text-emerald-700">
+                                  {header}
+                                </div>
+                                <div className="mt-1 text-xs leading-relaxed text-amber-800">
+                                  예시 값: {samples.length > 0 ? samples.join(' / ') : '값 없음'}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
 
-                    <div className="text-xs text-amber-700 leading-relaxed">
-                      <strong>필요한 정보라면</strong><br />
-                      물류 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은
-                      항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
-                      <br /><br />
-                      <strong>필요하지 않은 정보라면</strong><br />
-                      {trialMode
-                        ? '물류 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고 결과를 확인하셔도 됩니다.'
-                        : '물류 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고 다운로드하셔도 됩니다.'}
-                      <br /><br />
-                      {trialMode
-                        ? '※ 미리보기에서 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.'
-                        : '※ 다운로드 전 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.'}
-                    </div>
+                        <p className="mb-3 text-xs leading-relaxed text-amber-700">
+                          ※ 표시된 내용은 확인을 돕기 위한 예시이며, 개인정보는 일부 가려서 보여드립니다.
+                        </p>
+
+                        <div className="text-xs text-amber-700 leading-relaxed">
+                          <strong>필요한 정보라면</strong><br />
+                          물류 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은
+                          항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
+                          <br /><br />
+                          <strong>필요하지 않은 정보라면</strong><br />
+                          {trialMode
+                            ? '물류 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고 결과를 확인하셔도 됩니다.'
+                            : '물류 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고 다운로드하셔도 됩니다.'}
+                          <br /><br />
+                          {trialMode
+                            ? '※ 미리보기에서 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.'
+                            : '※ 다운로드 전 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.'}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
