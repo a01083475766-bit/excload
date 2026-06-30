@@ -4592,9 +4592,11 @@ export default function OrderConvertPage() {
                   {directMappingSourceHeaders.map((sourceHeader, index) => (
                     <td
                       key={`direct-source-${sourceHeader}-${index}`}
-                      className="min-w-[220px] border-b border-r border-zinc-200 px-3 py-2 font-semibold dark:border-zinc-700"
+                      className="min-w-[220px] border-b border-r border-zinc-200 px-3 py-2 align-top font-semibold dark:border-zinc-700"
                     >
-                      {sourceHeader}
+                      <div className="flex min-h-[40px] items-start leading-5 line-clamp-2">
+                        {sourceHeader}
+                      </div>
                     </td>
                   ))}
                 </tr>
@@ -4608,15 +4610,15 @@ export default function OrderConvertPage() {
                   {directMappingSourceHeaders.map((sourceHeader, index) => (
                     <td
                       key={`direct-rename-${sourceHeader}-${index}`}
-                      className="border-b border-r border-zinc-100 px-3 py-2 dark:border-zinc-800"
+                      className="border-b border-r border-zinc-100 px-3 py-2 align-top dark:border-zinc-800"
                     >
                       <input
                         type="text"
                         value={directMappingRenameValues[index] ?? ''}
                         onChange={(e) => handleDirectMappingRenameChange(index, e.target.value)}
-                        className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                        className="h-[40px] w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-5 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                       />
-                      <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <div className="mt-1 min-h-[16px] overflow-hidden text-[11px] leading-4 text-zinc-500 dark:text-zinc-400 whitespace-nowrap text-ellipsis">
                         예시값: {(directMappingSourceSamples[sourceHeader] ?? []).join(' / ') || '-'}
                       </div>
                     </td>
@@ -4635,9 +4637,9 @@ export default function OrderConvertPage() {
                     return (
                       <td
                         key={`direct-final-${sourceHeader}-${sourceIndex}`}
-                        className="border-r border-zinc-100 px-3 py-2 dark:border-zinc-800"
+                        className="border-r border-zinc-100 px-3 py-2 align-top dark:border-zinc-800"
                       >
-                        <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
+                        <div className="flex min-h-[40px] items-start rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold leading-5 text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
                           {outputHeader}
                         </div>
                         <div className="mt-2 flex items-center gap-1">
