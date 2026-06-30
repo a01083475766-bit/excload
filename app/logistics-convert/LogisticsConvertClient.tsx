@@ -200,6 +200,10 @@ type UnknownHeaderSampleInput = {
   rows: ReadonlyArray<ReadonlyArray<unknown>>;
 };
 type DirectHeaderMapping = Record<string, string | null>;
+type DirectMappingFinalColumn = {
+  sourceHeader: string;
+  outputHeader: string;
+};
 
 function maskUnknownHeaderSampleValue(rawValue: unknown): string {
   const value = String(rawValue ?? '').trim();
@@ -1380,10 +1384,15 @@ export function LogisticsConvertClient({
   const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
   const [unknownHeadersExpanded, setUnknownHeadersExpanded] = useState(false);
   const [directMappingModalOpen, setDirectMappingModalOpen] = useState(false);
+  const [directMappingConfirmModalOpen, setDirectMappingConfirmModalOpen] = useState(false);
+  const [directMappingPendingColumns, setDirectMappingPendingColumns] = useState<DirectMappingFinalColumn[]>([]);
   const [directMappingSourceHeaders, setDirectMappingSourceHeaders] = useState<string[]>([]);
   const [directMappingSourceSamples, setDirectMappingSourceSamples] = useState<UnknownHeaderSamples>({});
   const [directMappingRenameValues, setDirectMappingRenameValues] = useState<string[]>([]);
   const [directMappingOutputOrder, setDirectMappingOutputOrder] = useState<number[]>([]);
+  const [directMappingCustomHeaders, setDirectMappingCustomHeaders] = useState<string[]>([]);
+  const [directMappingCustomHeaderInputOpen, setDirectMappingCustomHeaderInputOpen] = useState(false);
+  const [directMappingNewHeaderInput, setDirectMappingNewHeaderInput] = useState('');
   const [directMappingDraggingSourceIndex, setDirectMappingDraggingSourceIndex] = useState<number | null>(null);
   const [directMappingDragOverOrderIndex, setDirectMappingDragOverOrderIndex] = useState<number | null>(null);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
@@ -1699,10 +1708,15 @@ export function LogisticsConvertClient({
     setUnknownHeadersWarning([]);
     setUnknownHeaderSamples({});
     setDirectMappingModalOpen(false);
+    setDirectMappingConfirmModalOpen(false);
+    setDirectMappingPendingColumns([]);
     setDirectMappingSourceHeaders([]);
     setDirectMappingSourceSamples({});
     setDirectMappingRenameValues([]);
     setDirectMappingOutputOrder([]);
+    setDirectMappingCustomHeaders([]);
+    setDirectMappingCustomHeaderInputOpen(false);
+    setDirectMappingNewHeaderInput('');
     setDirectMappingDraggingSourceIndex(null);
     setDirectMappingDragOverOrderIndex(null);
     setSelectedFileName(null);
@@ -3277,10 +3291,15 @@ export function LogisticsConvertClient({
     setUnknownHeadersWarning([]);
     setUnknownHeaderSamples({});
     setDirectMappingModalOpen(false);
+    setDirectMappingConfirmModalOpen(false);
+    setDirectMappingPendingColumns([]);
     setDirectMappingSourceHeaders([]);
     setDirectMappingSourceSamples({});
     setDirectMappingRenameValues([]);
     setDirectMappingOutputOrder([]);
+    setDirectMappingCustomHeaders([]);
+    setDirectMappingCustomHeaderInputOpen(false);
+    setDirectMappingNewHeaderInput('');
     setDirectMappingDraggingSourceIndex(null);
     setDirectMappingDragOverOrderIndex(null);
     setTextInput('');
@@ -3791,6 +3810,9 @@ export function LogisticsConvertClient({
 
     setDirectMappingRenameValues([...directMappingSourceHeaders]);
     setDirectMappingOutputOrder([]);
+    setDirectMappingCustomHeaders([]);
+    setDirectMappingCustomHeaderInputOpen(false);
+    setDirectMappingNewHeaderInput('');
     setDirectMappingDraggingSourceIndex(null);
     setDirectMappingDragOverOrderIndex(null);
     setDirectMappingModalOpen(true);
@@ -3800,6 +3822,48 @@ export function LogisticsConvertClient({
     setDirectMappingRenameValues((prev) =>
       prev.map((header, index) => (index === sourceIndex ? value : header)),
     );
+  };
+
+  const getDirectMappingOutputHeaderName = (outputIndex: number) => {
+    if (outputIndex >= 0) {
+      const sourceHeader = directMappingSourceHeaders[outputIndex] ?? '';
+      return directMappingRenameValues[outputIndex]?.trim() || sourceHeader;
+    }
+
+    return directMappingCustomHeaders[Math.abs(outputIndex) - 1]?.trim() || '';
+  };
+
+  const getDirectMappingSourceHeaderName = (outputIndex: number) => {
+    if (outputIndex >= 0) return directMappingSourceHeaders[outputIndex] ?? '';
+    return '';
+  };
+
+  const handleAddDirectMappingCustomHeader = () => {
+    const headerName = directMappingNewHeaderInput.trim();
+    if (!headerName) {
+      alert('추가할 새 헤더명을 입력해 주세요.');
+      return;
+    }
+
+    const normalizedHeaderName = headerName.replace(/\s/g, '').toLowerCase();
+    const hasDuplicate = directMappingOutputOrder.some(
+      (outputIndex) =>
+        getDirectMappingOutputHeaderName(outputIndex).replace(/\s/g, '').toLowerCase() === normalizedHeaderName,
+    );
+    if (hasDuplicate) {
+      alert(`이미 최종 출력 순서에 같은 헤더명이 있습니다: ${headerName}`);
+      return;
+    }
+
+    const outputIndex = -(directMappingCustomHeaders.length + 1);
+    setDirectMappingCustomHeaders((prev) => [...prev, headerName]);
+    setDirectMappingOutputOrder((prev) => [...prev, outputIndex]);
+    setDirectMappingNewHeaderInput('');
+    setDirectMappingCustomHeaderInputOpen(false);
+  };
+
+  const handleRemoveDirectMappingCustomHeader = (outputIndex: number) => {
+    setDirectMappingOutputOrder((prev) => prev.filter((item) => item !== outputIndex));
   };
 
   const handleMoveDirectMappingOutputHeader = (sourceIndex: number, direction: -1 | 1) => {
@@ -3880,16 +3944,10 @@ export function LogisticsConvertClient({
   };
 
   const handleCreateDirectMappingFormat = () => {
-    const activeBridge = getActiveTemplateBridgeFile();
-    if (!activeBridge?.courierHeaders?.length) {
-      alert('등록할 출력 양식을 찾을 수 없습니다.');
-      return;
-    }
-
     const finalColumns = directMappingOutputOrder
-      .map((sourceIndex) => ({
-        sourceHeader: directMappingSourceHeaders[sourceIndex] ?? '',
-        outputHeader: directMappingRenameValues[sourceIndex]?.trim() ?? '',
+      .map((outputIndex) => ({
+        sourceHeader: getDirectMappingSourceHeaderName(outputIndex),
+        outputHeader: getDirectMappingOutputHeaderName(outputIndex),
       }));
 
     if (finalColumns.length === 0) {
@@ -3916,6 +3974,23 @@ export function LogisticsConvertClient({
       return;
     }
 
+    setDirectMappingPendingColumns(finalColumns);
+    setDirectMappingConfirmModalOpen(true);
+  };
+
+  const handleConfirmDirectMappingFormat = () => {
+    const activeBridge = getActiveTemplateBridgeFile();
+    if (!activeBridge?.courierHeaders?.length) {
+      alert('등록할 출력 양식을 찾을 수 없습니다.');
+      return;
+    }
+
+    const finalColumns = directMappingPendingColumns;
+    if (finalColumns.length === 0) {
+      alert('확인할 출력 순서가 없습니다. 수정하기를 눌러 출력 항목을 추가해 주세요.');
+      return;
+    }
+
     const finalHeaders = finalColumns.map((column) => column.outputHeader);
     const directHeaderMappings = finalColumns.reduce<DirectHeaderMapping>((acc, column) => {
       acc[column.outputHeader] = column.sourceHeader || null;
@@ -3931,7 +4006,7 @@ export function LogisticsConvertClient({
       directSourceHeaders: [...directMappingSourceHeaders],
     };
     const template = buildCourierTemplateFromHeaders(finalHeaders);
-    const formatName = '직접 연결 양식';
+    const formatName = '지정파일양식';
     const directFormatId = saveRecentExcelFormat(
       template,
       setRecentExcelFormats,
@@ -3964,7 +4039,7 @@ export function LogisticsConvertClient({
     setDirectMappingModalOpen(false);
     applyPreviewWorkspaceReset();
     setIsTemplateChangeReuploadModalOpen(true);
-    setRegistrationSuccessMessage('직접 연결 양식이 등록되었습니다. 주문파일을 다시 첨부해 주세요.');
+    setRegistrationSuccessMessage('지정파일양식이 등록되었습니다. 이 양식에 맞는 주문파일을 다시 첨부해 주세요.');
     setTimeout(() => {
       setRegistrationSuccessMessage(null);
     }, 5000);
@@ -6107,7 +6182,7 @@ export function LogisticsConvertClient({
                         onClick={handleOpenDirectMappingModal}
                         className="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
                       >
-                        직접 연결해서 계속하기
+                        지정파일양식 만들기
                       </button>
                     </div>
 
@@ -7130,8 +7205,19 @@ export function LogisticsConvertClient({
                       )}:${String(savedDate.getMinutes()).padStart(2, '0')}`;
 
                       const isEditing = editingFormatId === format.id;
+                      const isDirectFileFormat = hasDirectHeaderMappings(format.bridgeFile);
                       const defaultDisplayName =
                         recentExcelFormats.length > 1 ? `등록된 엑셀 양식 ${index + 1}` : '등록된 엑셀 양식';
+                      const displayName =
+                        format.displayName === '직접 연결 양식'
+                          ? '지정파일양식'
+                          : format.displayName || defaultDisplayName;
+                      const directMappingEntries = isDirectFileFormat
+                        ? format.columnOrder.map((outputHeader) => ({
+                            outputHeader,
+                            sourceHeader: format.bridgeFile.directHeaderMappings[outputHeader] ?? '',
+                          }))
+                        : [];
 
                       return (
                         <div
@@ -7189,9 +7275,16 @@ export function LogisticsConvertClient({
                                       </button>
                                     </div>
                                   ) : (
-                                    <span className="block break-keep text-sm font-bold leading-relaxed text-zinc-900 dark:text-zinc-100">
-                                      {format.displayName || defaultDisplayName}
-                                    </span>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="block break-keep text-sm font-bold leading-relaxed text-zinc-900 dark:text-zinc-100">
+                                        {displayName}
+                                      </span>
+                                      {isDirectFileFormat && (
+                                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                                          이 파일 헤더 전용
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1.5 text-left sm:flex-shrink-0 sm:justify-end sm:gap-2">
@@ -7251,7 +7344,28 @@ export function LogisticsConvertClient({
                               </div>
 
                               <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                                {Array.isArray(format.columnOrder) && format.columnOrder.length > 0 ? (
+                                {isDirectFileFormat ? (
+                                  <div className="space-y-2">
+                                    <div className="rounded-md bg-amber-50 px-2 py-1 text-[11px] leading-relaxed text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                                      이 양식은 등록할 때 사용한 주문파일의 원본 헤더와 연결됩니다. 다른 구조의 파일에는 값이 비어 보일 수 있습니다.
+                                    </div>
+                                    <div className="grid gap-1 sm:grid-cols-2">
+                                      {directMappingEntries.map((entry, idx) => (
+                                        <div
+                                          key={`${entry.outputHeader}-${idx}`}
+                                          className="rounded border border-amber-100 bg-white px-2 py-1 dark:border-amber-900 dark:bg-zinc-900"
+                                        >
+                                          <div className="font-semibold text-zinc-700 dark:text-zinc-200">
+                                            {idx + 1}. 출력: {entry.outputHeader || '(빈 헤더)'}
+                                          </div>
+                                          <div className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                            원본: {entry.sourceHeader || '새 헤더(빈 값)'}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : Array.isArray(format.columnOrder) && format.columnOrder.length > 0 ? (
                                   <div className="flex max-h-32 flex-wrap gap-1 overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
                                     {format.columnOrder.map((headerName, idx) => (
                                       <span
@@ -7322,17 +7436,21 @@ export function LogisticsConvertClient({
                 id="direct-header-mapping-title"
                 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
               >
-                직접 연결 양식 만들기
+                지정파일양식 만들기
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                주문파일의 헤더를 기준으로 출력 양식을 직접 만들어 보세요.
+                지금 올린 주문파일의 헤더를 기준으로 이 파일 전용 출력 양식을 만들어 보세요.
                 <br />
-                원본 헤더명은 그대로 확인하고, 사용할 헤더명과 출력 순서를 정하면 앞으로 같은 형식으로 변환할 수 있습니다.
+                원본 헤더명과 출력 헤더명을 연결해 저장하므로, 같은 헤더 구조의 파일에 사용할 때 정확하게 변환됩니다.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setDirectMappingModalOpen(false)}
+              onClick={() => {
+                setDirectMappingModalOpen(false);
+                setDirectMappingConfirmModalOpen(false);
+                setDirectMappingPendingColumns([]);
+              }}
               className="rounded-lg p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
               aria-label="닫기"
             >
@@ -7341,18 +7459,18 @@ export function LogisticsConvertClient({
           </div>
 
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-            2번 행에서 헤더명을 바꾸면 해당 열의 셀값은 그대로 유지되고, 변경한 이름 아래로 이동합니다.
-            3번 행에서 좌우 버튼으로 다운로드 파일의 열 순서를 정한 뒤 양식으로 등록합니다.
+            2번 행에서 출력 헤더명을 바꾸면 해당 열의 셀값은 그대로 유지되고, 변경한 이름 아래로 이동합니다.
+            3번 행에 올린 항목만 출력되며, 이 양식은 등록할 때 사용한 파일 헤더 구조에 맞춰 저장됩니다.
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
             <table className="border-collapse text-sm">
               <tbody>
                 <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                  <th className="sticky left-0 z-20 min-w-[150px] border-b border-r border-zinc-200 bg-zinc-100 px-3 py-2 text-left dark:border-zinc-700 dark:bg-zinc-800">
+                  <th className="sticky left-0 z-20 min-w-[260px] max-w-[260px] border-b border-r border-zinc-200 bg-zinc-100 px-4 py-3 text-left dark:border-zinc-700 dark:bg-zinc-800">
                     <div>1. 현재 파일 헤더명</div>
                     <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
-                      수정할 수 없는 원본 헤더입니다.
+                      주문파일에서 읽은 원래 헤더입니다. 기준 확인용이며 여기서는 수정하지 않습니다.
                     </div>
                   </th>
                   {directMappingSourceHeaders.map((sourceHeader, index) => (
@@ -7374,10 +7492,10 @@ export function LogisticsConvertClient({
                   ))}
                 </tr>
                 <tr>
-                  <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                  <th className="sticky left-0 z-10 min-w-[260px] max-w-[260px] border-b border-r border-zinc-200 bg-white px-4 py-3 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
                     <div>2. 명칭 변경</div>
                     <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
-                      이름만 바꾸고 셀값은 그대로 가져옵니다.
+                      다운로드 파일에 보일 이름을 입력합니다. 아래 카드를 3번 행으로 끌어 넣으면 출력 항목에 추가됩니다.
                     </div>
                   </th>
                   {directMappingSourceHeaders.map((sourceHeader, index) => {
@@ -7418,19 +7536,67 @@ export function LogisticsConvertClient({
                   })}
                 </tr>
                 <tr>
-                  <th className="sticky left-0 z-10 border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                  <th className="sticky left-0 z-10 min-w-[260px] max-w-[260px] border-r border-zinc-200 bg-white px-4 py-3 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
                     <div>3. 최종 출력 순서</div>
                     <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
-                      출력할 열 순서를 정합니다.
+                      2번 행에서 가져온 카드와 새 헤더만 출력됩니다. 카드를 좌우로 옮겨 다운로드 열 순서를 정합니다.
+                    </div>
+                    <div className="mt-3">
+                      {directMappingCustomHeaderInputOpen ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={directMappingNewHeaderInput}
+                            onChange={(event) => setDirectMappingNewHeaderInput(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') handleAddDirectMappingCustomHeader();
+                              if (event.key === 'Escape') {
+                                setDirectMappingCustomHeaderInputOpen(false);
+                                setDirectMappingNewHeaderInput('');
+                              }
+                            }}
+                            className="h-8 w-full rounded-md border border-zinc-300 bg-white px-2 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                            placeholder="예: 운임구분"
+                            autoFocus
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={handleAddDirectMappingCustomHeader}
+                              className="rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700"
+                            >
+                              추가
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDirectMappingCustomHeaderInputOpen(false);
+                                setDirectMappingNewHeaderInput('');
+                              }}
+                              className="rounded border border-zinc-300 px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDirectMappingCustomHeaderInputOpen(true)}
+                          className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
+                        >
+                          새 헤더 추가 +
+                        </button>
+                      )}
                     </div>
                   </th>
-                  {directMappingSourceHeaders.map((_, orderIndex) => {
+                  {Array.from({
+                    length: Math.max(directMappingSourceHeaders.length, directMappingOutputOrder.length + 1),
+                  }).map((_, orderIndex) => {
                     const sourceIndex = directMappingOutputOrder[orderIndex];
                     const hasOutput = typeof sourceIndex === 'number';
-                    const sourceHeader = hasOutput ? directMappingSourceHeaders[sourceIndex] ?? '' : '';
-                    const outputHeader = hasOutput
-                      ? directMappingRenameValues[sourceIndex]?.trim() || sourceHeader
-                      : '';
+                    const outputHeader = hasOutput ? getDirectMappingOutputHeaderName(sourceIndex) : '';
+                    const isCustomHeader = hasOutput && sourceIndex < 0;
                     return (
                       <td
                         key={`direct-final-slot-${orderIndex}`}
@@ -7488,6 +7654,15 @@ export function LogisticsConvertClient({
                           >
                             →
                           </button>
+                          {isCustomHeader && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDirectMappingCustomHeader(sourceIndex)}
+                              className="rounded border border-rose-200 px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                            >
+                              삭제
+                            </button>
+                          )}
                         </div>
                       </td>
                     );
@@ -7503,11 +7678,10 @@ export function LogisticsConvertClient({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {directMappingOutputOrder.map((sourceIndex, orderIndex) => {
-                const sourceHeader = directMappingSourceHeaders[sourceIndex] ?? '';
-                const outputHeader = directMappingRenameValues[sourceIndex]?.trim() || sourceHeader;
+                const outputHeader = getDirectMappingOutputHeaderName(sourceIndex);
                 return (
                   <span
-                    key={`direct-order-chip-${sourceHeader}-${sourceIndex}`}
+                    key={`direct-order-chip-${outputHeader}-${sourceIndex}`}
                     className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
                   >
                     {orderIndex + 1}. {outputHeader}
@@ -7524,7 +7698,11 @@ export function LogisticsConvertClient({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setDirectMappingModalOpen(false)}
+                onClick={() => {
+                  setDirectMappingModalOpen(false);
+                  setDirectMappingConfirmModalOpen(false);
+                  setDirectMappingPendingColumns([]);
+                }}
                 className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 취소
@@ -7534,9 +7712,90 @@ export function LogisticsConvertClient({
                 onClick={handleCreateDirectMappingFormat}
                 className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
               >
-                직접 연결 양식 등록
+                지정파일양식 등록
               </button>
             </div>
+          </div>
+        </div>
+      </WorkspaceBlockingModalOverlay>
+
+      <WorkspaceBlockingModalOverlay
+        open={directMappingConfirmModalOpen}
+        aria-labelledby="direct-mapping-confirm-title"
+        panelClassName="w-full max-w-[760px]"
+      >
+        <div className="flex max-h-[82vh] w-full max-w-[760px] flex-col rounded-xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2
+                id="direct-mapping-confirm-title"
+                className="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
+              >
+                이 순서로 지정파일양식을 등록할까요?
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                확인을 누르면 아래 순서가 다운로드 파일의 열 순서로 저장됩니다.
+                이 지정파일양식은 표시된 원본 헤더의 셀값을 가져오므로, 같은 헤더 구조의 파일에 사용해 주세요.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDirectMappingConfirmModalOpen(false)}
+              className="rounded-lg p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              aria-label="수정하기"
+            >
+              <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+            </button>
+          </div>
+
+          <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+            {directMappingPendingColumns.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {directMappingPendingColumns.map((column, index) => (
+                  <div
+                    key={`direct-confirm-${column.outputHeader}-${index}`}
+                    className="rounded-lg border border-emerald-200 bg-white px-3 py-2 dark:border-emerald-900 dark:bg-zinc-900"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-emerald-600 px-2 text-xs font-semibold text-white">
+                        {index + 1}
+                      </span>
+                      <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                        {column.outputHeader}
+                      </span>
+                    </div>
+                    <div className="mt-1 pl-8 text-xs text-zinc-500 dark:text-zinc-400">
+                      원본 헤더값: {column.sourceHeader || '새 헤더(빈 값)'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex h-24 items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+                확인할 출력 순서가 없습니다.
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+            확인 후에는 현재 미리보기가 초기화됩니다. 같은 주문파일을 다시 첨부하면 이 순서와 이름으로 변환됩니다.
+          </div>
+
+          <div className="mt-4 flex items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setDirectMappingConfirmModalOpen(false)}
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              수정하기
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDirectMappingFormat}
+              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+            >
+              확인
+            </button>
           </div>
         </div>
       </WorkspaceBlockingModalOverlay>
