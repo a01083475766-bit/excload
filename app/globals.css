@@ -505,6 +505,18 @@ body {
   border-color: #93c5fd !important; /* blue-300 */
 }
 
+/* 홈 랜딩: 진한 CTA 버튼(amber 계열)은 연한 배경 remap 예외 — 흰 글자 유지 */
+.blue-unified-theme button[class*="bg-amber-600"],
+.blue-unified-theme button[class*="bg-amber-700"] {
+  background-color: #2563eb !important; /* blue-600 */
+  color: #ffffff !important;
+}
+
+.blue-unified-theme button[class*="hover:bg-amber-700"]:hover,
+.blue-unified-theme button[class*="hover:bg-amber-800"]:hover {
+  background-color: #1d4ed8 !important; /* blue-700 */
+}
+
 /* 홈 임베드 무료체험: 사용량 배지는 항상 진한 배경+흰색 텍스트 유지 */
 .blue-unified-theme .trial-usage-badge {
   background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%) !important;

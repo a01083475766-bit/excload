@@ -5734,10 +5734,24 @@ export function LogisticsConvertClient({
       )}
 
       <div
-        className={`${trialMode && isDesktopHoverDevice ? 'ex-tooltip-follow-mode' : ''} pt-1.5 pb-4 bg-zinc-50 dark:bg-black`}
+        className={`${trialMode && isDesktopHoverDevice ? 'ex-tooltip-follow-mode' : ''} ${
+          landingEmbed
+            ? 'bg-transparent pb-2 pt-0 dark:bg-transparent'
+            : 'bg-zinc-50 pb-4 pt-1.5 dark:bg-black'
+        }`}
       >
-      <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
-        <div className={trialMode ? 'trial-focus-outline' : ''}>
+      <main
+        className={`mx-auto max-w-[1200px] px-3 sm:px-5 lg:px-8 ${landingEmbed ? 'max-w-none px-0' : ''}`}
+      >
+        <div
+          className={
+            landingEmbed
+              ? 'rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-4'
+              : trialMode
+                ? 'trial-focus-outline'
+                : ''
+          }
+        >
         {/* Hero 섹션 - 세로 흐름 구조 */}
         <section className="relative pt-1 pb-3">
           {!trialMode ? (
@@ -6236,7 +6250,11 @@ export function LogisticsConvertClient({
                       <button
                         type="button"
                         onClick={handleOpenDirectMappingModal}
-                        className="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                        className={
+                          trialMode
+                            ? 'rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700'
+                            : 'rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700'
+                        }
                       >
                         사용자 지정양식 만들기
                       </button>
@@ -6611,17 +6629,17 @@ export function LogisticsConvertClient({
                 data-ex-tooltip={
                   '주문 파일의 열 이름과 순서를 직접 정해 출력 양식을 만듭니다.\u000a업로드용 엑셀 파일이 없을 때도 사용할 수 있습니다'
                 }
-                className="ex-tooltip-target h-[120px] rounded-xl border border-emerald-300 bg-emerald-50 p-5 flex flex-col justify-center transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50"
+                className="ex-tooltip-target h-[120px] rounded-xl border border-gray-300 bg-gray-200 p-5 flex flex-col justify-center transition-colors hover:bg-gray-100"
               >
                 <div className="flex items-center justify-center gap-3 mb-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
-                    <ArrowRightLeft className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+                    <ArrowRightLeft className="h-5 w-5 text-gray-500" />
                   </div>
-                  <h3 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100 text-center">
+                  <h3 className="text-center text-sm font-semibold text-gray-900">
                     사용자 지정양식 만들기
                   </h3>
                 </div>
-                <p className="mt-1 text-center text-xs leading-relaxed text-emerald-800 dark:text-emerald-200">
+                <p className="mt-1 text-center text-xs leading-relaxed text-gray-500">
                   주문 파일 헤더를 직접 연결해
                   <br />
                   원하는 열 이름·순서로 만듭니다.
@@ -7257,11 +7275,21 @@ export function LogisticsConvertClient({
                 <button
                   type="button"
                   onClick={handleOpenUserCustomFormatFlow}
-                  className="mt-2 w-full border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 h-11 rounded-lg font-medium text-sm dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/70"
+                  className={
+                    landingEmbed
+                      ? 'mt-2 h-11 w-full rounded-lg border border-gray-300 bg-gray-100 font-medium text-sm text-gray-800 hover:bg-gray-200 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700'
+                      : 'mt-2 h-11 w-full rounded-lg border border-emerald-200 bg-emerald-50 font-medium text-sm text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/70'
+                  }
                 >
                   사용자 지정양식 만들기
                 </button>
-                <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-[13px] leading-relaxed text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                <p
+                  className={
+                    landingEmbed
+                      ? 'mt-2 rounded-lg bg-gray-100 px-3 py-2 text-[13px] leading-relaxed text-gray-600 dark:bg-zinc-800/60 dark:text-zinc-300'
+                      : 'mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-[13px] leading-relaxed text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                  }
+                >
                   사용자 지정양식: 주문 파일 헤더를 직접 연결해 거래처 제출용, 자체 관리용 등
                   원하는 열 순서로 만드는 다운로드 엑셀 양식입니다.
                 </p>
