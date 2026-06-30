@@ -70,15 +70,17 @@ export function UserCustomFormatGuideBlock({ variant }: UserCustomFormatGuideBlo
         <ul className="mx-auto max-w-3xl space-y-1.5 text-sm leading-relaxed">
           <li>
             <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${stepBadgeClass}`} aria-hidden />
-            「{uploadLabel}」 모달 안의 「사용자 지정양식 만들기」에서 시작할 수 있습니다.
+            아래 「{uploadLabel}」 버튼을 누른 뒤, 나오는 화면에서 「사용자 지정양식 만들기」를 누르면
+            시작할 수 있습니다.
           </li>
           <li>
             <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${stepBadgeClass}`} aria-hidden />
-            주문파일 업로드 후 헤더가 자동으로 맞지 않으면, 미리보기 안내에서도 바로 열 수 있습니다.
+            주문파일을 올린 뒤 열 이름이 맞지 않다는 안내가 보이면, 그 안내에서 「사용자 지정양식
+            만들기」를 눌러 바로 시작할 수 있습니다.
           </li>
           <li>
             <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${stepBadgeClass}`} aria-hidden />
-            저장 후 같은 형식의 주문파일을 다시 올리면, 설정한 헤더명·순서대로 변환됩니다.
+            설정을 저장한 뒤, 같은 형식의 주문파일을 다시 올리면 저장해 둔 열 이름·순서대로 변환됩니다.
           </li>
         </ul>
 
