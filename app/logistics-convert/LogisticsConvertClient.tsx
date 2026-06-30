@@ -7536,9 +7536,9 @@ export function LogisticsConvertClient({
             <table className="border-collapse text-sm">
               <tbody>
                 <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                  <th className="sticky left-0 z-20 min-w-[338px] max-w-[338px] border-b border-r border-zinc-200 bg-zinc-100 px-4 py-3 text-left dark:border-zinc-700 dark:bg-zinc-800">
-                    <div>1. 원본 주문파일 헤더</div>
-                    <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                  <th className="sticky left-0 z-20 min-w-[338px] max-w-[338px] border-b border-r border-zinc-200 bg-zinc-100 px-4 py-3 text-left text-sm dark:border-zinc-700 dark:bg-zinc-800">
+                    <div className="font-semibold">1. 원본 주문파일 헤더</div>
+                    <div className="mt-1 text-xs font-normal leading-relaxed text-zinc-500 dark:text-zinc-400">
                       현재 주문파일에 들어있는 원래 열 이름입니다. 어떤 주문 값을 가져올지 확인하는 줄이며, 수정할 수 없습니다.
                     </div>
                   </th>
@@ -7561,9 +7561,9 @@ export function LogisticsConvertClient({
                   ))}
                 </tr>
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-[338px] max-w-[338px] border-b border-r border-zinc-200 bg-white px-4 py-3 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    <div>2. 다운로드 파일에 표시될 이름</div>
-                    <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                  <th className="sticky left-0 z-10 min-w-[338px] max-w-[338px] border-b border-r border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    <div className="font-semibold">2. 다운로드 파일에 표시될 이름</div>
+                    <div className="mt-1 text-xs font-normal leading-relaxed text-zinc-500 dark:text-zinc-400">
                       최종 엑셀 파일에서 사용할 열 이름을 입력합니다. 예를 들어 원본 헤더가 &lsquo;받는사람&rsquo;이어도 &lsquo;받는 분&rsquo;으로 바꿀 수 있습니다. 헤더 이름만 바뀌며, 그 아래 주문 값은 그대로 연결됩니다.
                     </div>
                   </th>
@@ -7605,9 +7605,9 @@ export function LogisticsConvertClient({
                   })}
                 </tr>
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-[338px] max-w-[338px] border-r border-zinc-200 bg-white px-4 py-3 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    <div>3. 최종 출력 순서</div>
-                    <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                  <th className="sticky left-0 z-10 min-w-[338px] max-w-[338px] border-r border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    <div className="font-semibold">3. 최종 출력 순서</div>
+                    <div className="mt-1 text-xs font-normal leading-relaxed text-zinc-500 dark:text-zinc-400">
                       다운로드 파일에 넣을 항목을 이 줄에 올려 주세요. 이 줄에 올린 항목만 저장되며, 왼쪽부터 엑셀 열 순서가 됩니다. 항목을 옮기면 헤더뿐 아니라 해당 열의 주문 데이터도 함께 이동됩니다.
                     </div>
                     <div className="mt-3">
@@ -7652,7 +7652,7 @@ export function LogisticsConvertClient({
                         <button
                           type="button"
                           onClick={() => setDirectMappingCustomHeaderInputOpen(true)}
-                          className="w-full rounded border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
+                          className="w-full rounded border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
                         >
                           새 헤더 추가 +
                         </button>
