@@ -4547,21 +4547,21 @@ export default function OrderConvertPage() {
       <WorkspaceBlockingModalOverlay
         open={directMappingModalOpen}
         aria-labelledby="direct-header-mapping-title"
-        panelClassName="w-full max-w-[1180px]"
+        panelClassName="w-full max-w-[1482px]"
       >
-        <div className="flex h-[84vh] w-full max-w-[1180px] flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+        <div className="flex h-[88vh] w-full max-w-[1482px] flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 sm:h-[84vh] sm:p-6">
           <div className="mb-4 flex flex-shrink-0 items-start justify-between gap-4">
             <div>
               <h2
                 id="direct-header-mapping-title"
                 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
               >
-                부족한 항목 직접 연결
+                직접 연결 양식 만들기
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                자동으로 연결하지 못한 항목이 있습니다. 최종 다운로드 파일의 각 항목에 주문파일의 어떤 값을 넣을지 선택해 주세요.
+                주문파일의 헤더를 기준으로 출력 양식을 직접 만들어 보세요.
                 <br />
-                적용하면 직접 연결 양식으로 등록되고, 미리보기를 초기화한 뒤 같은 주문파일을 다시 첨부해 변환합니다.
+                원본 헤더명은 그대로 확인하고, 사용할 헤더명과 출력 순서를 정하면 앞으로 같은 형식으로 변환할 수 있습니다.
               </p>
             </div>
             <button
@@ -4575,8 +4575,8 @@ export default function OrderConvertPage() {
           </div>
 
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-            이 양식은 기존 자동 변환이나 AI 매핑을 다시 타지 않고, 저장된 연결표대로 주문파일 헤더의 값을 출력 헤더에 바로 넣습니다.
-            필요 없는 항목은 비워두기로 저장됩니다.
+            2번 행에서 헤더명을 바꾸면 해당 열의 셀값은 그대로 유지되고, 변경한 이름 아래로 이동합니다.
+            3번 행에서 좌우 버튼으로 다운로드 파일의 열 순서를 정한 뒤 양식으로 등록합니다.
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
@@ -4584,7 +4584,10 @@ export default function OrderConvertPage() {
               <tbody>
                 <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                   <th className="sticky left-0 z-20 min-w-[150px] border-b border-r border-zinc-200 bg-zinc-100 px-3 py-2 text-left dark:border-zinc-700 dark:bg-zinc-800">
-                    1. 현재 파일 헤더명
+                    <div>1. 현재 파일 헤더명</div>
+                    <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                      수정할 수 없는 원본 헤더입니다.
+                    </div>
                   </th>
                   {directMappingSourceHeaders.map((sourceHeader, index) => (
                     <td
@@ -4597,7 +4600,10 @@ export default function OrderConvertPage() {
                 </tr>
                 <tr>
                   <th className="sticky left-0 z-10 border-b border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    2. 명칭 변경
+                    <div>2. 명칭 변경</div>
+                    <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                      이름만 바꾸고 셀값은 그대로 가져옵니다.
+                    </div>
                   </th>
                   {directMappingSourceHeaders.map((sourceHeader, index) => (
                     <td
@@ -4618,7 +4624,10 @@ export default function OrderConvertPage() {
                 </tr>
                 <tr>
                   <th className="sticky left-0 z-10 border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    3. 최종 출력 순서
+                    <div>3. 최종 출력 순서</div>
+                    <div className="mt-1 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                      출력할 열 순서를 정합니다.
+                    </div>
                   </th>
                   {directMappingOutputOrder.map((sourceIndex, orderIndex) => {
                     const sourceHeader = directMappingSourceHeaders[sourceIndex] ?? '';
@@ -4657,9 +4666,29 @@ export default function OrderConvertPage() {
             </table>
           </div>
 
+          <div className="mt-3 flex-shrink-0 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+            <div className="mb-2 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+              현재 출력 순서
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {directMappingOutputOrder.map((sourceIndex, orderIndex) => {
+                const sourceHeader = directMappingSourceHeaders[sourceIndex] ?? '';
+                const outputHeader = directMappingRenameValues[sourceIndex]?.trim() || sourceHeader;
+                return (
+                  <span
+                    key={`direct-order-chip-${sourceHeader}-${sourceIndex}`}
+                    className="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
+                  >
+                    {orderIndex + 1}. {outputHeader}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="mt-4 flex flex-shrink-0 items-center justify-between gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-              등록 후에는 현재 미리보기가 초기화됩니다. 같은 주문파일을 다시 첨부하면 저장된 연결표로 바로 변환됩니다.
+              등록 후에는 현재 미리보기가 초기화됩니다. 같은 주문파일을 다시 첨부하면 등록한 이름과 순서대로 변환됩니다.
             </p>
             <div className="flex items-center gap-2">
               <button
