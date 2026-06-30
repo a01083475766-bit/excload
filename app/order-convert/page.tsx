@@ -136,90 +136,19 @@ import {
 import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-preview';
 import {
   buildCourierTemplateFromHeaders,
-  buildTrialBridgeFile,
 } from '@/app/logistics-convert/trial-sample-formats';
+import { parseOrderFileHeadersFromArrayBuffer } from '@/app/lib/parse-order-file-headers';
+import {
+  USER_CUSTOM_FORMAT_NAME,
+  createEmptyTemplateBridgeShell,
+  resolveUserCustomFormatDisplayName,
+} from '@/app/lib/user-custom-format';
+import { DirectMappingSampleFileModal } from '@/app/components/DirectMappingSampleFileModal';
 
 /** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
 const PREVIEW_TOOLBAR_BTN =
   'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
 const DEFAULT_CJ_INTRO_SUPPRESS_KEY = ORDER_DEFAULT_CJ_INTRO_SUPPRESS_KEY;
-const MANUAL_TEMPLATE_INITIAL_HEADERS = ['', '', '', ''];
-const MANUAL_TEMPLATE_HEADER_EXAMPLES = [
-  '주문 번호',
-  '보내는 사람',
-  '보내는 사람 전화',
-  '보내는 사람 추가 전화',
-  '보내는 사람 우편번호',
-  '보내는 사람 주소',
-  '보내는 사람 상세 주소',
-  '받는 사람',
-  '받는 사람 전화',
-  '받는 사람 추가 전화',
-  '받는 사람 우편번호',
-  '받는 사람 주소',
-  '받는 사람 상세 주소',
-  '주문자',
-  '주문자 연락처',
-  '주문 일시',
-  '결제 금액',
-  '결제 구분',
-  '상품명',
-  '추가 상품',
-  '상품 옵션',
-  '상품 옵션 상세',
-  '수량',
-  '배송 메시지',
-  '상품별 추가 메시지',
-  '주문자 추가 메시지',
-  '주문 배송비 구분',
-  '주문 배송비',
-  '운임 구분',
-  '운임',
-  '운송장 번호',
-  '창고 메모',
-  '내부 메모',
-  '출고 번호',
-  '택배사',
-  '묶음 배송 번호',
-  '분리 배송 여부',
-  '분리 배송 출고 예정일',
-  '주문시 출고 예정일',
-  '출고 발송일',
-  '등록 상품명',
-  '등록 옵션명',
-  '노출 상품명',
-  '노출 상품 ID',
-  '옵션 ID',
-  '최초 등록 옵션명',
-  '도서산간 추가 배송비',
-  '옵션 판매가',
-  '배송 완료일',
-  '구매 확정일자',
-  '통관용 구매자 전화번호',
-  '주문 상태',
-  '상품 주문 번호',
-  '제휴 주문 번호',
-  '관리 상품 번호',
-  '판매 상품 번호',
-  '판매자 할인',
-  '지원 할인',
-  '쿠폰명',
-  '쿠폰 할인',
-  '포인트',
-  '주문자 이메일',
-  '택배사 코드',
-  '배송 첨부 파일',
-  '상품 코드',
-  '옵션 코드',
-  '센터 코드',
-  '박스 수량',
-  '출고 타입',
-  '출고 요청일',
-  '주문 ID',
-  '출고 지시사항',
-  '판매처',
-  '개인통관번호',
-] as const;
 
 interface CourierUploadHeader {
   name: string;
@@ -623,12 +552,7 @@ export default function OrderConvertPage() {
   const [editingFormatId, setEditingFormatId] = useState<string | null>(null);
   const [editingDisplayName, setEditingDisplayName] = useState('');
   const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState<string | null>(null);
-  const [isManualTemplateBuilderOpen, setIsManualTemplateBuilderOpen] = useState(false);
-  const [manualTemplateHeaders, setManualTemplateHeaders] = useState<string[]>([
-    ...MANUAL_TEMPLATE_INITIAL_HEADERS,
-  ]);
-  const [manualTemplateActiveIndex, setManualTemplateActiveIndex] = useState(0);
-  const [manualTemplateExampleQuery, setManualTemplateExampleQuery] = useState('');
+  const [directMappingSampleFileModalOpen, setDirectMappingSampleFileModalOpen] = useState(false);
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [settingsCheckOverlayOpen, setSettingsCheckOverlayOpen] = useState(false);
@@ -1256,25 +1180,6 @@ export default function OrderConvertPage() {
     [courierUploadTemplate],
   );
 
-  const filteredManualTemplateHeaderExamples = useMemo(() => {
-    const query = manualTemplateExampleQuery.replace(/\s/g, '').trim().toLowerCase();
-    if (!query) return MANUAL_TEMPLATE_HEADER_EXAMPLES;
-    return MANUAL_TEMPLATE_HEADER_EXAMPLES.filter((example) =>
-      example.replace(/\s/g, '').toLowerCase().includes(query),
-    );
-  }, [manualTemplateExampleQuery]);
-
-  const manualTemplateEnteredHeaders = useMemo(
-    () =>
-      manualTemplateHeaders
-        .map((header, index) => ({
-          index,
-          name: header.trim(),
-        }))
-        .filter((header) => header.name !== ''),
-    [manualTemplateHeaders],
-  );
-
   useEffect(() => {
     defaultCjSeedAppliedRef.current = false;
   }, [storageUserId]);
@@ -1650,119 +1555,59 @@ export default function OrderConvertPage() {
     }
   };
 
-  const handleManualTemplateHeaderChange = (index: number, value: string) => {
-    setManualTemplateHeaders((prev) => prev.map((header, headerIndex) => (
-      headerIndex === index ? value : header
-    )));
+  const resetDirectMappingEditorFields = (headers: string[]) => {
+    setDirectMappingRenameValues([...headers]);
+    setDirectMappingOutputOrder([]);
+    setDirectMappingCustomHeaders([]);
+    setDirectMappingCustomHeaderInputOpen(false);
+    setDirectMappingNewHeaderInput('');
+    setDirectMappingDraggingSourceIndex(null);
+    setDirectMappingDragOverOrderIndex(null);
   };
 
-  const handleAddManualTemplateHeader = () => {
-    setManualTemplateHeaders((prev) => {
-      setManualTemplateActiveIndex(prev.length);
-      return [...prev, ''];
-    });
+  const openDirectMappingEditorModal = (
+    headers: string[],
+    samples: UnknownHeaderSamples,
+  ) => {
+    setDirectMappingSourceHeaders([...headers]);
+    setDirectMappingSourceSamples(samples);
+    resetDirectMappingEditorFields(headers);
+    setDirectMappingModalOpen(true);
   };
 
-  const handleRemoveManualTemplateHeader = (index: number) => {
-    setManualTemplateHeaders((prev) => {
-      if (prev.length <= 1) return prev;
-      const next = prev.filter((_, headerIndex) => headerIndex !== index);
-      setManualTemplateActiveIndex((current) => Math.min(current, next.length - 1));
-      return next;
-    });
-  };
-
-  const handleInsertManualTemplateExample = (example: string) => {
-    setManualTemplateHeaders((prev) => {
-      const targetIndex = Math.min(manualTemplateActiveIndex, Math.max(prev.length - 1, 0));
-      return prev.map((header, headerIndex) => (
-        headerIndex === targetIndex ? example : header
-      ));
-    });
-  };
-
-  const handleCreateManualTemplate = () => {
-    const headers = manualTemplateHeaders.map((header) => header.trim()).filter(Boolean);
-    if (headers.length === 0) {
-      alert('헤더명을 1개 이상 입력해 주세요.');
+  const handleOpenUserCustomFormatFlow = () => {
+    if (directMappingSourceHeaders.length > 0) {
+      resetDirectMappingEditorFields(directMappingSourceHeaders);
+      setDirectMappingModalOpen(true);
       return;
     }
+    setDirectMappingSampleFileModalOpen(true);
+  };
 
-    const seenHeaders = new Set<string>();
-    const duplicateHeader = headers.find((header) => {
-      const normalized = header.replace(/\s/g, '').toLowerCase();
-      if (seenHeaders.has(normalized)) return true;
-      seenHeaders.add(normalized);
-      return false;
-    });
-
-    if (duplicateHeader) {
-      alert(`중복된 헤더명이 있습니다: ${duplicateHeader}`);
-      return;
-    }
-
-    const manualTemplateSessionId = `manual-${crypto.randomUUID()}`;
-    const bridgeFile = buildTrialBridgeFile(headers);
-    const builtTemplate = buildCourierTemplateFromHeaders(headers);
-    const template: CourierUploadTemplate = {
-      courierType: null,
-      headers: builtTemplate.headers,
-      requiresSender:
-        builtTemplate.requiresSender ||
-        builtTemplate.headers.some((header) => !header.isEmpty && isSenderColumn(header.name)),
-    };
-
-    setTemplateFileSessionId(manualTemplateSessionId);
-    setCurrentFilePreviewData([]);
-    setOrderStandardFile(null);
-    setUploadedFileMeta([]);
-    setTemplateBridgeFile(bridgeFile);
-
-    if (typeof window !== 'undefined') {
-      try {
-        writeLocalStorageForUser(
-          ORDER_CONVERT_KEYS.bridge,
-          storageUserId,
-          JSON.stringify(bridgeFile),
-        );
-      } catch (error) {
-        console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
+  const handleDirectMappingSampleFileProcess = async (file: File) => {
+    let buffer: ArrayBuffer;
+    try {
+      buffer = await unlockExcelFile(file);
+    } catch (unlockError) {
+      if (unlockError instanceof ExcelUnlockCancelledError) {
+        return null;
       }
+      throw unlockError;
     }
 
-    const newFormatId = saveRecentExcelFormat(
-      template,
-      setRecentExcelFormats,
-      storageUserId,
-      bridgeFile,
-      '직접 만든 업로드 양식',
-    );
+    const cleanInputFile = await parseOrderFileHeadersFromArrayBuffer(buffer);
+    return {
+      headers: [...cleanInputFile.headers],
+      samples: buildHeaderSamples(cleanInputFile),
+    };
+  };
 
-    setCourierUploadTemplate(template);
-    saveCourierUploadTemplate(template, storageUserId);
-
-    if (newFormatId) {
-      setTempSelectedFormatId(newFormatId);
-      setShowRecentTemplate(true);
-    }
-
-    logTemplateHeaderUpload(
-      buildTemplateHeaderLogPayload(bridgeFile, {
-        page: 'order-convert',
-        fileSessionId: manualTemplateSessionId,
-        templateId: newFormatId ?? undefined,
-        templateName: '직접 만든 업로드 양식',
-      }),
-    );
-
-    setIsManualTemplateBuilderOpen(false);
-    setManualTemplateHeaders([...MANUAL_TEMPLATE_INITIAL_HEADERS]);
-    setManualTemplateActiveIndex(0);
-    setManualTemplateExampleQuery('');
-    setRegistrationSuccessMessage('내 출력 양식 만들기가 완료되었습니다');
-    setTimeout(() => {
-      setRegistrationSuccessMessage(null);
-    }, 3500);
+  const handleDirectMappingSampleFileSuccess = (
+    headers: string[],
+    samples: UnknownHeaderSamples,
+  ) => {
+    setDirectMappingSampleFileModalOpen(false);
+    openDirectMappingEditorModal(headers, samples);
   };
 
   const handleTemplateFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1938,24 +1783,12 @@ export default function OrderConvertPage() {
   };
 
   const handleOpenDirectMappingModal = () => {
-    const activeBridge = getActiveTemplateBridgeFile();
-    if (!activeBridge?.courierHeaders?.length) {
-      alert('먼저 택배 업로드 양식 또는 내 출력 양식을 선택해 주세요.');
-      return;
-    }
-
     if (directMappingSourceHeaders.length === 0) {
-      alert('주문파일 헤더를 확인할 수 없습니다. 주문파일을 다시 업로드해 주세요.');
+      setDirectMappingSampleFileModalOpen(true);
       return;
     }
 
-    setDirectMappingRenameValues([...directMappingSourceHeaders]);
-    setDirectMappingOutputOrder([]);
-    setDirectMappingCustomHeaders([]);
-    setDirectMappingCustomHeaderInputOpen(false);
-    setDirectMappingNewHeaderInput('');
-    setDirectMappingDraggingSourceIndex(null);
-    setDirectMappingDragOverOrderIndex(null);
+    resetDirectMappingEditorFields(directMappingSourceHeaders);
     setDirectMappingModalOpen(true);
   };
 
@@ -2121,11 +1954,6 @@ export default function OrderConvertPage() {
 
   const handleConfirmDirectMappingFormat = () => {
     const activeBridge = getActiveTemplateBridgeFile();
-    if (!activeBridge?.courierHeaders?.length) {
-      alert('등록할 출력 양식을 찾을 수 없습니다.');
-      return;
-    }
-
     const finalColumns = directMappingPendingColumns;
     if (finalColumns.length === 0) {
       alert('확인할 출력 순서가 없습니다. 수정하기를 눌러 출력 항목을 추가해 주세요.');
@@ -2139,7 +1967,7 @@ export default function OrderConvertPage() {
     }, {});
 
     const directBridgeFile: TemplateBridgeFile = {
-      ...activeBridge,
+      ...(activeBridge ?? createEmptyTemplateBridgeShell()),
       courierHeaders: finalHeaders,
       mappedBaseHeaders: finalHeaders.map(() => null),
       unknownHeaders: [],
@@ -2147,7 +1975,7 @@ export default function OrderConvertPage() {
       directSourceHeaders: [...directMappingSourceHeaders],
     };
     const template = buildCourierTemplateFromHeaders(finalHeaders);
-    const formatName = '지정파일양식';
+    const formatName = USER_CUSTOM_FORMAT_NAME;
     const directFormatId = saveRecentExcelFormat(
       template,
       setRecentExcelFormats,
@@ -2208,7 +2036,7 @@ export default function OrderConvertPage() {
     if (excelFileInputRef.current) excelFileInputRef.current.value = '';
 
     setIsTemplateChangeReuploadModalOpen(true);
-    setRegistrationSuccessMessage('지정파일양식이 등록되었습니다. 이 양식에 맞는 주문파일을 다시 첨부해 주세요.');
+    setRegistrationSuccessMessage('사용자 지정양식이 등록되었습니다. 이 양식에 맞는 주문파일을 다시 첨부해 주세요.');
     setTimeout(() => {
       setRegistrationSuccessMessage(null);
     }, 5000);
@@ -4203,7 +4031,7 @@ export default function OrderConvertPage() {
                         onClick={handleOpenDirectMappingModal}
                         className="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
                       >
-                        지정파일양식 만들기
+                        사용자 지정양식 만들기
                       </button>
                     </div>
 
@@ -4458,10 +4286,10 @@ export default function OrderConvertPage() {
             fixedHeaderOrder={FIXED_HEADER_ORDER}
             fixedHeaderValues={fixedHeaderValues}
             variant="blue"
-            templateKindLabel={hasDirectHeaderMappings(templateBridgeFile) ? '지정파일' : undefined}
+            templateKindLabel={hasDirectHeaderMappings(templateBridgeFile) ? '사용자 지정' : undefined}
             templateKindDescription={
               hasDirectHeaderMappings(templateBridgeFile)
-                ? '지정파일양식 사용 중: 등록할 때 사용한 파일과 같은 헤더 구조에 맞춰 출력됩니다.'
+                ? '사용자 지정양식 사용 중: 등록할 때 사용한 파일과 같은 헤더 구조에 맞춰 출력됩니다.'
                 : undefined
             }
           />
@@ -4528,14 +4356,14 @@ export default function OrderConvertPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsManualTemplateBuilderOpen(true)}
+                  onClick={handleOpenUserCustomFormatFlow}
                   className="mt-2 w-full border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 h-11 rounded-lg font-medium text-sm dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-950/70"
                 >
-                  내 출력 양식 만들기
+                  사용자 지정양식 만들기
                 </button>
                 <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-[13px] leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  내 출력 양식: 택배사 업로드용뿐 아니라 거래처 제출용, 자체 관리용 등
-                  원하는 열 순서로 직접 만드는 “다운로드 엑셀 양식”입니다.
+                  사용자 지정양식: 주문 파일 헤더를 직접 연결해 거래처 제출용, 자체 관리용 등
+                  원하는 열 순서로 만드는 다운로드 엑셀 양식입니다.
                 </p>
                 {registrationSuccessMessage && (
                   <p className="mt-2 text-xs text-green-600 dark:text-green-400">
@@ -4574,10 +4402,10 @@ export default function OrderConvertPage() {
                       const isDirectFileFormat = Boolean(directBridgeFile);
                       const defaultDisplayName =
                         recentExcelFormats.length > 1 ? `등록된 엑셀 양식 ${index + 1}` : '등록된 엑셀 양식';
-                      const displayName =
-                        format.displayName === '직접 연결 양식'
-                          ? '지정파일양식'
-                          : format.displayName || defaultDisplayName;
+                      const displayName = resolveUserCustomFormatDisplayName(
+                        format.displayName,
+                        defaultDisplayName,
+                      );
                       const directMappingEntries = directBridgeFile
                         ? format.columnOrder.map((outputHeader) => ({
                             outputHeader,
@@ -4776,10 +4604,10 @@ export default function OrderConvertPage() {
                 id="direct-header-mapping-title"
                 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
               >
-                지정파일양식 만들기
+                사용자 지정양식 만들기
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                지금 올린 주문파일의 헤더를 기준으로 이 파일 전용 출력 양식을 만들어 보세요.
+                주문 파일의 헤더를 기준으로 출력 양식을 만들어 보세요.
                 <br />
                 원본 헤더명과 출력 헤더명을 연결해 저장하므로, 같은 헤더 구조의 파일에 사용할 때 정확하게 변환됩니다.
               </p>
@@ -4899,11 +4727,11 @@ export default function OrderConvertPage() {
                             placeholder="예: 운임구분"
                             autoFocus
                           />
-                          <div className="flex gap-1">
+                          <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={handleAddDirectMappingCustomHeader}
-                              className="rounded bg-blue-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-blue-700"
+                              className="min-w-[84px] flex-1 rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
                             >
                               추가
                             </button>
@@ -4913,7 +4741,7 @@ export default function OrderConvertPage() {
                                 setDirectMappingCustomHeaderInputOpen(false);
                                 setDirectMappingNewHeaderInput('');
                               }}
-                              className="rounded border border-zinc-300 px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                              className="min-w-[84px] flex-1 rounded border border-zinc-300 px-4 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                             >
                               취소
                             </button>
@@ -5051,7 +4879,7 @@ export default function OrderConvertPage() {
                 onClick={handleCreateDirectMappingFormat}
                 className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
               >
-                지정파일양식 등록
+                사용자 지정양식 등록
               </button>
             </div>
           </div>
@@ -5070,11 +4898,11 @@ export default function OrderConvertPage() {
                 id="direct-mapping-confirm-title"
                 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
               >
-                이 순서로 지정파일양식을 등록할까요?
+                이 순서로 사용자 지정양식을 등록할까요?
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
                 확인을 누르면 아래 순서가 다운로드 파일의 열 순서로 저장됩니다.
-                이 지정파일양식은 표시된 원본 헤더의 셀값을 가져오므로, 같은 헤더 구조의 파일에 사용해 주세요.
+                이 사용자 지정양식은 표시된 원본 헤더의 셀값을 가져오므로, 같은 헤더 구조의 파일에 사용해 주세요.
               </p>
             </div>
             <button
@@ -5139,211 +4967,13 @@ export default function OrderConvertPage() {
         </div>
       </WorkspaceBlockingModalOverlay>
 
-      <WorkspaceBlockingModalOverlay
-        open={isManualTemplateBuilderOpen}
-        aria-labelledby="manual-template-builder-title"
-        panelClassName="w-full max-w-[1482px]"
-      >
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[1482px] h-[88vh] sm:h-[84vh] flex flex-col p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-6 flex-shrink-0">
-            <h2
-              id="manual-template-builder-title"
-              className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
-            >
-              내 출력 양식 만들기
-            </h2>
-            <button
-              type="button"
-              onClick={() => setIsManualTemplateBuilderOpen(false)}
-              className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-            </button>
-          </div>
-
-          <div className="mb-6 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              자주 사용하는 엑셀 형식을 직접 만들어 보세요.
-              <br />
-              택배사 업로드 파일뿐 아니라 거래처 제출용, 자체 관리용 등 원하는 엑셀 양식을 자유롭게 만들 수 있습니다.
-              <br />
-              매번 복사·붙여넣기하거나 셀을 옮길 필요 없이 주문 데이터를 원하는 형태로 자동 정리합니다.
-              <br />
-              원하는 열 순서만 한 번 설정하면 앞으로는 주문 파일을 자동으로 같은 형식으로 변환합니다.
-            </p>
-          </div>
-
-          <div className="flex-1 overflow-y-auto min-h-[400px] pb-2">
-            <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-              <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    헤더명 입력
-                  </h3>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    열 순서는 다운로드될 다운로드 파일의 열 순서로 사용됩니다.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddManualTemplateHeader}
-                  className="min-w-[120px] rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  셀추가 +
-                </button>
-              </div>
-
-              <div className="overflow-x-auto p-4 preview-scrollbar">
-                <table className="min-w-full table-fixed border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-zinc-100 dark:bg-zinc-800">
-                      {manualTemplateHeaders.map((_, index) => (
-                        <th
-                          key={`manual-template-modal-heading-${index}`}
-                          className={`min-w-[220px] border px-3 py-2 text-left font-semibold transition-colors ${
-                            manualTemplateActiveIndex === index
-                              ? 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200'
-                              : 'border-zinc-200 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300'
-                          }`}
-                        >
-                          {index + 1}. 헤더명 입력
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      {manualTemplateHeaders.map((header, index) => (
-                        <td
-                          key={`manual-template-modal-input-${index}`}
-                          className={`min-w-[220px] border p-2 transition-colors ${
-                            manualTemplateActiveIndex === index
-                              ? 'border-blue-300 bg-blue-50/70 dark:border-blue-800 dark:bg-blue-950/30'
-                              : 'border-zinc-200 dark:border-zinc-700'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={header}
-                              onFocus={() => setManualTemplateActiveIndex(index)}
-                              onChange={(e) => handleManualTemplateHeaderChange(index, e.target.value)}
-                              placeholder="예: 받는 사람"
-                              className={`h-10 min-w-0 flex-1 rounded-md border px-3 text-sm text-zinc-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:text-zinc-100 dark:focus:ring-blue-950 ${
-                                manualTemplateActiveIndex === index
-                                  ? 'border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
-                                  : 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-950'
-                              }`}
-                            />
-                            {manualTemplateHeaders.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveManualTemplateHeader(index)}
-                                className="h-10 w-8 rounded-md border border-zinc-300 text-xs text-zinc-500 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                                aria-label="헤더 입력칸 삭제"
-                              >
-                                X
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-zinc-200 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                <span className="font-medium">
-                  현재 선택 칸: {manualTemplateActiveIndex + 1}번째
-                </span>
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                  <span className="text-zinc-500 dark:text-zinc-400">
-                    현재까지 입력:
-                  </span>
-                  {manualTemplateEnteredHeaders.length > 0 ? (
-                    manualTemplateEnteredHeaders.map((header) => (
-                      <span
-                        key={`${header.index}-${header.name}`}
-                        className="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
-                      >
-                        {header.index + 1}. {header.name}(지정)
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-zinc-400 dark:text-zinc-500">
-                      아직 입력된 헤더가 없습니다.
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    입력 예시
-                  </h3>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      예시문을 선택하거나 참고하여 직접 입력하세요.
-                    </p>
-                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-200">
-                      보내는분 / 연락처 / 상품명 등 보편적으로 사용하는 이름을 권장합니다.
-                    </p>
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  value={manualTemplateExampleQuery}
-                  onChange={(e) => setManualTemplateExampleQuery(e.target.value)}
-                  placeholder="예시 검색: 주소, 전화, 상품"
-                  className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:focus:ring-blue-950 sm:w-[280px]"
-                />
-              </div>
-
-              <div className="h-[260px] overflow-y-auto">
-                {filteredManualTemplateHeaderExamples.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {filteredManualTemplateHeaderExamples.map((example) => (
-                      <button
-                        key={example}
-                        type="button"
-                        onClick={() => handleInsertManualTemplateExample(example)}
-                        className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-blue-800 dark:hover:bg-blue-950/50 dark:hover:text-blue-200"
-                      >
-                        {example}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    검색 결과가 없습니다.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setIsManualTemplateBuilderOpen(false)}
-              className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleCreateManualTemplate}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-sm text-white font-medium"
-            >
-              완료
-            </button>
-          </div>
-        </div>
-      </WorkspaceBlockingModalOverlay>
+      <DirectMappingSampleFileModal
+        open={directMappingSampleFileModalOpen}
+        accent="blue"
+        onClose={() => setDirectMappingSampleFileModalOpen(false)}
+        onFileProcess={handleDirectMappingSampleFileProcess}
+        onSuccess={handleDirectMappingSampleFileSuccess}
+      />
 
       {/* 더미 없음 안내 모달 */}
       {isEmptyDataModalOpen && (

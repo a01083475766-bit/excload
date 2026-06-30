@@ -74,7 +74,13 @@ import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusB
 import { DefaultCjTemplateNotice } from '@/app/components/DefaultCjTemplateNotice';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
-import { ManualOutputTemplateBuilderModal } from '@/app/components/ManualOutputTemplateBuilderModal';
+import { DirectMappingSampleFileModal } from '@/app/components/DirectMappingSampleFileModal';
+import { parseOrderFileHeadersFromArrayBuffer } from '@/app/lib/parse-order-file-headers';
+import {
+  USER_CUSTOM_FORMAT_NAME,
+  createEmptyTemplateBridgeShell,
+  resolveUserCustomFormatDisplayName,
+} from '@/app/lib/user-custom-format';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBridgeChange';
 import {
@@ -157,7 +163,6 @@ import {
   repairTrialBridgeFileIfNeeded,
   trialBridgeNeedsAliasRefresh,
 } from '@/app/logistics-convert/trial-sample-formats';
-import { MANUAL_TEMPLATE_INITIAL_HEADERS } from '@/app/lib/manual-output-template-builder';
 import {
   BundleShippingModal,
   type BundleShippingApplyPayload,
@@ -1189,12 +1194,7 @@ export function LogisticsConvertClient({
   const [editingFormatId, setEditingFormatId] = useState<string | null>(null);
   const [editingDisplayName, setEditingDisplayName] = useState('');
   const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState<string | null>(null);
-  const [isManualTemplateBuilderOpen, setIsManualTemplateBuilderOpen] = useState(false);
-  const [manualTemplateHeaders, setManualTemplateHeaders] = useState<string[]>([
-    ...MANUAL_TEMPLATE_INITIAL_HEADERS,
-  ]);
-  const [manualTemplateActiveIndex, setManualTemplateActiveIndex] = useState(0);
-  const [manualTemplateExampleQuery, setManualTemplateExampleQuery] = useState('');
+  const [directMappingSampleFileModalOpen, setDirectMappingSampleFileModalOpen] = useState(false);
   const [isEmptyDataModalOpen, setIsEmptyDataModalOpen] = useState(false);
   const [isSenderModalOpen, setIsSenderModalOpen] = useState(false);
   const [settingsCheckOverlayOpen, setSettingsCheckOverlayOpen] = useState(false);
@@ -3583,120 +3583,59 @@ export function LogisticsConvertClient({
     }
   };
 
-  const handleManualTemplateHeaderChange = (index: number, value: string) => {
-    setManualTemplateHeaders((prev) => prev.map((header, headerIndex) => (
-      headerIndex === index ? value : header
-    )));
+  const resetDirectMappingEditorFields = (headers: string[]) => {
+    setDirectMappingRenameValues([...headers]);
+    setDirectMappingOutputOrder([]);
+    setDirectMappingCustomHeaders([]);
+    setDirectMappingCustomHeaderInputOpen(false);
+    setDirectMappingNewHeaderInput('');
+    setDirectMappingDraggingSourceIndex(null);
+    setDirectMappingDragOverOrderIndex(null);
   };
 
-  const handleAddManualTemplateHeader = () => {
-    setManualTemplateHeaders((prev) => {
-      setManualTemplateActiveIndex(prev.length);
-      return [...prev, ''];
-    });
+  const openDirectMappingEditorModal = (
+    headers: string[],
+    samples: UnknownHeaderSamples,
+  ) => {
+    setDirectMappingSourceHeaders([...headers]);
+    setDirectMappingSourceSamples(samples);
+    resetDirectMappingEditorFields(headers);
+    setDirectMappingModalOpen(true);
   };
 
-  const handleRemoveManualTemplateHeader = (index: number) => {
-    setManualTemplateHeaders((prev) => {
-      if (prev.length <= 1) return prev;
-      const next = prev.filter((_, headerIndex) => headerIndex !== index);
-      setManualTemplateActiveIndex((current) => Math.min(current, next.length - 1));
-      return next;
-    });
-  };
-
-  const handleInsertManualTemplateExample = (example: string) => {
-    setManualTemplateHeaders((prev) => {
-      const targetIndex = Math.min(manualTemplateActiveIndex, Math.max(prev.length - 1, 0));
-      return prev.map((header, headerIndex) => (
-        headerIndex === targetIndex ? example : header
-      ));
-    });
-  };
-
-  const handleCreateManualTemplate = () => {
-    const headers = manualTemplateHeaders.map((header) => header.trim()).filter(Boolean);
-    if (headers.length === 0) {
-      alert('헤더명을 1개 이상 입력해 주세요.');
+  const handleOpenUserCustomFormatFlow = () => {
+    if (directMappingSourceHeaders.length > 0) {
+      resetDirectMappingEditorFields(directMappingSourceHeaders);
+      setDirectMappingModalOpen(true);
       return;
     }
+    setDirectMappingSampleFileModalOpen(true);
+  };
 
-    const seenHeaders = new Set<string>();
-    const duplicateHeader = headers.find((header) => {
-      const normalized = header.replace(/\s/g, '').toLowerCase();
-      if (seenHeaders.has(normalized)) return true;
-      seenHeaders.add(normalized);
-      return false;
-    });
-
-    if (duplicateHeader) {
-      alert(`중복된 헤더명이 있습니다: ${duplicateHeader}`);
-      return;
-    }
-
-    const manualTemplateSessionId = `manual-${crypto.randomUUID()}`;
-    const bridgeFile = buildTrialBridgeFile(headers);
-    const builtTemplate = buildCourierTemplateFromHeaders(headers);
-    const template: CourierUploadTemplate = {
-      courierType: null,
-      headers: builtTemplate.headers,
-      requiresSender:
-        builtTemplate.requiresSender ||
-        builtTemplate.headers.some((header) => !header.isEmpty && isSenderColumn(header.name)),
-    };
-
-    setTemplateFileSessionId(manualTemplateSessionId);
-    setCurrentFilePreviewData([]);
-    setOrderStandardFile(null);
-    setUploadedFileMeta([]);
-    setTemplateBridgeFile(bridgeFile);
-
-    if (typeof window !== 'undefined') {
-      try {
-        if (trialMode) {
-          localStorage.setItem(TRIAL_LOGISTICS_BRIDGE_KEY, JSON.stringify(bridgeFile));
-        } else {
-          writeLocalStorageForUser(LOGISTICS_MAIN_KEYS.bridge, userId, JSON.stringify(bridgeFile));
-        }
-      } catch (error) {
-        console.error('localStorage에 bridgeFile을 저장하는 중 오류 발생:', error);
+  const handleDirectMappingSampleFileProcess = async (file: File) => {
+    let buffer: ArrayBuffer;
+    try {
+      buffer = await unlockExcelFile(file);
+    } catch (unlockError) {
+      if (unlockError instanceof ExcelUnlockCancelledError) {
+        return null;
       }
+      throw unlockError;
     }
 
-    const newFormatId = saveRecentExcelFormat(
-      template,
-      setRecentExcelFormats,
-      trialMode,
-      userId,
-      bridgeFile,
-      '직접 만든 출력 양식',
-    );
+    const cleanInputFile = await parseOrderFileHeadersFromArrayBuffer(buffer);
+    return {
+      headers: [...cleanInputFile.headers],
+      samples: buildHeaderSamples(cleanInputFile),
+    };
+  };
 
-    setCourierUploadTemplate(template);
-    saveCourierUploadTemplate(template, trialMode, userId);
-
-    if (newFormatId) {
-      setTempSelectedFormatId(newFormatId);
-      setShowRecentTemplate(true);
-    }
-
-    logTemplateHeaderUpload(
-      buildTemplateHeaderLogPayload(bridgeFile, {
-        page: 'logistics-convert',
-        fileSessionId: manualTemplateSessionId,
-        templateId: newFormatId ?? undefined,
-        templateName: '직접 만든 출력 양식',
-      }),
-    );
-
-    setIsManualTemplateBuilderOpen(false);
-    setManualTemplateHeaders([...MANUAL_TEMPLATE_INITIAL_HEADERS]);
-    setManualTemplateActiveIndex(0);
-    setManualTemplateExampleQuery('');
-    setRegistrationSuccessMessage('내 출력 양식 만들기가 완료되었습니다');
-    setTimeout(() => {
-      setRegistrationSuccessMessage(null);
-    }, 3500);
+  const handleDirectMappingSampleFileSuccess = (
+    headers: string[],
+    samples: UnknownHeaderSamples,
+  ) => {
+    setDirectMappingSampleFileModalOpen(false);
+    openDirectMappingEditorModal(headers, samples);
   };
 
   const saveFormatDisplayName = (formatId: string, displayName: string) => {
@@ -3797,24 +3736,12 @@ export function LogisticsConvertClient({
   };
 
   const handleOpenDirectMappingModal = () => {
-    const activeBridge = getActiveTemplateBridgeFile();
-    if (!activeBridge?.courierHeaders?.length) {
-      alert('먼저 택배사 업로드 양식 또는 내 출력 양식을 선택해 주세요.');
-      return;
-    }
-
     if (directMappingSourceHeaders.length === 0) {
-      alert('주문파일 헤더를 확인할 수 없습니다. 주문파일을 다시 업로드해 주세요.');
+      setDirectMappingSampleFileModalOpen(true);
       return;
     }
 
-    setDirectMappingRenameValues([...directMappingSourceHeaders]);
-    setDirectMappingOutputOrder([]);
-    setDirectMappingCustomHeaders([]);
-    setDirectMappingCustomHeaderInputOpen(false);
-    setDirectMappingNewHeaderInput('');
-    setDirectMappingDraggingSourceIndex(null);
-    setDirectMappingDragOverOrderIndex(null);
+    resetDirectMappingEditorFields(directMappingSourceHeaders);
     setDirectMappingModalOpen(true);
   };
 
@@ -3980,11 +3907,6 @@ export function LogisticsConvertClient({
 
   const handleConfirmDirectMappingFormat = () => {
     const activeBridge = getActiveTemplateBridgeFile();
-    if (!activeBridge?.courierHeaders?.length) {
-      alert('등록할 출력 양식을 찾을 수 없습니다.');
-      return;
-    }
-
     const finalColumns = directMappingPendingColumns;
     if (finalColumns.length === 0) {
       alert('확인할 출력 순서가 없습니다. 수정하기를 눌러 출력 항목을 추가해 주세요.');
@@ -3998,7 +3920,7 @@ export function LogisticsConvertClient({
     }, {});
 
     const directBridgeFile: TemplateBridgeFile = {
-      ...activeBridge,
+      ...(activeBridge ?? createEmptyTemplateBridgeShell()),
       courierHeaders: finalHeaders,
       mappedBaseHeaders: finalHeaders.map(() => null),
       unknownHeaders: [],
@@ -4006,7 +3928,7 @@ export function LogisticsConvertClient({
       directSourceHeaders: [...directMappingSourceHeaders],
     };
     const template = buildCourierTemplateFromHeaders(finalHeaders);
-    const formatName = '지정파일양식';
+    const formatName = USER_CUSTOM_FORMAT_NAME;
     const directFormatId = saveRecentExcelFormat(
       template,
       setRecentExcelFormats,
@@ -4039,7 +3961,7 @@ export function LogisticsConvertClient({
     setDirectMappingModalOpen(false);
     applyPreviewWorkspaceReset();
     setIsTemplateChangeReuploadModalOpen(true);
-    setRegistrationSuccessMessage('지정파일양식이 등록되었습니다. 이 양식에 맞는 주문파일을 다시 첨부해 주세요.');
+    setRegistrationSuccessMessage('사용자 지정양식이 등록되었습니다. 이 양식에 맞는 주문파일을 다시 첨부해 주세요.');
     setTimeout(() => {
       setRegistrationSuccessMessage(null);
     }, 5000);
@@ -6182,7 +6104,7 @@ export function LogisticsConvertClient({
                         onClick={handleOpenDirectMappingModal}
                         className="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
                       >
-                        지정파일양식 만들기
+                        사용자 지정양식 만들기
                       </button>
                     </div>
 
@@ -6610,10 +6532,10 @@ export function LogisticsConvertClient({
             fixedHeaderOrder={FIXED_HEADER_ORDER}
             fixedHeaderValues={fixedHeaderValues}
             variant="emerald"
-            templateKindLabel={hasDirectHeaderMappings(templateBridgeFile) ? '지정파일' : undefined}
+            templateKindLabel={hasDirectHeaderMappings(templateBridgeFile) ? '사용자 지정' : undefined}
             templateKindDescription={
               hasDirectHeaderMappings(templateBridgeFile)
-                ? '지정파일양식 사용 중: 등록할 때 사용한 파일과 같은 헤더 구조에 맞춰 출력됩니다.'
+                ? '사용자 지정양식 사용 중: 등록할 때 사용한 파일과 같은 헤더 구조에 맞춰 출력됩니다.'
                 : undefined
             }
           />
@@ -7171,14 +7093,14 @@ export function LogisticsConvertClient({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsManualTemplateBuilderOpen(true)}
+                  onClick={handleOpenUserCustomFormatFlow}
                   className="mt-2 w-full border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 h-11 rounded-lg font-medium text-sm dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/70"
                 >
-                  내 출력 양식 만들기
+                  사용자 지정양식 만들기
                 </button>
                 <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-[13px] leading-relaxed text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-                  내 출력 양식: 물류센터 업로드용뿐 아니라 거래처 제출용, 자체 관리용 등
-                  원하는 열 순서로 직접 만드는 “다운로드 엑셀 양식”입니다.
+                  사용자 지정양식: 주문 파일 헤더를 직접 연결해 거래처 제출용, 자체 관리용 등
+                  원하는 열 순서로 만드는 다운로드 엑셀 양식입니다.
                 </p>
                 {registrationSuccessMessage && (
                   <p className="mt-2 text-xs text-green-600 dark:text-green-400">
@@ -7217,10 +7139,10 @@ export function LogisticsConvertClient({
                       const isDirectFileFormat = Boolean(directBridgeFile);
                       const defaultDisplayName =
                         recentExcelFormats.length > 1 ? `등록된 엑셀 양식 ${index + 1}` : '등록된 엑셀 양식';
-                      const displayName =
-                        format.displayName === '직접 연결 양식'
-                          ? '지정파일양식'
-                          : format.displayName || defaultDisplayName;
+                      const displayName = resolveUserCustomFormatDisplayName(
+                        format.displayName,
+                        defaultDisplayName,
+                      );
                       const directMappingEntries = directBridgeFile
                         ? format.columnOrder.map((outputHeader) => ({
                             outputHeader,
@@ -7445,10 +7367,10 @@ export function LogisticsConvertClient({
                 id="direct-header-mapping-title"
                 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
               >
-                지정파일양식 만들기
+                사용자 지정양식 만들기
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                지금 올린 주문파일의 헤더를 기준으로 이 파일 전용 출력 양식을 만들어 보세요.
+                주문 파일의 헤더를 기준으로 출력 양식을 만들어 보세요.
                 <br />
                 원본 헤더명과 출력 헤더명을 연결해 저장하므로, 같은 헤더 구조의 파일에 사용할 때 정확하게 변환됩니다.
               </p>
@@ -7568,11 +7490,11 @@ export function LogisticsConvertClient({
                             placeholder="예: 운임구분"
                             autoFocus
                           />
-                          <div className="flex gap-1">
+                          <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={handleAddDirectMappingCustomHeader}
-                              className="rounded bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700"
+                              className="min-w-[84px] flex-1 rounded bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
                             >
                               추가
                             </button>
@@ -7582,7 +7504,7 @@ export function LogisticsConvertClient({
                                 setDirectMappingCustomHeaderInputOpen(false);
                                 setDirectMappingNewHeaderInput('');
                               }}
-                              className="rounded border border-zinc-300 px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                              className="min-w-[84px] flex-1 rounded border border-zinc-300 px-4 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                             >
                               취소
                             </button>
@@ -7720,7 +7642,7 @@ export function LogisticsConvertClient({
                 onClick={handleCreateDirectMappingFormat}
                 className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
               >
-                지정파일양식 등록
+                사용자 지정양식 등록
               </button>
             </div>
           </div>
@@ -7739,11 +7661,11 @@ export function LogisticsConvertClient({
                 id="direct-mapping-confirm-title"
                 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
               >
-                이 순서로 지정파일양식을 등록할까요?
+                이 순서로 사용자 지정양식을 등록할까요?
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
                 확인을 누르면 아래 순서가 다운로드 파일의 열 순서로 저장됩니다.
-                이 지정파일양식은 표시된 원본 헤더의 셀값을 가져오므로, 같은 헤더 구조의 파일에 사용해 주세요.
+                이 사용자 지정양식은 표시된 원본 헤더의 셀값을 가져오므로, 같은 헤더 구조의 파일에 사용해 주세요.
               </p>
             </div>
             <button
@@ -7808,20 +7730,12 @@ export function LogisticsConvertClient({
         </div>
       </WorkspaceBlockingModalOverlay>
 
-      <ManualOutputTemplateBuilderModal
-        open={isManualTemplateBuilderOpen}
-        headers={manualTemplateHeaders}
-        activeIndex={manualTemplateActiveIndex}
-        exampleQuery={manualTemplateExampleQuery}
+      <DirectMappingSampleFileModal
+        open={directMappingSampleFileModalOpen}
         accent="emerald"
-        onClose={() => setIsManualTemplateBuilderOpen(false)}
-        onHeaderChange={handleManualTemplateHeaderChange}
-        onActiveIndexChange={setManualTemplateActiveIndex}
-        onAddHeader={handleAddManualTemplateHeader}
-        onRemoveHeader={handleRemoveManualTemplateHeader}
-        onInsertExample={handleInsertManualTemplateExample}
-        onExampleQueryChange={setManualTemplateExampleQuery}
-        onCreate={handleCreateManualTemplate}
+        onClose={() => setDirectMappingSampleFileModalOpen(false)}
+        onFileProcess={handleDirectMappingSampleFileProcess}
+        onSuccess={handleDirectMappingSampleFileSuccess}
       />
 
       {/* 더미 없음 안내 모달 */}
