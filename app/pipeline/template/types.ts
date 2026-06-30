@@ -25,6 +25,15 @@ export interface TemplateBridgeFile {
   
   /** 매핑 실패한 헤더 배열 */
   unknownHeaders: string[];
+
+  /**
+   * 사용자가 직접 만든 연결 양식.
+   * key는 최종 출력 헤더, value는 주문파일 원본 헤더이며 null은 비워두기입니다.
+   */
+  directHeaderMappings?: Record<string, string | null>;
+
+  /** 직접 연결 양식을 만들 때 기준으로 삼은 주문파일 원본 헤더 목록 */
+  directSourceHeaders?: string[];
 }
 
 /**
