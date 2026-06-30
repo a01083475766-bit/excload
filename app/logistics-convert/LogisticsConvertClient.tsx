@@ -7380,37 +7380,42 @@ export function LogisticsConvertClient({
                       이름만 바꾸고 셀값은 그대로 가져옵니다.
                     </div>
                   </th>
-                  {directMappingSourceHeaders.map((sourceHeader, index) => (
-                    <td
-                      key={`direct-rename-${sourceHeader}-${index}`}
-                      className="border-b border-r border-zinc-100 px-3 py-2 align-top dark:border-zinc-800"
-                    >
-                      <input
-                        type="text"
-                        value={directMappingRenameValues[index] ?? ''}
-                        onChange={(e) => handleDirectMappingRenameChange(index, e.target.value)}
-                        className="h-[40px] w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-5 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                      />
-                      <div className="mt-1 min-h-[16px] overflow-hidden text-[11px] leading-4 text-zinc-500 dark:text-zinc-400 whitespace-nowrap text-ellipsis">
-                        예시값: {(directMappingSourceSamples[sourceHeader] ?? []).join(' / ') || '-'}
-                      </div>
-                      <div
-                        draggable
-                        onDragStart={(event) => handleDirectMappingDragStart(event, index)}
-                        onDragEnd={handleDirectMappingDragEnd}
-                        className={`mt-2 h-[40px] cursor-grab rounded-lg border px-3 py-2 text-sm font-semibold leading-5 active:cursor-grabbing ${
-                          directMappingOutputOrder.includes(index)
-                            ? 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100'
-                            : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100'
-                        }`}
-                        title="아래 3번 행으로 드래그하면 출력 순서에 추가됩니다."
+                  {directMappingSourceHeaders.map((sourceHeader, index) => {
+                    const isAddedToOutput = directMappingOutputOrder.includes(index);
+                    return (
+                      <td
+                        key={`direct-rename-${sourceHeader}-${index}`}
+                        className="border-b border-r border-zinc-100 px-3 py-2 align-top dark:border-zinc-800"
                       >
-                        <div className="truncate">
-                          {directMappingRenameValues[index]?.trim() || sourceHeader}
+                        <input
+                          type="text"
+                          value={directMappingRenameValues[index] ?? ''}
+                          onChange={(e) => handleDirectMappingRenameChange(index, e.target.value)}
+                          className="h-[40px] w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-5 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                        />
+                        <div className="mt-1 min-h-[16px] overflow-hidden text-[11px] leading-4 text-zinc-500 dark:text-zinc-400 whitespace-nowrap text-ellipsis">
+                          예시값: {(directMappingSourceSamples[sourceHeader] ?? []).join(' / ') || '-'}
                         </div>
-                      </div>
-                    </td>
-                  ))}
+                        <div
+                          draggable={!isAddedToOutput}
+                          onDragStart={(event) => {
+                            if (!isAddedToOutput) handleDirectMappingDragStart(event, index);
+                          }}
+                          onDragEnd={handleDirectMappingDragEnd}
+                          className={`mt-2 h-[40px] rounded-lg border px-3 py-2 text-sm font-semibold leading-5 ${
+                            isAddedToOutput
+                              ? 'cursor-default border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100'
+                              : 'cursor-grab border-emerald-200 bg-emerald-50 text-emerald-800 active:cursor-grabbing dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100'
+                          }`}
+                          title={isAddedToOutput ? '이미 최종 출력 순서에 추가되었습니다.' : '아래 3번 행으로 드래그하면 출력 순서에 추가됩니다.'}
+                        >
+                          <div className="truncate">
+                            {isAddedToOutput ? '추가됨' : directMappingRenameValues[index]?.trim() || sourceHeader}
+                          </div>
+                        </div>
+                      </td>
+                    );
+                  })}
                 </tr>
                 <tr>
                   <th className="sticky left-0 z-10 border-r border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
