@@ -1384,7 +1384,6 @@ export function LogisticsConvertClient({
   const [directMappingSourceSamples, setDirectMappingSourceSamples] = useState<UnknownHeaderSamples>({});
   const [directMappingRenameValues, setDirectMappingRenameValues] = useState<string[]>([]);
   const [directMappingOutputOrder, setDirectMappingOutputOrder] = useState<number[]>([]);
-  const [directMappingExcludedSourceIndexes, setDirectMappingExcludedSourceIndexes] = useState<number[]>([]);
   const [directMappingDraggingSourceIndex, setDirectMappingDraggingSourceIndex] = useState<number | null>(null);
   const [directMappingDragOverOrderIndex, setDirectMappingDragOverOrderIndex] = useState<number | null>(null);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
@@ -1704,7 +1703,6 @@ export function LogisticsConvertClient({
     setDirectMappingSourceSamples({});
     setDirectMappingRenameValues([]);
     setDirectMappingOutputOrder([]);
-    setDirectMappingExcludedSourceIndexes([]);
     setDirectMappingDraggingSourceIndex(null);
     setDirectMappingDragOverOrderIndex(null);
     setSelectedFileName(null);
@@ -3283,7 +3281,6 @@ export function LogisticsConvertClient({
     setDirectMappingSourceSamples({});
     setDirectMappingRenameValues([]);
     setDirectMappingOutputOrder([]);
-    setDirectMappingExcludedSourceIndexes([]);
     setDirectMappingDraggingSourceIndex(null);
     setDirectMappingDragOverOrderIndex(null);
     setTextInput('');
@@ -3793,8 +3790,7 @@ export function LogisticsConvertClient({
     }
 
     setDirectMappingRenameValues([...directMappingSourceHeaders]);
-    setDirectMappingOutputOrder(directMappingSourceHeaders.map((_, index) => index));
-    setDirectMappingExcludedSourceIndexes([]);
+    setDirectMappingOutputOrder([]);
     setDirectMappingDraggingSourceIndex(null);
     setDirectMappingDragOverOrderIndex(null);
     setDirectMappingModalOpen(true);
@@ -3803,14 +3799,6 @@ export function LogisticsConvertClient({
   const handleDirectMappingRenameChange = (sourceIndex: number, value: string) => {
     setDirectMappingRenameValues((prev) =>
       prev.map((header, index) => (index === sourceIndex ? value : header)),
-    );
-  };
-
-  const handleToggleDirectMappingExcluded = (sourceIndex: number) => {
-    setDirectMappingExcludedSourceIndexes((prev) =>
-      prev.includes(sourceIndex)
-        ? prev.filter((index) => index !== sourceIndex)
-        : [...prev, sourceIndex],
     );
   };
 
@@ -3829,8 +3817,13 @@ export function LogisticsConvertClient({
   const moveDirectMappingOutputHeaderTo = (sourceIndex: number, targetOrderIndex: number) => {
     setDirectMappingOutputOrder((prev) => {
       const currentIndex = prev.indexOf(sourceIndex);
+      if (currentIndex < 0) {
+        const insertIndex = Math.min(Math.max(targetOrderIndex, 0), prev.length);
+        const next = [...prev];
+        next.splice(insertIndex, 0, sourceIndex);
+        return next;
+      }
       if (
-        currentIndex < 0 ||
         targetOrderIndex < 0 ||
         targetOrderIndex >= prev.length ||
         currentIndex === targetOrderIndex
@@ -3893,9 +3886,7 @@ export function LogisticsConvertClient({
       return;
     }
 
-    const excludedSourceIndexes = new Set(directMappingExcludedSourceIndexes);
     const finalColumns = directMappingOutputOrder
-      .filter((sourceIndex) => !excludedSourceIndexes.has(sourceIndex))
       .map((sourceIndex) => ({
         sourceHeader: directMappingSourceHeaders[sourceIndex] ?? '',
         outputHeader: directMappingRenameValues[sourceIndex]?.trim() ?? '',
@@ -7403,17 +7394,21 @@ export function LogisticsConvertClient({
                       <div className="mt-1 min-h-[16px] overflow-hidden text-[11px] leading-4 text-zinc-500 dark:text-zinc-400 whitespace-nowrap text-ellipsis">
                         예시값: {(directMappingSourceSamples[sourceHeader] ?? []).join(' / ') || '-'}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleDirectMappingExcluded(index)}
-                        className={`mt-2 rounded border px-2 py-1 text-[11px] font-medium transition-colors ${
-                          directMappingExcludedSourceIndexes.includes(index)
-                            ? 'border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200'
-                            : 'border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300'
+                      <div
+                        draggable
+                        onDragStart={(event) => handleDirectMappingDragStart(event, index)}
+                        onDragEnd={handleDirectMappingDragEnd}
+                        className={`mt-2 h-[40px] cursor-grab rounded-lg border px-3 py-2 text-sm font-semibold leading-5 active:cursor-grabbing ${
+                          directMappingOutputOrder.includes(index)
+                            ? 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100'
                         }`}
+                        title="아래 3번 행으로 드래그하면 출력 순서에 추가됩니다."
                       >
-                        {directMappingExcludedSourceIndexes.includes(index) ? '복구' : '출력 제외'}
-                      </button>
+                        <div className="truncate">
+                          {directMappingRenameValues[index]?.trim() || sourceHeader}
+                        </div>
+                      </div>
                     </td>
                   ))}
                 </tr>
@@ -7424,33 +7419,28 @@ export function LogisticsConvertClient({
                       출력할 열 순서를 정합니다.
                     </div>
                   </th>
-                  {directMappingOutputOrder.map((sourceIndex, orderIndex) => {
-                    const sourceHeader = directMappingSourceHeaders[sourceIndex] ?? '';
-                    const outputHeader = directMappingRenameValues[sourceIndex]?.trim() || sourceHeader;
-                    const isExcluded = directMappingExcludedSourceIndexes.includes(sourceIndex);
+                  {directMappingSourceHeaders.map((_, orderIndex) => {
+                    const sourceIndex = directMappingOutputOrder[orderIndex];
+                    const hasOutput = typeof sourceIndex === 'number';
+                    const sourceHeader = hasOutput ? directMappingSourceHeaders[sourceIndex] ?? '' : '';
+                    const outputHeader = hasOutput
+                      ? directMappingRenameValues[sourceIndex]?.trim() || sourceHeader
+                      : '';
                     return (
                       <td
-                        key={`direct-final-${sourceHeader}-${sourceIndex}`}
-                        onDragOver={
-                          isExcluded
-                            ? undefined
-                            : (event) => handleDirectMappingDragOver(event, orderIndex)
-                        }
-                        onDrop={
-                          isExcluded
-                            ? undefined
-                            : (event) => handleDirectMappingDrop(event, orderIndex)
-                        }
-                        onDragLeave={isExcluded ? undefined : () => setDirectMappingDragOverOrderIndex(null)}
+                        key={`direct-final-slot-${orderIndex}`}
+                        onDragOver={(event) => handleDirectMappingDragOver(event, orderIndex)}
+                        onDrop={(event) => handleDirectMappingDrop(event, orderIndex)}
+                        onDragLeave={() => setDirectMappingDragOverOrderIndex(null)}
                         className={`border-r px-3 py-2 align-top transition-colors dark:border-zinc-800 ${
-                          !isExcluded && directMappingDragOverOrderIndex === orderIndex
+                          directMappingDragOverOrderIndex === orderIndex
                             ? 'border-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/30'
                             : 'border-zinc-100'
                         }`}
                       >
-                        {isExcluded ? (
+                        {!hasOutput ? (
                           <div className="flex h-[56px] items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-xs text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500">
-                            출력 제외
+                            여기에 놓기
                           </div>
                         ) : (
                           <div
@@ -7480,7 +7470,7 @@ export function LogisticsConvertClient({
                           <button
                             type="button"
                             onClick={() => handleMoveDirectMappingOutputHeader(sourceIndex, -1)}
-                            disabled={isExcluded || orderIndex === 0}
+                            disabled={!hasOutput || orderIndex === 0}
                             className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
                           >
                             ←
@@ -7488,7 +7478,7 @@ export function LogisticsConvertClient({
                           <button
                             type="button"
                             onClick={() => handleMoveDirectMappingOutputHeader(sourceIndex, 1)}
-                            disabled={isExcluded || orderIndex === directMappingOutputOrder.length - 1}
+                            disabled={!hasOutput || orderIndex === directMappingOutputOrder.length - 1}
                             className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
                           >
                             →
@@ -7507,7 +7497,7 @@ export function LogisticsConvertClient({
               현재 출력 순서
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {directMappingOutputOrder.filter((sourceIndex) => !directMappingExcludedSourceIndexes.includes(sourceIndex)).map((sourceIndex, orderIndex) => {
+              {directMappingOutputOrder.map((sourceIndex, orderIndex) => {
                 const sourceHeader = directMappingSourceHeaders[sourceIndex] ?? '';
                 const outputHeader = directMappingRenameValues[sourceIndex]?.trim() || sourceHeader;
                 return (
