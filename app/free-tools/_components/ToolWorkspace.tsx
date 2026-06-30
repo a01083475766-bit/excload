@@ -9,6 +9,7 @@ import { ImageToPdf } from '@/app/free-tools/_components/ImageToPdf';
 import { MarginCalculator } from '@/app/free-tools/_components/MarginCalculator';
 import { PdfMerger } from '@/app/free-tools/_components/PdfMerger';
 import { PrivacyMask } from '@/app/free-tools/_components/PrivacyMask';
+import { ProductLabelMaker } from '@/app/free-tools/_components/ProductLabelMaker';
 import { QRCodeGenerator } from '@/app/free-tools/_components/QRCodeGenerator';
 import type { FreeTool } from '@/app/free-tools/free-tools-data';
 
@@ -59,6 +60,8 @@ export function ToolWorkspace({ tool }: Props) {
         <ImageTextExtractor />
       ) : tool.slug === 'qr-code' ? (
         <QRCodeGenerator />
+      ) : tool.slug === 'product-label' ? (
+        <ProductLabelMaker />
       ) : tool.slug === 'excel-csv' ? (
         <ExcelCsvConverter />
       ) : tool.slug === 'excel-to-pdf' ? (

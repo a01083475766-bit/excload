@@ -1,4 +1,5 @@
 import {
+  Barcode,
   Calculator,
   FileCheck2,
   FileDown,
@@ -17,6 +18,10 @@ export type FreeTool = {
   shortDescription: string;
   description: string;
   pageDescription?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  buttonLabel?: string;
+  tags?: string[];
   icon: LucideIcon;
   category: string;
   enabled: boolean;
@@ -91,6 +96,24 @@ export const freeTools: FreeTool[] = [
     category: '마케팅',
     enabled: true,
     ogImagePath: '/og/free-tools-qr-code.png',
+  },
+  {
+    slug: 'product-label',
+    name: '상품 라벨 만들기',
+    shortDescription: '바코드 번호와 상품 정보를 라벨 이미지로 정리합니다.',
+    description:
+      '가지고 있는 바코드 번호와 상품 정보를 입력해 인쇄용 라벨 이미지로 정리합니다.',
+    pageDescription:
+      '가지고 있는 바코드 번호와 상품 정보를 입력해 라벨 이미지로 정리하세요. 상품명, 옵션, 가격, 원산지, 바코드 번호를 입력하면 인쇄하거나 저장할 수 있는 상품 라벨을 만들 수 있습니다.',
+    metaTitle: '상품 라벨 만들기 - 바코드 라벨 무료 제작',
+    metaDescription:
+      '가지고 있는 바코드 번호와 상품명, 가격, 원산지 등 상품 정보를 입력해 인쇄하거나 저장할 수 있는 상품 라벨 이미지를 무료로 만들어보세요.',
+    buttonLabel: '라벨 만들기',
+    tags: ['상품라벨', '바코드', '재고관리', '상품관리'],
+    icon: Barcode,
+    category: '상품관리',
+    enabled: true,
+    ogImagePath: '/og/free-tools-product-label.png',
   },
   {
     slug: 'excel-csv',

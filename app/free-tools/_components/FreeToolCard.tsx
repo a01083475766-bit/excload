@@ -36,8 +36,17 @@ export function FreeToolCard({ tool, index = 0 }: Props) {
         <p className="mb-2 text-xs font-extrabold tracking-[0.16em] text-teal-600">{tool.category}</p>
         <h2 className="text-xl font-black tracking-[-0.03em] text-slate-950">{tool.name}</h2>
         <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">{tool.description}</p>
+        {tool.tags && tool.tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {tool.tags.map((tag) => (
+              <span key={tag} className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
         <span className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white shadow-sm transition group-hover:bg-blue-600 sm:w-fit sm:py-2.5">
-          무료로 사용하기 <span className="ml-1 transition group-hover:translate-x-0.5">→</span>
+          {tool.buttonLabel ?? '무료로 사용하기'} <span className="ml-1 transition group-hover:translate-x-0.5">→</span>
         </span>
       </div>
     </Link>
