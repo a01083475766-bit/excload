@@ -2003,7 +2003,7 @@ export default function OrderConvertPage() {
     setDirectMappingCustomHeaderInputOpen(false);
   };
 
-  const handleRemoveDirectMappingCustomHeader = (outputIndex: number) => {
+  const handleRemoveDirectMappingOutputHeader = (outputIndex: number) => {
     setDirectMappingOutputOrder((prev) => prev.filter((item) => item !== outputIndex));
   };
 
@@ -4458,6 +4458,12 @@ export default function OrderConvertPage() {
             fixedHeaderOrder={FIXED_HEADER_ORDER}
             fixedHeaderValues={fixedHeaderValues}
             variant="blue"
+            templateKindLabel={hasDirectHeaderMappings(templateBridgeFile) ? '지정파일' : undefined}
+            templateKindDescription={
+              hasDirectHeaderMappings(templateBridgeFile)
+                ? '지정파일양식 사용 중: 등록할 때 사용한 파일과 같은 헤더 구조에 맞춰 출력됩니다.'
+                : undefined
+            }
           />
           {isUsingDefaultCjTemplate && !isFormStatusChecking && (
             <DefaultCjTemplateNotice
@@ -4930,7 +4936,6 @@ export default function OrderConvertPage() {
                     const sourceIndex = directMappingOutputOrder[orderIndex];
                     const hasOutput = typeof sourceIndex === 'number';
                     const outputHeader = hasOutput ? getDirectMappingOutputHeaderName(sourceIndex) : '';
-                    const isCustomHeader = hasOutput && sourceIndex < 0;
                     return (
                       <td
                         key={`direct-final-slot-${orderIndex}`}
@@ -4988,10 +4993,10 @@ export default function OrderConvertPage() {
                           >
                             →
                           </button>
-                          {isCustomHeader && (
+                          {hasOutput && (
                             <button
                               type="button"
-                              onClick={() => handleRemoveDirectMappingCustomHeader(sourceIndex)}
+                              onClick={() => handleRemoveDirectMappingOutputHeader(sourceIndex)}
                               className="rounded border border-rose-200 px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
                             >
                               삭제

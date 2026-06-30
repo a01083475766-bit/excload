@@ -10,6 +10,8 @@ interface WorkspaceFormStatusBannerProps {
   fixedHeaderOrder: string[];
   fixedHeaderValues: Record<string, string>;
   variant?: WorkspaceFormStatusVariant;
+  templateKindLabel?: string;
+  templateKindDescription?: string;
 }
 
 function StatusCheckingLine({
@@ -42,6 +44,8 @@ export function WorkspaceFormStatusBanner({
   fixedHeaderOrder,
   fixedHeaderValues,
   variant = 'blue',
+  templateKindLabel,
+  templateKindDescription,
 }: WorkspaceFormStatusBannerProps) {
   const textClass = variant === 'emerald' ? 'text-emerald-600' : 'text-blue-600';
   const textMutedClass = variant === 'emerald' ? 'text-emerald-500' : 'text-blue-500';
@@ -79,7 +83,17 @@ export function WorkspaceFormStatusBanner({
       {hasTemplate && templateHeaderNames && (
         <p className={`text-xs ${textClass} w-full whitespace-nowrap overflow-hidden text-ellipsis`}>
           <span className={chipClass}>사용 중인 양식 :</span>{' '}
+          {templateKindLabel && (
+            <span className="mr-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+              {templateKindLabel}
+            </span>
+          )}
           {templateHeaderNames.join(' · ')}
+        </p>
+      )}
+      {hasTemplate && templateKindDescription && (
+        <p className="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-xs text-amber-700 dark:text-amber-200">
+          {templateKindDescription}
         </p>
       )}
       {hasFixed && (
