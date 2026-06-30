@@ -81,6 +81,14 @@ import {
   createEmptyTemplateBridgeShell,
   resolveUserCustomFormatDisplayName,
 } from '@/app/lib/user-custom-format';
+import {
+  buildDirectBaseHeaderMappingsForUserCustomFormat,
+  buildDirectPreviewRowsFromStandardRows,
+  buildEffectiveMappedBaseHeaders,
+  buildStandardRowsFromBaseHeaderMatrix,
+  inferDirectBaseHeaderMappings,
+} from '@/app/lib/user-custom-format-direct-base-mapping';
+import type { OrderPipelineStage2Input } from '@/app/lib/fetch-order-pipeline-stage2';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBridgeChange';
 import {
@@ -1395,6 +1403,8 @@ export function LogisticsConvertClient({
   const [directMappingNewHeaderInput, setDirectMappingNewHeaderInput] = useState('');
   const [directMappingDraggingSourceIndex, setDirectMappingDraggingSourceIndex] = useState<number | null>(null);
   const [directMappingDragOverOrderIndex, setDirectMappingDragOverOrderIndex] = useState<number | null>(null);
+  const [isDirectMappingRegistering, setIsDirectMappingRegistering] = useState(false);
+  const directMappingSampleCleanInputRef = useRef<OrderPipelineStage2Input | null>(null);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -3624,6 +3634,11 @@ export function LogisticsConvertClient({
     }
 
     const cleanInputFile = await parseOrderFileHeadersFromArrayBuffer(buffer);
+    directMappingSampleCleanInputRef.current = {
+      headers: [...cleanInputFile.headers],
+      rows: cleanInputFile.rows.map((row) => [...row]),
+      sourceType: 'excel',
+    };
     return {
       headers: [...cleanInputFile.headers],
       samples: buildHeaderSamples(cleanInputFile),
@@ -3905,7 +3920,7 @@ export function LogisticsConvertClient({
     setDirectMappingConfirmModalOpen(true);
   };
 
-  const handleConfirmDirectMappingFormat = () => {
+  const handleConfirmDirectMappingFormat = async () => {
     const activeBridge = getActiveTemplateBridgeFile();
     const finalColumns = directMappingPendingColumns;
     if (finalColumns.length === 0) {
@@ -3919,6 +3934,36 @@ export function LogisticsConvertClient({
       return acc;
     }, {});
 
+    setIsDirectMappingRegistering(true);
+    let directBaseHeaderMappings: Record<string, string | null>;
+    try {
+      const sampleCleanInput = directMappingSampleCleanInputRef.current;
+      if (sampleCleanInput && sampleCleanInput.headers.length > 0) {
+        try {
+          directBaseHeaderMappings = await buildDirectBaseHeaderMappingsForUserCustomFormat({
+            outputHeaders: finalHeaders,
+            directHeaderMappings,
+            cleanInputFile: sampleCleanInput,
+            fileSessionId: crypto.randomUUID(),
+            trialHeader: trialMode,
+          });
+        } catch (error) {
+          console.error('사용자 지정양식 기준헤더 매핑 생성 실패:', error);
+          directBaseHeaderMappings = inferDirectBaseHeaderMappings(
+            finalHeaders,
+            directHeaderMappings,
+          );
+        }
+      } else {
+        directBaseHeaderMappings = inferDirectBaseHeaderMappings(
+          finalHeaders,
+          directHeaderMappings,
+        );
+      }
+    } finally {
+      setIsDirectMappingRegistering(false);
+    }
+
     const directBridgeFile: TemplateBridgeFile = {
       ...(activeBridge ?? createEmptyTemplateBridgeShell()),
       courierHeaders: finalHeaders,
@@ -3926,6 +3971,7 @@ export function LogisticsConvertClient({
       unknownHeaders: [],
       directHeaderMappings,
       directSourceHeaders: [...directMappingSourceHeaders],
+      directBaseHeaderMappings,
     };
     const template = buildCourierTemplateFromHeaders(finalHeaders);
     const formatName = USER_CUSTOM_FORMAT_NAME;
@@ -3959,6 +4005,7 @@ export function LogisticsConvertClient({
     }
 
     setDirectMappingModalOpen(false);
+    directMappingSampleCleanInputRef.current = null;
     applyPreviewWorkspaceReset();
     setIsTemplateChangeReuploadModalOpen(true);
     setRegistrationSuccessMessage('사용자 지정양식이 등록되었습니다. 이 양식에 맞는 주문파일을 다시 첨부해 주세요.');
@@ -4760,6 +4807,87 @@ export function LogisticsConvertClient({
         return;
       }
 
+      const activeTemplateBridgeFile = getActiveTemplateBridgeFile();
+      if (activeTemplateBridgeFile && hasDirectHeaderMappings(activeTemplateBridgeFile)) {
+        setTextConvertStatusLabel('등록된 양식에 맞추는 중…');
+        const standardRows = buildStandardRowsFromBaseHeaderMatrix(
+          cleanInputFile.headers,
+          cleanInputFile.rows,
+        );
+        const mergedPreviewRows = buildDirectPreviewRowsFromStandardRows(
+          standardRows,
+          activeTemplateBridgeFile,
+          fixedHeaderValues,
+        );
+        const newRowIds = mergedPreviewRows.map(() => crypto.randomUUID());
+        const previewRowsWithIds = mergedPreviewRows.map((row, index) => ({
+          rowId: newRowIds[index]!,
+          data: row,
+        }));
+
+        setUnknownHeadersWarning([]);
+        setUnknownHeaderSamples({});
+        setOrderStandardFile(null);
+        setPreviewRows((prev) => [...previewRowsWithIds, ...prev]);
+        setOrderStandardRowsByRowId((prev) =>
+          registerOrderSnapshotsForPreviewChunk(prev, newRowIds, mergedPreviewRows),
+        );
+        setNewRows((prev) => {
+          const updated = new Set(prev);
+          newRowIds.forEach((id) => updated.add(id));
+          return updated;
+        });
+        setTimeout(() => {
+          setNewRows((prev) => {
+            const updated = new Set(prev);
+            newRowIds.forEach((id) => updated.delete(id));
+            return updated;
+          });
+        }, 3000);
+        setCourierHeaders(activeTemplateBridgeFile.courierHeaders);
+
+        const effectiveMappedBaseHeaders = buildEffectiveMappedBaseHeaders(activeTemplateBridgeFile);
+        setTextInput('');
+        setTextConvertPointsPending(true);
+        setTextConvertReviewModal({
+          originalText: trimmed,
+          rows: buildTextConvertReviewRows(
+            newRowIds,
+            mergedPreviewRows,
+            activeTemplateBridgeFile.courierHeaders,
+            activeTemplateBridgeFile.mappedBaseHeaders,
+            effectiveMappedBaseHeaders,
+          ),
+        });
+
+        const rowIdsToRollback = newRowIds;
+        void (async () => {
+          let pendingReleasedByTimeout = false;
+          const pendingReleaseTimer = window.setTimeout(() => {
+            pendingReleasedByTimeout = true;
+            setTextConvertPointsPending(false);
+            void fetchUser();
+          }, 15_000);
+
+          const pointsDeducted = await usePoints(textLength, 'text', {
+            redirectOnAuthRequired: false,
+          });
+          window.clearTimeout(pendingReleaseTimer);
+          if (!pointsDeducted) {
+            if (!pendingReleasedByTimeout) {
+              rollbackTextConvertPreviewRows(rowIdsToRollback);
+              setTextConvertReviewModal(null);
+            } else {
+              void fetchUser();
+            }
+            setTextConvertPointsPending(false);
+            return;
+          }
+          setTextConvertPointsPending(false);
+        })();
+        return;
+      }
+
       const fileSessionId = crypto.randomUUID();
       setTextConvertStatusLabel('물류 양식에 맞추는 중…');
       const pipelineResult = await runUnifiedInputOrderPipelines({
@@ -4935,6 +5063,11 @@ export function LogisticsConvertClient({
     // ExcelPreprocessPipeline(Stage0)을 통과하여 CleanInputFile 생성
     const preprocessPipeline = new ExcelPreprocessPipeline();
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
+    directMappingSampleCleanInputRef.current = {
+      headers: [...cleanInputFile.headers],
+      rows: cleanInputFile.rows.map((row) => [...row]),
+      sourceType: 'excel',
+    };
     setDirectMappingSourceHeaders([...cleanInputFile.headers]);
     setDirectMappingSourceSamples(buildHeaderSamples(cleanInputFile));
 
@@ -7722,9 +7855,10 @@ export function LogisticsConvertClient({
             <button
               type="button"
               onClick={handleConfirmDirectMappingFormat}
-              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+              disabled={isDirectMappingRegistering}
+              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              확인
+              {isDirectMappingRegistering ? '등록 중…' : '확인'}
             </button>
           </div>
         </div>

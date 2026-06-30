@@ -18,14 +18,17 @@ export function buildTextConvertReviewRows(
   previewRows: Record<string, string>[],
   courierHeaders: string[],
   mappedBaseHeaders: (string | null)[] | undefined,
+  effectiveMappedBaseHeaders?: (string | null)[],
 ): TextConvertReviewRow[] {
+  const reviewMappedBaseHeaders = effectiveMappedBaseHeaders ?? mappedBaseHeaders;
+
   return rowIds.map((rowId, index) => {
     const rowData = previewRows[index] ?? {};
     const fields: TextConvertReviewField[] = [];
 
     for (let i = 0; i < courierHeaders.length; i++) {
       const courierHeader = courierHeaders[i];
-      if (mappedBaseHeaders && mappedBaseHeaders[i] == null) continue;
+      if (reviewMappedBaseHeaders && reviewMappedBaseHeaders[i] == null) continue;
       const value = String(rowData[courierHeader] ?? '').trim();
       if (!value) continue;
       fields.push({ header: courierHeader, value });

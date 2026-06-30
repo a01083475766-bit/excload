@@ -34,6 +34,12 @@ export interface TemplateBridgeFile {
 
   /** 직접 연결 양식을 만들 때 기준으로 삼은 주문파일 원본 헤더 목록 */
   directSourceHeaders?: string[];
+
+  /**
+   * 사용자 지정양식 — 텍스트·이미지 입력용.
+   * key는 최종 출력 헤더, value는 기준헤더이며 null은 비워두기입니다.
+   */
+  directBaseHeaderMappings?: Record<string, string | null>;
 }
 
 /**

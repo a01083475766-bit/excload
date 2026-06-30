@@ -143,6 +143,14 @@ import {
   createEmptyTemplateBridgeShell,
   resolveUserCustomFormatDisplayName,
 } from '@/app/lib/user-custom-format';
+import {
+  buildDirectBaseHeaderMappingsForUserCustomFormat,
+  buildDirectPreviewRowsFromStandardRows,
+  buildEffectiveMappedBaseHeaders,
+  buildStandardRowsFromBaseHeaderMatrix,
+  inferDirectBaseHeaderMappings,
+} from '@/app/lib/user-custom-format-direct-base-mapping';
+import type { OrderPipelineStage2Input } from '@/app/lib/fetch-order-pipeline-stage2';
 import { DirectMappingSampleFileModal } from '@/app/components/DirectMappingSampleFileModal';
 
 /** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
@@ -664,6 +672,8 @@ export default function OrderConvertPage() {
   const [directMappingNewHeaderInput, setDirectMappingNewHeaderInput] = useState('');
   const [directMappingDraggingSourceIndex, setDirectMappingDraggingSourceIndex] = useState<number | null>(null);
   const [directMappingDragOverOrderIndex, setDirectMappingDragOverOrderIndex] = useState<number | null>(null);
+  const [isDirectMappingRegistering, setIsDirectMappingRegistering] = useState(false);
+  const directMappingSampleCleanInputRef = useRef<OrderPipelineStage2Input | null>(null);
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   /** 대용량 Stage2 청크 호출 시에만 표시 */
   const [stage2ChunkLabel, setStage2ChunkLabel] = useState<string | null>(null);
@@ -1596,6 +1606,11 @@ export default function OrderConvertPage() {
     }
 
     const cleanInputFile = await parseOrderFileHeadersFromArrayBuffer(buffer);
+    directMappingSampleCleanInputRef.current = {
+      headers: [...cleanInputFile.headers],
+      rows: cleanInputFile.rows.map((row) => [...row]),
+      sourceType: 'excel',
+    };
     return {
       headers: [...cleanInputFile.headers],
       samples: buildHeaderSamples(cleanInputFile),
@@ -1952,7 +1967,7 @@ export default function OrderConvertPage() {
     setDirectMappingConfirmModalOpen(true);
   };
 
-  const handleConfirmDirectMappingFormat = () => {
+  const handleConfirmDirectMappingFormat = async () => {
     const activeBridge = getActiveTemplateBridgeFile();
     const finalColumns = directMappingPendingColumns;
     if (finalColumns.length === 0) {
@@ -1966,6 +1981,35 @@ export default function OrderConvertPage() {
       return acc;
     }, {});
 
+    setIsDirectMappingRegistering(true);
+    let directBaseHeaderMappings: Record<string, string | null>;
+    try {
+      const sampleCleanInput = directMappingSampleCleanInputRef.current;
+      if (sampleCleanInput && sampleCleanInput.headers.length > 0) {
+        try {
+          directBaseHeaderMappings = await buildDirectBaseHeaderMappingsForUserCustomFormat({
+            outputHeaders: finalHeaders,
+            directHeaderMappings,
+            cleanInputFile: sampleCleanInput,
+            fileSessionId: crypto.randomUUID(),
+          });
+        } catch (error) {
+          console.error('사용자 지정양식 기준헤더 매핑 생성 실패:', error);
+          directBaseHeaderMappings = inferDirectBaseHeaderMappings(
+            finalHeaders,
+            directHeaderMappings,
+          );
+        }
+      } else {
+        directBaseHeaderMappings = inferDirectBaseHeaderMappings(
+          finalHeaders,
+          directHeaderMappings,
+        );
+      }
+    } finally {
+      setIsDirectMappingRegistering(false);
+    }
+
     const directBridgeFile: TemplateBridgeFile = {
       ...(activeBridge ?? createEmptyTemplateBridgeShell()),
       courierHeaders: finalHeaders,
@@ -1973,6 +2017,7 @@ export default function OrderConvertPage() {
       unknownHeaders: [],
       directHeaderMappings,
       directSourceHeaders: [...directMappingSourceHeaders],
+      directBaseHeaderMappings,
     };
     const template = buildCourierTemplateFromHeaders(finalHeaders);
     const formatName = USER_CUSTOM_FORMAT_NAME;
@@ -2025,6 +2070,7 @@ export default function OrderConvertPage() {
     setDirectMappingNewHeaderInput('');
     setDirectMappingDraggingSourceIndex(null);
     setDirectMappingDragOverOrderIndex(null);
+    directMappingSampleCleanInputRef.current = null;
     setSelectedFileName(null);
     setSelectedRows([]);
     setNewRows(new Set());
@@ -2779,6 +2825,87 @@ export default function OrderConvertPage() {
         return;
       }
 
+      const activeTemplateBridgeFile = getActiveTemplateBridgeFile();
+      if (activeTemplateBridgeFile && hasDirectHeaderMappings(activeTemplateBridgeFile)) {
+        setTextConvertStatusLabel('등록된 양식에 맞추는 중…');
+        const standardRows = buildStandardRowsFromBaseHeaderMatrix(
+          cleanInputFile.headers,
+          cleanInputFile.rows,
+        );
+        const mergedPreviewRows = buildDirectPreviewRowsFromStandardRows(
+          standardRows,
+          activeTemplateBridgeFile,
+          fixedHeaderValues,
+        );
+        const newRowIds = mergedPreviewRows.map(() => crypto.randomUUID());
+        const previewRowsWithIds = mergedPreviewRows.map((row, index) => ({
+          rowId: newRowIds[index]!,
+          data: row,
+        }));
+
+        setUnknownHeadersWarning([]);
+        setUnknownHeaderSamples({});
+        setOrderStandardFile(null);
+        setPreviewRows((prev) => [...previewRowsWithIds, ...prev]);
+        setOrderStandardRowsByRowId((prev) =>
+          registerOrderSnapshotsForPreviewChunk(prev, newRowIds, mergedPreviewRows),
+        );
+        setNewRows((prev) => {
+          const updated = new Set(prev);
+          newRowIds.forEach((id) => updated.add(id));
+          return updated;
+        });
+        setTimeout(() => {
+          setNewRows((prev) => {
+            const updated = new Set(prev);
+            newRowIds.forEach((id) => updated.delete(id));
+            return updated;
+          });
+        }, 3000);
+        setCourierHeaders(activeTemplateBridgeFile.courierHeaders);
+
+        const effectiveMappedBaseHeaders = buildEffectiveMappedBaseHeaders(activeTemplateBridgeFile);
+        setTextInput('');
+        setTextConvertPointsPending(true);
+        setTextConvertReviewModal({
+          originalText: trimmed,
+          rows: buildTextConvertReviewRows(
+            newRowIds,
+            mergedPreviewRows,
+            activeTemplateBridgeFile.courierHeaders,
+            activeTemplateBridgeFile.mappedBaseHeaders,
+            effectiveMappedBaseHeaders,
+          ),
+        });
+
+        const rowIdsToRollback = newRowIds;
+        void (async () => {
+          let pendingReleasedByTimeout = false;
+          const pendingReleaseTimer = window.setTimeout(() => {
+            pendingReleasedByTimeout = true;
+            setTextConvertPointsPending(false);
+            void fetchUser();
+          }, 15_000);
+
+          const pointsDeducted = await usePoints(textLength, 'text', {
+            redirectOnAuthRequired: false,
+          });
+          window.clearTimeout(pendingReleaseTimer);
+          if (!pointsDeducted) {
+            if (!pendingReleasedByTimeout) {
+              rollbackTextConvertPreviewRows(rowIdsToRollback);
+              setTextConvertReviewModal(null);
+            } else {
+              void fetchUser();
+            }
+            setTextConvertPointsPending(false);
+            return;
+          }
+          setTextConvertPointsPending(false);
+        })();
+        return;
+      }
+
       const fileSessionId = crypto.randomUUID();
       setTextConvertStatusLabel('택배 양식에 맞추는 중…');
       const pipelineResult = await runUnifiedInputOrderPipelines({
@@ -2946,6 +3073,11 @@ export default function OrderConvertPage() {
     // ExcelPreprocessPipeline(Stage0)을 통과하여 CleanInputFile 생성
     const preprocessPipeline = new ExcelPreprocessPipeline();
     const cleanInputFile = preprocessPipeline.run(alignedRawData);
+    directMappingSampleCleanInputRef.current = {
+      headers: [...cleanInputFile.headers],
+      rows: cleanInputFile.rows.map((row) => [...row]),
+      sourceType: 'excel',
+    };
     setDirectMappingSourceHeaders([...cleanInputFile.headers]);
     setDirectMappingSourceSamples(buildHeaderSamples(cleanInputFile));
 
@@ -4959,9 +5091,10 @@ export default function OrderConvertPage() {
             <button
               type="button"
               onClick={handleConfirmDirectMappingFormat}
-              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+              disabled={isDirectMappingRegistering}
+              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              확인
+              {isDirectMappingRegistering ? '등록 중…' : '확인'}
             </button>
           </div>
         </div>
