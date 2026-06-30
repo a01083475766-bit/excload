@@ -7494,42 +7494,49 @@ export function LogisticsConvertClient({
         panelClassName="w-full max-w-[1482px]"
       >
         <div className="flex h-[88vh] w-full max-w-[1482px] flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 sm:h-[84vh] sm:p-6">
-          <div className="mb-4 flex flex-shrink-0 items-start justify-between gap-4">
-            <div>
-              <h2
-                id="direct-header-mapping-title"
-                className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+          <div className="mb-4 flex-shrink-0">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h2
+                  id="direct-header-mapping-title"
+                  className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+                >
+                  사용자 지정양식 만들기
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                  주문파일의 열을 원하는 이름과 순서로 바꿔 저장합니다. 헤더명·순서를 바꾸면 그 열의 주문 데이터도 함께 이동됩니다.
+                  <span className="mt-1 block sm:mt-0 sm:inline sm:before:content-['\00a0']">
+                    저장 후 같은 형식의 주문파일을 다시 업로드하면, 설정한 양식대로 변환됩니다.
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDirectMappingModalOpen(false);
+                  setDirectMappingConfirmModalOpen(false);
+                  setDirectMappingPendingColumns([]);
+                }}
+                className="flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label="닫기"
               >
-                사용자 지정양식 만들기
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                주문파일의 열을 원하는 이름과 순서로 바꿔 저장합니다.
-                <br />
-                헤더명을 바꾸거나 출력 순서를 옮기면, 그 열에 들어 있는 주문 데이터도 함께 이동됩니다.
-                <br />
-                저장 후 같은 형식의 주문파일을 다시 업로드하면, 설정한 양식대로 변환됩니다.
-              </p>
+                <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setDirectMappingModalOpen(false);
-                setDirectMappingConfirmModalOpen(false);
-                setDirectMappingPendingColumns([]);
-              }}
-              className="rounded-lg p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              aria-label="닫기"
-            >
-              <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
-            </button>
-          </div>
-
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
-            위쪽 1번 줄은 현재 주문파일에 들어있는 원래 헤더명입니다.
-            <br />
-            가운데 2번 줄에서는 다운로드 파일에 표시될 이름을 바꿀 수 있습니다. 이름을 바꿔도 해당 열의 주문 값은 그대로 유지됩니다.
-            <br />
-            아래 3번 줄에는 최종 파일에 넣을 항목을 원하는 순서대로 올려 주세요. 3번 줄에 올린 항목만 저장되며, 헤더와 그 아래 데이터가 함께 이동됩니다.
+            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
+                <span className="font-semibold text-zinc-800 dark:text-zinc-100">1번 줄</span>
+                {' '}현재 주문파일에 들어있는 원래 헤더명입니다.
+              </div>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
+                <span className="font-semibold text-zinc-800 dark:text-zinc-100">2번 줄</span>
+                {' '}다운로드 파일에 표시될 이름을 바꿀 수 있습니다. 이름을 바꿔도 해당 열의 주문 값은 그대로 유지됩니다.
+              </div>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
+                <span className="font-semibold text-zinc-800 dark:text-zinc-100">3번 줄</span>
+                {' '}최종 파일에 넣을 항목을 원하는 순서대로 올려 주세요. 올린 항목만 저장되며, 헤더와 데이터가 함께 이동됩니다.
+              </div>
+            </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
