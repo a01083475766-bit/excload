@@ -4005,6 +4005,7 @@ export function LogisticsConvertClient({
     }
 
     setDirectMappingModalOpen(false);
+    setDirectMappingConfirmModalOpen(false);
     directMappingSampleCleanInputRef.current = null;
     applyPreviewWorkspaceReset();
     setIsTemplateChangeReuploadModalOpen(true);
@@ -6566,7 +6567,11 @@ export function LogisticsConvertClient({
 
         {/* 기능 설명 섹션 레이아웃 */}
         <section className="relative pt-4 pb-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3">
+          <div
+            className={`grid grid-cols-1 gap-2 lg:gap-3 ${
+              trialMode ? 'sm:grid-cols-2 lg:grid-cols-4' : 'lg:grid-cols-3'
+            }`}
+          >
             {/* 카드 1: 업로드 엑셀 양식 */}
             <button
               type="button"
@@ -6598,6 +6603,31 @@ export function LogisticsConvertClient({
                 )}
               </p>
             </button>
+
+            {trialMode && (
+              <button
+                type="button"
+                onClick={handleOpenUserCustomFormatFlow}
+                data-ex-tooltip={
+                  '주문 파일의 열 이름과 순서를 직접 정해 출력 양식을 만듭니다.\u000a업로드용 엑셀 파일이 없을 때도 사용할 수 있습니다'
+                }
+                className="ex-tooltip-target h-[120px] rounded-xl border border-emerald-300 bg-emerald-50 p-5 flex flex-col justify-center transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50"
+              >
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
+                    <ArrowRightLeft className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100 text-center">
+                    사용자 지정양식 만들기
+                  </h3>
+                </div>
+                <p className="mt-1 text-center text-xs leading-relaxed text-emerald-800 dark:text-emerald-200">
+                  주문 파일 헤더를 직접 연결해
+                  <br />
+                  원하는 열 이름·순서로 만듭니다.
+                </p>
+              </button>
+            )}
 
             {/* 카드 2: 고정입력 */}
             <button
