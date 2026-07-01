@@ -17,6 +17,7 @@ import {
   Shield,
   MessageCircle,
   Wrench,
+  Newspaper,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
@@ -81,12 +82,17 @@ export default function MainNav() {
   const isAdmin = session?.user?.isAdmin === true;
 
   const adminMenuItem: MenuItem = { href: '/akman', label: '관리자페이지', icon: Shield };
+  const commerceReportMenuItem: MenuItem = {
+    href: '/akman/commerce-report',
+    label: '커머스리포트',
+    icon: Newspaper,
+  };
   const primaryMenuForUser = primaryMenuItems.filter(
     (item) => !hiddenNavHrefs.has(item.href) && (item.href !== '/history' || isLoggedIn),
   );
-  const displayPrimaryItems = (isAdmin ? [adminMenuItem, ...primaryMenuForUser] : primaryMenuForUser).filter(
-    (item) => !hiddenNavHrefs.has(item.href),
-  );
+  const displayPrimaryItems = (
+    isAdmin ? [adminMenuItem, commerceReportMenuItem, ...primaryMenuForUser] : primaryMenuForUser
+  ).filter((item) => !hiddenNavHrefs.has(item.href));
   const displaySecondaryItems = secondaryMenuItems.filter((item) => !hiddenNavHrefs.has(item.href));
 
   const isLogoActive = pathname === '/excload' || pathname === '/';
@@ -127,8 +133,14 @@ export default function MainNav() {
             const isActive =
               pathname === item.href ||
               (item.href === '/free-tools' && pathname?.startsWith('/free-tools/')) ||
+              (item.href === '/akman/commerce-report' && pathname?.startsWith('/admin/commerce-report')) ||
               (item.href === '/akman' &&
-                (pathname?.startsWith('/akman/') || pathname?.startsWith('/admin/')));
+                pathname?.startsWith('/akman/') &&
+                !pathname?.startsWith('/akman/commerce-report') &&
+                !pathname?.startsWith('/admin/commerce-report')) ||
+              (item.href === '/akman' &&
+                pathname?.startsWith('/admin/') &&
+                !pathname?.startsWith('/admin/commerce-report'));
 
             return (
               <Link

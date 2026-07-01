@@ -353,6 +353,7 @@ export default function AkmanClient() {
   };
 
   const menuItems: { href: string; title: string; desc: string }[] = [
+    { href: '/akman/commerce-report', title: '커머스 리포트 / 뉴스레터', desc: '키워드 데이터 기반 뉴스레터 생성 (내부 도구)' },
     { href: '/akman/payments', title: '결제 내역', desc: '결제·플랜 기록 조회' },
     { href: '/akman/contact-inquiries', title: '고객문의', desc: '문의 접수·답변 상태 관리' },
     { href: '/akman/refunds', title: '환불 신청', desc: '환불 접수/승인/반려 관리' },

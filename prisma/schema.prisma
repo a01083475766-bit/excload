@@ -520,3 +520,28 @@ model FreeBenefitFingerprint {
   @@id([type, hash])
   @@index([blockedAfterWithdraw])
 }
+
+/// 커머스 리포트/뉴스레터 — 관리 키워드 (관리자 전용, 파이프라인 구조와 무관)
+model CommerceKeyword {
+  id        String   @id @default(cuid())
+  keyword   String
+  category  String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([keyword])
+  @@index([isActive, sortOrder])
+}
+
+/// 커머스 리포트/뉴스레터 설정 — 싱글턴 1행(id="default")
+model CommerceReportSettings {
+  id          String   @id @default("default")
+  /// 금지 표현 목록 (문자열 배열 JSON)
+  bannedWords Json
+  adPhrase    String   @default("")
+  /// PLAIN | FRIENDLY | PROFESSIONAL
+  toneStyle   String   @default("PLAIN")
+  updatedAt   DateTime @updatedAt
+}
