@@ -3,7 +3,7 @@
  *
  * ⚠️ /api/ai-gateway를 직접 호출하지 않습니다 (일반 사용자용 트라이얼·게이트 로직과 무관한
  *   관리자 전용 흐름이라 독립 라우트로 분리, OpenAI 호출 패턴만 참고).
- * ⚠️ DB 저장 없음. AI에는 네이버 원본 응답·상품 리스트를 넘기지 않고 요약값만 전달합니다.
+ * ⚠️ DB 저장 없음. AI에는 네이버 원본 응답·상품/포스트/기사 리스트를 넘기지 않고 요약값만 전달합니다.
  * ⚠️ NEXT_PUBLIC_AI_ENABLED(브라우저 공개용)에는 의존하지 않고, 서버 전용 OPENAI_API_KEY
  *   존재 여부로만 사용 가능 여부를 판단합니다.
  */
@@ -17,8 +17,7 @@ import {
   buildCommerceNewsletterSystemPrompt,
   buildCommerceNewsletterUserContent,
 } from '@/app/lib/commerce-report/newsletter-prompt';
-import type { CommerceReportSettingsData } from '@/app/lib/commerce-report/types';
-import type { NaverShoppingPreviewSummary } from '@/app/lib/commerce-report/naver-shopping/types';
+import type { CommerceReportSettingsData, KeywordReferenceSummary } from '@/app/lib/commerce-report/types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -69,13 +68,23 @@ function findBannedWordHits(draft: NewsletterDraftResult, bannedWords: string[])
   return bannedWords.filter((word) => word.trim() && haystack.includes(word.trim().toLowerCase()));
 }
 
-function sanitizeKeywordSummary(item: unknown): NaverShoppingPreviewSummary | null {
-  if (!item || typeof item !== 'object') return null;
-  const v = item as Record<string, unknown>;
-  if (typeof v.keyword !== 'string' || !v.keyword.trim()) return null;
+function sanitizeStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+function sanitizeShoppingSummary(value: unknown): KeywordReferenceSummary['shopping'] | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
   const priceRange = v.priceRange as Record<string, unknown> | undefined;
+  const priceBuckets = Array.isArray(v.priceBuckets)
+    ? v.priceBuckets
+        .filter((b): b is Record<string, unknown> => !!b && typeof b === 'object')
+        .map((b) => ({
+          range: typeof b.range === 'string' ? b.range : '',
+          ratio: typeof b.ratio === 'number' ? b.ratio : 0,
+        }))
+    : [];
   return {
-    keyword: v.keyword,
     productCount: typeof v.productCount === 'number' ? v.productCount : 0,
     priceRange: {
       min: typeof priceRange?.min === 'number' ? priceRange.min : 0,
@@ -83,17 +92,51 @@ function sanitizeKeywordSummary(item: unknown): NaverShoppingPreviewSummary | nu
       avg: typeof priceRange?.avg === 'number' ? priceRange.avg : 0,
       sampleSize: typeof priceRange?.sampleSize === 'number' ? priceRange.sampleSize : 0,
     },
-    frequentWords: Array.isArray(v.frequentWords)
-      ? v.frequentWords.filter((w): w is string => typeof w === 'string')
-      : [],
+    frequentWords: sanitizeStringArray(v.frequentWords),
     representativeCategory: typeof v.representativeCategory === 'string' ? v.representativeCategory : null,
+    topBrands: sanitizeStringArray(v.topBrands),
+    topMalls: sanitizeStringArray(v.topMalls),
+    priceBuckets,
+  };
+}
+
+function sanitizeBlogSummary(value: unknown): KeywordReferenceSummary['blog'] {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  return {
+    postCount: typeof v.postCount === 'number' ? v.postCount : 0,
+    frequentPhrases: sanitizeStringArray(v.frequentPhrases),
+    concernPhrases: sanitizeStringArray(v.concernPhrases),
+  };
+}
+
+function sanitizeNewsSummary(value: unknown): KeywordReferenceSummary['news'] {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  return {
+    articleCount: typeof v.articleCount === 'number' ? v.articleCount : 0,
+    issueKeywords: sanitizeStringArray(v.issueKeywords),
+  };
+}
+
+function sanitizeKeywordSummary(item: unknown): KeywordReferenceSummary | null {
+  if (!item || typeof item !== 'object') return null;
+  const v = item as Record<string, unknown>;
+  if (typeof v.keyword !== 'string' || !v.keyword.trim()) return null;
+  const shopping = sanitizeShoppingSummary(v.shopping);
+  if (!shopping) return null;
+  return {
+    keyword: v.keyword,
     fetchedAt: typeof v.fetchedAt === 'string' ? v.fetchedAt : new Date().toISOString(),
+    shopping,
+    blog: sanitizeBlogSummary(v.blog),
+    news: sanitizeNewsSummary(v.news),
   };
 }
 
 async function callOpenAiForDraft(
   apiKey: string,
-  keywordSummaries: NaverShoppingPreviewSummary[],
+  keywordSummaries: KeywordReferenceSummary[],
   settings: CommerceReportSettingsData,
   extraInstruction?: string,
 ): Promise<DraftCallResult> {
@@ -101,15 +144,7 @@ async function callOpenAiForDraft(
   const model = process.env.AI_MODEL || 'gpt-4o-mini';
 
   const systemPrompt = buildCommerceNewsletterSystemPrompt(settings, extraInstruction);
-  const userContent = buildCommerceNewsletterUserContent(
-    keywordSummaries.map(({ keyword, productCount, priceRange, frequentWords, representativeCategory }) => ({
-      keyword,
-      productCount,
-      priceRange,
-      frequentWords,
-      representativeCategory,
-    })),
-  );
+  const userContent = buildCommerceNewsletterUserContent(keywordSummaries);
 
   let response: Response;
   try {
@@ -126,7 +161,7 @@ async function callOpenAiForDraft(
           { role: 'user', content: userContent },
         ],
         temperature: 0.7,
-        max_tokens: 1600,
+        max_tokens: 1800,
         response_format: { type: 'json_object' },
       }),
     });
@@ -175,7 +210,7 @@ export async function POST(request: NextRequest) {
     const rawSummaries = Array.isArray(body?.keywordSummaries) ? body.keywordSummaries : [];
     const keywordSummaries = rawSummaries
       .map(sanitizeKeywordSummary)
-      .filter((v: NaverShoppingPreviewSummary | null): v is NaverShoppingPreviewSummary => v !== null);
+      .filter((v: KeywordReferenceSummary | null): v is KeywordReferenceSummary => v !== null);
 
     if (keywordSummaries.length === 0) {
       return NextResponse.json({ error: '먼저 오늘 참고 데이터를 조회해 주세요.' }, { status: 400 });

@@ -5,6 +5,10 @@
  * 이 도메인은 주문 변환 파이프라인(Stage0~3)과 완전히 독립적으로 동작합니다.
  */
 
+import type { NaverBlogPreviewSummary } from './naver-blog/types';
+import type { NaverNewsPreviewSummary } from './naver-news/types';
+import type { NaverShoppingPreviewSummary } from './naver-shopping/types';
+
 export type CommerceReportTone = 'PLAIN' | 'FRIENDLY' | 'PROFESSIONAL';
 
 export const COMMERCE_REPORT_TONE_OPTIONS: { value: CommerceReportTone; label: string }[] = [
@@ -55,6 +59,21 @@ export interface CommerceCollectStatus {
   collectedKeywordCount: number;
   totalKeywordCount: number;
   failedCount: number;
+}
+
+/**
+ * ② 오늘 참고 데이터 — 키워드 1개에 대한 네이버 쇼핑/블로그/뉴스 요약값 묶음
+ *
+ * ⚠️ DB에 저장하지 않고 React 상태로만 유지합니다. 원본 상품/포스트/기사 리스트는
+ * 포함하지 않으며, 아래 요약값만 화면과 AI 초안 생성에 전달됩니다.
+ * blog·news는 쇼핑 조회가 성공해도 개별 실패할 수 있어 null이 될 수 있습니다.
+ */
+export interface KeywordReferenceSummary {
+  keyword: string;
+  fetchedAt: string;
+  shopping: NaverShoppingPreviewSummary;
+  blog: NaverBlogPreviewSummary | null;
+  news: NaverNewsPreviewSummary | null;
 }
 
 export type CommerceNewsletterDraftStatus = 'NONE' | 'DRAFT';

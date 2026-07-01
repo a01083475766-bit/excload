@@ -21,10 +21,10 @@ import type {
   CommerceNewsletterDraft,
   CommerceReportSettingsData,
   CommerceReportTone,
+  KeywordReferenceSummary,
 } from '@/app/lib/commerce-report/types';
 import { COMMERCE_REPORT_TONE_OPTIONS } from '@/app/lib/commerce-report/types';
 import { MOCK_KEYWORD_STATS, MOCK_NEWSLETTER_DRAFT_EMPTY } from '@/app/lib/commerce-report/mock-data';
-import type { NaverShoppingPreviewSummary } from '@/app/lib/commerce-report/naver-shopping/types';
 
 const MAX_PREVIEW_KEYWORDS = 10;
 const DEFAULT_PREVIEW_KEYWORD_COUNT = 5;
@@ -159,7 +159,7 @@ export default function CommerceReportClient() {
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
   const defaultSelectionAppliedRef = useRef(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewResults, setPreviewResults] = useState<NaverShoppingPreviewSummary[]>([]);
+  const [previewResults, setPreviewResults] = useState<KeywordReferenceSummary[]>([]);
   const [previewFailedKeywords, setPreviewFailedKeywords] = useState<string[]>([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewFetchedAt, setPreviewFetchedAt] = useState<string | null>(null);
@@ -524,24 +524,83 @@ export default function CommerceReportClient() {
         )}
 
         {previewResults.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
             {previewResults.map((r) => (
               <div key={r.keyword} style={{ border: '1px solid #e5e5e5', borderRadius: '8px', padding: '12px 14px', background: '#fafafa' }}>
                 <div style={{ fontWeight: 700, marginBottom: '6px' }}>{r.keyword}</div>
+
                 <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
-                  상품수: <strong>{r.productCount.toLocaleString()}개</strong>
+                  상품수: <strong>{r.shopping.productCount.toLocaleString()}개</strong>
                 </div>
                 <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
-                  가격대: {formatWon(r.priceRange.min)} ~ {formatWon(r.priceRange.max)}
-                  {' '}(평균 {formatWon(r.priceRange.avg)}, 표본 {r.priceRange.sampleSize}개)
+                  가격대: {formatWon(r.shopping.priceRange.min)} ~ {formatWon(r.shopping.priceRange.max)}
+                  {' '}(평균 {formatWon(r.shopping.priceRange.avg)}, 표본 {r.shopping.priceRange.sampleSize}개)
                 </div>
                 <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
-                  대표 카테고리: {r.representativeCategory ?? '-'}
+                  대표 카테고리: {r.shopping.representativeCategory ?? '-'}
                 </div>
                 <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
-                  자주 보이는 단어: {r.frequentWords.length > 0 ? r.frequentWords.join(', ') : '-'}
+                  자주 보이는 단어: {r.shopping.frequentWords.length > 0 ? r.shopping.frequentWords.join(', ') : '-'}
                 </div>
-                <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+                <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
+                  브랜드 TOP 3: {r.shopping.topBrands.length > 0 ? r.shopping.topBrands.join(', ') : '-'}
+                </div>
+                <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
+                  쇼핑몰 TOP 3: {r.shopping.topMalls.length > 0 ? r.shopping.topMalls.join(', ') : '-'}
+                </div>
+                <div style={{ fontSize: '13px', color: '#444', marginBottom: '8px' }}>
+                  가격 구간: {r.shopping.priceBuckets
+                    .filter((b) => b.ratio > 0)
+                    .map((b) => `${b.range} ${Math.round(b.ratio * 100)}%`)
+                    .join(', ') || '-'}
+                </div>
+
+                <div
+                  style={{
+                    borderTop: '1px dashed #d0d5dd',
+                    paddingTop: '8px',
+                    marginTop: '8px',
+                    fontSize: '13px',
+                    color: '#444',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '2px' }}>블로그 언급</div>
+                  {r.blog ? (
+                    <>
+                      <div>게시물 수: {r.blog.postCount.toLocaleString()}건</div>
+                      <div>
+                        자주 쓰는 표현: {r.blog.frequentPhrases.length > 0 ? r.blog.frequentPhrases.join(', ') : '-'}
+                      </div>
+                      <div>
+                        고민형 표현: {r.blog.concernPhrases.length > 0 ? r.blog.concernPhrases.join(', ') : '-'}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ color: '#999' }}>조회되지 않았습니다.</div>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    borderTop: '1px dashed #d0d5dd',
+                    paddingTop: '8px',
+                    marginTop: '8px',
+                    fontSize: '13px',
+                    color: '#444',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '2px' }}>뉴스 이슈</div>
+                  {r.news ? (
+                    <>
+                      <div>기사 수: {r.news.articleCount.toLocaleString()}건</div>
+                      <div>이슈 키워드: {r.news.issueKeywords.length > 0 ? r.news.issueKeywords.join(', ') : '-'}</div>
+                    </>
+                  ) : (
+                    <div style={{ color: '#999' }}>조회되지 않았습니다.</div>
+                  )}
+                </div>
+
+                <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
                   조회 시각: {formatDateTime(r.fetchedAt)}
                 </div>
               </div>
@@ -594,7 +653,7 @@ export default function CommerceReportClient() {
       <div style={sectionCard}>
         <div style={sectionTitle}>뉴스레터 생성</div>
         <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
-          위 "오늘 참고 데이터" 요약값과 설정(금지 표현·광고 문구·문체)을 바탕으로 AI가 초안을 만듭니다.
+          위 &ldquo;오늘 참고 데이터&rdquo; 요약값과 설정(금지 표현·광고 문구·문체)을 바탕으로 AI가 초안을 만듭니다.
           결과는 화면에만 표시되고 저장되지 않으며, 새로고침하면 사라집니다.
         </p>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
