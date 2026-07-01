@@ -57,13 +57,13 @@ const accentMap = {
 } as const;
 
 const stickyLabelClass =
-  'sticky left-0 z-10 min-w-[132px] max-w-[160px] border-r border-zinc-200 bg-white px-2.5 py-2.5 text-left text-xs sm:min-w-[200px] sm:max-w-[240px] sm:px-3 sm:py-3 sm:text-sm lg:min-w-[300px] lg:max-w-[338px] lg:px-4 dark:border-zinc-700 dark:bg-zinc-900';
+  'sticky left-0 z-10 w-[300px] min-w-[300px] border-r border-zinc-200 bg-white px-4 py-3 text-left text-sm dark:border-zinc-700 dark:bg-zinc-900';
 
 const stickyLabelHeaderClass =
-  'sticky left-0 z-20 min-w-[132px] max-w-[160px] border-b border-r border-zinc-200 bg-zinc-100 px-2.5 py-2.5 text-left text-xs sm:min-w-[200px] sm:max-w-[240px] sm:px-3 sm:py-3 sm:text-sm lg:min-w-[300px] lg:max-w-[338px] lg:px-4 dark:border-zinc-700 dark:bg-zinc-800';
+  'sticky left-0 z-20 w-[300px] min-w-[300px] border-b border-r border-zinc-200 bg-zinc-100 px-4 py-3 text-left text-sm dark:border-zinc-700 dark:bg-zinc-800';
 
 const dataCellClass =
-  'w-[148px] min-w-[148px] max-w-[148px] overflow-hidden border-b border-r border-zinc-200 px-2 py-2 align-top text-sm sm:w-[168px] sm:min-w-[168px] sm:max-w-[168px] sm:px-3 lg:w-[200px] lg:min-w-[200px] lg:max-w-[200px] dark:border-zinc-700';
+  'w-[200px] min-w-[200px] max-w-[200px] overflow-hidden border-b border-r border-zinc-200 px-2 py-2 align-top text-sm sm:px-3 dark:border-zinc-700';
 
 const headerNameClassName =
   'truncate text-sm font-semibold leading-5 text-zinc-900 dark:text-zinc-100';
@@ -124,6 +124,7 @@ export function DirectMappingEditorModal({
   getOutputHeaderName,
 }: DirectMappingEditorModalProps) {
   const colors = accentMap[accent];
+  const dataColumnCount = Math.max(sourceHeaders.length, outputOrder.length + 1);
 
   const customHeaderSection = (
     <div className="mt-3">
@@ -346,7 +347,13 @@ export function DirectMappingEditorModal({
             열이 많으면 표를 좌우로 스크롤할 수 있습니다. 2번 줄 항목은 아래 3번 줄로 드래그하거나
             모바일 화면의 「출력 순서에 추가」 버튼을 사용하세요.
           </p>
-          <table className="w-full table-fixed border-collapse text-sm">
+          <table className="w-max min-w-full border-collapse text-sm">
+            <colgroup>
+              <col style={{ width: 300 }} />
+              {Array.from({ length: dataColumnCount }).map((_, index) => (
+                <col key={`direct-mapping-data-col-${index}`} style={{ width: 200 }} />
+              ))}
+            </colgroup>
             <tbody>
               <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                 <th className={stickyLabelHeaderClass}>
@@ -374,7 +381,7 @@ export function DirectMappingEditorModal({
                   return (
                     <td
                       key={`direct-rename-${sourceHeader}-${index}`}
-                      className="w-[148px] min-w-[148px] max-w-[148px] overflow-hidden border-b border-r border-zinc-100 px-2 py-2 align-top sm:w-[168px] sm:min-w-[168px] sm:max-w-[168px] sm:px-3 lg:w-[200px] lg:min-w-[200px] lg:max-w-[200px] dark:border-zinc-800"
+                      className={`${dataCellClass} border-zinc-100 dark:border-zinc-800`}
                     >
                       <input
                         type="text"
@@ -431,7 +438,7 @@ export function DirectMappingEditorModal({
                       onDragOver={(event) => onDragOver(event, orderIndex)}
                       onDrop={(event) => onDrop(event, orderIndex)}
                       onDragLeave={onDragLeave}
-                      className={`w-[148px] min-w-[148px] max-w-[148px] overflow-hidden border-r px-2 py-2 align-top transition-colors sm:w-[168px] sm:min-w-[168px] sm:max-w-[168px] sm:px-3 lg:w-[200px] lg:min-w-[200px] lg:max-w-[200px] dark:border-zinc-800 ${
+                      className={`${dataCellClass} transition-colors ${
                         dragOverOrderIndex === orderIndex ? colors.drop : 'border-zinc-100'
                       }`}
                     >
