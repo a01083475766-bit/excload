@@ -6,13 +6,14 @@
  * ⚠️ EXCLOAD CONSTITUTION 준수
  * 주문 변환 파이프라인(Stage0~3)과 완전히 독립된 관리자 기능입니다.
  *
- * 진행 단계(현재 Phase A/B):
- * - ②오늘 데이터 상태·③TOP10·④~⑤뉴스레터 생성/미리보기 → mock 데이터
+ * 진행 단계:
+ * - ②오늘 참고 데이터 → 네이버 쇼핑 검색 API 실시간 조회 (DB 저장 없음, 새로고침 시 소실)
+ * - ③TOP10·④~⑤뉴스레터 생성/미리보기 → mock 데이터 (아직 실제 계산·AI 연동 전)
  * - ⑦설정(키워드·금지표현·광고문구·문체) → 실제 DB 연동
- * - 네이버 API 수집(Phase C)·AI 생성 연동(Phase D)은 이후 단계에서 교체됩니다.
+ * - 전주/전년 대비 계산, cron 자동 수집, AI 뉴스레터 생성 연동은 아직 진행하지 않습니다.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type {
@@ -23,11 +24,14 @@ import type {
 } from '@/app/lib/commerce-report/types';
 import { COMMERCE_REPORT_TONE_OPTIONS } from '@/app/lib/commerce-report/types';
 import {
-  MOCK_COLLECT_STATUS,
   MOCK_KEYWORD_STATS,
   MOCK_NEWSLETTER_DRAFT_EMPTY,
   MOCK_NEWSLETTER_DRAFT_SAMPLE,
 } from '@/app/lib/commerce-report/mock-data';
+import type { NaverShoppingPreviewSummary } from '@/app/lib/commerce-report/naver-shopping/types';
+
+const MAX_PREVIEW_KEYWORDS = 10;
+const DEFAULT_PREVIEW_KEYWORD_COUNT = 5;
 
 const shell: React.CSSProperties = {
   padding: '40px',
@@ -116,10 +120,14 @@ const mockNoticeStyle: React.CSSProperties = {
 };
 
 function formatDateTime(value: string | null): string {
-  if (!value) return '수집 기록 없음';
+  if (!value) return '기록 없음';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+}
+
+function formatWon(value: number): string {
+  return `${value.toLocaleString()}원`;
 }
 
 function formatPct(value: number): string {
@@ -148,9 +156,17 @@ export default function CommerceReportClient() {
   const pathname = usePathname();
   const adminHome = pathname?.startsWith('/admin') ? '/admin' : '/akman';
 
-  // ③ TOP10 · ② 오늘 데이터 상태 — 현재 mock
-  const collectStatus = MOCK_COLLECT_STATUS;
+  // ③ TOP10 — 현재 mock (전주/전년 대비 실제 계산은 이후 단계)
   const keywordStats = MOCK_KEYWORD_STATS;
+
+  // ② 오늘 참고 데이터 — 네이버 쇼핑 검색 API 실시간 조회 (DB 저장 없음)
+  const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
+  const defaultSelectionAppliedRef = useRef(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewResults, setPreviewResults] = useState<NaverShoppingPreviewSummary[]>([]);
+  const [previewFailedKeywords, setPreviewFailedKeywords] = useState<string[]>([]);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewFetchedAt, setPreviewFetchedAt] = useState<string | null>(null);
 
   // ④~⑥ 뉴스레터 생성·미리보기·복사 — 현재 mock
   const [draft, setDraft] = useState<CommerceNewsletterDraft>(MOCK_NEWSLETTER_DRAFT_EMPTY);
@@ -214,11 +230,87 @@ export default function CommerceReportClient() {
     }
   }, []);
 
+  // 관리 키워드는 ②참고 데이터 조회의 체크박스 목록으로도 쓰이므로 진입 시 바로 불러옴
+  useEffect(() => {
+    void loadKeywords();
+  }, [loadKeywords]);
+
   useEffect(() => {
     if (!settingsOpen) return;
-    void loadKeywords();
     void loadSettings();
-  }, [settingsOpen, loadKeywords, loadSettings]);
+  }, [settingsOpen, loadSettings]);
+
+  // 활성 키워드 로딩 완료 후, 앞쪽 5개를 기본 선택
+  useEffect(() => {
+    if (defaultSelectionAppliedRef.current) return;
+    if (keywordsLoading) return;
+    const defaults = keywords
+      .filter((k) => k.isActive)
+      .slice(0, DEFAULT_PREVIEW_KEYWORD_COUNT)
+      .map((k) => k.id);
+    if (defaults.length > 0) {
+      setSelectedKeywordIds(new Set(defaults));
+    }
+    defaultSelectionAppliedRef.current = true;
+  }, [keywords, keywordsLoading]);
+
+  const activeKeywords = useMemo(() => keywords.filter((k) => k.isActive), [keywords]);
+
+  const toggleSelectedKeyword = (id: string) => {
+    setSelectedKeywordIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        if (next.size >= MAX_PREVIEW_KEYWORDS) {
+          window.alert(`한 번에 최대 ${MAX_PREVIEW_KEYWORDS}개까지 선택할 수 있습니다.`);
+          return prev;
+        }
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const fetchNaverPreview = async () => {
+    const selectedKeywords = activeKeywords
+      .filter((k) => selectedKeywordIds.has(k.id))
+      .map((k) => k.keyword);
+
+    if (selectedKeywords.length === 0) {
+      window.alert('조회할 키워드를 선택해 주세요.');
+      return;
+    }
+
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const res = await fetch('/api/akman/commerce-report/naver-preview', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords: selectedKeywords }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setPreviewError(data.error || '참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        setPreviewResults([]);
+        setPreviewFailedKeywords([]);
+        return;
+      }
+      // success: true이지만 일부/전체 키워드가 실패한 경우, 서버가 내려준 원인 문구를 그대로 노출
+      setPreviewError(typeof data.error === 'string' ? data.error : null);
+      setPreviewResults(data.results ?? []);
+      setPreviewFailedKeywords(data.failedKeywords ?? []);
+      setPreviewFetchedAt(new Date().toISOString());
+    } catch {
+      setPreviewError('참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setPreviewResults([]);
+      setPreviewFailedKeywords([]);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const addKeyword = async () => {
     const keyword = newKeyword.trim();
@@ -320,9 +412,9 @@ export default function CommerceReportClient() {
           </div>
         </div>
         <div style={statCard}>
-          <div style={{ fontSize: '13px', color: '#666' }}>오늘 수집</div>
+          <div style={{ fontSize: '13px', color: '#666' }}>참고 데이터 조회</div>
           <div style={{ fontSize: '22px', fontWeight: 600 }}>
-            {collectStatus.isCollectedToday ? '완료' : '미수집'}
+            {previewFetchedAt ? formatDateTime(previewFetchedAt) : '조회 전'}
           </div>
         </div>
         <div style={statCard}>
@@ -339,41 +431,98 @@ export default function CommerceReportClient() {
         </div>
       </div>
 
-      {/* ② 오늘 데이터 상태 */}
+      {/* ② 오늘 참고 데이터 — 네이버 쇼핑 검색 API 실시간 조회, DB 저장 없음 */}
       <div style={sectionCard}>
-        <div style={sectionTitle}>오늘 데이터 상태</div>
-        <div style={mockNoticeStyle}>mock 데이터 — 네이버 API 수집 연동 전 단계</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', fontSize: '14px' }}>
-          <div>
-            <div style={{ color: '#666', fontSize: '12px' }}>수집 완료 여부</div>
-            <div style={{ fontWeight: 600 }}>
-              {collectStatus.hasPartialFailure ? '▲ 일부 실패' : collectStatus.isCollectedToday ? '● 완료' : '○ 미수집'}
+        <div style={sectionTitle}>오늘 참고 데이터</div>
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '14px' }}>
+          버튼을 누르면 네이버 쇼핑 검색 API를 그 자리에서 조회해 요약값만 보여줍니다.
+          원본 응답·상품 리스트는 저장하지 않으며, 새로고침하면 결과가 사라집니다.
+        </p>
+
+        {keywordsLoading ? (
+          <p style={{ fontSize: '13px', color: '#666' }}>키워드 목록을 불러오는 중…</p>
+        ) : activeKeywords.length === 0 ? (
+          <p style={{ fontSize: '13px', color: '#b45309' }}>
+            먼저 설정에서 관리 키워드를 추가해 주세요.
+          </p>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+              {activeKeywords.map((k) => {
+                const checked = selectedKeywordIds.has(k.id);
+                return (
+                  <label
+                    key={k.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      border: `1px solid ${checked ? '#175cd3' : '#d0d5dd'}`,
+                      background: checked ? '#eff6ff' : '#fff',
+                      borderRadius: '999px',
+                      padding: '4px 12px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelectedKeyword(k.id)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    {k.keyword}
+                  </label>
+                );
+              })}
             </div>
-          </div>
-          <div>
-            <div style={{ color: '#666', fontSize: '12px' }}>마지막 수집 시간</div>
-            <div style={{ fontWeight: 600 }}>{formatDateTime(collectStatus.lastCollectedAt)}</div>
-          </div>
-          <div>
-            <div style={{ color: '#666', fontSize: '12px' }}>수집 키워드 수</div>
-            <div style={{ fontWeight: 600 }}>
-              {collectStatus.collectedKeywordCount} / {collectStatus.totalKeywordCount}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <button type="button" style={btnPrimary} onClick={() => void fetchNaverPreview()} disabled={previewLoading}>
+                {previewLoading ? '조회 중…' : '오늘 참고 데이터 가져오기'}
+              </button>
+              <span style={{ fontSize: '12px', color: '#666' }}>
+                선택 {selectedKeywordIds.size} / 최대 {MAX_PREVIEW_KEYWORDS}개
+              </span>
             </div>
+          </>
+        )}
+
+        {previewError && (
+          <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '12px' }}>{previewError}</p>
+        )}
+
+        {previewFailedKeywords.length > 0 && (
+          <p style={{ fontSize: '13px', color: '#b45309', marginBottom: '12px' }}>
+            {previewFailedKeywords.join(', ')} 키워드는 조회에 실패했습니다.
+          </p>
+        )}
+
+        {previewResults.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+            {previewResults.map((r) => (
+              <div key={r.keyword} style={{ border: '1px solid #e5e5e5', borderRadius: '8px', padding: '12px 14px', background: '#fafafa' }}>
+                <div style={{ fontWeight: 700, marginBottom: '6px' }}>{r.keyword}</div>
+                <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
+                  상품수: <strong>{r.productCount.toLocaleString()}개</strong>
+                </div>
+                <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
+                  가격대: {formatWon(r.priceRange.min)} ~ {formatWon(r.priceRange.max)}
+                  {' '}(평균 {formatWon(r.priceRange.avg)}, 표본 {r.priceRange.sampleSize}개)
+                </div>
+                <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
+                  대표 카테고리: {r.representativeCategory ?? '-'}
+                </div>
+                <div style={{ fontSize: '13px', color: '#444', marginBottom: '4px' }}>
+                  자주 보이는 단어: {r.frequentWords.length > 0 ? r.frequentWords.join(', ') : '-'}
+                </div>
+                <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
+                  조회 시각: {formatDateTime(r.fetchedAt)}
+                </div>
+              </div>
+            ))}
           </div>
-          <div>
-            <div style={{ color: '#666', fontSize: '12px' }}>실패 건수</div>
-            <div style={{ fontWeight: 600 }}>{collectStatus.failedCount}건</div>
-          </div>
-        </div>
-        <div style={{ marginTop: '14px' }}>
-          <button
-            type="button"
-            style={btnSecondary}
-            onClick={() => window.alert('네이버 API 수집 연동은 다음 단계(Phase C)에서 진행됩니다.')}
-          >
-            지금 다시 수집
-          </button>
-        </div>
+        )}
       </div>
 
       {/* ③ 키워드 TOP 10 */}
