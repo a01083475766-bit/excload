@@ -78,6 +78,7 @@ import { DirectMappingSampleFileModal } from '@/app/components/DirectMappingSamp
 import { DirectMappingEditorModal } from '@/app/components/DirectMappingEditorModal';
 import { DirectMappingConfirmModal } from '@/app/components/DirectMappingConfirmModal';
 import { UnknownHeadersWarningBanner } from '@/app/components/UnknownHeadersWarningBanner';
+import { TrialFirstPreviewFormatNoticeModal } from '@/app/components/TrialFirstPreviewFormatNoticeModal';
 import { parseOrderFileHeadersFromArrayBuffer } from '@/app/lib/parse-order-file-headers';
 import {
   USER_CUSTOM_FORMAT_NAME,
@@ -94,6 +95,7 @@ import {
 import type { OrderPipelineStage2Input } from '@/app/lib/fetch-order-pipeline-stage2';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { useClearPreviewOnBridgeChange } from '@/app/hooks/useClearPreviewOnBridgeChange';
+import { useTrialFirstPreviewFormatNotice } from '@/app/hooks/useTrialFirstPreviewFormatNotice';
 import {
   clearAllPreviewWorkspacesForScope,
   clearPreviewWorkspace,
@@ -3357,6 +3359,19 @@ export function LogisticsConvertClient({
     setIsCourierTemplateModalOpen(false);
   };
 
+  const trialFirstPreviewFormatNotice = useTrialFirstPreviewFormatNotice({
+    enabled: trialMode,
+    previewRowCount: previewRows.length,
+    courierHeaderCount: courierHeaders.length,
+    templateModalOpen: isCourierTemplateModalOpen,
+    scope: 'logistics',
+  });
+
+  const handleTrialFirstPreviewFormatNoticeChangeFormat = () => {
+    trialFirstPreviewFormatNotice.close();
+    handleOpenCourierTemplateModal();
+  };
+
   const handleConfirmCourierTemplateModal = () => {
     const formatChanged = tempSelectedFormatId !== templateModalBaselineFormatIdRef.current;
     const shouldNotifyReupload = formatChanged && hadOrderWorkBeforeTemplateModalRef.current;
@@ -5742,6 +5757,13 @@ export function LogisticsConvertClient({
           </div>
         </div>
       )}
+
+      <TrialFirstPreviewFormatNoticeModal
+        open={trialFirstPreviewFormatNotice.open}
+        scope="logistics"
+        onContinue={trialFirstPreviewFormatNotice.close}
+        onChangeFormat={handleTrialFirstPreviewFormatNoticeChangeFormat}
+      />
 
       <div
         className={`${trialMode && isDesktopHoverDevice ? 'ex-tooltip-follow-mode' : ''} ${
