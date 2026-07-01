@@ -68,6 +68,29 @@ const dataCellClass =
 const clampedTextClassName =
   'overflow-hidden text-sm leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]';
 
+const samplePreviewLineClassName =
+  'mt-1 h-4 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] leading-4 text-zinc-500 dark:text-zinc-400';
+
+function formatDirectMappingSampleText(samples: string[]): string {
+  if (samples.length === 0) return '-';
+  return samples.join(' / ');
+}
+
+function DirectMappingSamplePreview({
+  samples,
+  className = '',
+}: {
+  samples: string[];
+  className?: string;
+}) {
+  const text = formatDirectMappingSampleText(samples);
+  return (
+    <div className={`${samplePreviewLineClassName} ${className}`.trim()} title={`예시값: ${text}`}>
+      예시값: {text}
+    </div>
+  );
+}
+
 export function DirectMappingEditorModal({
   open,
   accent = 'blue',
@@ -228,9 +251,10 @@ export function DirectMappingEditorModal({
                       className="mt-1 h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                     />
                   </label>
-                  <p className="mt-2 break-words text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                    예시값: {(sourceSamples[sourceHeader] ?? []).join(' / ') || '-'}
-                  </p>
+                  <DirectMappingSamplePreview
+                    samples={sourceSamples[sourceHeader] ?? []}
+                    className="mt-2"
+                  />
                   {isAddedToOutput ? (
                     <p className={`mt-3 rounded-lg border px-3 py-2 text-center text-xs font-semibold ${colors.added}`}>
                       출력 순서에 추가됨
@@ -349,9 +373,7 @@ export function DirectMappingEditorModal({
                         onChange={(event) => onRenameChange(index, event.target.value)}
                         className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                       />
-                      <div className="mt-1 min-h-[16px] overflow-hidden text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
-                        예시값: {(sourceSamples[sourceHeader] ?? []).join(' / ') || '-'}
-                      </div>
+                      <DirectMappingSamplePreview samples={sourceSamples[sourceHeader] ?? []} />
                       <div
                         draggable={!isAddedToOutput}
                         onDragStart={(event) => {
