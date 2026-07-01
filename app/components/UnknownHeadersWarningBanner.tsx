@@ -94,20 +94,20 @@ export function UnknownHeadersWarningBanner({
   const notNeededInfo =
     variant === 'logistics'
       ? trialMode
-        ? copy.notNeededInfoTrial
-        : copy.notNeededInfo
+        ? variantCopy.logistics.notNeededInfoTrial
+        : variantCopy.logistics.notNeededInfo
       : copy.notNeededInfo;
   const finalCheck =
     variant === 'logistics'
       ? trialMode
-        ? copy.finalCheckTrial
-        : copy.finalCheck
+        ? variantCopy.logistics.finalCheckTrial
+        : variantCopy.logistics.finalCheck
       : copy.finalCheck;
   const actionButtonClass =
     variant === 'logistics'
       ? trialMode
-        ? copy.actionButtonClassTrial
-        : copy.actionButtonClass
+        ? variantCopy.logistics.actionButtonClassTrial
+        : variantCopy.logistics.actionButtonClass
       : copy.actionButtonClass;
 
   return (
