@@ -23,11 +23,7 @@ import type {
   CommerceReportTone,
 } from '@/app/lib/commerce-report/types';
 import { COMMERCE_REPORT_TONE_OPTIONS } from '@/app/lib/commerce-report/types';
-import {
-  MOCK_KEYWORD_STATS,
-  MOCK_NEWSLETTER_DRAFT_EMPTY,
-  MOCK_NEWSLETTER_DRAFT_SAMPLE,
-} from '@/app/lib/commerce-report/mock-data';
+import { MOCK_KEYWORD_STATS, MOCK_NEWSLETTER_DRAFT_EMPTY } from '@/app/lib/commerce-report/mock-data';
 import type { NaverShoppingPreviewSummary } from '@/app/lib/commerce-report/naver-shopping/types';
 
 const MAX_PREVIEW_KEYWORDS = 10;
@@ -168,18 +164,47 @@ export default function CommerceReportClient() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewFetchedAt, setPreviewFetchedAt] = useState<string | null>(null);
 
-  // ④~⑥ 뉴스레터 생성·미리보기·복사 — 현재 mock
+  // ④~⑥ 뉴스레터 생성·미리보기·복사 — 참고 데이터 기반 AI 초안 생성 (DB 저장 없음)
   const [draft, setDraft] = useState<CommerceNewsletterDraft>(MOCK_NEWSLETTER_DRAFT_EMPTY);
   const [generating, setGenerating] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [bannedWordsFound, setBannedWordsFound] = useState<string[]>([]);
   const [copiedLabel, setCopiedLabel] = useState('');
 
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback(async () => {
+    if (previewResults.length === 0) {
+      window.alert('먼저 오늘 참고 데이터를 조회해 주세요.');
+      return;
+    }
     setGenerating(true);
-    window.setTimeout(() => {
-      setDraft(MOCK_NEWSLETTER_DRAFT_SAMPLE);
+    setDraftError(null);
+    try {
+      const res = await fetch('/api/akman/commerce-report/newsletter-draft', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywordSummaries: previewResults }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setDraftError(data.error || '초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      setBannedWordsFound(Array.isArray(data.bannedWordsFound) ? data.bannedWordsFound : []);
+      setDraft({
+        status: 'DRAFT',
+        title: data.draft.title,
+        summary: data.draft.summary,
+        body: data.draft.body,
+        tags: data.draft.tags,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch {
+      setDraftError('초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
       setGenerating(false);
-    }, 900);
-  }, []);
+    }
+  }, [previewResults]);
 
   // ⑦ 설정 — 실제 DB 연동 (키워드 · 금지표현 · 광고문구 · 문체)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -568,16 +593,24 @@ export default function CommerceReportClient() {
       {/* ④~⑥ 뉴스레터 생성 · 미리보기 · 복사 */}
       <div style={sectionCard}>
         <div style={sectionTitle}>뉴스레터 생성</div>
-        <div style={mockNoticeStyle}>mock 문장 미리보기 — AI 게이트웨이 연동 전 단계</div>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center' }}>
-          <button type="button" style={btnPrimary} onClick={handleGenerate} disabled={generating}>
-            {generating ? '생성 중…' : '오늘 뉴스레터 생성'}
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+          위 "오늘 참고 데이터" 요약값과 설정(금지 표현·광고 문구·문체)을 바탕으로 AI가 초안을 만듭니다.
+          결과는 화면에만 표시되고 저장되지 않으며, 새로고침하면 사라집니다.
+        </p>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            style={btnPrimary}
+            onClick={() => void handleGenerate()}
+            disabled={generating || previewResults.length === 0}
+          >
+            {generating ? '생성 중…' : '참고 데이터로 초안 만들기'}
           </button>
           <button
             type="button"
             style={btnSecondary}
-            onClick={handleGenerate}
-            disabled={generating || draft.status !== 'DRAFT'}
+            onClick={() => void handleGenerate()}
+            disabled={generating || previewResults.length === 0 || draft.status !== 'DRAFT'}
           >
             재생성
           </button>
@@ -585,6 +618,34 @@ export default function CommerceReportClient() {
             상태: {draft.status === 'DRAFT' ? 'draft 있음' : 'draft 없음'}
           </span>
         </div>
+
+        {previewResults.length === 0 && (
+          <p style={{ fontSize: '13px', color: '#b45309', marginBottom: '12px' }}>
+            먼저 오늘 참고 데이터를 조회해 주세요.
+          </p>
+        )}
+
+        {draftError && (
+          <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '12px' }}>{draftError}</p>
+        )}
+
+        {draft.status === 'DRAFT' && bannedWordsFound.length > 0 && (
+          <div
+            style={{
+              fontSize: '13px',
+              color: '#991b1b',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '6px',
+              padding: '10px 12px',
+              marginBottom: '12px',
+              fontWeight: 600,
+            }}
+          >
+            주의: 금지 표현이 포함되어 있습니다. 복사하기 전에 반드시 수정해 주세요.
+            <div style={{ fontWeight: 400, marginTop: '4px' }}>감지된 표현: {bannedWordsFound.join(', ')}</div>
+          </div>
+        )}
 
         {draft.status === 'DRAFT' && (
           <div style={{ border: '1px solid #e5e5e5', borderRadius: '8px', padding: '16px', background: '#fafafa' }}>
