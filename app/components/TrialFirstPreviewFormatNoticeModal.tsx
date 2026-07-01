@@ -9,26 +9,12 @@ type TrialFirstPreviewFormatNoticeModalProps = {
   onChangeFormat: () => void;
 };
 
-const scopeCopy = {
-  courier: {
-    customizeHint:
-      '실제 사용하시는 택배사 업로드 파일이나, 원하시는 열 구성으로 양식을 바꾸면 결과도 그에 맞게 달라집니다.',
-  },
-  logistics: {
-    customizeHint:
-      '실제 사용하시는 물류센터·택배사 업로드 파일이나, 원하시는 열 구성으로 양식을 바꾸면 결과도 그에 맞게 달라집니다.',
-  },
-} as const;
-
 export function TrialFirstPreviewFormatNoticeModal({
   open,
-  scope,
   onContinue,
   onChangeFormat,
 }: TrialFirstPreviewFormatNoticeModalProps) {
   if (!open) return null;
-
-  const copy = scopeCopy[scope];
 
   return (
     <div
@@ -47,18 +33,15 @@ export function TrialFirstPreviewFormatNoticeModal({
           id="trial-first-preview-format-notice-title"
           className="text-xl font-bold leading-snug text-zinc-950 dark:text-zinc-100"
         >
-          지금 보이는 결과는 체험용 기본 양식입니다
+          기본 양식으로 정리되었습니다
         </h2>
 
         <div
           id="trial-first-preview-format-notice-desc"
-          className="mt-5 space-y-3 text-base leading-relaxed text-zinc-800 dark:text-zinc-300"
+          className="mt-5 flex min-h-[5.5rem] flex-col justify-center space-y-2 text-base leading-relaxed text-zinc-800 dark:text-zinc-300"
         >
-          <p>
-            엑클로드는 <strong>등록하신 업로드 양식</strong>을 기준으로 주문 데이터를 정리합니다.
-            지금 미리보기는 이해를 돕기 위한 <strong>기본 예시 양식</strong>으로 변환된 결과입니다.
-          </p>
-          <p>{copy.customizeHint}</p>
+          <p>실제 사용하시는 업로드 파일이나 원하는 양식으로 구성하면</p>
+          <p>그 양식에 맞게 정리됩니다.</p>
         </div>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">

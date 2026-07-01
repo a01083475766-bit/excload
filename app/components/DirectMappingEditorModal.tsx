@@ -63,17 +63,21 @@ const stickyLabelHeaderClass =
   'sticky left-0 z-20 min-w-[132px] max-w-[160px] border-b border-r border-zinc-200 bg-zinc-100 px-2.5 py-2.5 text-left text-xs sm:min-w-[200px] sm:max-w-[240px] sm:px-3 sm:py-3 sm:text-sm lg:min-w-[300px] lg:max-w-[338px] lg:px-4 dark:border-zinc-700 dark:bg-zinc-800';
 
 const dataCellClass =
-  'min-w-[128px] border-b border-r border-zinc-200 px-2 py-2 align-top text-sm sm:min-w-[168px] sm:px-3 lg:min-w-[220px] dark:border-zinc-700';
+  'w-[148px] min-w-[148px] max-w-[148px] overflow-hidden border-b border-r border-zinc-200 px-2 py-2 align-top text-sm sm:w-[168px] sm:min-w-[168px] sm:max-w-[168px] sm:px-3 lg:w-[200px] lg:min-w-[200px] lg:max-w-[200px] dark:border-zinc-700';
 
-const clampedTextClassName =
-  'overflow-hidden text-sm leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]';
+const headerNameClassName =
+  'truncate text-sm font-semibold leading-5 text-zinc-900 dark:text-zinc-100';
 
 const samplePreviewLineClassName =
-  'mt-1 h-4 shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] leading-4 text-zinc-500 dark:text-zinc-400';
+  'mt-1 block h-4 w-full min-w-0 max-w-full shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] leading-4 text-zinc-500 dark:text-zinc-400';
+
+const MAX_SAMPLE_DISPLAY_LENGTH = 32;
 
 function formatDirectMappingSampleText(samples: string[]): string {
   if (samples.length === 0) return '-';
-  return samples.join(' / ');
+  const joined = samples.join(' / ');
+  if (joined.length <= MAX_SAMPLE_DISPLAY_LENGTH) return joined;
+  return `${joined.slice(0, MAX_SAMPLE_DISPLAY_LENGTH - 1)}…`;
 }
 
 function DirectMappingSamplePreview({
@@ -83,9 +87,10 @@ function DirectMappingSamplePreview({
   samples: string[];
   className?: string;
 }) {
+  const fullText = samples.length === 0 ? '-' : samples.join(' / ');
   const text = formatDirectMappingSampleText(samples);
   return (
-    <div className={`${samplePreviewLineClassName} ${className}`.trim()} title={`예시값: ${text}`}>
+    <div className={`${samplePreviewLineClassName} ${className}`.trim()} title={`예시값: ${fullText}`}>
       예시값: {text}
     </div>
   );
@@ -237,9 +242,13 @@ export function DirectMappingEditorModal({
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                     원본 헤더
                   </p>
-                  <p className="mt-1 break-words text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  <p className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     {sourceHeader}
                   </p>
+                  <DirectMappingSamplePreview
+                    samples={sourceSamples[sourceHeader] ?? []}
+                    className="mt-1.5"
+                  />
                   <label className="mt-3 block">
                     <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
                       다운로드 파일 이름
@@ -251,10 +260,6 @@ export function DirectMappingEditorModal({
                       className="mt-1 h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                     />
                   </label>
-                  <DirectMappingSamplePreview
-                    samples={sourceSamples[sourceHeader] ?? []}
-                    className="mt-2"
-                  />
                   {isAddedToOutput ? (
                     <p className={`mt-3 rounded-lg border px-3 py-2 text-center text-xs font-semibold ${colors.added}`}>
                       출력 순서에 추가됨
@@ -341,7 +346,7 @@ export function DirectMappingEditorModal({
             열이 많으면 표를 좌우로 스크롤할 수 있습니다. 2번 줄 항목은 아래 3번 줄로 드래그하거나
             모바일 화면의 「출력 순서에 추가」 버튼을 사용하세요.
           </p>
-          <table className="border-collapse text-sm">
+          <table className="w-full table-fixed border-collapse text-sm">
             <tbody>
               <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                 <th className={stickyLabelHeaderClass}>
@@ -351,29 +356,32 @@ export function DirectMappingEditorModal({
                   </div>
                 </th>
                 {sourceHeaders.map((sourceHeader, index) => (
-                  <td key={`direct-source-${sourceHeader}-${index}`} className={`${dataCellClass} font-semibold`}>
-                    <div className={clampedTextClassName}>{sourceHeader}</div>
+                  <td key={`direct-source-${sourceHeader}-${index}`} className={dataCellClass}>
+                    <div className={headerNameClassName}>{sourceHeader}</div>
+                    <DirectMappingSamplePreview samples={sourceSamples[sourceHeader] ?? []} />
                   </td>
                 ))}
               </tr>
               <tr>
                 <th className={`${stickyLabelClass} border-b text-zinc-600 dark:text-zinc-300`}>
                   <div className="font-semibold">2. 다운로드 파일에 표시될 이름</div>
+                  <div className="mt-1 hidden text-xs font-normal leading-relaxed text-zinc-500 dark:text-zinc-400 lg:block">
+                    다운로드될 파일에 표시할 열 이름입니다. 필요하면 수정하세요.
+                  </div>
                 </th>
                 {sourceHeaders.map((sourceHeader, index) => {
                   const isAddedToOutput = outputOrder.includes(index);
                   return (
                     <td
                       key={`direct-rename-${sourceHeader}-${index}`}
-                      className="border-b border-r border-zinc-100 px-2 py-2 align-top sm:px-3 dark:border-zinc-800"
+                      className="w-[148px] min-w-[148px] max-w-[148px] overflow-hidden border-b border-r border-zinc-100 px-2 py-2 align-top sm:w-[168px] sm:min-w-[168px] sm:max-w-[168px] sm:px-3 lg:w-[200px] lg:min-w-[200px] lg:max-w-[200px] dark:border-zinc-800"
                     >
                       <input
                         type="text"
                         value={renameValues[index] ?? ''}
                         onChange={(event) => onRenameChange(index, event.target.value)}
-                        className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                        className="h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                       />
-                      <DirectMappingSamplePreview samples={sourceSamples[sourceHeader] ?? []} />
                       <div
                         draggable={!isAddedToOutput}
                         onDragStart={(event) => {
@@ -406,6 +414,9 @@ export function DirectMappingEditorModal({
               <tr>
                 <th className={`${stickyLabelClass} text-zinc-600 dark:text-zinc-300`}>
                   <div className="font-semibold">3. 최종 출력 순서</div>
+                  <div className="mt-1 hidden text-xs font-normal leading-relaxed text-zinc-500 dark:text-zinc-400 lg:block">
+                    원하는 순서로 드래그해서 옮기세요.
+                  </div>
                   {customHeaderSection}
                 </th>
                 {Array.from({
@@ -420,7 +431,7 @@ export function DirectMappingEditorModal({
                       onDragOver={(event) => onDragOver(event, orderIndex)}
                       onDrop={(event) => onDrop(event, orderIndex)}
                       onDragLeave={onDragLeave}
-                      className={`border-r px-2 py-2 align-top transition-colors sm:px-3 dark:border-zinc-800 ${
+                      className={`w-[148px] min-w-[148px] max-w-[148px] overflow-hidden border-r px-2 py-2 align-top transition-colors sm:w-[168px] sm:min-w-[168px] sm:max-w-[168px] sm:px-3 lg:w-[200px] lg:min-w-[200px] lg:max-w-[200px] dark:border-zinc-800 ${
                         dragOverOrderIndex === orderIndex ? colors.drop : 'border-zinc-100'
                       }`}
                     >
@@ -437,7 +448,7 @@ export function DirectMappingEditorModal({
                             draggingSourceIndex === sourceIndex ? colors.drag : colors.grab
                           }`}
                         >
-                          <div className={clampedTextClassName}>{outputHeader}</div>
+                          <div className={headerNameClassName}>{outputHeader}</div>
                         </div>
                       )}
                       <div className="mt-2 flex flex-wrap items-center gap-1">
