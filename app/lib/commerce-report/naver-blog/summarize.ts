@@ -22,13 +22,20 @@ const CONCERN_PHRASE_DICTIONARY = [
   '필수템', '준비물', '꿀템', '사용법', '고르는 방법',
 ];
 
-/** postdate는 "yyyyMMdd" 형식 문자열(예: "20250615") */
+/**
+ * postdate는 "yyyyMMdd" 형식 문자열(예: "20250615")이며, 네이버가 내려주는 값은 KST(UTC+9) 기준 날짜입니다.
+ *
+ * ⚠️ `new Date(year, month - 1, day)`처럼 연/월/일 컴포넌트로 생성하면 실행 환경의 로컬 타임존을
+ * 그대로 사용합니다. Vercel 서버리스 런타임은 기본 타임존이 UTC라서, 이렇게 만들면 "오늘(KST)"
+ * 게시물조차 실제보다 9시간 앞선 시각으로 계산되어 최근 게시물이 통째로 제외되는 문제가 있었습니다.
+ * 그래서 KST 오프셋(+09:00)을 명시한 ISO 문자열로 파싱해 실행 환경 타임존과 무관하게 만듭니다.
+ */
 function parsePostDate(value: unknown): Date | null {
   if (typeof value !== 'string' || !/^\d{8}$/.test(value)) return null;
-  const year = Number(value.slice(0, 4));
-  const month = Number(value.slice(4, 6));
-  const day = Number(value.slice(6, 8));
-  const date = new Date(year, month - 1, day);
+  const year = value.slice(0, 4);
+  const month = value.slice(4, 6);
+  const day = value.slice(6, 8);
+  const date = new Date(`${year}-${month}-${day}T00:00:00+09:00`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
