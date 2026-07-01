@@ -546,7 +546,7 @@ export function ImageToPdf() {
 
   return (
     <>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:items-start">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
         <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start gap-3">
             <ImageIcon className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
@@ -609,7 +609,7 @@ export function ImageToPdf() {
               </div>
             )}
 
-            <div className="grid gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -688,7 +688,7 @@ export function ImageToPdf() {
                             {rotated.width.toLocaleString('ko-KR')} x {rotated.height.toLocaleString('ko-KR')} · {formatBytes(item.size)}
                           </p>
                           <p className="mt-1 text-xs text-zinc-500">회전: {item.rotation}도</p>
-                          <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                          <div className="mt-3 flex flex-wrap gap-2">
                             <button type="button" aria-label="왼쪽으로 90도 회전" onClick={() => rotateItem(item.id, -90)} disabled={processing} className="rounded-lg border border-zinc-200 px-2 py-2 text-xs font-semibold text-zinc-700 disabled:text-zinc-400">
                               <RotateCcw className="mx-auto size-4" aria-hidden />
                             </button>

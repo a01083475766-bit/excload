@@ -545,7 +545,7 @@ export function PrivacyMask() {
 
   return (
     <>
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:items-start">
+    <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <FileLock2 className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />

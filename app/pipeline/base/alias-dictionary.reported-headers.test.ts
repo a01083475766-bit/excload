@@ -26,6 +26,16 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['속성명']).toBe('상품옵션');
     expect(ALIAS_DICTIONARY['합포장번호']).toBe('묶음배송번호');
     expect(ALIAS_DICTIONARY['출고확정일']).toBe('출고발송일');
+    expect(ALIAS_DICTIONARY['송장출력일']).toBe('출고발송일');
+    expect(ALIAS_DICTIONARY['발송처리일']).toBe('출고발송일');
+    expect(ALIAS_DICTIONARY['발송기한']).toBe('출고요청일');
+    expect(ALIAS_DICTIONARY['사은품']).toBe('추가상품');
+    expect(ALIAS_DICTIONARY['판매자 내부코드1']).toBe('판매상품번호');
+    expect(ALIAS_DICTIONARY['판매자 내부코드2']).toBe('관리상품번호');
+    expect(ALIAS_DICTIONARY['배송비 묶음번호']).toBe('묶음배송번호');
+    expect(ALIAS_DICTIONARY['제주/도서 추가배송비']).toBe('도서산간추가배송비');
+    expect(ALIAS_DICTIONARY['판매채널']).toBe('판매처');
+    expect(ALIAS_DICTIONARY['주문세부상태']).toBe('주문상태');
     expect(ALIAS_DICTIONARY['취소']).toBe('주문상태');
     expect(ALIAS_DICTIONARY['진행단계']).toBe('주문상태');
     expect(ALIAS_DICTIONARY['통관용수취인전화번호']).toBe('통관용구매자전화번호');

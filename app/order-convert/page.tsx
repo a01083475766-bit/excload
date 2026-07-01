@@ -152,6 +152,8 @@ import {
 } from '@/app/lib/user-custom-format-direct-base-mapping';
 import type { OrderPipelineStage2Input } from '@/app/lib/fetch-order-pipeline-stage2';
 import { DirectMappingSampleFileModal } from '@/app/components/DirectMappingSampleFileModal';
+import { DirectMappingEditorModal } from '@/app/components/DirectMappingEditorModal';
+import { DirectMappingConfirmModal } from '@/app/components/DirectMappingConfirmModal';
 
 /** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
 const PREVIEW_TOOLBAR_BTN =
@@ -1930,6 +1932,13 @@ export default function OrderConvertPage() {
   const handleDirectMappingDragEnd = () => {
     setDirectMappingDraggingSourceIndex(null);
     setDirectMappingDragOverOrderIndex(null);
+  };
+
+  const handleAddDirectMappingSourceToOutput = (sourceIndex: number) => {
+    setDirectMappingOutputOrder((prev) => {
+      if (prev.includes(sourceIndex)) return prev;
+      return [...prev, sourceIndex];
+    });
   };
 
   const handleCreateDirectMappingFormat = () => {
@@ -4724,401 +4733,46 @@ export default function OrderConvertPage() {
         bodyExtra="텍스트·이미지로 넣으신 주문이 있었다면, 해당 입력도 다시 진행해 주세요."
       />
 
-      <WorkspaceBlockingModalOverlay
+      <DirectMappingEditorModal
         open={directMappingModalOpen}
-        aria-labelledby="direct-header-mapping-title"
-        panelClassName="w-full max-w-[1482px]"
-      >
-        <div className="flex h-[88vh] w-full max-w-[1482px] flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 sm:h-[84vh] sm:p-6">
-          <div className="mb-4 flex-shrink-0">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <h2
-                  id="direct-header-mapping-title"
-                  className="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
-                >
-                  사용자 지정양식 만들기
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                  주문파일의 열을 원하는 이름과 순서로 바꿔 저장합니다. 헤더명·순서를 바꾸면 그 열의 주문 데이터도 함께 이동됩니다.
-                  <span className="mt-1 block sm:mt-0 sm:inline sm:before:content-['\00a0']">
-                    저장 후 같은 형식의 주문파일을 다시 업로드하면, 설정한 양식대로 변환됩니다.
-                  </span>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setDirectMappingModalOpen(false);
-                  setDirectMappingConfirmModalOpen(false);
-                  setDirectMappingPendingColumns([]);
-                }}
-                className="flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                aria-label="닫기"
-              >
-                <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
-              </button>
-            </div>
-            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
-                <span className="font-semibold text-zinc-800 dark:text-zinc-100">1번 줄</span>
-                {' '}현재 주문파일에 들어있는 원래 헤더명입니다.
-              </div>
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
-                <span className="font-semibold text-zinc-800 dark:text-zinc-100">2번 줄</span>
-                {' '}다운로드 파일에 표시될 이름을 바꿀 수 있습니다. 이름을 바꿔도 해당 열의 주문 값은 그대로 유지됩니다.
-              </div>
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
-                <span className="font-semibold text-zinc-800 dark:text-zinc-100">3번 줄</span>
-                {' '}최종 파일에 넣을 항목을 원하는 순서대로 올려 주세요. 올린 항목만 저장되며, 헤더와 데이터가 함께 이동됩니다.
-              </div>
-            </div>
-          </div>
+        accent="blue"
+        sourceHeaders={directMappingSourceHeaders}
+        sourceSamples={directMappingSourceSamples}
+        renameValues={directMappingRenameValues}
+        outputOrder={directMappingOutputOrder}
+        customHeaderInputOpen={directMappingCustomHeaderInputOpen}
+        newHeaderInput={directMappingNewHeaderInput}
+        draggingSourceIndex={directMappingDraggingSourceIndex}
+        dragOverOrderIndex={directMappingDragOverOrderIndex}
+        onClose={() => {
+          setDirectMappingModalOpen(false);
+          setDirectMappingConfirmModalOpen(false);
+          setDirectMappingPendingColumns([]);
+        }}
+        onRenameChange={handleDirectMappingRenameChange}
+        onAddSourceToOutput={handleAddDirectMappingSourceToOutput}
+        onRemoveOutputHeader={handleRemoveDirectMappingOutputHeader}
+        onMoveOutputHeader={handleMoveDirectMappingOutputHeader}
+        onCustomHeaderInputOpen={setDirectMappingCustomHeaderInputOpen}
+        onNewHeaderInputChange={setDirectMappingNewHeaderInput}
+        onAddCustomHeader={handleAddDirectMappingCustomHeader}
+        onDragStart={handleDirectMappingDragStart}
+        onDragOver={handleDirectMappingDragOver}
+        onDrop={handleDirectMappingDrop}
+        onDragLeave={() => setDirectMappingDragOverOrderIndex(null)}
+        onDragEnd={handleDirectMappingDragEnd}
+        onCreateFormat={handleCreateDirectMappingFormat}
+        getOutputHeaderName={getDirectMappingOutputHeaderName}
+      />
 
-          <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-            <table className="border-collapse text-sm">
-              <tbody>
-                <tr className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                  <th className="sticky left-0 z-20 min-w-[338px] max-w-[338px] border-b border-r border-zinc-200 bg-zinc-100 px-4 py-3 text-left text-sm dark:border-zinc-700 dark:bg-zinc-800">
-                    <div className="font-semibold">1. 원본 주문파일 헤더</div>
-                    <div className="mt-1 text-xs font-normal leading-relaxed text-zinc-500 dark:text-zinc-400">
-                      현재 주문파일에 들어있는 원래 열 이름입니다. 어떤 주문 값을 가져올지 확인하는 줄이며, 수정할 수 없습니다.
-                    </div>
-                  </th>
-                  {directMappingSourceHeaders.map((sourceHeader, index) => (
-                    <td
-                      key={`direct-source-${sourceHeader}-${index}`}
-                      className="min-w-[220px] border-b border-r border-zinc-200 px-3 py-2 align-top font-semibold dark:border-zinc-700"
-                    >
-                      <div
-                        className="h-[40px] overflow-hidden text-sm leading-5"
-                        style={{
-                          display: '-webkit-box',
-                          WebkitBoxOrient: 'vertical',
-                          WebkitLineClamp: 2,
-                        }}
-                      >
-                        {sourceHeader}
-                      </div>
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <th className="sticky left-0 z-10 min-w-[338px] max-w-[338px] border-b border-r border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    <div className="font-semibold">2. 다운로드 파일에 표시될 이름</div>
-                    <div className="mt-1 text-xs font-normal leading-relaxed text-zinc-500 dark:text-zinc-400">
-                      최종 엑셀 파일에서 사용할 열 이름을 입력합니다. 예를 들어 원본 헤더가 &lsquo;받는사람&rsquo;이어도 &lsquo;받는 분&rsquo;으로 바꿀 수 있습니다. 헤더 이름만 바뀌며, 그 아래 주문 값은 그대로 연결됩니다.
-                    </div>
-                  </th>
-                  {directMappingSourceHeaders.map((sourceHeader, index) => {
-                    const isAddedToOutput = directMappingOutputOrder.includes(index);
-                    return (
-                      <td
-                        key={`direct-rename-${sourceHeader}-${index}`}
-                        className="border-b border-r border-zinc-100 px-3 py-2 align-top dark:border-zinc-800"
-                      >
-                        <input
-                          type="text"
-                          value={directMappingRenameValues[index] ?? ''}
-                          onChange={(e) => handleDirectMappingRenameChange(index, e.target.value)}
-                          className="h-[40px] w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm leading-5 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                        />
-                        <div className="mt-1 min-h-[16px] overflow-hidden text-[11px] leading-4 text-zinc-500 dark:text-zinc-400 whitespace-nowrap text-ellipsis">
-                          예시값: {(directMappingSourceSamples[sourceHeader] ?? []).join(' / ') || '-'}
-                        </div>
-                        <div
-                          draggable={!isAddedToOutput}
-                          onDragStart={(event) => {
-                            if (!isAddedToOutput) handleDirectMappingDragStart(event, index);
-                          }}
-                          onDragEnd={handleDirectMappingDragEnd}
-                          className={`mt-2 h-[40px] rounded-lg border px-3 py-2 text-sm font-semibold leading-5 ${
-                            isAddedToOutput
-                              ? 'cursor-default border-blue-300 bg-blue-100 text-blue-900 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-100'
-                              : 'cursor-grab border-blue-200 bg-blue-50 text-blue-800 active:cursor-grabbing dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100'
-                          }`}
-                          title={isAddedToOutput ? '이미 최종 출력 순서에 추가되었습니다.' : '아래 3번 행으로 드래그하면 출력 순서에 추가됩니다.'}
-                        >
-                          <div className="truncate">
-                            {isAddedToOutput ? '추가됨' : directMappingRenameValues[index]?.trim() || sourceHeader}
-                          </div>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-                <tr>
-                  <th className="sticky left-0 z-10 min-w-[338px] max-w-[338px] border-r border-zinc-200 bg-white px-4 py-3 text-left text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                    <div className="font-semibold">3. 최종 출력 순서</div>
-                    <div className="mt-1 text-xs font-normal leading-relaxed text-zinc-500 dark:text-zinc-400">
-                      다운로드 파일에 넣을 항목을 이 줄에 올려 주세요. 이 줄에 올린 항목만 저장되며, 왼쪽부터 엑셀 열 순서가 됩니다. 항목을 옮기면 헤더뿐 아니라 해당 열의 주문 데이터도 함께 이동됩니다.
-                    </div>
-                    <div className="mt-3">
-                      {directMappingCustomHeaderInputOpen ? (
-                        <div className="space-y-2">
-                          <input
-                            type="text"
-                            value={directMappingNewHeaderInput}
-                            onChange={(event) => setDirectMappingNewHeaderInput(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter') handleAddDirectMappingCustomHeader();
-                              if (event.key === 'Escape') {
-                                setDirectMappingCustomHeaderInputOpen(false);
-                                setDirectMappingNewHeaderInput('');
-                              }
-                            }}
-                            className="h-8 w-full rounded-md border border-zinc-300 bg-white px-2 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                            placeholder="예: 운임구분"
-                            autoFocus
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={handleAddDirectMappingCustomHeader}
-                              className="min-w-[84px] flex-1 rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-                            >
-                              추가
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDirectMappingCustomHeaderInputOpen(false);
-                                setDirectMappingNewHeaderInput('');
-                              }}
-                              className="min-w-[84px] flex-1 rounded border border-zinc-300 px-4 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                            >
-                              취소
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setDirectMappingCustomHeaderInputOpen(true)}
-                          className="w-full rounded border border-blue-200 bg-blue-50 px-4 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
-                        >
-                          새 헤더 추가 +
-                        </button>
-                      )}
-                    </div>
-                  </th>
-                  {Array.from({
-                    length: Math.max(directMappingSourceHeaders.length, directMappingOutputOrder.length + 1),
-                  }).map((_, orderIndex) => {
-                    const sourceIndex = directMappingOutputOrder[orderIndex];
-                    const hasOutput = typeof sourceIndex === 'number';
-                    const outputHeader = hasOutput ? getDirectMappingOutputHeaderName(sourceIndex) : '';
-                    return (
-                      <td
-                        key={`direct-final-slot-${orderIndex}`}
-                        onDragOver={(event) => handleDirectMappingDragOver(event, orderIndex)}
-                        onDrop={(event) => handleDirectMappingDrop(event, orderIndex)}
-                        onDragLeave={() => setDirectMappingDragOverOrderIndex(null)}
-                        className={`border-r px-3 py-2 align-top transition-colors dark:border-zinc-800 ${
-                          directMappingDragOverOrderIndex === orderIndex
-                            ? 'border-blue-300 bg-blue-50/70 dark:bg-blue-950/30'
-                            : 'border-zinc-100'
-                        }`}
-                      >
-                        {!hasOutput ? (
-                          <div className="flex h-[56px] items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-xs text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500">
-                            여기에 놓기
-                          </div>
-                        ) : (
-                          <div
-                            draggable
-                            onDragStart={(event) => handleDirectMappingDragStart(event, sourceIndex)}
-                            onDragEnd={handleDirectMappingDragEnd}
-                            className={`h-[56px] cursor-grab rounded-lg border px-3 py-2 text-sm font-semibold leading-5 active:cursor-grabbing ${
-                              directMappingDraggingSourceIndex === sourceIndex
-                                ? 'border-blue-400 bg-blue-100 text-blue-900 opacity-70 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-100'
-                                : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100'
-                            }`}
-                            title="드래그해서 출력 순서를 바꿀 수 있습니다."
-                          >
-                            <div
-                              className="h-[40px] overflow-hidden"
-                              style={{
-                                display: '-webkit-box',
-                                WebkitBoxOrient: 'vertical',
-                                WebkitLineClamp: 2,
-                              }}
-                            >
-                              {outputHeader}
-                            </div>
-                          </div>
-                        )}
-                        <div className="mt-2 flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleMoveDirectMappingOutputHeader(sourceIndex, -1)}
-                            disabled={!hasOutput || orderIndex === 0}
-                            className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
-                          >
-                            ←
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleMoveDirectMappingOutputHeader(sourceIndex, 1)}
-                            disabled={!hasOutput || orderIndex === directMappingOutputOrder.length - 1}
-                            className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300"
-                          >
-                            →
-                          </button>
-                          {hasOutput && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveDirectMappingOutputHeader(sourceIndex)}
-                              className="rounded border border-rose-200 px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                            >
-                              삭제
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-3 flex-shrink-0 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <div className="mb-2 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-              현재 출력 순서
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {directMappingOutputOrder.length === 0 ? (
-                <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  아직 선택된 항목이 없습니다. 2번 줄의 항목을 아래로 옮기면 다운로드 파일에 포함됩니다.
-                </p>
-              ) : (
-                directMappingOutputOrder.map((sourceIndex, orderIndex) => {
-                  const outputHeader = getDirectMappingOutputHeaderName(sourceIndex);
-                  return (
-                    <span
-                      key={`direct-order-chip-${outputHeader}-${sourceIndex}`}
-                      className="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-200"
-                    >
-                      {orderIndex + 1}. {outputHeader}
-                    </span>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-shrink-0 items-center justify-between gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-              양식을 등록하면 현재 미리보기는 초기화됩니다.
-              <br />
-              등록 후 같은 형식의 주문파일을 다시 업로드하면, 방금 설정한 헤더명과 출력 순서대로 주문 데이터가 함께 변환됩니다.
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDirectMappingModalOpen(false);
-                  setDirectMappingConfirmModalOpen(false);
-                  setDirectMappingPendingColumns([]);
-                }}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleCreateDirectMappingFormat}
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-              >
-                사용자 지정양식 저장
-              </button>
-            </div>
-          </div>
-        </div>
-      </WorkspaceBlockingModalOverlay>
-
-      <WorkspaceBlockingModalOverlay
+      <DirectMappingConfirmModal
         open={directMappingConfirmModalOpen}
-        aria-labelledby="direct-mapping-confirm-title"
-        panelClassName="w-full max-w-[760px]"
-      >
-        <div className="flex max-h-[82vh] w-full max-w-[760px] flex-col rounded-xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2
-                id="direct-mapping-confirm-title"
-                className="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
-              >
-                이 순서로 사용자 지정양식을 등록할까요?
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                확인을 누르면 아래 순서가 다운로드 파일의 열 순서로 저장됩니다.
-                이 사용자 지정양식은 표시된 원본 헤더의 셀값을 가져오므로, 같은 헤더 구조의 파일에 사용해 주세요.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDirectMappingConfirmModalOpen(false)}
-              className="rounded-lg p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              aria-label="수정하기"
-            >
-              <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
-            </button>
-          </div>
-
-          <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
-            {directMappingPendingColumns.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                {directMappingPendingColumns.map((column, index) => (
-                  <div
-                    key={`direct-confirm-${column.outputHeader}-${index}`}
-                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 dark:border-blue-900 dark:bg-zinc-900"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-blue-600 px-2 text-xs font-semibold text-white">
-                        {index + 1}
-                      </span>
-                      <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-                        {column.outputHeader}
-                      </span>
-                    </div>
-                    <div className="mt-1 pl-8 text-xs text-zinc-500 dark:text-zinc-400">
-                      원본 헤더값: {column.sourceHeader || '새 헤더(빈 값)'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex h-24 items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
-                확인할 출력 순서가 없습니다.
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-            확인 후에는 현재 미리보기가 초기화됩니다. 같은 주문파일을 다시 첨부하면 이 순서와 이름으로 변환됩니다.
-          </div>
-
-          <div className="mt-4 flex items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setDirectMappingConfirmModalOpen(false)}
-              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              수정하기
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmDirectMappingFormat}
-              disabled={isDirectMappingRegistering}
-              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isDirectMappingRegistering ? '등록 중…' : '확인'}
-            </button>
-          </div>
-        </div>
-      </WorkspaceBlockingModalOverlay>
+        accent="blue"
+        pendingColumns={directMappingPendingColumns}
+        isRegistering={isDirectMappingRegistering}
+        onClose={() => setDirectMappingConfirmModalOpen(false)}
+        onConfirm={handleConfirmDirectMappingFormat}
+      />
 
       <DirectMappingSampleFileModal
         open={directMappingSampleFileModalOpen}

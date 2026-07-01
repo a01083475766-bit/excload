@@ -362,7 +362,7 @@ export function ProductLabelMaker() {
   ];
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] xl:items-start">
+    <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <Barcode className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
@@ -522,13 +522,12 @@ export function ProductLabelMaker() {
 
         <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
           <div
-            className={`mx-auto origin-top rounded-[18px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] ${
+            className={`mx-auto w-full rounded-[18px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] ${
               options.showBorder ? 'ring-1 ring-slate-200' : ''
             }`}
             style={{
-              width: selectedSize.previewWidth,
+              maxWidth: selectedSize.previewWidth,
               aspectRatio: `${selectedSize.widthMm} / ${selectedSize.heightMm}`,
-              maxWidth: '100%',
             }}
           >
             <div className="flex h-full flex-col p-[6%]">

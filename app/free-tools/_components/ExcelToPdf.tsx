@@ -1156,7 +1156,7 @@ export function ExcelToPdf() {
         </p>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
         <section className="space-y-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
           <div>
             <h3 className="text-lg font-bold text-zinc-950">파일 업로드</h3>

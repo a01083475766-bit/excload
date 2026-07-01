@@ -414,7 +414,7 @@ export function MarginCalculator() {
   );
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:items-start">
+    <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <Calculator className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
@@ -475,7 +475,7 @@ export function MarginCalculator() {
                   return (
                     <div
                       key={cost.id}
-                      className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end"
+                      className="grid gap-2 rounded-lg border border-zinc-200 bg-white p-3 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end"
                     >
                       <label className="block">
                         <span className="text-xs font-medium text-zinc-600">항목명</span>
@@ -511,7 +511,7 @@ export function MarginCalculator() {
                         type="button"
                         onClick={() => removeAdditionalCost(cost.id)}
                         aria-label={`${displayName} 항목 삭제`}
-                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 sm:mb-0.5"
+                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 md:mb-0.5"
                       >
                         <Trash2 className="size-3.5" aria-hidden />
                         삭제

@@ -37,8 +37,8 @@ export function FreeToolsLayout({
   );
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_15%_10%,rgba(45,212,191,0.16),transparent_28%),radial-gradient(circle_at_85%_5%,rgba(96,165,250,0.14),transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef6ff_45%,#ffffff_100%)]">
-      <div className="mx-auto w-full max-w-[1200px] px-3 py-5 sm:px-5 sm:py-8 lg:px-8">
+    <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(45,212,191,0.16),transparent_28%),radial-gradient(circle_at_85%_5%,rgba(96,165,250,0.14),transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef6ff_45%,#ffffff_100%)]">
+      <div className="mx-auto w-full min-w-0 max-w-[1200px] px-3 py-5 sm:px-5 sm:py-8 lg:px-8">
         {activeSlug ? (
           <Link
             href="/free-tools"
@@ -51,8 +51,10 @@ export function FreeToolsLayout({
           heroSection
         )}
 
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <FreeToolsSidebar activeSlug={activeSlug} />
+        <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="min-w-0">
+            <FreeToolsSidebar activeSlug={activeSlug} />
+          </div>
           <section className="min-w-0">{children}</section>
         </div>
       </div>
