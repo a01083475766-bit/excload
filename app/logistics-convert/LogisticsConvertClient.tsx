@@ -77,6 +77,7 @@ import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTempla
 import { DirectMappingSampleFileModal } from '@/app/components/DirectMappingSampleFileModal';
 import { DirectMappingEditorModal } from '@/app/components/DirectMappingEditorModal';
 import { DirectMappingConfirmModal } from '@/app/components/DirectMappingConfirmModal';
+import { UnknownHeadersWarningBanner } from '@/app/components/UnknownHeadersWarningBanner';
 import { parseOrderFileHeadersFromArrayBuffer } from '@/app/lib/parse-order-file-headers';
 import {
   USER_CUSTOM_FORMAT_NAME,
@@ -6233,89 +6234,15 @@ export function LogisticsConvertClient({
               </div>
             ) : (
               <>
-                {/* unknownHeaders 경고 박스 */}
-                {unknownHeadersWarning.length > 0 && (
-                  <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg text-sm text-amber-800 mx-6 mb-4">
-                    <p className="font-semibold mb-2">
-                      주문파일의 일부 헤더를 물류 업로드양식의 어느 항목에 넣어야 할지 판단하지 못했습니다.
-                    </p>
-
-                    <p className="mb-3 leading-relaxed">
-                      아래 항목은 주문 관리에는 필요할 수 있지만, 현재 물류 업로드양식에 넣을 항목으로 확인되지 않았습니다.
-                      <br />
-                      물류센터 업로드에 필요한 정보인지 확인해 주세요.
-                    </p>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setUnknownHeadersExpanded((prev) => !prev)}
-                        className="rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                      >
-                        {unknownHeadersExpanded
-                          ? '자동 변환되지 않은 헤더 접기'
-                          : `자동 변환되지 않은 헤더 ${unknownHeadersWarning.length}개 보기`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleOpenDirectMappingModal}
-                        className={
-                          trialMode
-                            ? 'rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700'
-                            : 'rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700'
-                        }
-                      >
-                        사용자 지정양식 만들기
-                      </button>
-                    </div>
-
-                    {unknownHeadersExpanded && (
-                      <div className="mt-3">
-                        <div className="mb-2 text-emerald-600 font-semibold text-base">
-                          자동 변환되지 않은 헤더
-                        </div>
-
-                        <div className="mb-3 space-y-2">
-                          {unknownHeadersWarning.map((header) => {
-                            const samples = unknownHeaderSamples[header] ?? [];
-                            return (
-                              <div
-                                key={header}
-                                className="rounded-md border border-amber-200 bg-white/70 px-3 py-2"
-                              >
-                                <div className="font-semibold text-emerald-700">
-                                  {header}
-                                </div>
-                                <div className="mt-1 text-xs leading-relaxed text-amber-800">
-                                  예시 값: {samples.length > 0 ? samples.join(' / ') : '값 없음'}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <p className="mb-3 text-xs leading-relaxed text-amber-700">
-                          ※ 표시된 내용은 확인을 돕기 위한 예시이며, 개인정보는 일부 가려서 보여드립니다.
-                        </p>
-
-                        <div className="text-xs text-amber-700 leading-relaxed">
-                          <strong>필요한 정보라면</strong><br />
-                          물류 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은
-                          항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
-                          <br /><br />
-                          <strong>필요하지 않은 정보라면</strong><br />
-                          {trialMode
-                            ? '물류 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고 결과를 확인하셔도 됩니다.'
-                            : '물류 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고 다운로드하셔도 됩니다.'}
-                          <br /><br />
-                          {trialMode
-                            ? '※ 미리보기에서 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.'
-                            : '※ 다운로드 전 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.'}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <UnknownHeadersWarningBanner
+                  unknownHeaders={unknownHeadersWarning}
+                  unknownHeaderSamples={unknownHeaderSamples}
+                  expanded={unknownHeadersExpanded}
+                  onExpandedChange={setUnknownHeadersExpanded}
+                  variant="logistics"
+                  trialMode={trialMode}
+                  onDirectMapping={handleOpenDirectMappingModal}
+                />
 
                 {/* 상품코드 매핑 실패 시: 코드·바코드 열 비움 안내 */}
                 {productCodeMappingNotice && (

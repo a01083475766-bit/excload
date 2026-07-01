@@ -88,6 +88,7 @@ import {
 } from '@/app/lib/workspace-order-files-idb';
 import { Coins } from 'lucide-react';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
+import { UnknownHeadersWarningBanner } from '@/app/components/UnknownHeadersWarningBanner';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
 import {
@@ -3029,73 +3030,13 @@ export default function InvoiceFileConvertPage() {
               </div>
             ) : (
               <>
-                {/* unknownHeaders 경고 박스 */}
-                {unknownHeadersWarning.length > 0 && (
-                  <div className="bg-amber-50 border border-amber-300 p-4 rounded-lg text-sm text-amber-800 mx-6 mb-4">
-                    <p className="font-semibold mb-2">
-                      주문파일 또는 송장번호파일의 일부 헤더를 송장 업로드양식의 어느 항목에 넣어야 할지 판단하지 못했습니다.
-                    </p>
-
-                    <p className="mb-3 leading-relaxed">
-                      아래 항목은 주문 관리나 배송 확인에는 필요할 수 있지만, 현재 송장 업로드양식에 넣을 항목으로 확인되지 않았습니다.
-                      <br />
-                      쇼핑몰 송장 업로드에 필요한 정보인지 확인해 주세요.
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => setUnknownHeadersExpanded((prev) => !prev)}
-                      className="rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                    >
-                      {unknownHeadersExpanded
-                        ? '자동 변환되지 않은 헤더 접기'
-                        : `자동 변환되지 않은 헤더 ${unknownHeadersWarning.length}개 보기`}
-                    </button>
-
-                    {unknownHeadersExpanded && (
-                      <div className="mt-3">
-                        <div className="mb-2 text-blue-600 font-semibold text-base">
-                          자동 변환되지 않은 헤더
-                        </div>
-
-                        <div className="mb-3 space-y-2">
-                          {unknownHeadersWarning.map((header) => {
-                            const samples = unknownHeaderSamples[header] ?? [];
-                            return (
-                              <div
-                                key={header}
-                                className="rounded-md border border-amber-200 bg-white/70 px-3 py-2"
-                              >
-                                <div className="font-semibold text-blue-700">
-                                  {header}
-                                </div>
-                                <div className="mt-1 text-xs leading-relaxed text-amber-800">
-                                  예시 값: {samples.length > 0 ? samples.join(' / ') : '값 없음'}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <p className="mb-3 text-xs leading-relaxed text-amber-700">
-                          ※ 표시된 내용은 확인을 돕기 위한 예시이며, 개인정보는 일부 가려서 보여드립니다.
-                        </p>
-
-                        <div className="text-xs text-amber-700 leading-relaxed">
-                          <strong>필요한 정보라면</strong><br />
-                          송장 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은
-                          항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.
-                          <br /><br />
-                          <strong>필요하지 않은 정보라면</strong><br />
-                          송장 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고
-                          다운로드하셔도 됩니다.
-                          <br /><br />
-                          ※ 다운로드 전 송장 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <UnknownHeadersWarningBanner
+                  unknownHeaders={unknownHeadersWarning}
+                  unknownHeaderSamples={unknownHeaderSamples}
+                  expanded={unknownHeadersExpanded}
+                  onExpandedChange={setUnknownHeadersExpanded}
+                  variant="invoice"
+                />
 
                 {/* 
                   미리보기 렌더링 데이터 소스: previewRows / courierHeaders
