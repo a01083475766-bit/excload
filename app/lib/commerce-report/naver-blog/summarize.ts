@@ -1,12 +1,15 @@
 /**
  * 네이버 블로그 검색 API 응답 → 요약값 계산 (순수 함수)
  *
- * ⚠️ 입력으로 받은 원본 items(title/description/bloggername/bloggerlink)는
+ * ⚠️ 입력으로 받은 원본 items(title/description/bloggername/bloggerlink/postdate)는
  * 이 함수 실행 중에만 사용되고, 반환값에는 포함되지 않습니다.
+ * ⚠️ postdate가 최근 BLOG_PERIOD_DAYS일을 벗어난 게시물은 요약 계산에서 제외합니다.
  */
 
-import { findMatchingPhrases, stripHtmlTags, tokenizeText, topFrequentBigramPhrases } from '../text-utils';
+import { findMatchingPhrases, isWithinRecentDays, stripHtmlTags, tokenizeText, topFrequentBigramPhrases } from '../text-utils';
 import type { NaverBlogPreviewSummary, NaverBlogRawItem } from './types';
+
+const BLOG_PERIOD_DAYS = 30;
 
 const STOPWORDS = new Set([
   '블로그', '포스팅', '오늘', '정리', '공유', '리뷰', '후기', '이번', '진짜', '완전', '너무', '정말',
@@ -19,12 +22,27 @@ const CONCERN_PHRASE_DICTIONARY = [
   '필수템', '준비물', '꿀템', '사용법', '고르는 방법',
 ];
 
-export function summarizeNaverBlogItems(
-  keyword: string,
-  total: number,
-  items: NaverBlogRawItem[],
-): NaverBlogPreviewSummary {
-  const texts = items.map((item) =>
+/** postdate는 "yyyyMMdd" 형식 문자열(예: "20250615") */
+function parsePostDate(value: unknown): Date | null {
+  if (typeof value !== 'string' || !/^\d{8}$/.test(value)) return null;
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(4, 6));
+  const day = Number(value.slice(6, 8));
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function summarizeNaverBlogItems(keyword: string, items: NaverBlogRawItem[]): NaverBlogPreviewSummary {
+  const fetchedCount = items.length;
+
+  const recentItems = items.filter((item) => {
+    const postedAt = parsePostDate(item.postdate);
+    return postedAt !== null && isWithinRecentDays(postedAt, BLOG_PERIOD_DAYS);
+  });
+  const usedCount = recentItems.length;
+  const excludedOldCount = fetchedCount - usedCount;
+
+  const texts = recentItems.map((item) =>
     stripHtmlTags(typeof item.description === 'string' ? item.description : '')
     + ' '
     + stripHtmlTags(typeof item.title === 'string' ? item.title : ''),
@@ -35,8 +53,12 @@ export function summarizeNaverBlogItems(
   const concernPhrases = findMatchingPhrases(texts, CONCERN_PHRASE_DICTIONARY, 6);
 
   return {
-    postCount: total,
+    postCount: usedCount,
     frequentPhrases,
     concernPhrases,
+    periodDays: BLOG_PERIOD_DAYS,
+    fetchedCount,
+    usedCount,
+    excludedOldCount,
   };
 }

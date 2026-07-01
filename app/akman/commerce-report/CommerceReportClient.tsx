@@ -567,7 +567,9 @@ export default function CommerceReportClient() {
                   <div style={{ fontWeight: 600, marginBottom: '2px' }}>블로그 언급</div>
                   {r.blog ? (
                     <>
-                      <div>게시물 수: {r.blog.postCount.toLocaleString()}건</div>
+                      <div>
+                        최근 {r.blog.periodDays}일 기준, {r.blog.usedCount.toLocaleString()}건 반영 / {r.blog.excludedOldCount.toLocaleString()}건 제외
+                      </div>
                       <div>
                         자주 쓰는 표현: {r.blog.frequentPhrases.length > 0 ? r.blog.frequentPhrases.join(', ') : '-'}
                       </div>
@@ -592,7 +594,9 @@ export default function CommerceReportClient() {
                   <div style={{ fontWeight: 600, marginBottom: '2px' }}>뉴스 이슈</div>
                   {r.news ? (
                     <>
-                      <div>기사 수: {r.news.articleCount.toLocaleString()}건</div>
+                      <div>
+                        최근 {r.news.periodDays}일 기준, {r.news.usedCount.toLocaleString()}건 반영 / {r.news.excludedOldCount.toLocaleString()}건 제외
+                      </div>
                       <div>이슈 키워드: {r.news.issueKeywords.length > 0 ? r.news.issueKeywords.join(', ') : '-'}</div>
                     </>
                   ) : (

@@ -26,7 +26,7 @@ export interface NaverNewsFetchResult {
   items: NaverNewsRawItem[];
 }
 
-/** 키워드 1개에 대해 최근 뉴스 기사 상위 20개를 조회 (원본은 호출부에서 즉시 요약 후 폐기) */
+/** 키워드 1개에 대해 최신순 뉴스 기사 상위 100개를 조회 (원본은 호출부에서 즉시 요약 후 폐기) */
 export async function fetchNaverNewsItems(query: string): Promise<NaverNewsFetchResult> {
   const clientId = process.env.NAVER_SHOPPING_CLIENT_ID?.trim();
   const clientSecret = process.env.NAVER_SHOPPING_CLIENT_SECRET?.trim();
@@ -37,8 +37,9 @@ export async function fetchNaverNewsItems(query: string): Promise<NaverNewsFetch
 
   const url = new URL(NAVER_NEWS_ENDPOINT);
   url.searchParams.set('query', query);
-  url.searchParams.set('display', '20');
+  url.searchParams.set('display', '100');
   url.searchParams.set('start', '1');
+  // 최근 기사인지 판단하는 게 목적이므로 정확도(sim)가 아니라 최신순(date)으로 가져옵니다.
   url.searchParams.set('sort', 'date');
 
   const controller = new AbortController();

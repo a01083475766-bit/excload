@@ -43,8 +43,8 @@ function errorMessageForStatus(status: number): string {
 /** 블로그 조회 — 실패해도 전체 키워드를 막지 않고 null로 처리 (상태 코드만 로그) */
 async function fetchBlogSummaryOrNull(keyword: string): Promise<NaverBlogPreviewSummary | null> {
   try {
-    const { total, items } = await fetchNaverBlogItems(keyword);
-    return summarizeNaverBlogItems(keyword, total, items);
+    const { items } = await fetchNaverBlogItems(keyword);
+    return summarizeNaverBlogItems(keyword, items);
   } catch (err) {
     const status = err instanceof NaverBlogApiError ? err.status : 0;
     console.error('[CommerceReportNaverPreview] blog fetch failed', { status });
@@ -55,8 +55,8 @@ async function fetchBlogSummaryOrNull(keyword: string): Promise<NaverBlogPreview
 /** 뉴스 조회 — 실패해도 전체 키워드를 막지 않고 null로 처리 (상태 코드만 로그) */
 async function fetchNewsSummaryOrNull(keyword: string): Promise<NaverNewsPreviewSummary | null> {
   try {
-    const { total, items } = await fetchNaverNewsItems(keyword);
-    return summarizeNaverNewsItems(keyword, total, items);
+    const { items } = await fetchNaverNewsItems(keyword);
+    return summarizeNaverNewsItems(keyword, items);
   } catch (err) {
     const status = err instanceof NaverNewsApiError ? err.status : 0;
     console.error('[CommerceReportNaverPreview] news fetch failed', { status });

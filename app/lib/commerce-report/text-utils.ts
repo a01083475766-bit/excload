@@ -71,6 +71,12 @@ export function findMatchingPhrases(texts: string[], dictionary: string[], limit
     .map(([phrase]) => phrase);
 }
 
+/** date가 (오늘 포함) 최근 days일 이내인지 판별. 미래 날짜(파싱 오류로 추정)는 false 처리 */
+export function isWithinRecentDays(date: Date, days: number): boolean {
+  const diffMs = Date.now() - date.getTime();
+  return diffMs >= 0 && diffMs <= days * 24 * 60 * 60 * 1000;
+}
+
 /** 빈도 집계용 카운터를 만들고 TOP N의 [이름] 배열만 반환 (브랜드/몰명 등 단순 카운팅에 사용) */
 export function topFrequentValues(values: string[], limit: number): string[] {
   const counts = new Map<string, number>();

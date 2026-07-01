@@ -107,6 +107,10 @@ function sanitizeBlogSummary(value: unknown): KeywordReferenceSummary['blog'] {
     postCount: typeof v.postCount === 'number' ? v.postCount : 0,
     frequentPhrases: sanitizeStringArray(v.frequentPhrases),
     concernPhrases: sanitizeStringArray(v.concernPhrases),
+    periodDays: typeof v.periodDays === 'number' ? v.periodDays : 30,
+    fetchedCount: typeof v.fetchedCount === 'number' ? v.fetchedCount : 0,
+    usedCount: typeof v.usedCount === 'number' ? v.usedCount : 0,
+    excludedOldCount: typeof v.excludedOldCount === 'number' ? v.excludedOldCount : 0,
   };
 }
 
@@ -116,6 +120,10 @@ function sanitizeNewsSummary(value: unknown): KeywordReferenceSummary['news'] {
   return {
     articleCount: typeof v.articleCount === 'number' ? v.articleCount : 0,
     issueKeywords: sanitizeStringArray(v.issueKeywords),
+    periodDays: typeof v.periodDays === 'number' ? v.periodDays : 7,
+    fetchedCount: typeof v.fetchedCount === 'number' ? v.fetchedCount : 0,
+    usedCount: typeof v.usedCount === 'number' ? v.usedCount : 0,
+    excludedOldCount: typeof v.excludedOldCount === 'number' ? v.excludedOldCount : 0,
   };
 }
 

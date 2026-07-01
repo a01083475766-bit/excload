@@ -28,7 +28,7 @@ export interface NaverBlogFetchResult {
   items: NaverBlogRawItem[];
 }
 
-/** 키워드 1개에 대해 최근 블로그 포스트 상위 30개를 조회 (원본은 호출부에서 즉시 요약 후 폐기) */
+/** 키워드 1개에 대해 최신순 블로그 포스트 상위 100개를 조회 (원본은 호출부에서 즉시 요약 후 폐기) */
 export async function fetchNaverBlogItems(query: string): Promise<NaverBlogFetchResult> {
   const clientId = process.env.NAVER_SHOPPING_CLIENT_ID?.trim();
   const clientSecret = process.env.NAVER_SHOPPING_CLIENT_SECRET?.trim();
@@ -39,9 +39,10 @@ export async function fetchNaverBlogItems(query: string): Promise<NaverBlogFetch
 
   const url = new URL(NAVER_BLOG_ENDPOINT);
   url.searchParams.set('query', query);
-  url.searchParams.set('display', '30');
+  url.searchParams.set('display', '100');
   url.searchParams.set('start', '1');
-  url.searchParams.set('sort', 'sim');
+  // 최근 게시물인지 판단하는 게 목적이므로 정확도(sim)가 아니라 최신순(date)으로 가져옵니다.
+  url.searchParams.set('sort', 'date');
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
