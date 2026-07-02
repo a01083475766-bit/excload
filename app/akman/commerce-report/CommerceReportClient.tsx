@@ -8,8 +8,9 @@
  *
  * 진행 단계:
  * - ②오늘 참고 데이터 → 네이버 쇼핑/블로그/뉴스 검색 API 실시간 조회 (DB 저장 없음, 새로고침 시 소실)
- * - ②-A 추천 키워드 자동 찾기 → 시드 키워드로 쇼핑 검색만 조회해 후보 추출 후, 선택한 후보로
- *   ②와 동일한 로직(naver-preview·computeKeywordStats)을 재사용해 "오늘의 상품 아이디어 TOP10"을 계산
+ * - ②-A 추천 키워드 자동 찾기 → 상시/시즌/이슈/행사/직접입력 중 카테고리 1개를 선택해(한 번에 1개만
+ *   조회) 그 프리셋 시드로 쇼핑 검색만 조회해 후보 추출 후, 선택한 후보로 ②와 동일한 로직
+ *   (naver-preview·computeKeywordStats)을 재사용해 카테고리별 상품 아이디어 TOP10을 계산
  *   (관리 키워드 흐름과 완전히 분리된 별도 state, DB 저장 없음, 새로고침 시 소실)
  * - ③키워드 TOP10 → ②에서 조회한 참고 데이터를 바탕으로 한 순수 계산(경쟁강도·기회점수, 판매량/매출 아님)
  * - ④~⑥뉴스레터 생성/미리보기/복사 → ②참고 데이터 기반 AI 초안 생성 (DB 저장 없음)
@@ -30,12 +31,24 @@ import type {
 import { COMMERCE_REPORT_TONE_OPTIONS } from '@/app/lib/commerce-report/types';
 import { MOCK_NEWSLETTER_DRAFT_EMPTY } from '@/app/lib/commerce-report/mock-data';
 import { computeKeywordStats } from '@/app/lib/commerce-report/keyword-stats';
-import { DEFAULT_COMMERCE_REPORT_SEED_KEYWORDS, MAX_SEED_KEYWORDS } from '@/app/lib/commerce-report/constants';
+import type { CommerceKeywordCandidateCategory } from '@/app/lib/commerce-report/constants';
+import {
+  COMMERCE_KEYWORD_CANDIDATE_CATEGORIES,
+  DEFAULT_COMMERCE_KEYWORD_CANDIDATE_CATEGORY,
+  MAX_SEED_KEYWORDS,
+} from '@/app/lib/commerce-report/constants';
 
 const MAX_PREVIEW_KEYWORDS = 10;
 const DEFAULT_PREVIEW_KEYWORD_COUNT = 5;
 const MAX_RECOMMENDED_SELECTION = 10;
 const DEFAULT_RECOMMENDED_SELECTION_COUNT = 10;
+
+function getCandidateCategoryPreset(category: CommerceKeywordCandidateCategory) {
+  return (
+    COMMERCE_KEYWORD_CANDIDATE_CATEGORIES.find((c) => c.value === category) ??
+    COMMERCE_KEYWORD_CANDIDATE_CATEGORIES[0]
+  );
+}
 
 const shell: React.CSSProperties = {
   padding: '40px',
@@ -148,14 +161,24 @@ export default function CommerceReportClient() {
   const [previewFetchedAt, setPreviewFetchedAt] = useState<string | null>(null);
 
   // ②-A 추천 키워드 자동 찾기 — 관리 키워드 흐름과 완전히 분리된 별도 state (DB 저장 없음, 새로고침 시 소실)
-  const [seedKeywordsInput, setSeedKeywordsInput] = useState(DEFAULT_COMMERCE_REPORT_SEED_KEYWORDS.join(', '));
+  // 수집 목적별 카테고리(상시/시즌/이슈/행사/직접입력) 프리셋 — 한 번에 카테고리 1개만 조회
+  const [selectedCandidateCategory, setSelectedCandidateCategory] = useState<CommerceKeywordCandidateCategory>(
+    DEFAULT_COMMERCE_KEYWORD_CANDIDATE_CATEGORY,
+  );
+  const [seedKeywordsInput, setSeedKeywordsInput] = useState(
+    getCandidateCategoryPreset(DEFAULT_COMMERCE_KEYWORD_CANDIDATE_CATEGORY).seedKeywords.join(', '),
+  );
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   const [candidates, setCandidates] = useState<string[]>([]);
+  // candidates가 어느 카테고리로 조회된 결과인지 (조회 이후 탭을 바꿔도 결과 라벨은 유지)
+  const [candidatesCategory, setCandidatesCategory] = useState<CommerceKeywordCandidateCategory | null>(null);
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
   const [candidatesError, setCandidatesError] = useState<string | null>(null);
   const [candidatesFailedSeeds, setCandidatesFailedSeeds] = useState<string[]>([]);
   const [recommendedLoading, setRecommendedLoading] = useState(false);
   const [recommendedResults, setRecommendedResults] = useState<KeywordReferenceSummary[]>([]);
+  // recommendedResults가 어느 카테고리로 만들어진 리포트인지 (TOP10 표 제목에 사용)
+  const [recommendedCategory, setRecommendedCategory] = useState<CommerceKeywordCandidateCategory | null>(null);
   const [recommendedFailedKeywords, setRecommendedFailedKeywords] = useState<string[]>([]);
   const [recommendedError, setRecommendedError] = useState<string | null>(null);
   const [recommendedFetchedAt, setRecommendedFetchedAt] = useState<string | null>(null);
@@ -341,6 +364,15 @@ export default function CommerceReportClient() {
     }
   };
 
+  const handleSelectCandidateCategory = (category: CommerceKeywordCandidateCategory) => {
+    setSelectedCandidateCategory(category);
+    const preset = getCandidateCategoryPreset(category);
+    // CUSTOM(직접 입력)은 프리셋이 없으므로 기존 입력값을 그대로 유지하고, 그 외 카테고리는 프리셋으로 덮어씀
+    if (preset.seedKeywords.length > 0) {
+      setSeedKeywordsInput(preset.seedKeywords.join(', '));
+    }
+  };
+
   const fetchKeywordCandidates = async () => {
     const seedKeywords = seedKeywordsInput
       .split(',')
@@ -365,6 +397,7 @@ export default function CommerceReportClient() {
       if (!res.ok || !data.success) {
         setCandidatesError(data.error || '추천 키워드 후보를 찾지 못했습니다. 잠시 후 다시 시도해 주세요.');
         setCandidates([]);
+        setCandidatesCategory(null);
         setSelectedCandidates(new Set());
         setCandidatesFailedSeeds([]);
         return;
@@ -372,15 +405,18 @@ export default function CommerceReportClient() {
       const foundCandidates: string[] = data.candidates ?? [];
       setCandidatesError(typeof data.error === 'string' ? data.error : null);
       setCandidates(foundCandidates);
+      setCandidatesCategory(selectedCandidateCategory);
       setCandidatesFailedSeeds(data.failedSeedKeywords ?? []);
       setSelectedCandidates(new Set(foundCandidates.slice(0, DEFAULT_RECOMMENDED_SELECTION_COUNT)));
       // 새로 후보를 찾으면 이전 추천 리포트는 최신 후보 기준으로 다시 만들어야 하므로 비워 둠
       setRecommendedResults([]);
+      setRecommendedCategory(null);
       setRecommendedFetchedAt(null);
       setRecommendedError(null);
     } catch {
       setCandidatesError('추천 키워드 후보를 찾지 못했습니다. 잠시 후 다시 시도해 주세요.');
       setCandidates([]);
+      setCandidatesCategory(null);
       setSelectedCandidates(new Set());
       setCandidatesFailedSeeds([]);
     } finally {
@@ -424,16 +460,19 @@ export default function CommerceReportClient() {
       if (!res.ok || !data.success) {
         setRecommendedError(data.error || '참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
         setRecommendedResults([]);
+        setRecommendedCategory(null);
         setRecommendedFailedKeywords([]);
         return;
       }
       setRecommendedError(typeof data.error === 'string' ? data.error : null);
       setRecommendedResults(data.results ?? []);
+      setRecommendedCategory(candidatesCategory ?? selectedCandidateCategory);
       setRecommendedFailedKeywords(data.failedKeywords ?? []);
       setRecommendedFetchedAt(new Date().toISOString());
     } catch {
       setRecommendedError('참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
       setRecommendedResults([]);
+      setRecommendedCategory(null);
       setRecommendedFailedKeywords([]);
     } finally {
       setRecommendedLoading(false);
@@ -741,7 +780,37 @@ export default function CommerceReportClient() {
 
         <div style={{ marginBottom: '14px' }}>
           <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
-            시드 키워드 (쉼표로 구분, 최대 {MAX_SEED_KEYWORDS}개까지 사용됩니다)
+            수집 목적 카테고리 (한 번에 1개만 조회됩니다)
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {COMMERCE_KEYWORD_CANDIDATE_CATEGORIES.map((cat) => {
+              const active = selectedCandidateCategory === cat.value;
+              return (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => handleSelectCandidateCategory(cat.value)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '999px',
+                    border: `1px solid ${active ? '#175cd3' : '#d0d5dd'}`,
+                    background: active ? '#175cd3' : '#fff',
+                    color: active ? '#fff' : '#333',
+                    fontSize: '13px',
+                    fontWeight: active ? 700 : 400,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
+            시드 키워드 (쉼표로 구분, 최대 {MAX_SEED_KEYWORDS}개까지 사용됩니다) — 카테고리를 선택하면 자동으로 채워집니다
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <input
@@ -772,6 +841,9 @@ export default function CommerceReportClient() {
 
         {candidates.length > 0 && (
           <>
+            <div style={{ fontWeight: 700, marginBottom: '8px' }}>
+              {candidatesCategory ? getCandidateCategoryPreset(candidatesCategory).label : ''} 후보
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
               {candidates.map((c) => {
                 const checked = selectedCandidates.has(c);
@@ -828,7 +900,11 @@ export default function CommerceReportClient() {
         )}
 
         <div style={{ borderTop: '1px solid #f2f2f2', paddingTop: '16px', marginTop: '4px' }}>
-          <div style={{ fontWeight: 700, marginBottom: '10px' }}>오늘의 상품 아이디어 TOP10</div>
+          <div style={{ fontWeight: 700, marginBottom: '10px' }}>
+            {recommendedCategory
+              ? getCandidateCategoryPreset(recommendedCategory).resultTitle
+              : getCandidateCategoryPreset(selectedCandidateCategory).resultTitle}
+          </div>
 
           {recommendedKeywordStats.length === 0 ? (
             <p style={{ fontSize: '13px', color: '#b45309' }}>
