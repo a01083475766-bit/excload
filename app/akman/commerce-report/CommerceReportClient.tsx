@@ -13,7 +13,8 @@
  *   (naver-preview·computeKeywordStats)을 재사용해 카테고리별 상품 아이디어 TOP10을 계산
  *   (관리 키워드 흐름과 완전히 분리된 별도 state, DB 저장 없음, 새로고침 시 소실)
  * - ③키워드 TOP10 → ②에서 조회한 참고 데이터를 바탕으로 한 순수 계산(경쟁강도·기회점수, 판매량/매출 아님)
- * - ④~⑥뉴스레터 생성/미리보기/복사 → ②참고 데이터 기반 AI 초안 생성 (DB 저장 없음)
+ * - ④~⑥뉴스레터 생성/미리보기/복사 → ②참고 데이터(previewResults) 또는 ②-A 추천 키워드 리포트
+ *   (recommendedResults, naver-preview 재호출 없이 재사용) 기반 AI 초안 생성 (DB 저장 없음)
  * - ⑦설정(키워드·금지표현·광고문구·문체) → 실제 DB 연동
  * - 전주/전년 대비 계산(쇼핑인사이트 미연동), cron 자동 수집은 아직 진행하지 않습니다.
  */
@@ -192,46 +193,78 @@ export default function CommerceReportClient() {
   const keywordStats = useMemo(() => computeKeywordStats(previewResults), [previewResults]);
 
   // ④~⑥ 뉴스레터 생성·미리보기·복사 — 참고 데이터 기반 AI 초안 생성 (DB 저장 없음)
+  // ⚠️ 관리 키워드 기반(previewResults)과 추천 키워드 기반(recommendedResults) 모두 이 draft state를
+  //   공유해서 재사용합니다. draftSourceLabel로 "어느 참고 데이터로 만든 초안인지"만 구분해 표시합니다.
   const [draft, setDraft] = useState<CommerceNewsletterDraft>(MOCK_NEWSLETTER_DRAFT_EMPTY);
+  const [draftSourceLabel, setDraftSourceLabel] = useState<string | null>(null);
+  // "재생성" 버튼이 방금 만든 draft와 같은 참고 데이터로 다시 만들 수 있도록 출처만 기억 (별도 저장 없음)
+  const [lastDraftSource, setLastDraftSource] = useState<'MANAGED' | 'RECOMMENDED' | null>(null);
   const [generating, setGenerating] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [bannedWordsFound, setBannedWordsFound] = useState<string[]>([]);
   const [copiedLabel, setCopiedLabel] = useState('');
 
-  const handleGenerate = useCallback(async () => {
+  const generateNewsletterDraft = useCallback(
+    async (summaries: KeywordReferenceSummary[], sourceLabel: string | null) => {
+      setGenerating(true);
+      setDraftError(null);
+      try {
+        const res = await fetch('/api/akman/commerce-report/newsletter-draft', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keywordSummaries: summaries }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setDraftError(data.error || '초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+          return;
+        }
+        setBannedWordsFound(Array.isArray(data.bannedWordsFound) ? data.bannedWordsFound : []);
+        setDraft({
+          status: 'DRAFT',
+          title: data.draft.title,
+          summary: data.draft.summary,
+          body: data.draft.body,
+          tags: data.draft.tags,
+          generatedAt: new Date().toISOString(),
+        });
+        setDraftSourceLabel(sourceLabel);
+      } catch {
+        setDraftError('초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      } finally {
+        setGenerating(false);
+      }
+    },
+    [],
+  );
+
+  const handleGenerate = useCallback(() => {
     if (previewResults.length === 0) {
       window.alert('먼저 오늘 참고 데이터를 조회해 주세요.');
-      return;
+      return Promise.resolve();
     }
-    setGenerating(true);
-    setDraftError(null);
-    try {
-      const res = await fetch('/api/akman/commerce-report/newsletter-draft', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keywordSummaries: previewResults }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setDraftError(data.error || '초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
-        return;
-      }
-      setBannedWordsFound(Array.isArray(data.bannedWordsFound) ? data.bannedWordsFound : []);
-      setDraft({
-        status: 'DRAFT',
-        title: data.draft.title,
-        summary: data.draft.summary,
-        body: data.draft.body,
-        tags: data.draft.tags,
-        generatedAt: new Date().toISOString(),
-      });
-    } catch {
-      setDraftError('초안 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
-    } finally {
-      setGenerating(false);
+    setLastDraftSource('MANAGED');
+    return generateNewsletterDraft(previewResults, null);
+  }, [previewResults, generateNewsletterDraft]);
+
+  // 추천 키워드 자동 찾기(recommendedResults)로 만든 상품 아이디어 TOP10을 그대로 초안 생성에 사용
+  // — naver-preview를 다시 호출하지 않고, 이미 조회된 요약값만 전달합니다.
+  const handleGenerateFromRecommended = useCallback(() => {
+    if (recommendedResults.length === 0) {
+      window.alert('먼저 선택한 후보로 리포트를 만들어 주세요.');
+      return Promise.resolve();
     }
-  }, [previewResults]);
+    const categoryLabel = recommendedCategory
+      ? getCandidateCategoryPreset(recommendedCategory).label
+      : '추천 키워드';
+    setLastDraftSource('RECOMMENDED');
+    return generateNewsletterDraft(recommendedResults, `${categoryLabel} 기반 초안`);
+  }, [recommendedResults, recommendedCategory, generateNewsletterDraft]);
+
+  const handleRegenerate = useCallback(() => {
+    return lastDraftSource === 'RECOMMENDED' ? handleGenerateFromRecommended() : handleGenerate();
+  }, [lastDraftSource, handleGenerateFromRecommended, handleGenerate]);
 
   // ⑦ 설정 — 실제 DB 연동 (키워드 · 금지표현 · 광고문구 · 문체)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -951,6 +984,31 @@ export default function CommerceReportClient() {
             </>
           )}
         </div>
+
+        {/*
+          추천 키워드 리포트(recommendedResults)를 그대로 뉴스레터 초안 생성에 전달 — naver-preview를
+          다시 호출하지 않고 이미 조회된 요약값만 재사용합니다.
+        */}
+        <div style={{ borderTop: '1px solid #f2f2f2', paddingTop: '16px', marginTop: '16px' }}>
+          <button
+            type="button"
+            style={btnPrimary}
+            onClick={() => void handleGenerateFromRecommended()}
+            disabled={generating || recommendedResults.length === 0}
+          >
+            {generating ? '생성 중…' : '이 상품 아이디어로 뉴스레터 초안 만들기'}
+          </button>
+          {recommendedResults.length === 0 && (
+            <p style={{ fontSize: '13px', color: '#b45309', marginTop: '8px' }}>
+              먼저 &ldquo;선택한 후보로 리포트 만들기&rdquo;로 리포트를 만들어 주세요.
+            </p>
+          )}
+          {recommendedResults.length > 0 && (
+            <p style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
+              위 표에 쓰인 참고 데이터를 그대로 활용해 초안을 만듭니다. 아래 &ldquo;뉴스레터 생성&rdquo; 영역에 결과가 표시됩니다.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ③ 키워드 TOP 10 — 조회된 참고 데이터(previewResults) 기반 실계산, DB 저장 없는 순수 계산 */}
@@ -1023,8 +1081,12 @@ export default function CommerceReportClient() {
           <button
             type="button"
             style={btnSecondary}
-            onClick={() => void handleGenerate()}
-            disabled={generating || previewResults.length === 0 || draft.status !== 'DRAFT'}
+            onClick={() => void handleRegenerate()}
+            disabled={
+              generating ||
+              draft.status !== 'DRAFT' ||
+              (lastDraftSource === 'RECOMMENDED' ? recommendedResults.length === 0 : previewResults.length === 0)
+            }
           >
             재생성
           </button>
@@ -1035,12 +1097,25 @@ export default function CommerceReportClient() {
 
         {previewResults.length === 0 && (
           <p style={{ fontSize: '13px', color: '#b45309', marginBottom: '12px' }}>
-            먼저 오늘 참고 데이터를 조회해 주세요.
+            먼저 오늘 참고 데이터를 조회해 주세요. (또는 위 &ldquo;추천 키워드 자동 찾기&rdquo; 결과로 초안을 만들 수도 있습니다.)
           </p>
         )}
 
         {draftError && (
           <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '12px' }}>{draftError}</p>
+        )}
+
+        {draft.status === 'DRAFT' && draftSourceLabel && (
+          <p
+            style={{
+              fontSize: '12px',
+              color: '#175cd3',
+              fontWeight: 600,
+              marginBottom: '12px',
+            }}
+          >
+            {draftSourceLabel}
+          </p>
         )}
 
         {draft.status === 'DRAFT' && bannedWordsFound.length > 0 && (
