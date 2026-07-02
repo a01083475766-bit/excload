@@ -4,7 +4,13 @@ export const DEFAULT_COMMERCE_REPORT_AD_PHRASE =
 
 export const DEFAULT_COMMERCE_REPORT_BANNED_WORDS: string[] = ['최고', '보장', '무조건'];
 
-/** "추천 키워드 자동 찾기" — 수집 목적별 카테고리 (DB에 저장하지 않는 코드 상수) */
+/**
+ * "추천 키워드 자동 찾기" — 시드 키워드 묶음 프리셋 (DB에 저장하지 않는 코드 상수)
+ *
+ * ⚠️ 명칭 주의: 이 프리셋은 "실시간 인기/상시 키워드를 자동 조회"하는 기능이 아니라,
+ * 후보 키워드 추출을 시작할 때 쓸 "시작 키워드 묶음(시드)"을 미리 정해둔 것뿐입니다.
+ * 화면 문구도 이 오해를 없애는 방향(OO형 시드)으로 표기합니다.
+ */
 export type CommerceKeywordCandidateCategory = 'EVERGREEN' | 'SEASONAL' | 'ISSUE' | 'EVENT' | 'CUSTOM';
 
 export interface CommerceKeywordCandidateCategoryPreset {
@@ -20,32 +26,32 @@ export interface CommerceKeywordCandidateCategoryPreset {
 export const COMMERCE_KEYWORD_CANDIDATE_CATEGORIES: CommerceKeywordCandidateCategoryPreset[] = [
   {
     value: 'EVERGREEN',
-    label: '상시 수요',
-    resultTitle: '상시 수요 상품 아이디어 TOP10',
+    label: '상시형 시드',
+    resultTitle: '상시형 시드 기반 상품 아이디어 TOP10',
     seedKeywords: ['주방', '청소', '수납', '반려동물', '육아', '생활용품'],
   },
   {
     value: 'SEASONAL',
-    label: '시즌 수요',
-    resultTitle: '시즌 상품 아이디어 TOP10',
+    label: '시즌형 시드',
+    resultTitle: '시즌형 시드 기반 상품 아이디어 TOP10',
     seedKeywords: ['여름', '장마', '캠핑', '휴가', '폭염', '냉방'],
   },
   {
     value: 'ISSUE',
-    label: '이슈 수요',
-    resultTitle: '이슈 기반 상품 아이디어 TOP10',
+    label: '이슈형 시드',
+    resultTitle: '이슈형 시드 기반 상품 아이디어 TOP10',
     seedKeywords: ['폭염', '태풍', '물가', '위생', '건강', '안전'],
   },
   {
     value: 'EVENT',
-    label: '행사/기념일',
-    resultTitle: '행사/기념일 상품 아이디어 TOP10',
+    label: '행사형 시드',
+    resultTitle: '행사형 시드 기반 상품 아이디어 TOP10',
     seedKeywords: ['명절', '선물', '새학기', '어버이날', '크리스마스', '홈파티'],
   },
   {
     value: 'CUSTOM',
     label: '직접 입력',
-    resultTitle: '직접 입력 상품 아이디어 TOP10',
+    resultTitle: '직접 입력 기반 상품 아이디어 TOP10',
     seedKeywords: [],
   },
 ];
@@ -61,3 +67,25 @@ export const MAX_SEED_KEYWORDS = 6;
 
 /** 후보 키워드 추출 결과 상한 (단일 단어 + 2단어 구 합산) */
 export const MAX_KEYWORD_CANDIDATES = 20;
+
+/**
+ * "외부 키워드 붙여넣기" — 관리자가 네이버쇼핑 BEST·쇼핑도우미·데이터랩 등 외부에서 확인한 키워드를
+ * 직접 붙여넣어 keyword-candidates(후보 추출) 단계 없이 바로 naver-preview로 리포트를 만드는 모드.
+ * ⚠️ 크롤링·외부 API 자동 수집이 아니라 관리자가 직접 입력한 텍스트만 사용합니다.
+ */
+export const MAX_PASTED_KEYWORDS = 10;
+export const PASTED_KEYWORDS_RESULT_TITLE = '붙여넣은 키워드 기반 상품 아이디어 TOP10';
+
+/**
+ * "네이버 BEST 키워드 가져오기" — 실험 기능 (https://snxbest.naver.com/keyword/best 실시간 fetch)
+ *
+ * ⚠️ 공식 API가 아니라 공개 웹페이지를 그대로 fetch해서 순위/키워드명/카테고리만 파싱합니다.
+ * ⚠️ 상품명·상품 링크·이미지·가격·리뷰수·판매자 정보는 파싱/응답/저장하지 않습니다.
+ * ⚠️ DB 저장 없음, cron 없음, 자동 주기 수집 없음 — 관리자 버튼 클릭 시에만 실시간 조회합니다.
+ */
+export const NAVER_BEST_KEYWORDS_NOTICE =
+  '이 기능은 네이버+스토어 BEST 화면에서 확인 가능한 키워드명과 카테고리만 실시간으로 참고합니다. ' +
+  '판매량·매출·거래량을 의미하지 않으며, 상품 원문 정보는 저장하거나 표시하지 않습니다.';
+export const NAVER_BEST_KEYWORDS_FAILURE_MESSAGE =
+  '네이버 BEST 키워드를 가져오지 못했습니다. 시드 기반 추천 키워드 기능을 사용해주세요.';
+export const NAVER_BEST_KEYWORDS_RESULT_TITLE = '네이버+스토어 BEST 키워드 기반 상품 아이디어 TOP10';

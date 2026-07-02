@@ -12,6 +12,9 @@
  *   조회) 그 프리셋 시드로 쇼핑 검색만 조회해 후보 추출 후, 선택한 후보로 ②와 동일한 로직
  *   (naver-preview·computeKeywordStats)을 재사용해 카테고리별 상품 아이디어 TOP10을 계산
  *   (관리 키워드 흐름과 완전히 분리된 별도 state, DB 저장 없음, 새로고침 시 소실)
+ * - ②-A 소블록: 네이버 BEST 키워드 가져오기(실험) → snxbest.naver.com/keyword/best를 실시간 fetch해
+ *   순위·키워드명·카테고리만 파싱, 선택한 키워드로 동일한 naver-preview·computeKeywordStats 재사용
+ *   (상품명·링크·이미지·가격 등은 파싱/저장하지 않음, 파싱 실패 시 시드 기반 기능 이용 안내)
  * - ③키워드 TOP10 → ②에서 조회한 참고 데이터를 바탕으로 한 순수 계산(경쟁강도·기회점수, 판매량/매출 아님)
  * - ④~⑥뉴스레터 생성/미리보기/복사 → ②참고 데이터(previewResults) 또는 ②-A 추천 키워드 리포트
  *   (recommendedResults, naver-preview 재호출 없이 재사용) 기반 AI 초안 생성 (DB 저장 없음)
@@ -36,8 +39,13 @@ import type { CommerceKeywordCandidateCategory } from '@/app/lib/commerce-report
 import {
   COMMERCE_KEYWORD_CANDIDATE_CATEGORIES,
   DEFAULT_COMMERCE_KEYWORD_CANDIDATE_CATEGORY,
+  MAX_PASTED_KEYWORDS,
   MAX_SEED_KEYWORDS,
+  NAVER_BEST_KEYWORDS_NOTICE,
+  NAVER_BEST_KEYWORDS_RESULT_TITLE,
+  PASTED_KEYWORDS_RESULT_TITLE,
 } from '@/app/lib/commerce-report/constants';
+import type { NaverBestKeywordItem } from '@/app/lib/commerce-report/naver-best/types';
 
 const MAX_PREVIEW_KEYWORDS = 10;
 const DEFAULT_PREVIEW_KEYWORD_COUNT = 5;
@@ -189,6 +197,163 @@ export default function CommerceReportClient() {
     [recommendedResults],
   );
 
+  // ②-A 소블록: 네이버 BEST 키워드 가져오기 — 실험 기능(snxbest.naver.com/keyword/best 실시간 fetch)
+  // ⚠️ 공식 API가 아니라 공개 페이지를 그대로 fetch하는 실험 기능입니다. 순위·키워드명·카테고리만 받아오고,
+  //   선택한 키워드는 기존 naver-preview·computeKeywordStats를 그대로 재사용합니다. (DB 저장 없음, 새로고침 시 소실)
+  const [bestKeywordsLoading, setBestKeywordsLoading] = useState(false);
+  const [bestKeywordItems, setBestKeywordItems] = useState<NaverBestKeywordItem[]>([]);
+  const [selectedBestKeywords, setSelectedBestKeywords] = useState<Set<string>>(new Set());
+  const [bestKeywordsError, setBestKeywordsError] = useState<string | null>(null);
+  const [bestKeywordsFetchedAt, setBestKeywordsFetchedAt] = useState<string | null>(null);
+
+  const [bestReportLoading, setBestReportLoading] = useState(false);
+  const [bestReportResults, setBestReportResults] = useState<KeywordReferenceSummary[]>([]);
+  const [bestReportFailedKeywords, setBestReportFailedKeywords] = useState<string[]>([]);
+  const [bestReportError, setBestReportError] = useState<string | null>(null);
+  const [bestReportFetchedAt, setBestReportFetchedAt] = useState<string | null>(null);
+
+  const bestReportKeywordStats = useMemo(() => computeKeywordStats(bestReportResults), [bestReportResults]);
+
+  const fetchNaverBestKeywords = async () => {
+    setBestKeywordsLoading(true);
+    setBestKeywordsError(null);
+    try {
+      const res = await fetch('/api/akman/commerce-report/naver-best-keywords', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setBestKeywordsError(data.error || '네이버 BEST 키워드를 가져오지 못했습니다. 시드 기반 추천 키워드 기능을 사용해주세요.');
+        setBestKeywordItems([]);
+        setSelectedBestKeywords(new Set());
+        return;
+      }
+      const items: NaverBestKeywordItem[] = data.items ?? [];
+      setBestKeywordItems(items);
+      setSelectedBestKeywords(new Set(items.slice(0, DEFAULT_RECOMMENDED_SELECTION_COUNT).map((it) => it.keyword)));
+      setBestKeywordsFetchedAt(data.fetchedAt ?? new Date().toISOString());
+      // 새로 가져오면 이전 BEST 키워드 리포트는 최신 후보 기준으로 다시 만들어야 하므로 비워 둠
+      setBestReportResults([]);
+      setBestReportFetchedAt(null);
+      setBestReportError(null);
+    } catch {
+      setBestKeywordsError('네이버 BEST 키워드를 가져오지 못했습니다. 시드 기반 추천 키워드 기능을 사용해주세요.');
+      setBestKeywordItems([]);
+      setSelectedBestKeywords(new Set());
+    } finally {
+      setBestKeywordsLoading(false);
+    }
+  };
+
+  const toggleSelectedBestKeyword = (keyword: string) => {
+    setSelectedBestKeywords((prev) => {
+      const next = new Set(prev);
+      if (next.has(keyword)) {
+        next.delete(keyword);
+      } else {
+        if (next.size >= MAX_RECOMMENDED_SELECTION) {
+          window.alert(`한 번에 최대 ${MAX_RECOMMENDED_SELECTION}개까지 선택할 수 있습니다.`);
+          return prev;
+        }
+        next.add(keyword);
+      }
+      return next;
+    });
+  };
+
+  const fetchBestKeywordReport = async () => {
+    const selectedKeywords = [...selectedBestKeywords];
+    if (selectedKeywords.length === 0) {
+      window.alert('BEST 키워드를 선택해 주세요.');
+      return;
+    }
+
+    setBestReportLoading(true);
+    setBestReportError(null);
+    try {
+      const res = await fetch('/api/akman/commerce-report/naver-preview', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords: selectedKeywords }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setBestReportError(data.error || '참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        setBestReportResults([]);
+        setBestReportFailedKeywords([]);
+        return;
+      }
+      setBestReportError(typeof data.error === 'string' ? data.error : null);
+      setBestReportResults(data.results ?? []);
+      setBestReportFailedKeywords(data.failedKeywords ?? []);
+      setBestReportFetchedAt(new Date().toISOString());
+    } catch {
+      setBestReportError('참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setBestReportResults([]);
+      setBestReportFailedKeywords([]);
+    } finally {
+      setBestReportLoading(false);
+    }
+  };
+
+  // ②-B 외부 키워드 붙여넣기 — 관리자가 외부(네이버쇼핑 BEST·쇼핑도우미·데이터랩 등)에서 확인한 키워드를
+  // 직접 붙여넣어 keyword-candidates(후보 추출) 단계 없이 바로 naver-preview로 리포트를 만드는 별도 state.
+  // 크롤링·외부 API 자동 수집이 아니라 관리자가 입력한 텍스트만 사용합니다. (DB 저장 없음, 새로고침 시 소실)
+  const [pastedKeywordsInput, setPastedKeywordsInput] = useState('');
+  const [pastedLoading, setPastedLoading] = useState(false);
+  const [pastedResults, setPastedResults] = useState<KeywordReferenceSummary[]>([]);
+  const [pastedFailedKeywords, setPastedFailedKeywords] = useState<string[]>([]);
+  const [pastedError, setPastedError] = useState<string | null>(null);
+  const [pastedFetchedAt, setPastedFetchedAt] = useState<string | null>(null);
+
+  const pastedKeywordStats = useMemo(() => computeKeywordStats(pastedResults), [pastedResults]);
+
+  const fetchPastedReport = async () => {
+    const keywords = [
+      ...new Set(
+        pastedKeywordsInput
+          .split(/[\n,]+/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ),
+    ].slice(0, MAX_PASTED_KEYWORDS);
+
+    if (keywords.length === 0) {
+      window.alert('붙여넣을 키워드를 입력해 주세요.');
+      return;
+    }
+
+    setPastedLoading(true);
+    setPastedError(null);
+    try {
+      const res = await fetch('/api/akman/commerce-report/naver-preview', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setPastedError(data.error || '참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        setPastedResults([]);
+        setPastedFailedKeywords([]);
+        return;
+      }
+      setPastedError(typeof data.error === 'string' ? data.error : null);
+      setPastedResults(data.results ?? []);
+      setPastedFailedKeywords(data.failedKeywords ?? []);
+      setPastedFetchedAt(new Date().toISOString());
+    } catch {
+      setPastedError('참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setPastedResults([]);
+      setPastedFailedKeywords([]);
+    } finally {
+      setPastedLoading(false);
+    }
+  };
+
   // ③ 키워드 TOP 10 — 조회된 참고 데이터(previewResults)를 바탕으로 계산 (DB 저장·API 호출 없는 순수 계산)
   const keywordStats = useMemo(() => computeKeywordStats(previewResults), [previewResults]);
 
@@ -198,7 +363,9 @@ export default function CommerceReportClient() {
   const [draft, setDraft] = useState<CommerceNewsletterDraft>(MOCK_NEWSLETTER_DRAFT_EMPTY);
   const [draftSourceLabel, setDraftSourceLabel] = useState<string | null>(null);
   // "재생성" 버튼이 방금 만든 draft와 같은 참고 데이터로 다시 만들 수 있도록 출처만 기억 (별도 저장 없음)
-  const [lastDraftSource, setLastDraftSource] = useState<'MANAGED' | 'RECOMMENDED' | null>(null);
+  const [lastDraftSource, setLastDraftSource] = useState<
+    'MANAGED' | 'RECOMMENDED' | 'PASTED' | 'BEST_KEYWORDS' | null
+  >(null);
   const [generating, setGenerating] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [bannedWordsFound, setBannedWordsFound] = useState<string[]>([]);
@@ -262,9 +429,40 @@ export default function CommerceReportClient() {
     return generateNewsletterDraft(recommendedResults, `${categoryLabel} 기반 초안`);
   }, [recommendedResults, recommendedCategory, generateNewsletterDraft]);
 
+  // 외부에서 붙여넣은 키워드(pastedResults)로 만든 리포트를 그대로 초안 생성에 사용
+  // — 이 경우도 naver-preview를 다시 호출하지 않고, 이미 조회된 요약값만 전달합니다.
+  const handleGenerateFromPasted = useCallback(() => {
+    if (pastedResults.length === 0) {
+      window.alert('먼저 붙여넣은 키워드로 리포트를 만들어 주세요.');
+      return Promise.resolve();
+    }
+    setLastDraftSource('PASTED');
+    return generateNewsletterDraft(pastedResults, '외부 키워드 붙여넣기 기반 초안');
+  }, [pastedResults, generateNewsletterDraft]);
+
+  // 네이버 BEST 키워드(bestReportResults)로 만든 상품 아이디어 TOP10을 그대로 초안 생성에 사용
+  // — naver-preview를 다시 호출하지 않고, 이미 조회된 요약값만 전달합니다.
+  const handleGenerateFromBestKeywords = useCallback(() => {
+    if (bestReportResults.length === 0) {
+      window.alert('먼저 선택한 BEST 키워드로 리포트를 만들어 주세요.');
+      return Promise.resolve();
+    }
+    setLastDraftSource('BEST_KEYWORDS');
+    return generateNewsletterDraft(bestReportResults, '네이버+스토어 BEST 키워드 기반 초안');
+  }, [bestReportResults, generateNewsletterDraft]);
+
   const handleRegenerate = useCallback(() => {
-    return lastDraftSource === 'RECOMMENDED' ? handleGenerateFromRecommended() : handleGenerate();
-  }, [lastDraftSource, handleGenerateFromRecommended, handleGenerate]);
+    if (lastDraftSource === 'RECOMMENDED') return handleGenerateFromRecommended();
+    if (lastDraftSource === 'PASTED') return handleGenerateFromPasted();
+    if (lastDraftSource === 'BEST_KEYWORDS') return handleGenerateFromBestKeywords();
+    return handleGenerate();
+  }, [
+    lastDraftSource,
+    handleGenerateFromRecommended,
+    handleGenerateFromPasted,
+    handleGenerateFromBestKeywords,
+    handleGenerate,
+  ]);
 
   // ⑦ 설정 — 실제 DB 연동 (키워드 · 금지표현 · 광고문구 · 문체)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -813,7 +1011,8 @@ export default function CommerceReportClient() {
 
         <div style={{ marginBottom: '14px' }}>
           <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
-            수집 목적 카테고리 (한 번에 1개만 조회됩니다)
+            후보 키워드를 찾기 위한 시작 키워드 묶음입니다. 실제 판매순위나 인기순위가 아니라, 선택한
+            방향의 시드 키워드로 관련 상품 후보를 넓혀 찾습니다. (한 번에 하나의 방향만 선택할 수 있습니다)
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {COMMERCE_KEYWORD_CANDIDATE_CATEGORIES.map((cat) => {
@@ -843,7 +1042,7 @@ export default function CommerceReportClient() {
 
         <div style={{ marginBottom: '14px' }}>
           <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
-            시드 키워드 (쉼표로 구분, 최대 {MAX_SEED_KEYWORDS}개까지 사용됩니다) — 카테고리를 선택하면 자동으로 채워집니다
+            시드 키워드(쉼표 구분, 최대 {MAX_SEED_KEYWORDS}개) — 선택한 방향의 시작 키워드입니다. 필요하면 직접 수정할 수 있습니다.
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <input
@@ -1009,6 +1208,281 @@ export default function CommerceReportClient() {
             </p>
           )}
         </div>
+
+        {/*
+          ②-A 소블록: 네이버 BEST 키워드 가져오기 — 실험 기능.
+          ⚠️ 공식 API가 아니라 snxbest.naver.com/keyword/best 공개 페이지를 실시간 fetch합니다.
+          순위·키워드명·카테고리만 파싱하며, 상품명·링크·이미지·가격·리뷰수·판매자 정보는 절대
+          파싱/응답/저장하지 않습니다. 파싱 실패(구조 변경 등) 시 시드 기반 기능 이용을 안내합니다.
+        */}
+        <div style={{ borderTop: '1px solid #f2f2f2', paddingTop: '16px', marginTop: '20px' }}>
+          <div style={{ fontWeight: 700, marginBottom: '6px' }}>네이버 BEST 키워드 가져오기 (실험)</div>
+          <p style={{ fontSize: '13px', color: '#666', marginBottom: '14px' }}>{NAVER_BEST_KEYWORDS_NOTICE}</p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              style={btnPrimary}
+              onClick={() => void fetchNaverBestKeywords()}
+              disabled={bestKeywordsLoading}
+            >
+              {bestKeywordsLoading ? '가져오는 중…' : '네이버 BEST 키워드 가져오기'}
+            </button>
+            {bestKeywordsFetchedAt && (
+              <span style={{ fontSize: '12px', color: '#999' }}>조회 시각: {formatDateTime(bestKeywordsFetchedAt)}</span>
+            )}
+          </div>
+
+          {bestKeywordsError && (
+            <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '12px' }}>{bestKeywordsError}</p>
+          )}
+
+          {bestKeywordItems.length > 0 && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: '8px' }}>네이버+스토어 BEST 키워드 후보</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+                {bestKeywordItems.map((item) => {
+                  const checked = selectedBestKeywords.has(item.keyword);
+                  return (
+                    <label
+                      key={`${item.rank}-${item.keyword}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        border: `1px solid ${checked ? '#175cd3' : '#d0d5dd'}`,
+                        background: checked ? '#eff6ff' : '#fff',
+                        borderRadius: '999px',
+                        padding: '4px 12px',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleSelectedBestKeyword(item.keyword)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      {item.rank}위 {item.keyword}
+                      {item.category ? ` (${item.category})` : ''}
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  style={btnPrimary}
+                  onClick={() => void fetchBestKeywordReport()}
+                  disabled={bestReportLoading}
+                >
+                  {bestReportLoading ? '리포트 만드는 중…' : '선택한 BEST 키워드로 리포트 만들기'}
+                </button>
+                <span style={{ fontSize: '12px', color: '#666' }}>
+                  선택 {selectedBestKeywords.size} / 최대 {MAX_RECOMMENDED_SELECTION}개
+                </span>
+              </div>
+            </>
+          )}
+
+          {bestReportError && (
+            <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '12px' }}>{bestReportError}</p>
+          )}
+          {bestReportFailedKeywords.length > 0 && (
+            <p style={{ fontSize: '13px', color: '#b45309', marginBottom: '12px' }}>
+              {bestReportFailedKeywords.join(', ')} 키워드는 조회에 실패했습니다.
+            </p>
+          )}
+
+          <div style={{ borderTop: '1px solid #f2f2f2', paddingTop: '16px', marginTop: '4px' }}>
+            <div style={{ fontWeight: 700, marginBottom: '10px' }}>{NAVER_BEST_KEYWORDS_RESULT_TITLE}</div>
+
+            {bestReportKeywordStats.length === 0 ? (
+              <p style={{ fontSize: '13px', color: '#b45309' }}>
+                BEST 키워드를 선택해 리포트를 만들면 TOP10 표가 표시됩니다.
+              </p>
+            ) : (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e5e5', color: '#666' }}>
+                        <th style={{ padding: '8px 6px' }}>순위</th>
+                        <th style={{ padding: '8px 6px' }}>키워드</th>
+                        <th style={{ padding: '8px 6px' }}>상품수</th>
+                        <th style={{ padding: '8px 6px' }}>평균가</th>
+                        <th style={{ padding: '8px 6px' }}>블로그 언급</th>
+                        <th style={{ padding: '8px 6px' }}>뉴스 이슈</th>
+                        <th style={{ padding: '8px 6px' }}>경쟁강도</th>
+                        <th style={{ padding: '8px 6px' }}>기회점수</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bestReportKeywordStats.map((row) => (
+                        <tr key={row.rank} style={{ borderBottom: '1px solid #f2f2f2' }}>
+                          <td style={{ padding: '8px 6px' }}>{row.rank}</td>
+                          <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.keyword}</td>
+                          <td style={{ padding: '8px 6px' }}>{row.productCount.toLocaleString()}</td>
+                          <td style={{ padding: '8px 6px' }}>{row.avgPrice.toLocaleString()}원</td>
+                          <td style={{ padding: '8px 6px' }}>{row.blogMentionCount.toLocaleString()}건</td>
+                          <td style={{ padding: '8px 6px' }}>{row.newsIssueCount.toLocaleString()}건</td>
+                          <td style={{ padding: '8px 6px' }}>{row.competitionScore}</td>
+                          <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.opportunityScore}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
+                  경쟁강도와 기회점수는 네이버 검색 API 요약값을 바탕으로 한 내부 참고 점수입니다.
+                </p>
+                {bestReportFetchedAt && (
+                  <p style={{ fontSize: '12px', color: '#999' }}>조회 시각: {formatDateTime(bestReportFetchedAt)}</p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/*
+            BEST 키워드 리포트(bestReportResults)를 그대로 뉴스레터 초안 생성에 전달 — naver-preview를
+            다시 호출하지 않고 이미 조회된 요약값만 재사용합니다.
+          */}
+          <div style={{ borderTop: '1px solid #f2f2f2', paddingTop: '16px', marginTop: '16px' }}>
+            <button
+              type="button"
+              style={btnPrimary}
+              onClick={() => void handleGenerateFromBestKeywords()}
+              disabled={generating || bestReportResults.length === 0}
+            >
+              {generating ? '생성 중…' : '이 상품 아이디어로 뉴스레터 초안 만들기'}
+            </button>
+            {bestReportResults.length === 0 && (
+              <p style={{ fontSize: '13px', color: '#b45309', marginTop: '8px' }}>
+                먼저 &ldquo;선택한 BEST 키워드로 리포트 만들기&rdquo;로 리포트를 만들어 주세요.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/*
+        ②-B 외부 키워드 붙여넣기 — 관리자가 외부(네이버쇼핑 BEST·쇼핑도우미·데이터랩 등)에서 확인한
+        키워드를 직접 붙여넣는 모드. 자동 크롤링·외부 API 수집이 아니라 관리자가 입력한 텍스트만 사용하며,
+        keyword-candidates(후보 추출) 단계 없이 바로 naver-preview로 리포트를 만듭니다.
+        완전히 분리된 별도 state, DB 저장 없음, 새로고침 시 소실.
+      */}
+      <div style={sectionCard}>
+        <div style={sectionTitle}>외부 키워드 붙여넣기</div>
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>
+          네이버쇼핑 BEST, 쇼핑도우미, 데이터랩 등에서 관리자가 직접 확인한 키워드를 붙여넣으면, 후보 추출
+          단계 없이 바로 리포트 후보로 사용할 수 있습니다.
+        </p>
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '14px' }}>
+          이 기능은 외부 사이트를 자동으로 가져오지 않습니다. 관리자가 직접 확인하고 입력한 키워드만 사용하며,
+          판매순위·인기순위·판매량·매출·거래량을 의미하지 않습니다.
+        </p>
+
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
+            키워드 (줄바꿈 또는 쉼표 구분, 최대 {MAX_PASTED_KEYWORDS}개까지 사용됩니다)
+          </div>
+          <textarea
+            style={{ ...inputStyle, width: '100%', maxWidth: '560px', minHeight: '80px', resize: 'vertical' }}
+            value={pastedKeywordsInput}
+            onChange={(e) => setPastedKeywordsInput(e.target.value)}
+            placeholder={'예)\n무선 선풍기\n캠핑 테이블\n휴대용 에어컨'}
+          />
+          <div style={{ marginTop: '8px' }}>
+            <button
+              type="button"
+              style={btnPrimary}
+              onClick={() => void fetchPastedReport()}
+              disabled={pastedLoading}
+            >
+              {pastedLoading ? '만드는 중…' : '붙여넣은 키워드로 바로 리포트 만들기'}
+            </button>
+          </div>
+        </div>
+
+        {pastedError && (
+          <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '12px' }}>{pastedError}</p>
+        )}
+        {pastedFailedKeywords.length > 0 && (
+          <p style={{ fontSize: '13px', color: '#b45309', marginBottom: '12px' }}>
+            {pastedFailedKeywords.join(', ')} 키워드는 조회에 실패했습니다.
+          </p>
+        )}
+
+        <div style={{ borderTop: '1px solid #f2f2f2', paddingTop: '16px', marginTop: '4px' }}>
+          <div style={{ fontWeight: 700, marginBottom: '10px' }}>{PASTED_KEYWORDS_RESULT_TITLE}</div>
+
+          {pastedKeywordStats.length === 0 ? (
+            <p style={{ fontSize: '13px', color: '#b45309' }}>
+              붙여넣은 키워드로 리포트를 만들면 TOP10 표가 표시됩니다.
+            </p>
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e5e5', color: '#666' }}>
+                      <th style={{ padding: '8px 6px' }}>순위</th>
+                      <th style={{ padding: '8px 6px' }}>키워드</th>
+                      <th style={{ padding: '8px 6px' }}>상품수</th>
+                      <th style={{ padding: '8px 6px' }}>평균가</th>
+                      <th style={{ padding: '8px 6px' }}>블로그 언급</th>
+                      <th style={{ padding: '8px 6px' }}>뉴스 이슈</th>
+                      <th style={{ padding: '8px 6px' }}>경쟁강도</th>
+                      <th style={{ padding: '8px 6px' }}>기회점수</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pastedKeywordStats.map((row) => (
+                      <tr key={row.rank} style={{ borderBottom: '1px solid #f2f2f2' }}>
+                        <td style={{ padding: '8px 6px' }}>{row.rank}</td>
+                        <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.keyword}</td>
+                        <td style={{ padding: '8px 6px' }}>{row.productCount.toLocaleString()}</td>
+                        <td style={{ padding: '8px 6px' }}>{row.avgPrice.toLocaleString()}원</td>
+                        <td style={{ padding: '8px 6px' }}>{row.blogMentionCount.toLocaleString()}건</td>
+                        <td style={{ padding: '8px 6px' }}>{row.newsIssueCount.toLocaleString()}건</td>
+                        <td style={{ padding: '8px 6px' }}>{row.competitionScore}</td>
+                        <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.opportunityScore}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
+                경쟁강도와 기회점수는 네이버 검색 API 요약값을 바탕으로 한 내부 참고 점수입니다.
+              </p>
+              {pastedFetchedAt && (
+                <p style={{ fontSize: '12px', color: '#999' }}>조회 시각: {formatDateTime(pastedFetchedAt)}</p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/*
+          붙여넣은 키워드 리포트(pastedResults)를 그대로 뉴스레터 초안 생성에 전달 — naver-preview를
+          다시 호출하지 않고 이미 조회된 요약값만 재사용합니다.
+        */}
+        <div style={{ borderTop: '1px solid #f2f2f2', paddingTop: '16px', marginTop: '16px' }}>
+          <button
+            type="button"
+            style={btnPrimary}
+            onClick={() => void handleGenerateFromPasted()}
+            disabled={generating || pastedResults.length === 0}
+          >
+            {generating ? '생성 중…' : '이 상품 아이디어로 뉴스레터 초안 만들기'}
+          </button>
+          {pastedResults.length === 0 && (
+            <p style={{ fontSize: '13px', color: '#b45309', marginTop: '8px' }}>
+              먼저 붙여넣은 키워드로 리포트를 만들어 주세요.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ③ 키워드 TOP 10 — 조회된 참고 데이터(previewResults) 기반 실계산, DB 저장 없는 순수 계산 */}
@@ -1085,7 +1559,13 @@ export default function CommerceReportClient() {
             disabled={
               generating ||
               draft.status !== 'DRAFT' ||
-              (lastDraftSource === 'RECOMMENDED' ? recommendedResults.length === 0 : previewResults.length === 0)
+              (lastDraftSource === 'RECOMMENDED'
+                ? recommendedResults.length === 0
+                : lastDraftSource === 'PASTED'
+                  ? pastedResults.length === 0
+                  : lastDraftSource === 'BEST_KEYWORDS'
+                    ? bestReportResults.length === 0
+                    : previewResults.length === 0)
             }
           >
             재생성
