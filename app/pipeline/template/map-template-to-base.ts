@@ -14,6 +14,7 @@
 
 import { ALIAS_DICTIONARY } from '../base/alias-dictionary';
 import { BASE_HEADERS } from '../base/base-headers';
+import { isKnownUnmappedHeader } from '../base/known-unmapped-headers';
 import { getHeaderAliasDictionary } from '@/app/lib/header-alias-cache';
 import { prisma } from '@/app/lib/prisma';
 import { isExcloudPipelineDebugMapping } from '@/app/lib/excloud-pipeline-debug';
@@ -160,7 +161,21 @@ export async function mapTemplateToBase(
   // 우선순위: DB Alias > 기존 ALIAS_DICTIONARY
   for (let i = 0; i < courierHeaders.length; i++) {
     const courierHeader = courierHeaders[i];
-    
+
+    // 알려진 참고/보관용 헤더는 정규화 매칭보다 먼저 걸러서, 괄호 제거 등으로
+    // 다른 기준헤더와 우연히 같아지는 것(예: "배송방법(구매자 요청)"→"배송방법")을 방지한다.
+    if (isKnownUnmappedHeader(courierHeader)) {
+      mappedBaseHeaders[i] = null;
+      mappingDetails[i] = {
+        originalHeader: courierHeader,
+        baseHeader: null,
+        status: 'UNMAPPED',
+        method: 'UNMAPPED',
+        confidenceReason: '알려진 참고/보관용 헤더로 확인되어 매핑·경고·AI 자동매핑 대상에서 제외됨(RESERVED_IGNORED)',
+      };
+      continue;
+    }
+
     const normalizedHeader = normalizeHeader(courierHeader);
     
     // BASE_HEADERS에 포함된 헤더인지 먼저 확인

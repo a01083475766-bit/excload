@@ -156,6 +156,46 @@ function suggestAlternativeForDuplicate(
 }
 
 /**
+ * 같은 파일에 더 구체적/신뢰도 높은 헤더가 함께 있으면, "참고용" 성격의 헤더는
+ * 기준헤더 슬롯을 양보(제외)하도록 미리 null 처리한다.
+ * (전역 별칭 자체는 유지 — 이 헤더 하나만 단독으로 오는 다른 양식에서는 계속 정상 매핑되어야 하므로)
+ */
+function demoteReferenceOnlyDuplicates(
+  courierHeaders: string[],
+  out: (string | null)[]
+): void {
+  const findIndexByLabel = (label: string) =>
+    courierHeaders.findIndex((h) => (h ?? '').trim() === label);
+
+  const demoteIfBothPresent = (
+    referenceLabel: string,
+    authoritativeLabel: string,
+    expectedBase: string
+  ) => {
+    const refIdx = findIndexByLabel(referenceLabel);
+    if (refIdx < 0) return;
+    const authIdx = findIndexByLabel(authoritativeLabel);
+    if (authIdx < 0) return;
+    if (out[refIdx] === expectedBase) {
+      out[refIdx] = null;
+    }
+  };
+
+  // 통합배송지(전체 주소, 상세주소 중복 포함) vs 기본배송지+상세배송지(분리된 쌍)
+  // → 분리된 쌍이 있으면 통합배송지는 참고값으로만 두고, 기본배송지/상세배송지가 주소1/주소2를 그대로 차지하게 한다.
+  demoteIfBothPresent('통합배송지', '기본배송지', '받는사람주소1');
+
+  // 발송기한(판매자가 지켜야 하는 시스템 기한) vs 배송희망일(고객이 요청한 희망일)
+  // → 둘 다 있으면 고객 요청인 배송희망일이 출고요청일 슬롯을 차지하게 한다.
+  demoteIfBothPresent('발송기한', '배송희망일', '출고요청일');
+
+  // 구매자ID(로그인 식별자, 예: testbuyer123) vs 구매자명(실제 이름, 예: 김구매)
+  // → 둘 다 있으면 CS/택배 확인에 더 유용한 실제 이름인 구매자명이 주문자 슬롯을 차지하게 한다.
+  //   (구매자ID만 단독으로 오는 양식에서는 기존대로 주문자에 매핑되어야 하므로 demote만 하고 별칭 자체는 유지)
+  demoteIfBothPresent('구매자ID', '구매자명', '주문자');
+}
+
+/**
  * courierHeaders와 동일 길이의 mappedBaseHeaders를 보정한 새 배열 반환
  */
 export function refineMappedBaseHeadersCouriers(
@@ -177,6 +217,8 @@ export function refineMappedBaseHeadersCouriers(
       out[i] = fixed;
     }
   }
+
+  demoteReferenceOnlyDuplicates(courierHeaders, out);
 
   for (let i = 0; i < out.length; i++) {
     const b = out[i];
