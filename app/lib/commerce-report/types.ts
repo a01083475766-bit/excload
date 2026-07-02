@@ -37,17 +37,23 @@ export interface CommerceReportSettingsData {
   updatedAt: string;
 }
 
-/** ③ 키워드 TOP 10 테이블 1행 — 현재 단계는 mock, Phase C에서 실데이터로 교체 */
+/**
+ * ③ 키워드 TOP 10 테이블 1행 — 네이버 쇼핑/블로그/뉴스 검색 API 요약값(KeywordReferenceSummary)을
+ * 바탕으로 계산한 내부 참고 지표입니다. 판매량·매출·거래량이 아니며, 전주/전년 대비 비교는
+ * 쇼핑인사이트를 붙이지 않아 이번 단계에서는 제공하지 않습니다.
+ */
 export interface CommerceKeywordStat {
   rank: number;
   keyword: string;
-  weekOverWeekPct: number;
-  yearOverYearPct: number;
   productCount: number;
   avgPrice: number;
-  /** 0~100, 높을수록 경쟁 치열 */
+  /** blog.usedCount (최근 30일 기준 반영된 블로그 게시물 수) */
+  blogMentionCount: number;
+  /** news.usedCount (최근 7일 기준 반영된 뉴스 기사 수) */
+  newsIssueCount: number;
+  /** 0~100, 높을수록 경쟁 치열 (상품수 기준) */
   competitionScore: number;
-  /** 0~100, 높을수록 기회 큼 */
+  /** 0~100, 높을수록 기회 큼 (블로그/뉴스/단어 다양성 가점, 경쟁·가격대 넓음 감점) */
   opportunityScore: number;
 }
 

@@ -5,11 +5,7 @@
  * 아래 mock 대신 실제 API 응답으로 교체될 자리입니다.
  */
 
-import type {
-  CommerceCollectStatus,
-  CommerceKeywordStat,
-  CommerceNewsletterDraft,
-} from './types';
+import type { CommerceCollectStatus, CommerceNewsletterDraft } from './types';
 
 export const MOCK_COLLECT_STATUS: CommerceCollectStatus = {
   isCollectedToday: true,
@@ -19,19 +15,6 @@ export const MOCK_COLLECT_STATUS: CommerceCollectStatus = {
   totalKeywordCount: 24,
   failedCount: 0,
 };
-
-export const MOCK_KEYWORD_STATS: CommerceKeywordStat[] = [
-  { rank: 1, keyword: '텀블러', weekOverWeekPct: 12, yearOverYearPct: 34, productCount: 12300, avgPrice: 18900, competitionScore: 62, opportunityScore: 87 },
-  { rank: 2, keyword: '휴대용선풍기', weekOverWeekPct: 28, yearOverYearPct: 61, productCount: 8400, avgPrice: 15900, competitionScore: 54, opportunityScore: 82 },
-  { rank: 3, keyword: '캠핑의자', weekOverWeekPct: 5, yearOverYearPct: 19, productCount: 6200, avgPrice: 32900, competitionScore: 48, opportunityScore: 74 },
-  { rank: 4, keyword: '차량용방향제', weekOverWeekPct: -3, yearOverYearPct: 8, productCount: 15100, avgPrice: 9900, competitionScore: 71, opportunityScore: 58 },
-  { rank: 5, keyword: '보냉백', weekOverWeekPct: 9, yearOverYearPct: 22, productCount: 5300, avgPrice: 21900, competitionScore: 41, opportunityScore: 76 },
-  { rank: 6, keyword: '접이식카트', weekOverWeekPct: 15, yearOverYearPct: 27, productCount: 4100, avgPrice: 45900, competitionScore: 39, opportunityScore: 79 },
-  { rank: 7, keyword: '워터파크용품', weekOverWeekPct: 42, yearOverYearPct: 55, productCount: 3900, avgPrice: 13900, competitionScore: 45, opportunityScore: 83 },
-  { rank: 8, keyword: '아이스박스', weekOverWeekPct: 7, yearOverYearPct: 14, productCount: 9800, avgPrice: 28900, competitionScore: 58, opportunityScore: 61 },
-  { rank: 9, keyword: '휴대용가습기', weekOverWeekPct: -6, yearOverYearPct: 3, productCount: 11200, avgPrice: 16900, competitionScore: 66, opportunityScore: 47 },
-  { rank: 10, keyword: '접이식파라솔', weekOverWeekPct: 18, yearOverYearPct: 31, productCount: 2700, avgPrice: 39900, competitionScore: 33, opportunityScore: 71 },
-];
 
 export const MOCK_NEWSLETTER_DRAFT_EMPTY: CommerceNewsletterDraft = {
   status: 'NONE',

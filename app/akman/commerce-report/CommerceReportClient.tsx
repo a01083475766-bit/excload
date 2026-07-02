@@ -7,10 +7,11 @@
  * 주문 변환 파이프라인(Stage0~3)과 완전히 독립된 관리자 기능입니다.
  *
  * 진행 단계:
- * - ②오늘 참고 데이터 → 네이버 쇼핑 검색 API 실시간 조회 (DB 저장 없음, 새로고침 시 소실)
- * - ③TOP10·④~⑤뉴스레터 생성/미리보기 → mock 데이터 (아직 실제 계산·AI 연동 전)
+ * - ②오늘 참고 데이터 → 네이버 쇼핑/블로그/뉴스 검색 API 실시간 조회 (DB 저장 없음, 새로고침 시 소실)
+ * - ③키워드 TOP10 → ②에서 조회한 참고 데이터를 바탕으로 한 순수 계산(경쟁강도·기회점수, 판매량/매출 아님)
+ * - ④~⑥뉴스레터 생성/미리보기/복사 → ②참고 데이터 기반 AI 초안 생성 (DB 저장 없음)
  * - ⑦설정(키워드·금지표현·광고문구·문체) → 실제 DB 연동
- * - 전주/전년 대비 계산, cron 자동 수집, AI 뉴스레터 생성 연동은 아직 진행하지 않습니다.
+ * - 전주/전년 대비 계산(쇼핑인사이트 미연동), cron 자동 수집은 아직 진행하지 않습니다.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -24,7 +25,8 @@ import type {
   KeywordReferenceSummary,
 } from '@/app/lib/commerce-report/types';
 import { COMMERCE_REPORT_TONE_OPTIONS } from '@/app/lib/commerce-report/types';
-import { MOCK_KEYWORD_STATS, MOCK_NEWSLETTER_DRAFT_EMPTY } from '@/app/lib/commerce-report/mock-data';
+import { MOCK_NEWSLETTER_DRAFT_EMPTY } from '@/app/lib/commerce-report/mock-data';
+import { computeKeywordStats } from '@/app/lib/commerce-report/keyword-stats';
 
 const MAX_PREVIEW_KEYWORDS = 10;
 const DEFAULT_PREVIEW_KEYWORD_COUNT = 5;
@@ -104,17 +106,6 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
 };
 
-const mockNoticeStyle: React.CSSProperties = {
-  fontSize: '12px',
-  color: '#b45309',
-  background: '#fffbeb',
-  border: '1px solid #fde68a',
-  borderRadius: '6px',
-  padding: '6px 10px',
-  marginBottom: '12px',
-  display: 'inline-block',
-};
-
 function formatDateTime(value: string | null): string {
   if (!value) return '기록 없음';
   const d = new Date(value);
@@ -124,17 +115,6 @@ function formatDateTime(value: string | null): string {
 
 function formatWon(value: number): string {
   return `${value.toLocaleString()}원`;
-}
-
-function formatPct(value: number): string {
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value}%`;
-}
-
-function pctColor(value: number): string {
-  if (value > 0) return '#15803d';
-  if (value < 0) return '#b91c1c';
-  return '#666';
 }
 
 async function copyToClipboard(text: string, onDone: (label: string) => void, label: string) {
@@ -152,9 +132,6 @@ export default function CommerceReportClient() {
   const pathname = usePathname();
   const adminHome = pathname?.startsWith('/admin') ? '/admin' : '/akman';
 
-  // ③ TOP10 — 현재 mock (전주/전년 대비 실제 계산은 이후 단계)
-  const keywordStats = MOCK_KEYWORD_STATS;
-
   // ② 오늘 참고 데이터 — 네이버 쇼핑 검색 API 실시간 조회 (DB 저장 없음)
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<Set<string>>(new Set());
   const defaultSelectionAppliedRef = useRef(false);
@@ -163,6 +140,9 @@ export default function CommerceReportClient() {
   const [previewFailedKeywords, setPreviewFailedKeywords] = useState<string[]>([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewFetchedAt, setPreviewFetchedAt] = useState<string | null>(null);
+
+  // ③ 키워드 TOP 10 — 조회된 참고 데이터(previewResults)를 바탕으로 계산 (DB 저장·API 호출 없는 순수 계산)
+  const keywordStats = useMemo(() => computeKeywordStats(previewResults), [previewResults]);
 
   // ④~⑥ 뉴스레터 생성·미리보기·복사 — 참고 데이터 기반 AI 초안 생성 (DB 저장 없음)
   const [draft, setDraft] = useState<CommerceNewsletterDraft>(MOCK_NEWSLETTER_DRAFT_EMPTY);
@@ -412,7 +392,7 @@ export default function CommerceReportClient() {
     () => keywords.filter((k) => k.isActive).length,
     [keywords],
   );
-  const topOpportunity = keywordStats[0];
+  const topOpportunity = keywordStats[0] ?? null;
 
   return (
     <div style={shell}>
@@ -445,7 +425,13 @@ export default function CommerceReportClient() {
         <div style={statCard}>
           <div style={{ fontSize: '13px', color: '#666' }}>TOP1 기회 점수</div>
           <div style={{ fontSize: '22px', fontWeight: 600 }}>
-            {topOpportunity.opportunityScore}점 &quot;{topOpportunity.keyword}&quot;
+            {topOpportunity ? (
+              <>
+                {topOpportunity.opportunityScore}점 &quot;{topOpportunity.keyword}&quot;
+              </>
+            ) : (
+              '조회 전'
+            )}
           </div>
         </div>
         <div style={statCard}>
@@ -613,44 +599,55 @@ export default function CommerceReportClient() {
         )}
       </div>
 
-      {/* ③ 키워드 TOP 10 */}
+      {/* ③ 키워드 TOP 10 — 조회된 참고 데이터(previewResults) 기반 실계산, DB 저장 없는 순수 계산 */}
       <div style={sectionCard}>
         <div style={sectionTitle}>키워드 TOP 10</div>
-        <div style={mockNoticeStyle}>mock 데이터 — 실제 수집 데이터로 교체될 예정</div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e5e5', color: '#666' }}>
-                <th style={{ padding: '8px 6px' }}>순위</th>
-                <th style={{ padding: '8px 6px' }}>키워드</th>
-                <th style={{ padding: '8px 6px' }}>전주 대비</th>
-                <th style={{ padding: '8px 6px' }}>전년 대비</th>
-                <th style={{ padding: '8px 6px' }}>상품수</th>
-                <th style={{ padding: '8px 6px' }}>평균가</th>
-                <th style={{ padding: '8px 6px' }}>경쟁강도</th>
-                <th style={{ padding: '8px 6px' }}>기회점수</th>
-              </tr>
-            </thead>
-            <tbody>
-              {keywordStats.map((row) => (
-                <tr key={row.rank} style={{ borderBottom: '1px solid #f2f2f2' }}>
-                  <td style={{ padding: '8px 6px' }}>{row.rank}</td>
-                  <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.keyword}</td>
-                  <td style={{ padding: '8px 6px', color: pctColor(row.weekOverWeekPct) }}>
-                    {formatPct(row.weekOverWeekPct)}
-                  </td>
-                  <td style={{ padding: '8px 6px', color: pctColor(row.yearOverYearPct) }}>
-                    {formatPct(row.yearOverYearPct)}
-                  </td>
-                  <td style={{ padding: '8px 6px' }}>{row.productCount.toLocaleString()}</td>
-                  <td style={{ padding: '8px 6px' }}>{row.avgPrice.toLocaleString()}원</td>
-                  <td style={{ padding: '8px 6px' }}>{row.competitionScore}</td>
-                  <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.opportunityScore}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '14px' }}>
+          이 표는 네이버 검색 API 기준 실시간 참고 지표입니다. 판매량·매출·거래량이 아니라 쇼핑 검색 결과,
+          블로그/뉴스 검색 결과를 바탕으로 계산한 참고용 점수입니다.
+        </p>
+
+        {keywordStats.length === 0 ? (
+          <p style={{ fontSize: '13px', color: '#b45309' }}>
+            참고 데이터를 먼저 가져오면 TOP10 표가 표시됩니다.
+          </p>
+        ) : (
+          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e5e5', color: '#666' }}>
+                    <th style={{ padding: '8px 6px' }}>순위</th>
+                    <th style={{ padding: '8px 6px' }}>키워드</th>
+                    <th style={{ padding: '8px 6px' }}>상품수</th>
+                    <th style={{ padding: '8px 6px' }}>평균가</th>
+                    <th style={{ padding: '8px 6px' }}>블로그 언급</th>
+                    <th style={{ padding: '8px 6px' }}>뉴스 이슈</th>
+                    <th style={{ padding: '8px 6px' }}>경쟁강도</th>
+                    <th style={{ padding: '8px 6px' }}>기회점수</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keywordStats.map((row) => (
+                    <tr key={row.rank} style={{ borderBottom: '1px solid #f2f2f2' }}>
+                      <td style={{ padding: '8px 6px' }}>{row.rank}</td>
+                      <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.keyword}</td>
+                      <td style={{ padding: '8px 6px' }}>{row.productCount.toLocaleString()}</td>
+                      <td style={{ padding: '8px 6px' }}>{row.avgPrice.toLocaleString()}원</td>
+                      <td style={{ padding: '8px 6px' }}>{row.blogMentionCount.toLocaleString()}건</td>
+                      <td style={{ padding: '8px 6px' }}>{row.newsIssueCount.toLocaleString()}건</td>
+                      <td style={{ padding: '8px 6px' }}>{row.competitionScore}</td>
+                      <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.opportunityScore}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
+              경쟁강도와 기회점수는 네이버 검색 API 요약값을 바탕으로 한 내부 참고 점수입니다.
+            </p>
+          </>
+        )}
       </div>
 
       {/* ④~⑥ 뉴스레터 생성 · 미리보기 · 복사 */}
