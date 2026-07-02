@@ -8,6 +8,9 @@
  *
  * 진행 단계:
  * - ②오늘 참고 데이터 → 네이버 쇼핑/블로그/뉴스 검색 API 실시간 조회 (DB 저장 없음, 새로고침 시 소실)
+ * - ②-A 추천 키워드 자동 찾기 → 시드 키워드로 쇼핑 검색만 조회해 후보 추출 후, 선택한 후보로
+ *   ②와 동일한 로직(naver-preview·computeKeywordStats)을 재사용해 "오늘의 상품 아이디어 TOP10"을 계산
+ *   (관리 키워드 흐름과 완전히 분리된 별도 state, DB 저장 없음, 새로고침 시 소실)
  * - ③키워드 TOP10 → ②에서 조회한 참고 데이터를 바탕으로 한 순수 계산(경쟁강도·기회점수, 판매량/매출 아님)
  * - ④~⑥뉴스레터 생성/미리보기/복사 → ②참고 데이터 기반 AI 초안 생성 (DB 저장 없음)
  * - ⑦설정(키워드·금지표현·광고문구·문체) → 실제 DB 연동
@@ -27,9 +30,12 @@ import type {
 import { COMMERCE_REPORT_TONE_OPTIONS } from '@/app/lib/commerce-report/types';
 import { MOCK_NEWSLETTER_DRAFT_EMPTY } from '@/app/lib/commerce-report/mock-data';
 import { computeKeywordStats } from '@/app/lib/commerce-report/keyword-stats';
+import { DEFAULT_COMMERCE_REPORT_SEED_KEYWORDS, MAX_SEED_KEYWORDS } from '@/app/lib/commerce-report/constants';
 
 const MAX_PREVIEW_KEYWORDS = 10;
 const DEFAULT_PREVIEW_KEYWORD_COUNT = 5;
+const MAX_RECOMMENDED_SELECTION = 10;
+const DEFAULT_RECOMMENDED_SELECTION_COUNT = 10;
 
 const shell: React.CSSProperties = {
   padding: '40px',
@@ -140,6 +146,24 @@ export default function CommerceReportClient() {
   const [previewFailedKeywords, setPreviewFailedKeywords] = useState<string[]>([]);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewFetchedAt, setPreviewFetchedAt] = useState<string | null>(null);
+
+  // ②-A 추천 키워드 자동 찾기 — 관리 키워드 흐름과 완전히 분리된 별도 state (DB 저장 없음, 새로고침 시 소실)
+  const [seedKeywordsInput, setSeedKeywordsInput] = useState(DEFAULT_COMMERCE_REPORT_SEED_KEYWORDS.join(', '));
+  const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const [candidates, setCandidates] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
+  const [candidatesError, setCandidatesError] = useState<string | null>(null);
+  const [candidatesFailedSeeds, setCandidatesFailedSeeds] = useState<string[]>([]);
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [recommendedResults, setRecommendedResults] = useState<KeywordReferenceSummary[]>([]);
+  const [recommendedFailedKeywords, setRecommendedFailedKeywords] = useState<string[]>([]);
+  const [recommendedError, setRecommendedError] = useState<string | null>(null);
+  const [recommendedFetchedAt, setRecommendedFetchedAt] = useState<string | null>(null);
+
+  const recommendedKeywordStats = useMemo(
+    () => computeKeywordStats(recommendedResults),
+    [recommendedResults],
+  );
 
   // ③ 키워드 TOP 10 — 조회된 참고 데이터(previewResults)를 바탕으로 계산 (DB 저장·API 호출 없는 순수 계산)
   const keywordStats = useMemo(() => computeKeywordStats(previewResults), [previewResults]);
@@ -314,6 +338,105 @@ export default function CommerceReportClient() {
       setPreviewFailedKeywords([]);
     } finally {
       setPreviewLoading(false);
+    }
+  };
+
+  const fetchKeywordCandidates = async () => {
+    const seedKeywords = seedKeywordsInput
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (seedKeywords.length === 0) {
+      window.alert('시드 키워드를 입력해 주세요.');
+      return;
+    }
+
+    setCandidatesLoading(true);
+    setCandidatesError(null);
+    try {
+      const res = await fetch('/api/akman/commerce-report/keyword-candidates', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seedKeywords }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setCandidatesError(data.error || '추천 키워드 후보를 찾지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        setCandidates([]);
+        setSelectedCandidates(new Set());
+        setCandidatesFailedSeeds([]);
+        return;
+      }
+      const foundCandidates: string[] = data.candidates ?? [];
+      setCandidatesError(typeof data.error === 'string' ? data.error : null);
+      setCandidates(foundCandidates);
+      setCandidatesFailedSeeds(data.failedSeedKeywords ?? []);
+      setSelectedCandidates(new Set(foundCandidates.slice(0, DEFAULT_RECOMMENDED_SELECTION_COUNT)));
+      // 새로 후보를 찾으면 이전 추천 리포트는 최신 후보 기준으로 다시 만들어야 하므로 비워 둠
+      setRecommendedResults([]);
+      setRecommendedFetchedAt(null);
+      setRecommendedError(null);
+    } catch {
+      setCandidatesError('추천 키워드 후보를 찾지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setCandidates([]);
+      setSelectedCandidates(new Set());
+      setCandidatesFailedSeeds([]);
+    } finally {
+      setCandidatesLoading(false);
+    }
+  };
+
+  const toggleSelectedCandidate = (candidate: string) => {
+    setSelectedCandidates((prev) => {
+      const next = new Set(prev);
+      if (next.has(candidate)) {
+        next.delete(candidate);
+      } else {
+        if (next.size >= MAX_RECOMMENDED_SELECTION) {
+          window.alert(`한 번에 최대 ${MAX_RECOMMENDED_SELECTION}개까지 선택할 수 있습니다.`);
+          return prev;
+        }
+        next.add(candidate);
+      }
+      return next;
+    });
+  };
+
+  const fetchRecommendedReport = async () => {
+    const keywords = [...selectedCandidates];
+    if (keywords.length === 0) {
+      window.alert('후보 키워드를 선택해 주세요.');
+      return;
+    }
+
+    setRecommendedLoading(true);
+    setRecommendedError(null);
+    try {
+      const res = await fetch('/api/akman/commerce-report/naver-preview', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setRecommendedError(data.error || '참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        setRecommendedResults([]);
+        setRecommendedFailedKeywords([]);
+        return;
+      }
+      setRecommendedError(typeof data.error === 'string' ? data.error : null);
+      setRecommendedResults(data.results ?? []);
+      setRecommendedFailedKeywords(data.failedKeywords ?? []);
+      setRecommendedFetchedAt(new Date().toISOString());
+    } catch {
+      setRecommendedError('참고 데이터를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setRecommendedResults([]);
+      setRecommendedFailedKeywords([]);
+    } finally {
+      setRecommendedLoading(false);
     }
   };
 
@@ -597,6 +720,161 @@ export default function CommerceReportClient() {
             ))}
           </div>
         )}
+      </div>
+
+      {/*
+        ②-A 추천 키워드 자동 찾기 — 관리 키워드 흐름과 완전히 분리된 별도 섹션/별도 state.
+        DB 저장 없음, Prisma 모델 없음, 후보 키워드를 관리 키워드 DB에 저장하는 기능도 없음.
+        새로고침하면 후보·리포트 결과 모두 사라집니다.
+      */}
+      <div style={sectionCard}>
+        <div style={sectionTitle}>추천 키워드 자동 찾기</div>
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>
+          이 기능은 네이버 쇼핑 검색 결과의 상품명 표현을 참고해 후보 키워드를 자동 추출합니다.
+        </p>
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>
+          판매순위, 판매량, 매출, 거래량을 의미하지 않습니다.
+        </p>
+        <p style={{ fontSize: '13px', color: '#666', marginBottom: '14px' }}>
+          후보 키워드는 관리자가 선택한 뒤 리포트를 만들 수 있습니다.
+        </p>
+
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ fontSize: '13px', color: '#666', marginBottom: '6px' }}>
+            시드 키워드 (쉼표로 구분, 최대 {MAX_SEED_KEYWORDS}개까지 사용됩니다)
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <input
+              style={{ ...inputStyle, maxWidth: '480px' }}
+              value={seedKeywordsInput}
+              onChange={(e) => setSeedKeywordsInput(e.target.value)}
+              placeholder="여름, 장마, 캠핑, 휴가, 폭염, 냉방"
+            />
+            <button
+              type="button"
+              style={btnPrimary}
+              onClick={() => void fetchKeywordCandidates()}
+              disabled={candidatesLoading}
+            >
+              {candidatesLoading ? '찾는 중…' : '추천 키워드 후보 찾기'}
+            </button>
+          </div>
+        </div>
+
+        {candidatesError && (
+          <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '12px' }}>{candidatesError}</p>
+        )}
+        {candidatesFailedSeeds.length > 0 && (
+          <p style={{ fontSize: '13px', color: '#b45309', marginBottom: '12px' }}>
+            {candidatesFailedSeeds.join(', ')} 시드는 조회에 실패했습니다.
+          </p>
+        )}
+
+        {candidates.length > 0 && (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+              {candidates.map((c) => {
+                const checked = selectedCandidates.has(c);
+                return (
+                  <label
+                    key={c}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      border: `1px solid ${checked ? '#175cd3' : '#d0d5dd'}`,
+                      background: checked ? '#eff6ff' : '#fff',
+                      borderRadius: '999px',
+                      padding: '4px 12px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelectedCandidate(c)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    {c}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                style={btnPrimary}
+                onClick={() => void fetchRecommendedReport()}
+                disabled={recommendedLoading}
+              >
+                {recommendedLoading ? '리포트 만드는 중…' : '선택한 후보로 리포트 만들기'}
+              </button>
+              <span style={{ fontSize: '12px', color: '#666' }}>
+                선택 {selectedCandidates.size} / 최대 {MAX_RECOMMENDED_SELECTION}개
+              </span>
+            </div>
+          </>
+        )}
+
+        {recommendedError && (
+          <p style={{ fontSize: '13px', color: '#b91c1c', marginBottom: '12px' }}>{recommendedError}</p>
+        )}
+        {recommendedFailedKeywords.length > 0 && (
+          <p style={{ fontSize: '13px', color: '#b45309', marginBottom: '12px' }}>
+            {recommendedFailedKeywords.join(', ')} 키워드는 조회에 실패했습니다.
+          </p>
+        )}
+
+        <div style={{ borderTop: '1px solid #f2f2f2', paddingTop: '16px', marginTop: '4px' }}>
+          <div style={{ fontWeight: 700, marginBottom: '10px' }}>오늘의 상품 아이디어 TOP10</div>
+
+          {recommendedKeywordStats.length === 0 ? (
+            <p style={{ fontSize: '13px', color: '#b45309' }}>
+              추천 후보를 선택해 리포트를 만들면 TOP10 표가 표시됩니다.
+            </p>
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #e5e5e5', color: '#666' }}>
+                      <th style={{ padding: '8px 6px' }}>순위</th>
+                      <th style={{ padding: '8px 6px' }}>키워드</th>
+                      <th style={{ padding: '8px 6px' }}>상품수</th>
+                      <th style={{ padding: '8px 6px' }}>평균가</th>
+                      <th style={{ padding: '8px 6px' }}>블로그 언급</th>
+                      <th style={{ padding: '8px 6px' }}>뉴스 이슈</th>
+                      <th style={{ padding: '8px 6px' }}>경쟁강도</th>
+                      <th style={{ padding: '8px 6px' }}>기회점수</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recommendedKeywordStats.map((row) => (
+                      <tr key={row.rank} style={{ borderBottom: '1px solid #f2f2f2' }}>
+                        <td style={{ padding: '8px 6px' }}>{row.rank}</td>
+                        <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.keyword}</td>
+                        <td style={{ padding: '8px 6px' }}>{row.productCount.toLocaleString()}</td>
+                        <td style={{ padding: '8px 6px' }}>{row.avgPrice.toLocaleString()}원</td>
+                        <td style={{ padding: '8px 6px' }}>{row.blogMentionCount.toLocaleString()}건</td>
+                        <td style={{ padding: '8px 6px' }}>{row.newsIssueCount.toLocaleString()}건</td>
+                        <td style={{ padding: '8px 6px' }}>{row.competitionScore}</td>
+                        <td style={{ padding: '8px 6px', fontWeight: 600 }}>{row.opportunityScore}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
+                경쟁강도와 기회점수는 네이버 검색 API 요약값을 바탕으로 한 내부 참고 점수입니다.
+              </p>
+              {recommendedFetchedAt && (
+                <p style={{ fontSize: '12px', color: '#999' }}>조회 시각: {formatDateTime(recommendedFetchedAt)}</p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* ③ 키워드 TOP 10 — 조회된 참고 데이터(previewResults) 기반 실계산, DB 저장 없는 순수 계산 */}

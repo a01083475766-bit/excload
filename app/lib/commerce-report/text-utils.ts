@@ -24,22 +24,27 @@ export function tokenizeText(text: string, stopwords: Set<string>, excludeWords:
     .filter((token) => !NUMERIC_OR_UNIT_TOKEN.test(token));
 }
 
-/** 토큰 목록에서 빈도 TOP N 단어 추출 */
-export function topFrequentTokens(tokenLists: string[][], limit: number): string[] {
+/** 토큰 목록 전체의 단어별 등장 횟수 집계 (원시 카운트 — 브랜드 제외 등 후처리가 필요한 호출부용) */
+export function countTokenFrequency(tokenLists: string[][]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const tokens of tokenLists) {
     for (const token of tokens) {
       counts.set(token, (counts.get(token) ?? 0) + 1);
     }
   }
-  return [...counts.entries()]
+  return counts;
+}
+
+/** 토큰 목록에서 빈도 TOP N 단어 추출 */
+export function topFrequentTokens(tokenLists: string[][], limit: number): string[] {
+  return [...countTokenFrequency(tokenLists).entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([word]) => word);
 }
 
-/** 연속된 두 토큰을 묶어 "OO 준비물" 같은 짧은 구(phrase) 후보를 만들고 빈도 TOP N만 반환 */
-export function topFrequentBigramPhrases(tokenLists: string[][], limit: number, minCount = 2): string[] {
+/** 연속된 두 토큰을 묶은 "OO 준비물" 같은 구(phrase)별 등장 횟수 집계 (원시 카운트) */
+export function countBigramFrequency(tokenLists: string[][]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const tokens of tokenLists) {
     for (let i = 0; i < tokens.length - 1; i += 1) {
@@ -47,7 +52,12 @@ export function topFrequentBigramPhrases(tokenLists: string[][], limit: number, 
       counts.set(phrase, (counts.get(phrase) ?? 0) + 1);
     }
   }
-  return [...counts.entries()]
+  return counts;
+}
+
+/** 연속된 두 토큰을 묶어 "OO 준비물" 같은 짧은 구(phrase) 후보를 만들고 빈도 TOP N만 반환 */
+export function topFrequentBigramPhrases(tokenLists: string[][], limit: number, minCount = 2): string[] {
+  return [...countBigramFrequency(tokenLists).entries()]
     .filter(([, count]) => count >= minCount)
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
