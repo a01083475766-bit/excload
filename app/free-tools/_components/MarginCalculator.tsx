@@ -2,13 +2,23 @@
 
 import { useState } from 'react';
 import { AlertCircle, Calculator, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import {
+  ChannelFeeSettings,
+  emptyChannelState,
+  type ChannelFormState,
+} from './ChannelFeeSettings';
+import {
+  getChannelDefaultFees,
+  getCoupangRocketSize,
+  sumFeeRates,
+  type SalesChannel,
+} from './marginChannelConfig';
 
 type FeeMode = 'sale-only' | 'sale-and-shipping';
 
 type FormState = {
   salePrice: string;
   productCost: string;
-  feeRate: string;
   customerShippingFee: string;
   actualShippingCost: string;
   packagingCost: string;
@@ -35,6 +45,7 @@ type CalculationResult = {
   estimatedFee: number;
   settlementAmount: number;
   operatingCost: number;
+  channelLogisticsCost: number;
   totalCost: number;
   profit: number;
   marginRate: number;
@@ -50,7 +61,6 @@ type CalculationResult = {
 const emptyForm: FormState = {
   salePrice: '',
   productCost: '',
-  feeRate: '',
   customerShippingFee: '',
   actualShippingCost: '',
   packagingCost: '',
@@ -63,7 +73,6 @@ const emptyForm: FormState = {
 const exampleForm: FormState = {
   salePrice: '30000',
   productCost: '10000',
-  feeRate: '6',
   customerShippingFee: '3000',
   actualShippingCost: '3500',
   packagingCost: '500',
@@ -71,6 +80,17 @@ const exampleForm: FormState = {
   otherCost: '0',
   targetMarginRate: '20',
   feeMode: 'sale-only',
+};
+
+const exampleChannel: ChannelFormState = {
+  ...emptyChannelState,
+  salesChannel: 'smartstore',
+  sellerTier: 'general',
+  inflowPath: 'shopping-search',
+  salesFeeRate: '3.63',
+  paymentFeeRate: '2.73',
+  otherFeeRate: '0',
+  totalFeeRate: '6.36',
 };
 
 const exampleAdditionalCosts: AdditionalCost[] = [
@@ -151,6 +171,54 @@ function formatPercent(value: number) {
   return `${rounded.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}%`;
 }
 
+function getEffectiveFeeRate(channel: ChannelFormState) {
+  if (channel.totalFeeRate) return parseNumber(channel.totalFeeRate);
+  return sumFeeRates(
+    parseNumber(channel.salesFeeRate),
+    parseNumber(channel.paymentFeeRate),
+    parseNumber(channel.otherFeeRate),
+  );
+}
+
+function buildChannelFees(channel: ChannelFormState) {
+  const defaults = getChannelDefaultFees(channel.salesChannel, {
+    coupangCategory: channel.coupangCategory,
+    sellerTier: channel.sellerTier,
+    inflowPath: channel.inflowPath,
+  });
+  const salesFeeRate = defaults.salesFeeRate;
+  const paymentFeeRate = defaults.paymentFeeRate;
+  const otherFeeRate = defaults.otherFeeRate;
+  const totalFeeRate = String(
+    sumFeeRates(parseNumber(salesFeeRate), parseNumber(paymentFeeRate), parseNumber(otherFeeRate)),
+  );
+
+  return { salesFeeRate, paymentFeeRate, otherFeeRate, totalFeeRate };
+}
+
+function getChannelLogisticsCost(channel: ChannelFormState) {
+  let cost = 0;
+
+  if (channel.salesChannel === 'ndelivery') {
+    cost +=
+      parseNumber(channel.ndeliveryOutbound) +
+      parseNumber(channel.ndeliveryStorage) +
+      parseNumber(channel.ndeliveryPackaging) +
+      parseNumber(channel.ndeliveryLogisticsOther);
+  }
+
+  if (channel.salesChannel === 'coupang' && channel.coupangSaleType === 'rocket') {
+    const size = getCoupangRocketSize(channel.coupangSize);
+    if (size) cost += size.outboundFee;
+  }
+
+  if (channel.salesChannel === 'shopee') {
+    cost += parseNumber(channel.shopeeOverseasCost);
+  }
+
+  return cost;
+}
+
 function ResultPlaceholder() {
   return <span className="text-zinc-400">금액을 입력하고 계산하기를 눌러주세요.</span>;
 }
@@ -211,14 +279,19 @@ function getAdditionalCostDisplayName(cost: AdditionalCost | CalculatedAdditiona
 
 export function MarginCalculator() {
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [channel, setChannel] = useState<ChannelFormState>(emptyChannelState);
   const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CalculationResult | null>(null);
 
-  const updateField = (key: keyof FormState, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const clearResult = () => {
     setError(null);
     setResult(null);
+  };
+
+  const updateField = (key: keyof FormState, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    clearResult();
   };
 
   const updateAmountField = (key: keyof FormState, value: string) => {
@@ -229,18 +302,83 @@ export function MarginCalculator() {
     updateField(key, formatPercentInput(value));
   };
 
+  const applyChannelDefaults = (nextChannel: ChannelFormState) => {
+    const fees = buildChannelFees(nextChannel);
+    return { ...nextChannel, ...fees };
+  };
+
+  const updateChannelField = <K extends keyof ChannelFormState>(key: K, value: ChannelFormState[K]) => {
+    setChannel((prev) => {
+      const next = { ...prev, [key]: value };
+
+      if (key === 'salesChannel') {
+        return applyChannelDefaults({
+          ...emptyChannelState,
+          salesChannel: value as SalesChannel,
+          feeDetailsExpanded: prev.feeDetailsExpanded,
+        });
+      }
+
+      if (
+        key === 'coupangCategory' ||
+        key === 'sellerTier' ||
+        key === 'inflowPath' ||
+        key === 'coupangSaleType'
+      ) {
+        return applyChannelDefaults(next);
+      }
+
+      return next;
+    });
+    clearResult();
+  };
+
+  const updateChannelPercent = (
+    key: 'salesFeeRate' | 'paymentFeeRate' | 'otherFeeRate' | 'totalFeeRate',
+    value: string,
+  ) => {
+    const formatted = formatPercentInput(value);
+    setChannel((prev) => {
+      if (key === 'totalFeeRate') {
+        return { ...prev, totalFeeRate: formatted };
+      }
+
+      const next = { ...prev, [key]: formatted };
+      const total = sumFeeRates(
+        parseNumber(key === 'salesFeeRate' ? formatted : next.salesFeeRate),
+        parseNumber(key === 'paymentFeeRate' ? formatted : next.paymentFeeRate),
+        parseNumber(key === 'otherFeeRate' ? formatted : next.otherFeeRate),
+      );
+      return { ...next, totalFeeRate: total > 0 ? String(total) : '' };
+    });
+    clearResult();
+  };
+
+  const updateChannelAmount = (
+    key:
+      | 'ndeliveryOutbound'
+      | 'ndeliveryStorage'
+      | 'ndeliveryPackaging'
+      | 'ndeliveryLogisticsOther'
+      | 'shopeeOverseasCost',
+    value: string,
+  ) => {
+    setChannel((prev) => ({ ...prev, [key]: formatAmountInput(value) }));
+    clearResult();
+  };
+
   const fillExample = () => {
     setForm(exampleForm);
+    setChannel(exampleChannel);
     setAdditionalCosts(exampleAdditionalCosts);
-    setError(null);
-    setResult(null);
+    clearResult();
   };
 
   const reset = () => {
     setForm(emptyForm);
+    setChannel(emptyChannelState);
     setAdditionalCosts([]);
-    setError(null);
-    setResult(null);
+    clearResult();
   };
 
   const addAdditionalCost = () => {
@@ -250,8 +388,7 @@ export function MarginCalculator() {
       ...prev,
       { id: Date.now(), name: '', amount: '' },
     ]);
-    setError(null);
-    setResult(null);
+    clearResult();
   };
 
   const updateAdditionalCost = (
@@ -269,26 +406,25 @@ export function MarginCalculator() {
           : cost,
       ),
     );
-    setError(null);
-    setResult(null);
+    clearResult();
   };
 
   const removeAdditionalCost = (id: number) => {
     setAdditionalCosts((prev) => prev.filter((cost) => cost.id !== id));
-    setError(null);
-    setResult(null);
+    clearResult();
   };
 
   const calculate = () => {
     const salePrice = parseNumber(form.salePrice);
     const productCost = parseNumber(form.productCost);
-    const feeRate = parseNumber(form.feeRate);
+    const feeRate = getEffectiveFeeRate(channel);
     const customerShippingFee = parseNumber(form.customerShippingFee);
     const actualShippingCost = parseNumber(form.actualShippingCost);
     const packagingCost = parseNumber(form.packagingCost);
     const adCost = parseNumber(form.adCost);
     const otherCost = parseNumber(form.otherCost);
     const targetMarginRate = form.targetMarginRate ? parseNumber(form.targetMarginRate) : null;
+    const channelLogisticsCost = getChannelLogisticsCost(channel);
     const calculatedAdditionalCosts = additionalCosts
       .map((cost, index) => ({
         id: cost.id,
@@ -308,7 +444,7 @@ export function MarginCalculator() {
     }
 
     if (feeRate >= 100) {
-      setError('쇼핑몰 수수료율은 100%보다 작아야 합니다.');
+      setError('총 수수료율은 100%보다 작아야 합니다.');
       setResult(null);
       return;
     }
@@ -325,7 +461,13 @@ export function MarginCalculator() {
     const estimatedFee = feeBase * feeRatio;
     const settlementAmount = totalPayment - estimatedFee;
     const operatingCost =
-      productCost + actualShippingCost + packagingCost + adCost + otherCost + additionalCostTotal;
+      productCost +
+      actualShippingCost +
+      packagingCost +
+      adCost +
+      otherCost +
+      additionalCostTotal +
+      channelLogisticsCost;
     const totalCost = operatingCost + estimatedFee;
     const profit = totalPayment - totalCost;
     const marginRate = totalPayment === 0 ? 0 : (profit / totalPayment) * 100;
@@ -371,6 +513,7 @@ export function MarginCalculator() {
       estimatedFee,
       settlementAmount,
       operatingCost,
+      channelLogisticsCost,
       totalCost,
       profit,
       marginRate,
@@ -413,6 +556,12 @@ export function MarginCalculator() {
     </label>
   );
 
+  const otherOperatingCost =
+    parseNumber(form.adCost) +
+    parseNumber(form.otherCost) +
+    (result?.additionalCostTotal ?? 0) +
+    (result?.channelLogisticsCost ?? 0);
+
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
@@ -421,12 +570,21 @@ export function MarginCalculator() {
           <div>
             <h3 className="text-lg font-bold text-zinc-950">입력 영역</h3>
             <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-              상품 1건 기준으로 판매가와 비용을 입력해 예상 순이익과 마진율을 계산합니다.
+              판매 채널과 수수료를 선택한 뒤, 상품 1건 기준 비용을 입력해 예상 순이익과 마진율을
+              계산합니다.
             </p>
           </div>
         </div>
 
         <div className="mt-6 space-y-7">
+          <ChannelFeeSettings
+            channel={channel}
+            onChange={updateChannelField}
+            onPercentChange={updateChannelPercent}
+            onAmountChange={updateChannelAmount}
+            displayInputAmount={displayInputAmount}
+          />
+
           <div className="space-y-4">
             <div>
               <h4 className="text-sm font-bold text-zinc-950">판매 정보</h4>
@@ -531,28 +689,9 @@ export function MarginCalculator() {
 
           <div className="space-y-4">
             <div>
-              <h4 className="text-sm font-bold text-zinc-950">수수료와 목표</h4>
+              <h4 className="text-sm font-bold text-zinc-950">목표 설정</h4>
               <div className="mt-2 h-px bg-zinc-100" />
             </div>
-
-            <label className="block">
-              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="text-base font-bold text-zinc-950">쇼핑몰 수수료율</span>
-                <span className="text-xs text-zinc-500">0 이상 100 미만, 소수 입력 가능</span>
-              </span>
-              <div className="mt-2 flex overflow-hidden rounded-lg border border-zinc-200 bg-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
-                <input
-                  value={form.feeRate}
-                  onChange={(event) => updatePercentField('feeRate', event.target.value)}
-                  inputMode="decimal"
-                  placeholder="0"
-                  className="min-w-0 flex-1 px-3 py-2.5 text-right text-sm outline-none"
-                />
-                <span className="flex items-center border-l border-zinc-100 bg-zinc-50 px-3 text-xs text-zinc-500">
-                  %
-                </span>
-              </div>
-            </label>
 
             <label className="block">
               <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -649,14 +788,19 @@ export function MarginCalculator() {
         <p className="mt-4 text-xs leading-relaxed text-zinc-500">
           입력한 값은 서버로 전송되거나 저장되지 않으며 현재 브라우저에서만 계산됩니다.
         </p>
+        <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+          ※ 본 계산기는 예상 마진 확인용입니다. 플랫폼 수수료, 정산 기준, 배송비, 물류비는 판매자
+          조건과 시점에 따라 달라질 수 있습니다. 실제 정산 금액은 각 판매 채널의 정산 내역을 기준으로
+          확인해 주세요.
+        </p>
       </section>
 
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">결과 표시 영역</h3>
         {!result && (
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-            판매가와 비용을 입력한 뒤 계산하기를 누르면 예상 순이익, 마진율, 손익분기 판매가를
-            확인할 수 있습니다.
+            판매 채널·수수료와 비용을 입력한 뒤 계산하기를 누르면 예상 순이익, 마진율, 손익분기
+            판매가를 확인할 수 있습니다.
           </p>
         )}
         <div className="mt-4 space-y-3">
@@ -678,7 +822,7 @@ export function MarginCalculator() {
                   {formatWon(result.profit)}
                 </p>
                 <p className="mt-2 text-sm text-zinc-700">
-                  매출 기준 마진율 {formatPercent(result.marginRate)}
+                  예상 순이익 · 마진율 {formatPercent(result.marginRate)}
                 </p>
                 {!profitPositive && (
                   <p className="mt-3 text-sm font-medium text-red-700">
@@ -697,7 +841,7 @@ export function MarginCalculator() {
             <p className="mb-3 font-semibold text-zinc-800">판매가 안내</p>
             {result ? (
               <>
-                <ResultRow label="손익분기 최소 판매가" value={formatWon(result.breakEvenSalePrice)} />
+                <ResultRow label="손익분기 판매가" value={formatWon(result.breakEvenSalePrice)} />
                 <p
                   className={`my-3 rounded-lg border p-3 text-sm font-semibold leading-relaxed break-words ${
                     getBreakEvenDiffMessage(result.breakEvenDiff).className
@@ -724,30 +868,32 @@ export function MarginCalculator() {
             <p className="mb-3 font-semibold text-zinc-800">상세 결과</p>
             {result ? (
               <>
-                <ResultRow label="총 결제금액" value={formatWon(result.totalPayment)} />
-                <ResultRow label="예상 쇼핑몰 수수료" value={formatWon(result.estimatedFee)} />
-                <ResultRow label="예상 정산금액" value={formatWon(result.settlementAmount)} />
-                <ResultRow label="상품 원가" value={formatWon(parseNumber(form.productCost))} />
-                <ResultRow label="실제 택배비" value={formatWon(parseNumber(form.actualShippingCost))} />
+                <ResultRow label="판매가" value={formatWon(parseNumber(form.salePrice))} />
+                <ResultRow label="원가" value={formatWon(parseNumber(form.productCost))} />
+                <ResultRow label="플랫폼 수수료" value={formatWon(result.estimatedFee)} tone="cost" />
+                <ResultRow label="배송비" value={formatWon(parseNumber(form.actualShippingCost))} />
                 <ResultRow label="포장비" value={formatWon(parseNumber(form.packagingCost))} />
-                <ResultRow label="광고비" value={formatWon(parseNumber(form.adCost))} />
-                <ResultRow label="기타 비용" value={formatWon(parseNumber(form.otherCost))} />
-                {result.additionalCosts.map((cost) => (
-                  <ResultRow key={cost.id} label={cost.name} value={formatWon(cost.amount)} />
-                ))}
-                {result.additionalCostTotal > 0 && (
+                {result.channelLogisticsCost > 0 && (
                   <ResultRow
-                    label="추가 비용 합계"
-                    value={formatWon(result.additionalCostTotal)}
+                    label="채널 물류비"
+                    value={formatWon(result.channelLogisticsCost)}
                   />
                 )}
-                <ResultRow label="총비용" value={formatWon(result.totalCost)} tone="cost" />
+                <ResultRow
+                  label="기타 비용"
+                  value={formatWon(otherOperatingCost)}
+                />
+                <ResultRow label="예상 정산금액" value={formatWon(result.settlementAmount)} />
                 <ResultRow label="예상 순이익" value={formatWon(result.profit)} tone="profit" />
                 <ResultRow
-                  label="매출 기준 마진율"
+                  label="마진율"
                   value={formatPercent(result.marginRate)}
                   tone="rate"
                 />
+                {result.additionalCosts.map((cost) => (
+                  <ResultRow key={cost.id} label={cost.name} value={formatWon(cost.amount)} />
+                ))}
+                <ResultRow label="총비용" value={formatWon(result.totalCost)} tone="cost" />
                 <ResultRow
                   label="투입비용 대비 수익률"
                   value={result.roi === null ? '-' : formatPercent(result.roi)}
@@ -766,6 +912,11 @@ export function MarginCalculator() {
               <li>부가세, 반품비, 할인 부담금 등은 별도로 확인해야 합니다.</li>
               <li>계산 결과는 예상값이며 실제 정산액과 차이가 날 수 있습니다.</li>
             </ul>
+            <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+              ※ 본 계산기는 예상 마진 확인용입니다. 플랫폼 수수료, 정산 기준, 배송비, 물류비는
+              판매자 조건과 시점에 따라 달라질 수 있습니다. 실제 정산 금액은 각 판매 채널의 정산
+              내역을 기준으로 확인해 주세요.
+            </p>
           </div>
         </div>
       </section>
