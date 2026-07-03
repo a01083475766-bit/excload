@@ -37,7 +37,7 @@ export function FreeToolsLayout({
   );
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_15%_10%,rgba(45,212,191,0.16),transparent_28%),radial-gradient(circle_at_85%_5%,rgba(96,165,250,0.14),transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef6ff_45%,#ffffff_100%)]">
+    <main className="min-h-screen overflow-x-clip bg-[radial-gradient(circle_at_15%_10%,rgba(45,212,191,0.16),transparent_28%),radial-gradient(circle_at_85%_5%,rgba(96,165,250,0.14),transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef6ff_45%,#ffffff_100%)]">
       <div className="mx-auto w-full min-w-0 max-w-[1200px] px-3 py-5 sm:px-5 sm:py-8 lg:px-8">
         {activeSlug ? (
           <Link
