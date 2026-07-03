@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { AlertCircle, Calculator, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AlertCircle, Calculator, ChevronUp, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react';
 import {
   ChannelFeeSettings,
   emptyChannelState,
@@ -283,11 +283,23 @@ export function MarginCalculator() {
   const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CalculationResult | null>(null);
+  const [floatingSummaryDismissed, setFloatingSummaryDismissed] = useState(false);
+  const resultSummaryRef = useRef<HTMLDivElement>(null);
 
   const clearResult = () => {
     setError(null);
     setResult(null);
   };
+
+  useEffect(() => {
+    if (!result) return;
+    setFloatingSummaryDismissed(false);
+
+    // 2단(xl) 레이아웃 미만에서는 결과 영역이 입력 폼 아래로 밀리므로 계산 직후 자동으로 스크롤한다.
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      resultSummaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [result]);
 
   const updateField = (key: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -563,6 +575,7 @@ export function MarginCalculator() {
     (result?.channelLogisticsCost ?? 0);
 
   return (
+    <>
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
@@ -795,7 +808,10 @@ export function MarginCalculator() {
         </p>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section
+        ref={resultSummaryRef}
+        className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start"
+      >
         <h3 className="text-lg font-bold text-zinc-950">결과 표시 영역</h3>
         {!result && (
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
@@ -921,5 +937,59 @@ export function MarginCalculator() {
         </div>
       </section>
     </div>
+
+    {result && !floatingSummaryDismissed && (
+      <div className="fixed inset-x-3 bottom-3 z-40 xl:hidden">
+        <div
+          className={`flex items-center gap-3 rounded-xl border p-3 pr-2 shadow-lg backdrop-blur-sm ${
+            profitPositive
+              ? 'border-emerald-200 bg-emerald-50/95'
+              : 'border-red-200 bg-red-50/95'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() =>
+              resultSummaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+            className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+          >
+            <span className="min-w-0">
+              <span
+                className={`block text-xs font-semibold ${
+                  profitPositive ? 'text-emerald-700' : 'text-red-700'
+                }`}
+              >
+                예상 순이익 · 마진율 {formatPercent(result.marginRate)}
+              </span>
+              <span
+                className={`block truncate text-lg font-bold ${
+                  profitPositive ? 'text-emerald-800' : 'text-red-800'
+                }`}
+              >
+                {formatWon(result.profit)}
+              </span>
+            </span>
+            <span
+              className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/80 px-3 py-1.5 text-xs font-semibold ${
+                profitPositive ? 'text-emerald-800' : 'text-red-800'
+              }`}
+            >
+              결과 보기
+              <ChevronUp className="size-3.5" aria-hidden />
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFloatingSummaryDismissed(true)}
+            aria-label="결과 요약 닫기"
+            className="shrink-0 rounded-lg p-1.5 text-zinc-500 hover:bg-white/70"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
