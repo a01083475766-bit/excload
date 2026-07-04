@@ -5,6 +5,8 @@ import {
   LandingPrePricingCta,
   LandingWhyHowCarriers,
 } from '@/app/components/landing/LandingReferenceSections';
+import LandingHeroSection from '@/app/components/landing/LandingHeroSection';
+import { landingContainerClass } from '@/app/components/landing/landingLayout';
 import { InvoiceFileConvertTrialModeProvider } from '@/app/invoice-file-convert/trial-mode-context';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
@@ -32,10 +34,6 @@ const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'
     </div>
   ),
 });
-
-const LANDING_HERO_VIDEO_START_SECONDS = 0;
-const LANDING_HERO_VIDEO_END_OFFSET_SECONDS = 0.2;
-const LANDING_HERO_VIDEO_PLAYBACK_RATE = 0.5;
 
 type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
 type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
@@ -92,65 +90,6 @@ function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
       <span className="text-[#111827]">cafe</span>
       <span className="text-[#0ea5e9]">24</span>
     </span>
-  );
-}
-
-function LandingHeroBackgroundVideo() {
-  const applyPlaybackSettings = (video: HTMLVideoElement) => {
-    video.defaultPlaybackRate = LANDING_HERO_VIDEO_PLAYBACK_RATE;
-    video.playbackRate = LANDING_HERO_VIDEO_PLAYBACK_RATE;
-  };
-
-  const seekToStart = (video: HTMLVideoElement) => {
-    applyPlaybackSettings(video);
-    if (video.duration > LANDING_HERO_VIDEO_START_SECONDS) {
-      video.currentTime = LANDING_HERO_VIDEO_START_SECONDS;
-    }
-  };
-
-  return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-full overflow-hidden rounded-2xl bg-zinc-200 sm:h-[430px] lg:h-[520px]" aria-hidden>
-      <video
-        className="absolute -inset-1 h-[calc(100%+0.5rem)] w-[calc(100%+0.5rem)] max-w-none object-cover opacity-100 brightness-[0.72] contrast-[1.08] saturate-[0.95]"
-        muted
-        playsInline
-        autoPlay
-        preload="metadata"
-        onLoadedMetadata={(event) => {
-          seekToStart(event.currentTarget);
-          void event.currentTarget.play().catch(() => undefined);
-        }}
-        onCanPlay={(event) => {
-          applyPlaybackSettings(event.currentTarget);
-        }}
-        onPlay={(event) => {
-          applyPlaybackSettings(event.currentTarget);
-        }}
-        onRateChange={(event) => {
-          if (event.currentTarget.playbackRate !== LANDING_HERO_VIDEO_PLAYBACK_RATE) {
-            applyPlaybackSettings(event.currentTarget);
-          }
-        }}
-        onTimeUpdate={(event) => {
-          const video = event.currentTarget;
-          if (
-            video.duration > LANDING_HERO_VIDEO_START_SECONDS + LANDING_HERO_VIDEO_END_OFFSET_SECONDS &&
-            video.currentTime >= video.duration - LANDING_HERO_VIDEO_END_OFFSET_SECONDS
-          ) {
-            seekToStart(video);
-          }
-        }}
-        onEnded={(event) => {
-          seekToStart(event.currentTarget);
-          void event.currentTarget.play().catch(() => undefined);
-        }}
-      >
-        <source src="/landing/videos/quick-order-bg-mobile.mp4" type="video/mp4" media="(max-width: 640px)" />
-        <source src="/landing/videos/quick-order-bg.mp4" type="video/mp4" />
-      </video>
-      <div className="absolute -inset-1 bg-blue-950/10 dark:bg-black/35" />
-      <div className="absolute -inset-1 bg-gradient-to-b from-white/30 via-white/10 to-zinc-50/25 dark:from-black/55 dark:via-black/25 dark:to-black/55" />
-    </div>
   );
 }
 
@@ -218,44 +157,16 @@ export default function HomePage() {
 
   return (
     <div className="landing-soft-font pt-6 bg-zinc-50 dark:bg-black min-h-screen">
-      <main className="max-w-7xl mx-auto px-3 sm:px-6">
-        {/* Hero 섹션 */}
-        <section className="blue-unified-theme pt-7 pb-8 lg:pt-12 lg:pb-12">
-          <div className="relative z-10 flex flex-col gap-8">
-            <div className="relative isolate mx-auto mb-6 w-full max-w-6xl overflow-hidden rounded-2xl bg-zinc-200 px-4 py-12 text-center sm:mb-12 sm:px-8 lg:mb-14 lg:py-16">
-              <LandingHeroBackgroundVideo />
-              <div className="relative z-10">
-              <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
-              <h1 className="mt-4 text-[clamp(1.47rem,4.2vw,3.36rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
-                복잡한 기능은 빼고
-                <br />
-                <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>
-              </h1>
-              <p className="mx-auto mt-6 max-w-3xl rounded-2xl bg-white/42 px-4 py-3 text-lg font-bold leading-relaxed text-zinc-950 shadow-sm backdrop-blur-[2px] dark:bg-black/28 dark:text-zinc-100 sm:px-5 sm:text-xl [word-break:keep-all]">
-                복잡한 설정 없이, 내려받은 주문 파일을 그대로 올려보세요.
-                <br />
-                택배사 양식에 맞는 파일로 빠르게 정리됩니다.
-              </p>
-              <div className="mx-auto mt-7 flex max-w-3xl items-center gap-3 rounded-2xl border border-white/70 bg-white/72 px-5 py-4 text-left shadow-[0_14px_40px_rgba(37,99,235,0.10)] backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-6">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
-                  <Check className="h-5 w-5" />
-                </span>
-                <p className="text-base font-semibold leading-snug text-zinc-700 dark:text-zinc-200 sm:text-lg [word-break:keep-all]">
-                  양식이 다른 여러 파일을 올려도{' '}
-                  <span className="font-extrabold text-blue-600 dark:text-blue-400">
-                    자동으로 하나의 파일로 변환
-                  </span>
-                  됩니다.
-                </p>
-              </div>
-              </div>
-            </div>
+      <LandingHeroSection />
 
-            <div className="flex flex-col items-center text-center max-w-3xl mx-auto px-3 pt-2 pb-2 lg:pt-4">
+      <main className={landingContainerClass}>
+        <section className="blue-unified-theme pt-8 pb-8 lg:pt-12 lg:pb-12">
+          <div className="relative z-10 flex flex-col gap-8">
+            <div className="flex flex-col items-center text-center max-w-3xl mx-auto pt-2 pb-2 lg:pt-4">
               <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                 복잡한 주문 정리, 먼저 무료로 테스트해보세요.
                 <br className="hidden sm:block" />
-                마음에 들면{' '}
+                편리하면{' '}
                 <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span>으로 계속 사용할 수 있습니다.
               </p>
             </div>
