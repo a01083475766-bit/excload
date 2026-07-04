@@ -352,7 +352,7 @@ export default function LandingTestPage() {
                 } as CSSProperties
               }
             >
-              <div className="flex max-w-xl flex-col gap-[3.75rem] sm:gap-[4.5rem] lg:max-w-none">
+              <div className="flex max-w-xl flex-col gap-[3.75rem] sm:gap-[4.5rem]">
                 <h1 className="text-[clamp(1.25rem,2.4vw,1.875rem)] font-bold leading-snug tracking-normal text-zinc-900 dark:text-zinc-100 [word-break:keep-all] lg:whitespace-nowrap">
                   <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
                   쇼핑몰, 카톡주문을 쉽게 정리합니다.
