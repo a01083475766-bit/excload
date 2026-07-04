@@ -121,32 +121,36 @@ function LandingHeroVisualStack() {
   const kakaoHeight = Math.round(755 * 0.6);
 
   return (
-    <div className="relative flex w-full max-w-full flex-col items-end gap-3">
-      <Image
-        src="/landing/hero-layer-excel-files.png"
-        alt="스마트스토어, 11번가, 자사몰, 카페24, 쿠팡 등 쇼핑몰별 주문 엑셀 파일"
-        width={excelFilesWidth}
-        height={excelFilesHeight}
-        priority
-        unoptimized
-        className="h-auto w-[248px] max-w-full drop-shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
-      />
-      <Image
-        src="/landing/hero-layer-kakao-chat.png"
-        alt="카카오톡 주문 대화 예시"
-        width={kakaoWidth}
-        height={kakaoHeight}
-        priority
-        unoptimized
-        className="h-auto w-[222px] max-w-full drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)]"
-      />
+    <div className="relative flex w-full max-w-full flex-col items-end">
+      <div className="landing-hero-scan-stage" aria-label="주문 파일과 카카오톡 주문을 AI가 읽는 중">
+        <Image
+          src="/landing/hero-layer-excel-files.png"
+          alt="스마트스토어, 11번가, 자사몰, 카페24, 쿠팡 등 쇼핑몰별 주문 엑셀 파일"
+          width={excelFilesWidth}
+          height={excelFilesHeight}
+          priority
+          unoptimized
+          className="relative z-[1] h-auto w-[248px] max-w-full drop-shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
+        />
+        <Image
+          src="/landing/hero-layer-kakao-chat.png"
+          alt="카카오톡 주문 대화 예시"
+          width={kakaoWidth}
+          height={kakaoHeight}
+          priority
+          unoptimized
+          className="relative z-[1] h-auto w-[222px] max-w-full drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)]"
+        />
+        <div className="landing-hero-scan-beam" aria-hidden />
+        <div className="landing-hero-scan-line" aria-hidden />
+      </div>
     </div>
   );
 }
 
 function LandingHeroExcelResult() {
   return (
-    <div className="mt-4 w-full min-w-0 overflow-hidden sm:mt-5">
+    <div className="landing-hero-scan-result mt-4 w-full min-w-0 overflow-hidden sm:mt-5">
       <Image
         src="/landing/hero-layer-excel-result.png"
         alt="정리된 주문 엑셀 결과 예시"

@@ -631,3 +631,106 @@ body {
 .invoice-dropzone-double-flash {
   animation: invoice-dropzone-double-flash 1.15s ease-in-out forwards;
 }
+
+/* /landing-test 히어로 — 엑셀·카톡 입력 레이어 스캔 연출 */
+@keyframes landing-hero-scan-down {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  88% {
+    top: calc(100% - 2px);
+    opacity: 1;
+  }
+  100% {
+    top: calc(100% - 2px);
+    opacity: 0;
+  }
+}
+
+@keyframes landing-hero-result-reveal {
+  0%,
+  72% {
+    opacity: 0.2;
+    transform: translateY(10px);
+    filter: saturate(0.8);
+  }
+  86%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: saturate(1);
+  }
+}
+
+.landing-hero-scan-stage {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.375rem;
+}
+
+.landing-hero-scan-beam,
+.landing-hero-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  animation: landing-hero-scan-down 3.6s ease-in-out infinite;
+}
+
+.landing-hero-scan-beam {
+  z-index: 5;
+  height: 48px;
+  transform: translateY(-24px);
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(59, 130, 246, 0.06) 42%,
+    rgba(96, 165, 250, 0.2) 50%,
+    rgba(59, 130, 246, 0.06) 58%,
+    transparent 100%
+  );
+}
+
+.landing-hero-scan-line {
+  z-index: 6;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(147, 197, 253, 0.35) 15%,
+    rgba(59, 130, 246, 1) 50%,
+    rgba(147, 197, 253, 0.35) 85%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 10px rgba(59, 130, 246, 0.85),
+    0 0 22px rgba(96, 165, 250, 0.45);
+}
+
+.landing-hero-scan-result {
+  animation: landing-hero-result-reveal 3.6s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-scan-beam,
+  .landing-hero-scan-line {
+    animation: none;
+    display: none;
+  }
+
+  .landing-hero-scan-result {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    animation: none;
+  }
+}
