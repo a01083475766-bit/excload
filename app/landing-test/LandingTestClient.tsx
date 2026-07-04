@@ -237,23 +237,25 @@ function LandingHeroExcelResult({
       aria-live="polite"
       aria-label={showResult ? '정리된 주문 엑셀 결과' : '주문 정리 결과 대기 중'}
     >
-      <div className="relative w-full aspect-[910/154] min-h-[96px] sm:min-h-[110px]">
+      <div className="relative ml-auto w-[92%] aspect-[910/154] min-h-[88px] sm:min-h-[100px]">
         {showResult ? (
           <div
             className={`absolute inset-0 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
               resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
             }`}
           >
-            <div className="flex h-full min-h-0 w-full overflow-hidden rounded-xl border border-blue-200/70 bg-white/62 px-1.5 py-1 shadow-[0_10px_28px_rgba(37,99,235,0.09)] backdrop-blur-sm dark:border-blue-800/50 dark:bg-zinc-900/62 sm:rounded-2xl sm:px-2 sm:py-1.5">
-              <Image
-                src="/landing/hero-layer-excel-result.png"
-                alt="정리된 주문 엑셀 결과 예시"
-                width={910}
-                height={154}
-                priority
-                unoptimized
-                className="h-full w-full max-w-full object-contain object-left opacity-[0.93] dark:opacity-[0.9]"
-              />
+            <div className="flex h-full min-h-0 w-full overflow-hidden rounded-2xl border border-zinc-200/55 bg-white/78 p-2 shadow-[0_6px_28px_rgba(15,23,42,0.07),0_2px_10px_rgba(37,99,235,0.05)] backdrop-blur-[5px] dark:border-zinc-700/45 dark:bg-zinc-900/72 sm:rounded-[1.125rem] sm:p-2.5">
+              <div className="h-full w-full overflow-hidden rounded-xl bg-white/50 dark:bg-zinc-950/25">
+                <Image
+                  src="/landing/hero-layer-excel-result.png"
+                  alt="정리된 주문 엑셀 결과 예시"
+                  width={910}
+                  height={154}
+                  priority
+                  unoptimized
+                  className="h-full w-full max-w-full rounded-lg object-contain object-left opacity-[0.96] dark:opacity-[0.92]"
+                />
+              </div>
             </div>
           </div>
         ) : null}
@@ -350,7 +352,7 @@ export default function LandingTestPage() {
                 } as CSSProperties
               }
             >
-              <div className="flex max-w-xl flex-col gap-14 sm:gap-16 lg:max-w-none">
+              <div className="flex max-w-xl flex-col gap-10 sm:gap-12 lg:max-w-none">
                 <h1 className="text-[clamp(1.25rem,2.4vw,1.875rem)] font-bold leading-snug tracking-normal text-zinc-900 dark:text-zinc-100 [word-break:keep-all] lg:whitespace-nowrap">
                   <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
                   쇼핑몰, 카톡주문을 쉽게 정리합니다.
