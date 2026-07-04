@@ -166,11 +166,11 @@ function LandingHeroBackgroundImage() {
           fill
           priority
           sizes="100vw"
-          className="scale-105 object-cover object-center opacity-45 blur-[3px]"
+          className="scale-105 object-cover object-center opacity-[0.54] blur-[3px]"
         />
       </div>
-      <div className="absolute inset-0 bg-white/35" />
-      <div className="absolute inset-0 bg-gradient-to-r from-white/75 via-white/45 to-white/15" />
+      <div className="absolute inset-0 bg-white/28" />
+      <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/38 to-white/12" />
       <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-zinc-50/55" />
     </div>
   );
