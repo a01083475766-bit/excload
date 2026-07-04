@@ -33,8 +33,8 @@ const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'
   ),
 });
 
-/** 히어로·체험 임베드 등 본문이 같은 좌우 기준선을 쓰도록 통일 */
-const landingTestPageContentClass = 'mx-auto w-full max-w-7xl px-3 sm:px-6';
+/** 네비·체험 임베드(LogisticsConvertClient)와 동일한 본문 기준선 */
+const landingTestPageContentClass = 'mx-auto w-full max-w-[1200px] px-3 sm:px-5 lg:px-8';
 
 type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
 type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
@@ -114,14 +114,14 @@ function LandingHeroBackgroundImage() {
   );
 }
 
-function LandingHeroVisualLayers() {
+function LandingHeroVisualStack() {
   const excelFilesWidth = Math.round(413 * 0.6);
   const excelFilesHeight = Math.round(95 * 0.6);
   const kakaoWidth = Math.round(370 * 0.6);
   const kakaoHeight = Math.round(755 * 0.6);
 
   return (
-    <div className="relative flex w-full flex-col items-end gap-3">
+    <div className="relative flex w-full max-w-full flex-col items-end gap-3">
       <Image
         src="/landing/hero-layer-excel-files.png"
         alt="스마트스토어, 11번가, 자사몰, 카페24, 쿠팡 등 쇼핑몰별 주문 엑셀 파일"
@@ -140,6 +140,13 @@ function LandingHeroVisualLayers() {
         unoptimized
         className="h-auto w-[222px] max-w-full drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)]"
       />
+    </div>
+  );
+}
+
+function LandingHeroExcelResult() {
+  return (
+    <div className="mt-4 w-full min-w-0 overflow-hidden sm:mt-5">
       <Image
         src="/landing/hero-layer-excel-result.png"
         alt="정리된 주문 엑셀 결과 예시"
@@ -147,7 +154,7 @@ function LandingHeroVisualLayers() {
         height={154}
         priority
         unoptimized
-        className="h-auto w-full drop-shadow-[0_12px_32px_rgba(15,23,42,0.2)]"
+        className="h-auto w-full max-w-full drop-shadow-[0_12px_32px_rgba(15,23,42,0.2)]"
       />
     </div>
   );
@@ -226,12 +233,11 @@ export default function LandingTestPage() {
       </div>
 
       {/* 히어로 — 벤치마크(ai-manga-translator)처럼 배경은 뷰포트 가로 전체 */}
-      <section className="blue-unified-theme relative w-full overflow-hidden">
+      <section className="blue-unified-theme relative w-full overflow-x-hidden">
         <LandingHeroBackgroundImage />
-        <div
-          className={`relative z-10 grid w-full gap-10 py-12 sm:py-16 lg:grid-cols-2 lg:items-start lg:gap-12 lg:py-20 xl:py-24 ${landingTestPageContentClass}`}
-        >
-          <div className="min-w-0 text-left">
+        <div className={`relative z-10 py-12 sm:py-16 lg:py-20 xl:py-24 ${landingTestPageContentClass}`}>
+          <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start lg:gap-x-12">
+            <div className="min-w-0 text-left">
             <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
             <h1 className="mt-4 text-[clamp(1.75rem,4.5vw,3.5rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
               복잡한 기능은 빼고
@@ -285,18 +291,21 @@ export default function LandingTestPage() {
                 됩니다.
               </p>
             </div>
+            </div>
+
+            <div className="min-w-0 overflow-hidden">
+              <LandingHeroVisualStack />
+            </div>
           </div>
 
-          <div className="min-w-0">
-            <LandingHeroVisualLayers />
-          </div>
+          <LandingHeroExcelResult />
         </div>
       </section>
 
       <main className={landingTestPageContentClass}>
         <section className="blue-unified-theme pt-8 pb-8 lg:pt-12 lg:pb-12">
           <div className="relative z-10 flex flex-col gap-8">
-            <div className="flex flex-col items-center text-center max-w-3xl mx-auto px-3 pt-2 pb-2 lg:pt-4">
+            <div className="flex flex-col items-center text-center max-w-3xl mx-auto pt-2 pb-2 lg:pt-4">
               <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                 복잡한 주문 정리, 먼저 무료로 테스트해보세요.
                 <br className="hidden sm:block" />
