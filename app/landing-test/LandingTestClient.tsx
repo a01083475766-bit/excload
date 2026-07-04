@@ -361,18 +361,23 @@ export default function LandingTestPage() {
                   CJ, 롯데, 한진, 로젠 등 여러 택배사 업로드 양식에 맞게 정리합니다.
                 </p>
               </div>
-              <div className="mt-5 flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:mt-6 sm:px-5 lg:mt-0">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
-                  <Check className="h-5 w-5" />
-                </span>
-                <p className="text-sm font-semibold leading-snug text-zinc-700 dark:text-zinc-200 sm:text-base [word-break:keep-all]">
-                  양식이 다른 여러 파일을 올려도{' '}
-                  <span className="font-extrabold text-blue-600 dark:text-blue-400">
-                    자동으로 하나의 파일로 변환
-                  </span>
-                  됩니다.
-                </p>
-              </div>
+              {heroScan.showResult ? (
+                <div
+                  className={`mt-5 flex max-w-xl items-start gap-2.5 pl-4 sm:mt-6 sm:pl-5 lg:mt-0 lg:pl-6 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
+                    heroScan.resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+                  }`}
+                  aria-hidden={!heroScan.resultVisible}
+                >
+                  <Check className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                  <p className="text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+                    양식이 다른 여러 파일을 올려도{' '}
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      자동으로 하나의 파일로 변환
+                    </span>
+                    됩니다.
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="min-w-0 shrink-0">
