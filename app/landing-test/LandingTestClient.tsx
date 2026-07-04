@@ -93,19 +93,45 @@ function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
 
 function LandingHeroBackgroundImage() {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl bg-zinc-100" aria-hidden>
+    <div className="pointer-events-none absolute inset-0 bg-zinc-100" aria-hidden>
       <div className="absolute inset-0">
         <Image
           src="/landing/hero-bg-laptop.png"
           alt=""
           fill
           priority
-          sizes="(max-width: 768px) 100vw, 1152px"
+          sizes="100vw"
           className="scale-105 object-cover object-center opacity-45 blur-[3px]"
         />
       </div>
-      <div className="absolute inset-0 bg-white/30" />
-      <div className="absolute inset-0 bg-gradient-to-b from-white/45 via-white/20 to-zinc-50/35" />
+      <div className="absolute inset-0 bg-white/35" />
+      <div className="absolute inset-0 bg-gradient-to-r from-white/75 via-white/45 to-white/15" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-zinc-50/55" />
+    </div>
+  );
+}
+
+function LandingHeroVisualLayers() {
+  return (
+    <div className="relative mx-auto flex w-full max-w-[380px] flex-col items-center gap-4 sm:max-w-[420px] lg:mx-0 lg:max-w-[440px]">
+      <Image
+        src="/landing/hero-layer-excel-files.png"
+        alt="스마트스토어, 11번가, 자사몰, 카페24, 쿠팡 등 쇼핑몰별 주문 엑셀 파일"
+        width={413}
+        height={95}
+        priority
+        unoptimized
+        className="h-auto w-full drop-shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
+      />
+      <Image
+        src="/landing/hero-layer-kakao-chat.png"
+        alt="카카오톡 주문 대화 예시"
+        width={370}
+        height={755}
+        priority
+        unoptimized
+        className="h-auto w-full max-w-[320px] drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)] sm:max-w-[360px]"
+      />
     </div>
   );
 }
@@ -177,43 +203,78 @@ export default function LandingTestPage() {
   ];
 
   return (
-    <div className="landing-soft-font pt-6 bg-zinc-50 dark:bg-black min-h-screen">
+    <div className="landing-soft-font bg-zinc-50 dark:bg-black min-h-screen">
       <div className="sticky top-0 z-[90] w-full bg-amber-400 py-1.5 text-center text-xs font-bold text-amber-950 shadow-sm sm:text-sm">
         관리자 전용 테스트 페이지 — 실제 서비스 랜딩에는 반영되지 않습니다
       </div>
-      <main className="max-w-7xl mx-auto px-3 sm:px-6">
-        {/* Hero 섹션 */}
-        <section className="blue-unified-theme pt-7 pb-8 lg:pt-12 lg:pb-12">
-          <div className="relative z-10 flex flex-col gap-8">
-            <div className="relative isolate mx-auto mb-6 w-full max-w-6xl overflow-hidden rounded-2xl bg-zinc-200 px-4 py-12 text-center sm:mb-12 sm:px-8 lg:mb-14 lg:py-16">
-              <LandingHeroBackgroundImage />
-              <div className="relative z-10">
-              <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
-              <h1 className="mt-4 text-[clamp(1.47rem,4.2vw,3.36rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
-                복잡한 기능은 빼고
-                <br />
-                <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>
-              </h1>
-              <p className="mx-auto mt-6 max-w-3xl rounded-2xl bg-white/42 px-4 py-3 text-lg font-bold leading-relaxed text-zinc-950 shadow-sm backdrop-blur-[2px] dark:bg-black/28 dark:text-zinc-100 sm:px-5 sm:text-xl [word-break:keep-all]">
-                복잡한 설정 없이, 내려받은 주문 파일을 그대로 올려보세요.
-                <br />
-                택배사 양식에 맞는 파일로 빠르게 정리됩니다.
-              </p>
-              <div className="mx-auto mt-7 flex max-w-3xl items-center gap-3 rounded-2xl border border-white/70 bg-white/72 px-5 py-4 text-left shadow-[0_14px_40px_rgba(37,99,235,0.10)] backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-6">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
-                  <Check className="h-5 w-5" />
-                </span>
-                <p className="text-base font-semibold leading-snug text-zinc-700 dark:text-zinc-200 sm:text-lg [word-break:keep-all]">
-                  양식이 다른 여러 파일을 올려도{' '}
-                  <span className="font-extrabold text-blue-600 dark:text-blue-400">
-                    자동으로 하나의 파일로 변환
-                  </span>
-                  됩니다.
-                </p>
+
+      {/* 히어로 — 벤치마크(ai-manga-translator)처럼 배경은 뷰포트 가로 전체 */}
+      <section className="blue-unified-theme relative w-full overflow-hidden">
+        <LandingHeroBackgroundImage />
+        <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(280px,440px)] lg:items-center lg:gap-12 lg:py-20 xl:grid-cols-[minmax(0,1fr)_minmax(320px,480px)] xl:py-24">
+          <div className="text-left">
+            <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
+            <h1 className="mt-4 text-[clamp(1.75rem,4.5vw,3.5rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
+              복잡한 기능은 빼고
+              <br />
+              <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+              복잡한 설정 없이, 내려받은 주문 파일을 그대로 올려보세요.
+              택배사 양식에 맞는 파일로 빠르게 정리됩니다.
+            </p>
+
+            <div className="mt-8 grid max-w-md grid-cols-3 gap-4 border-y border-zinc-200/80 py-5 dark:border-zinc-700/80">
+              <div>
+                <p className="text-xl font-black text-zinc-950 dark:text-zinc-100 sm:text-2xl">5,000+</p>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">월 무료 사용량</p>
               </div>
+              <div>
+                <p className="text-xl font-black text-zinc-950 dark:text-zinc-100 sm:text-2xl">6+</p>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">택배사 양식</p>
+              </div>
+              <div>
+                <p className="text-xl font-black text-zinc-950 dark:text-zinc-100 sm:text-2xl">무료</p>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">체험 가능</p>
               </div>
             </div>
 
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                href="/trial"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                무료로 체험하기
+              </Link>
+              <Link
+                href="/user-guide"
+                className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white/80 px-6 py-3 text-sm font-bold text-zinc-800 backdrop-blur-sm transition hover:bg-white dark:border-zinc-600 dark:bg-zinc-900/80 dark:text-zinc-100"
+              >
+                사용 방법
+              </Link>
+            </div>
+
+            <div className="mt-7 flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
+                <Check className="h-5 w-5" />
+              </span>
+              <p className="text-sm font-semibold leading-snug text-zinc-700 dark:text-zinc-200 sm:text-base [word-break:keep-all]">
+                양식이 다른 여러 파일을 올려도{' '}
+                <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                  자동으로 하나의 파일로 변환
+                </span>
+                됩니다.
+              </p>
+            </div>
+          </div>
+
+          <LandingHeroVisualLayers />
+        </div>
+      </section>
+
+      <main className="max-w-7xl mx-auto px-3 sm:px-6">
+        <section className="blue-unified-theme pt-8 pb-8 lg:pt-12 lg:pb-12">
+          <div className="relative z-10 flex flex-col gap-8">
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto px-3 pt-2 pb-2 lg:pt-4">
               <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                 복잡한 주문 정리, 먼저 무료로 테스트해보세요.
