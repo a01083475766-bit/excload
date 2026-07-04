@@ -327,7 +327,7 @@ export default function LandingTestPage() {
       <section className="blue-unified-theme relative w-full overflow-x-hidden">
         <LandingHeroBackgroundImage />
         <div className={`relative z-10 py-12 sm:py-16 lg:py-20 xl:py-24 ${landingTestPageContentClass}`}>
-          <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start lg:gap-x-12">
+          <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-end lg:gap-x-12">
             <div className="min-w-0 text-left">
             <div className="flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-5">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
