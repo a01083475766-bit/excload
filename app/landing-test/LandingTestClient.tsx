@@ -41,6 +41,13 @@ const HERO_SCAN_MS = 3600;
 const HERO_RESULT_FADE_MS = 800;
 const HERO_RESULT_HOLD_MS = 5000;
 
+/** 우측 스캔 레이어(엑셀·카톡)와 좌측 카피 정렬용 — scan-stage gap(0.75rem)과 동일 */
+const LANDING_HERO_KAKAO_WIDTH = Math.round(370 * 0.6);
+const LANDING_HERO_KAKAO_HEIGHT = Math.round(755 * 0.6);
+const LANDING_HERO_EXCEL_HEIGHT = Math.round(95 * (LANDING_HERO_KAKAO_WIDTH / 413));
+const LANDING_HERO_SCAN_GAP_PX = 12;
+const LANDING_HERO_KAKAO_TOP_OFFSET = LANDING_HERO_EXCEL_HEIGHT + LANDING_HERO_SCAN_GAP_PX;
+
 function useLandingHeroScanCycle() {
   const [cycleKey, setCycleKey] = useState(0);
   const [isScanning, setIsScanning] = useState(true);
@@ -176,10 +183,10 @@ function LandingHeroVisualStack({
   scanCycleKey: number;
   isScanning: boolean;
 }) {
-  const kakaoWidth = Math.round(370 * 0.6);
-  const kakaoHeight = Math.round(755 * 0.6);
+  const kakaoWidth = LANDING_HERO_KAKAO_WIDTH;
+  const kakaoHeight = LANDING_HERO_KAKAO_HEIGHT;
   const excelDisplayWidth = kakaoWidth;
-  const excelDisplayHeight = Math.round(95 * (excelDisplayWidth / 413));
+  const excelDisplayHeight = LANDING_HERO_EXCEL_HEIGHT;
 
   return (
     <div className="relative flex w-full max-w-full flex-col items-end">
@@ -327,9 +334,17 @@ export default function LandingTestPage() {
       <section className="blue-unified-theme relative w-full overflow-x-hidden">
         <LandingHeroBackgroundImage />
         <div className={`relative z-10 py-12 sm:py-16 lg:py-20 xl:py-24 ${landingTestPageContentClass}`}>
-          <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-end lg:gap-x-12">
-            <div className="flex min-w-0 flex-col gap-5 text-left sm:gap-6">
-              <div className="flex max-w-xl flex-col gap-4 sm:gap-5 lg:max-w-none">
+          <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start lg:gap-x-12">
+            <div
+              className="flex min-w-0 flex-col text-left lg:justify-between lg:pt-[var(--landing-hero-kakao-top-offset)] lg:min-h-[var(--landing-hero-visual-height)]"
+              style={
+                {
+                  '--landing-hero-kakao-top-offset': `${LANDING_HERO_KAKAO_TOP_OFFSET}px`,
+                  '--landing-hero-visual-height': `${LANDING_HERO_KAKAO_TOP_OFFSET + LANDING_HERO_KAKAO_HEIGHT}px`,
+                } as CSSProperties
+              }
+            >
+              <div className="flex max-w-xl flex-col gap-7 sm:gap-8 lg:max-w-none">
                 <h1 className="text-[clamp(1.25rem,2.4vw,1.875rem)] font-bold leading-snug tracking-normal text-zinc-900 dark:text-zinc-100 [word-break:keep-all] lg:whitespace-nowrap">
                   <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
                   쇼핑몰, 카톡주문을 쉽게 정리합니다.
@@ -340,7 +355,7 @@ export default function LandingTestPage() {
                   CJ, 롯데, 한진, 로젠 등 여러 택배사 업로드 양식에 맞게 정리합니다.
                 </p>
               </div>
-              <div className="flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-5">
+              <div className="mt-5 flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:mt-6 sm:px-5 lg:mt-0">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
                   <Check className="h-5 w-5" />
                 </span>
