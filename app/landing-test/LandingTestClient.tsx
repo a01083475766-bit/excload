@@ -158,7 +158,7 @@ function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
 
 function LandingHeroBackgroundImage() {
   return (
-    <div className="pointer-events-none absolute inset-0 bg-zinc-100" aria-hidden>
+    <div className="pointer-events-none absolute inset-0 bg-zinc-50 dark:bg-black" aria-hidden>
       <div className="absolute inset-0">
         <Image
           src="/landing/hero-bg-laptop.png"
@@ -169,9 +169,38 @@ function LandingHeroBackgroundImage() {
           className="scale-105 object-cover object-center opacity-[0.54] blur-[3px]"
         />
       </div>
-      <div className="absolute inset-0 bg-white/28" />
-      <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/38 to-white/12" />
-      <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-transparent to-zinc-50/55" />
+      {/* 전체 은은한 밝기 */}
+      <div className="absolute inset-0 bg-white/22 dark:bg-black/25" />
+      {/* 좌·우는 흐리게, 중앙은 상대적으로 뚜렷하게 */}
+      <div
+        className="absolute inset-0 dark:hidden"
+        style={{
+          background:
+            'linear-gradient(to right, rgba(255,255,255,0.56) 0%, rgba(255,255,255,0.1) 44%, rgba(255,255,255,0.1) 56%, rgba(255,255,255,0.56) 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0 hidden dark:block"
+        style={{
+          background:
+            'linear-gradient(to right, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.08) 44%, rgba(0,0,0,0.08) 56%, rgba(0,0,0,0.42) 100%)',
+        }}
+      />
+      {/* 하단 1/3 — 아래로 갈수록 흐려져 체험 영역(zinc-50)과 자연스럽게 이어짐 */}
+      <div
+        className="absolute inset-0 dark:hidden"
+        style={{
+          background:
+            'linear-gradient(to bottom, transparent 0%, transparent 58%, rgba(250,250,249,0.42) 78%, rgb(250 250 249) 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0 hidden dark:block"
+        style={{
+          background:
+            'linear-gradient(to bottom, transparent 0%, transparent 58%, rgba(0,0,0,0.38) 78%, rgb(0 0 0) 100%)',
+        }}
+      />
     </div>
   );
 }
