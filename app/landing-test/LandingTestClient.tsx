@@ -9,6 +9,7 @@ import { InvoiceFileConvertTrialModeProvider } from '@/app/invoice-file-convert/
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Check } from 'lucide-react';
 const TrialEmbed = dynamic(
   () =>
@@ -35,6 +36,60 @@ const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'
 
 /** 네비·체험 임베드(LogisticsConvertClient)와 동일한 본문 기준선 */
 const landingTestPageContentClass = 'mx-auto w-full max-w-[1200px] px-3 sm:px-5 lg:px-8';
+
+const HERO_SCAN_MS = 3600;
+const HERO_RESULT_FADE_MS = 800;
+const HERO_RESULT_HOLD_MS = 5000;
+
+function useLandingHeroScanCycle() {
+  const [cycleKey, setCycleKey] = useState(0);
+  const [isScanning, setIsScanning] = useState(true);
+  const [showResult, setShowResult] = useState(false);
+  const [resultVisible, setResultVisible] = useState(false);
+
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      setIsScanning(false);
+      setShowResult(true);
+      setResultVisible(true);
+      return;
+    }
+
+    setIsScanning(true);
+    setShowResult(false);
+    setResultVisible(false);
+
+    const scanDoneTimer = window.setTimeout(() => {
+      setIsScanning(false);
+      setShowResult(true);
+    }, HERO_SCAN_MS);
+
+    const nextCycleTimer = window.setTimeout(() => {
+      setCycleKey((key) => key + 1);
+    }, HERO_SCAN_MS + HERO_RESULT_FADE_MS + HERO_RESULT_HOLD_MS);
+
+    return () => {
+      window.clearTimeout(scanDoneTimer);
+      window.clearTimeout(nextCycleTimer);
+    };
+  }, [cycleKey]);
+
+  useEffect(() => {
+    if (!showResult) {
+      setResultVisible(false);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setResultVisible(true));
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [showResult]);
+
+  return { cycleKey, isScanning, showResult, resultVisible };
+}
 
 type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
 type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
@@ -114,7 +169,13 @@ function LandingHeroBackgroundImage() {
   );
 }
 
-function LandingHeroVisualStack() {
+function LandingHeroVisualStack({
+  scanCycleKey,
+  isScanning,
+}: {
+  scanCycleKey: number;
+  isScanning: boolean;
+}) {
   const excelFilesWidth = Math.round(413 * 0.6);
   const excelFilesHeight = Math.round(95 * 0.6);
   const kakaoWidth = Math.round(370 * 0.6);
@@ -122,7 +183,11 @@ function LandingHeroVisualStack() {
 
   return (
     <div className="relative flex w-full max-w-full flex-col items-end">
-      <div className="landing-hero-scan-stage" aria-label="주문 파일과 카카오톡 주문을 AI가 읽는 중">
+      <div
+        className="landing-hero-scan-stage"
+        style={{ '--landing-hero-scan-width': `${kakaoWidth}px` } as CSSProperties}
+        aria-label="주문 파일과 카카오톡 주문을 AI가 읽는 중"
+      >
         <Image
           src="/landing/hero-layer-excel-files.png"
           alt="스마트스토어, 11번가, 자사몰, 카페24, 쿠팡 등 쇼핑몰별 주문 엑셀 파일"
@@ -141,25 +206,45 @@ function LandingHeroVisualStack() {
           unoptimized
           className="relative z-[1] h-auto w-[222px] max-w-full drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)]"
         />
-        <div className="landing-hero-scan-beam" aria-hidden />
-        <div className="landing-hero-scan-line" aria-hidden />
+        {isScanning ? (
+          <div key={scanCycleKey} className="landing-hero-scan-overlay" aria-hidden>
+            <div className="landing-hero-scan-beam" />
+            <div className="landing-hero-scan-line" />
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function LandingHeroExcelResult() {
+function LandingHeroExcelResult({
+  showResult,
+  resultVisible,
+}: {
+  showResult: boolean;
+  resultVisible: boolean;
+}) {
   return (
-    <div className="landing-hero-scan-result mt-4 w-full min-w-0 overflow-hidden sm:mt-5">
-      <Image
-        src="/landing/hero-layer-excel-result.png"
-        alt="정리된 주문 엑셀 결과 예시"
-        width={910}
-        height={154}
-        priority
-        unoptimized
-        className="h-auto w-full max-w-full drop-shadow-[0_12px_32px_rgba(15,23,42,0.2)]"
-      />
+    <div
+      className="mt-4 w-full min-w-0 overflow-hidden sm:mt-5"
+      aria-live="polite"
+      aria-label={showResult ? '정리된 주문 엑셀 결과' : '주문 정리 결과 대기 중'}
+    >
+      <div className="relative w-full aspect-[910/154] min-h-[96px] sm:min-h-[110px]">
+        {showResult ? (
+          <Image
+            src="/landing/hero-layer-excel-result.png"
+            alt="정리된 주문 엑셀 결과 예시"
+            width={910}
+            height={154}
+            priority
+            unoptimized
+            className={`absolute inset-0 h-full w-full max-w-full object-contain object-left drop-shadow-[0_12px_32px_rgba(15,23,42,0.2)] transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
+              resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+            }`}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -169,6 +254,8 @@ function LandingHeroExcelResult() {
  * 여기서 자유롭게 수정·실험한 뒤, 확정된 내용만 실서비스 랜딩에 반영하세요.
  */
 export default function LandingTestPage() {
+  const heroScan = useLandingHeroScanCycle();
+
   const plans = [
     {
       planKey: 'free' as const,
@@ -298,11 +385,11 @@ export default function LandingTestPage() {
             </div>
 
             <div className="min-w-0 overflow-hidden">
-              <LandingHeroVisualStack />
+              <LandingHeroVisualStack scanCycleKey={heroScan.cycleKey} isScanning={heroScan.isScanning} />
             </div>
           </div>
 
-          <LandingHeroExcelResult />
+          <LandingHeroExcelResult showResult={heroScan.showResult} resultVisible={heroScan.resultVisible} />
         </div>
       </section>
 
