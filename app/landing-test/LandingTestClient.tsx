@@ -5,7 +5,7 @@ import {
   LandingPrePricingCta,
   LandingWhyHowCarriers,
 } from '@/app/components/landing/LandingReferenceSections';
-import { landingContainerClass, landingContentCardClass } from '@/app/components/landing/landingLayout';
+import { landingContainerClass } from '@/app/components/landing/landingLayout';
 import { InvoiceFileConvertTrialModeProvider } from '@/app/invoice-file-convert/trial-mode-context';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
@@ -39,12 +39,14 @@ const HERO_SCAN_MS = 3600;
 const HERO_RESULT_FADE_MS = 800;
 const HERO_RESULT_HOLD_MS = 5000;
 
-/** 우측 스캔 레이어(엑셀·카톡)와 좌측 카피 정렬용 — scan-stage gap(0.75rem)과 동일 */
-const LANDING_HERO_KAKAO_WIDTH = Math.round(370 * 0.6);
-const LANDING_HERO_KAKAO_HEIGHT = Math.round(755 * 0.6);
+/** 우측 스캔 레이어 — 기존 0.6 배율 대비 30% 확대(0.78), 오른쪽 끝 고정 */
+const LANDING_HERO_VISUAL_SCALE = 0.6 * 1.3;
+const LANDING_HERO_KAKAO_WIDTH = Math.round(370 * LANDING_HERO_VISUAL_SCALE);
+const LANDING_HERO_KAKAO_HEIGHT = Math.round(755 * LANDING_HERO_VISUAL_SCALE);
 const LANDING_HERO_EXCEL_HEIGHT = Math.round(95 * (LANDING_HERO_KAKAO_WIDTH / 413));
 const LANDING_HERO_SCAN_GAP_PX = 12;
 const LANDING_HERO_KAKAO_TOP_OFFSET = LANDING_HERO_EXCEL_HEIGHT + LANDING_HERO_SCAN_GAP_PX;
+const LANDING_HERO_VISUAL_HEIGHT = LANDING_HERO_KAKAO_TOP_OFFSET + LANDING_HERO_KAKAO_HEIGHT;
 
 function useLandingHeroScanCycle() {
   const [cycleKey, setCycleKey] = useState(0);
@@ -187,7 +189,7 @@ function LandingHeroVisualStack({
   const excelDisplayHeight = LANDING_HERO_EXCEL_HEIGHT;
 
   return (
-    <div className="relative flex w-full max-w-full flex-col items-center">
+    <div className="relative flex w-full max-w-full flex-col items-end">
       <div
         className="landing-hero-scan-stage"
         style={{ '--landing-hero-scan-width': `${kakaoWidth}px` } as CSSProperties}
@@ -229,32 +231,28 @@ function LandingHeroExcelResult({
   showResult: boolean;
   resultVisible: boolean;
 }) {
+  if (!showResult) {
+    return null;
+  }
+
   return (
     <div
-      className="mt-3 w-full min-w-0 sm:mt-4"
+      className={`w-full min-w-0 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
+        resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+      }`}
       aria-live="polite"
-      aria-label={showResult ? '정리된 주문 엑셀 결과' : '주문 정리 결과 대기 중'}
+      aria-label="정리된 주문 엑셀 결과"
     >
-      <div className="relative w-full aspect-[910/154] min-h-[88px] sm:min-h-[100px]">
-        {showResult ? (
-          <div
-            className={`absolute inset-0 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
-              resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
-            }`}
-          >
-            <div className={`${landingContentCardClass} flex h-full min-h-0 flex-col`}>
-              <Image
-                src="/landing/hero-layer-excel-result.png"
-                alt="정리된 주문 엑셀 결과 예시"
-                width={910}
-                height={154}
-                priority
-                unoptimized
-                className="h-full w-full max-w-full rounded-lg object-contain object-left opacity-[0.96] dark:opacity-[0.92]"
-              />
-            </div>
-          </div>
-        ) : null}
+      <div className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-white p-1.5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-2">
+        <Image
+          src="/landing/hero-layer-excel-result.png"
+          alt="정리된 주문 엑셀 결과 예시"
+          width={910}
+          height={154}
+          priority
+          unoptimized
+          className="h-auto w-full rounded-md object-contain object-left opacity-[0.96] dark:opacity-[0.92]"
+        />
       </div>
     </div>
   );
@@ -339,15 +337,16 @@ export default function LandingTestPage() {
         <LandingHeroBackgroundImage />
         <div className={`${landingContainerClass} relative z-10 py-12 sm:py-16 lg:py-20`}>
           <div
-            className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-x-12"
+            className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-x-12"
             style={
               {
                 '--landing-hero-kakao-top-offset': `${LANDING_HERO_KAKAO_TOP_OFFSET}px`,
+                '--landing-hero-visual-height': `${LANDING_HERO_VISUAL_HEIGHT}px`,
               } as CSSProperties
             }
           >
-            <div className="flex min-w-0 flex-col text-left lg:pt-[var(--landing-hero-kakao-top-offset)]">
-              <div className="flex max-w-xl flex-col gap-[3.75rem] sm:gap-[4.5rem]">
+            <div className="flex min-w-0 max-w-xl flex-col text-left lg:min-h-[var(--landing-hero-visual-height)] lg:justify-between lg:pt-[var(--landing-hero-kakao-top-offset)]">
+              <div className="flex flex-col gap-[3.75rem] sm:gap-[4.5rem]">
                 <h1 className="text-[clamp(1.25rem,2.4vw,1.875rem)] font-bold leading-snug tracking-normal text-zinc-900 dark:text-zinc-100 [word-break:keep-all] lg:whitespace-nowrap">
                   <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
                   쇼핑몰, 카톡주문을 쉽게 정리합니다.
@@ -358,32 +357,33 @@ export default function LandingTestPage() {
                   CJ, 롯데, 한진, 로젠 등 여러 택배사 업로드 양식에 맞게 정리합니다.
                 </p>
               </div>
+
+              <div className="mt-6 w-full min-w-0 lg:mt-0">
+                {heroScan.showResult ? (
+                  <div
+                    className={`mb-2 flex w-full items-start gap-2.5 sm:mb-2.5 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
+                      heroScan.resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+                    }`}
+                    aria-hidden={!heroScan.resultVisible}
+                  >
+                    <Check className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                    <p className="text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+                      양식이 다른 여러 파일을 올려도{' '}
+                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                        자동으로 하나의 파일로 변환
+                      </span>
+                      됩니다.
+                    </p>
+                  </div>
+                ) : null}
+                <LandingHeroExcelResult showResult={heroScan.showResult} resultVisible={heroScan.resultVisible} />
+              </div>
             </div>
 
             <div className="min-w-0 shrink-0">
               <LandingHeroVisualStack scanCycleKey={heroScan.cycleKey} isScanning={heroScan.isScanning} />
             </div>
           </div>
-
-          {heroScan.showResult ? (
-            <div
-              className={`mt-6 flex w-full min-w-0 items-start gap-2.5 sm:mt-8 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
-                heroScan.resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
-              }`}
-              aria-hidden={!heroScan.resultVisible}
-            >
-              <Check className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
-              <p className="text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
-                양식이 다른 여러 파일을 올려도{' '}
-                <span className="font-bold text-blue-600 dark:text-blue-400">
-                  자동으로 하나의 파일로 변환
-                </span>
-                됩니다.
-              </p>
-            </div>
-          ) : null}
-
-          <LandingHeroExcelResult showResult={heroScan.showResult} resultVisible={heroScan.resultVisible} />
         </div>
       </section>
 
