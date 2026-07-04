@@ -329,48 +329,7 @@ export default function LandingTestPage() {
         <div className={`relative z-10 py-12 sm:py-16 lg:py-20 xl:py-24 ${landingTestPageContentClass}`}>
           <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start lg:gap-x-12">
             <div className="min-w-0 text-left">
-            <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
-            <h1 className="mt-4 text-[clamp(1.75rem,4.5vw,3.5rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
-              복잡한 기능은 빼고
-              <br />
-              <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>
-            </h1>
-            <p className="mt-6 max-w-xl text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
-              복잡한 설정 없이, 내려받은 주문 파일을 그대로 올려보세요.
-              택배사 양식에 맞는 파일로 빠르게 정리됩니다.
-            </p>
-
-            <div className="mt-8 grid max-w-md grid-cols-3 gap-4 border-y border-zinc-200/80 py-5 dark:border-zinc-700/80">
-              <div>
-                <p className="text-xl font-black text-zinc-950 dark:text-zinc-100 sm:text-2xl">5,000+</p>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">월 무료 사용량</p>
-              </div>
-              <div>
-                <p className="text-xl font-black text-zinc-950 dark:text-zinc-100 sm:text-2xl">6+</p>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">택배사 양식</p>
-              </div>
-              <div>
-                <p className="text-xl font-black text-zinc-950 dark:text-zinc-100 sm:text-2xl">무료</p>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">체험 가능</p>
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/trial"
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
-              >
-                무료로 체험하기
-              </Link>
-              <Link
-                href="/user-guide"
-                className="inline-flex items-center justify-center rounded-xl border border-zinc-300 bg-white/80 px-6 py-3 text-sm font-bold text-zinc-800 backdrop-blur-sm transition hover:bg-white dark:border-zinc-600 dark:bg-zinc-900/80 dark:text-zinc-100"
-              >
-                사용 방법
-              </Link>
-            </div>
-
-            <div className="mt-7 flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-5">
+            <div className="flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-5">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
                 <Check className="h-5 w-5" />
               </span>
