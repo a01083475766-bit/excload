@@ -176,10 +176,10 @@ function LandingHeroVisualStack({
   scanCycleKey: number;
   isScanning: boolean;
 }) {
-  const excelFilesWidth = Math.round(413 * 0.6);
-  const excelFilesHeight = Math.round(95 * 0.6);
   const kakaoWidth = Math.round(370 * 0.6);
   const kakaoHeight = Math.round(755 * 0.6);
+  const excelDisplayWidth = kakaoWidth;
+  const excelDisplayHeight = Math.round(95 * (excelDisplayWidth / 413));
 
   return (
     <div className="relative flex w-full max-w-full flex-col items-end">
@@ -191,11 +191,11 @@ function LandingHeroVisualStack({
         <Image
           src="/landing/hero-layer-excel-files.png"
           alt="스마트스토어, 11번가, 자사몰, 카페24, 쿠팡 등 쇼핑몰별 주문 엑셀 파일"
-          width={excelFilesWidth}
-          height={excelFilesHeight}
+          width={excelDisplayWidth}
+          height={excelDisplayHeight}
           priority
           unoptimized
-          className="relative z-[1] h-auto w-[248px] max-w-full drop-shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
+          className="relative z-[1] h-auto w-full max-w-full drop-shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
         />
         <Image
           src="/landing/hero-layer-kakao-chat.png"
@@ -204,7 +204,7 @@ function LandingHeroVisualStack({
           height={kakaoHeight}
           priority
           unoptimized
-          className="relative z-[1] h-auto w-[222px] max-w-full drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)]"
+          className="relative z-[1] h-auto w-full max-w-full drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)]"
         />
         {isScanning ? (
           <div key={scanCycleKey} className="landing-hero-scan-overlay" aria-hidden>
