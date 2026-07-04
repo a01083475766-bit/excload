@@ -70,6 +70,7 @@ import {
   sanitizeTrackingNumberForUpload,
 } from '@/app/lib/sanitize-tracking-number-for-upload';
 import { WorkspaceBlockingModalOverlay } from '@/app/components/WorkspaceBlockingModalOverlay';
+import { landingContentCardClass } from '@/app/components/landing/landingLayout';
 import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
 import { DefaultCjTemplateNotice } from '@/app/components/DefaultCjTemplateNotice';
 import { WorkspaceSettingsCheckingOverlay } from '@/app/components/WorkspaceSettingsCheckingOverlay';
@@ -5773,12 +5774,16 @@ export function LogisticsConvertClient({
         }`}
       >
       <main
-        className={`mx-auto max-w-[1200px] px-3 sm:px-5 lg:px-8 ${landingEmbed ? 'max-w-none px-0' : ''}`}
+        className={
+          landingEmbed
+            ? 'w-full max-w-none px-0'
+            : 'mx-auto max-w-[1200px] px-3 sm:px-5 lg:px-8'
+        }
       >
         <div
           className={
             landingEmbed
-              ? 'rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-4'
+              ? landingContentCardClass
               : trialMode
                 ? 'trial-focus-outline'
                 : ''
