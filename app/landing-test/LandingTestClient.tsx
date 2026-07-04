@@ -189,7 +189,7 @@ function LandingHeroVisualStack({
   const excelDisplayHeight = LANDING_HERO_EXCEL_HEIGHT;
 
   return (
-    <div className="relative flex w-full max-w-full flex-col items-end">
+    <div className="relative flex w-full max-w-full flex-col items-center">
       <div
         className="landing-hero-scan-stage"
         style={{ '--landing-hero-scan-width': `${kakaoWidth}px` } as CSSProperties}
@@ -240,7 +240,7 @@ function LandingHeroExcelResult({
       <div className="relative w-full aspect-[910/154] min-h-[96px] sm:min-h-[110px]">
         {showResult ? (
           <div
-            className={`absolute inset-y-0 left-0 w-[97%] max-w-full transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
+            className={`absolute inset-0 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
               resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
             }`}
           >
@@ -340,7 +340,7 @@ export default function LandingTestPage() {
       <section className="blue-unified-theme relative w-full overflow-x-hidden">
         <LandingHeroBackgroundImage />
         <div className={`relative z-10 py-12 sm:py-16 lg:py-20 xl:py-24 ${landingTestPageContentClass}`}>
-          <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start lg:gap-x-12">
+          <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-x-12">
             <div
               className="flex min-w-0 flex-col text-left lg:justify-between lg:pt-[var(--landing-hero-kakao-top-offset)] lg:min-h-[var(--landing-hero-visual-height)]"
               style={
@@ -350,12 +350,12 @@ export default function LandingTestPage() {
                 } as CSSProperties
               }
             >
-              <div className="flex max-w-xl flex-col gap-7 sm:gap-8 lg:max-w-none">
+              <div className="flex max-w-xl flex-col gap-14 sm:gap-16 lg:max-w-none">
                 <h1 className="text-[clamp(1.25rem,2.4vw,1.875rem)] font-bold leading-snug tracking-normal text-zinc-900 dark:text-zinc-100 [word-break:keep-all] lg:whitespace-nowrap">
                   <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
                   쇼핑몰, 카톡주문을 쉽게 정리합니다.
                 </h1>
-                <p className="text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+                <p className="pl-4 text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:pl-5 sm:text-lg lg:pl-6 [word-break:keep-all]">
                   스토어, 쿠팡, 자사몰, 카페24 등 여러 쇼핑몰 주문 파일을 올리면
                   <br className="hidden sm:block" />
                   CJ, 롯데, 한진, 로젠 등 여러 택배사 업로드 양식에 맞게 정리합니다.
@@ -375,7 +375,7 @@ export default function LandingTestPage() {
               </div>
             </div>
 
-            <div className="min-w-0 overflow-hidden">
+            <div className="min-w-0 shrink-0">
               <LandingHeroVisualStack scanCycleKey={heroScan.cycleKey} isScanning={heroScan.isScanning} />
             </div>
           </div>
