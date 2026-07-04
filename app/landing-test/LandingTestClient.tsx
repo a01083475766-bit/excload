@@ -251,7 +251,7 @@ function LandingHeroExcelResult({
           height={154}
           priority
           unoptimized
-          className="h-auto w-full rounded-md object-contain object-left opacity-[0.96] dark:opacity-[0.92]"
+          className="block h-auto w-full rounded-md opacity-[0.96] dark:opacity-[0.92]"
         />
       </div>
     </div>
@@ -345,8 +345,8 @@ export default function LandingTestPage() {
               } as CSSProperties
             }
           >
-            <div className="flex min-w-0 max-w-xl flex-col text-left lg:min-h-[var(--landing-hero-visual-height)] lg:justify-between lg:pt-[var(--landing-hero-kakao-top-offset)]">
-              <div className="flex flex-col gap-[3.75rem] sm:gap-[4.5rem]">
+            <div className="flex min-w-0 w-full flex-col text-left lg:min-h-[var(--landing-hero-visual-height)] lg:justify-between lg:pt-[var(--landing-hero-kakao-top-offset)]">
+              <div className="flex max-w-xl flex-col gap-[3.75rem] sm:gap-[4.5rem]">
                 <h1 className="text-[clamp(1.25rem,2.4vw,1.875rem)] font-bold leading-snug tracking-normal text-zinc-900 dark:text-zinc-100 [word-break:keep-all] lg:whitespace-nowrap">
                   <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
                   쇼핑몰, 카톡주문을 쉽게 정리합니다.
