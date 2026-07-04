@@ -18,6 +18,7 @@ import {
   MessageCircle,
   Wrench,
   Newspaper,
+  FlaskConical,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
@@ -87,13 +88,20 @@ export default function MainNav() {
     label: '커머스리포트',
     icon: Newspaper,
   };
+  const landingTestMenuItem: MenuItem = {
+    href: '/landing-test',
+    label: '랜딩페이지 테스트',
+    icon: FlaskConical,
+  };
   const primaryMenuForUser = primaryMenuItems.filter(
     (item) => !hiddenNavHrefs.has(item.href) && (item.href !== '/history' || isLoggedIn),
   );
   const displayPrimaryItems = (
     isAdmin ? [adminMenuItem, commerceReportMenuItem, ...primaryMenuForUser] : primaryMenuForUser
   ).filter((item) => !hiddenNavHrefs.has(item.href));
-  const displaySecondaryItems = secondaryMenuItems.filter((item) => !hiddenNavHrefs.has(item.href));
+  const displaySecondaryItems = secondaryMenuItems
+    .flatMap((item) => (item.href === '/about' && isAdmin ? [item, landingTestMenuItem] : [item]))
+    .filter((item) => !hiddenNavHrefs.has(item.href));
 
   const isLogoActive = pathname === '/excload' || pathname === '/';
 

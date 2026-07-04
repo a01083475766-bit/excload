@@ -147,6 +147,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /landing-test — 랜딩페이지 테스트본 (관리자 전용, 실서비스 랜딩과 분리)
+  if (pathname.startsWith('/landing-test')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!token) {
+      const callbackPath = pathname + request.nextUrl.search;
+      return NextResponse.redirect(
+        buildAuthLoginRedirectUrl(request.url, callbackPath),
+      );
+    }
+    const email =
+      typeof token.email === 'string'
+        ? token.email
+        : typeof token.sub === 'string'
+          ? token.sub
+          : null;
+    if (!isAdminEmail(email)) {
+      return NextResponse.redirect(new URL('/excload', request.url));
+    }
+    return NextResponse.next();
+  }
+
   // /akman · /admin — 관리자 UI (로그인 + 관리자 이메일만 허용, API는 각 route에서 동일 검증)
   if (pathname.startsWith('/akman') || pathname.startsWith('/admin')) {
     const token = await getToken({
