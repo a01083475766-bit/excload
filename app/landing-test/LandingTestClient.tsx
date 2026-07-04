@@ -328,19 +328,32 @@ export default function LandingTestPage() {
         <LandingHeroBackgroundImage />
         <div className={`relative z-10 py-12 sm:py-16 lg:py-20 xl:py-24 ${landingTestPageContentClass}`}>
           <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-end lg:gap-x-12">
-            <div className="min-w-0 text-left">
-            <div className="flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
-                <Check className="h-5 w-5" />
-              </span>
-              <p className="text-sm font-semibold leading-snug text-zinc-700 dark:text-zinc-200 sm:text-base [word-break:keep-all]">
-                양식이 다른 여러 파일을 올려도{' '}
-                <span className="font-extrabold text-blue-600 dark:text-blue-400">
-                  자동으로 하나의 파일로 변환
+            <div className="flex min-w-0 flex-col gap-5 text-left sm:gap-6">
+              <div className="flex max-w-xl flex-col gap-4 sm:gap-5">
+                <h1 className="text-[clamp(1.625rem,3.2vw,2.625rem)] font-black leading-[1.15] tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
+                  <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
+                  쇼핑몰, 카톡주문을
+                  <br className="hidden sm:block" />
+                  쉽게 정리합니다.
+                </h1>
+                <p className="text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+                  스토어, 쿠팡, 자사몰, 카페24 등 여러 쇼핑몰 주문 파일을 올리면
+                  <br className="hidden sm:block" />
+                  CJ, 롯데, 한진, 로젠 등 여러 택배사 업로드 양식에 맞게 정리합니다.
+                </p>
+              </div>
+              <div className="flex max-w-xl items-start gap-3 rounded-2xl border border-white/70 bg-white/72 px-4 py-3.5 shadow-sm backdrop-blur-sm dark:border-blue-900/70 dark:bg-zinc-900/72 sm:px-5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
+                  <Check className="h-5 w-5" />
                 </span>
-                됩니다.
-              </p>
-            </div>
+                <p className="text-sm font-semibold leading-snug text-zinc-700 dark:text-zinc-200 sm:text-base [word-break:keep-all]">
+                  양식이 다른 여러 파일을 올려도{' '}
+                  <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                    자동으로 하나의 파일로 변환
+                  </span>
+                  됩니다.
+                </p>
+              </div>
             </div>
 
             <div className="min-w-0 overflow-hidden">
