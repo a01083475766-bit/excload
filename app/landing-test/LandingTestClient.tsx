@@ -329,12 +329,10 @@ export default function LandingTestPage() {
         <div className={`relative z-10 py-12 sm:py-16 lg:py-20 xl:py-24 ${landingTestPageContentClass}`}>
           <div className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-2 lg:items-end lg:gap-x-12">
             <div className="flex min-w-0 flex-col gap-5 text-left sm:gap-6">
-              <div className="flex max-w-xl flex-col gap-4 sm:gap-5">
-                <h1 className="text-[clamp(1.625rem,3.2vw,2.625rem)] font-black leading-[1.15] tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
+              <div className="flex max-w-xl flex-col gap-4 sm:gap-5 lg:max-w-none">
+                <h1 className="text-[clamp(1.25rem,2.4vw,1.875rem)] font-bold leading-snug tracking-normal text-zinc-900 dark:text-zinc-100 [word-break:keep-all] lg:whitespace-nowrap">
                   <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
-                  쇼핑몰, 카톡주문을
-                  <br className="hidden sm:block" />
-                  쉽게 정리합니다.
+                  쇼핑몰, 카톡주문을 쉽게 정리합니다.
                 </h1>
                 <p className="text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
                   스토어, 쿠팡, 자사몰, 카페24 등 여러 쇼핑몰 주문 파일을 올리면
