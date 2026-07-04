@@ -112,25 +112,39 @@ function LandingHeroBackgroundImage() {
 }
 
 function LandingHeroVisualLayers() {
+  const excelFilesWidth = Math.round(413 * 0.6);
+  const excelFilesHeight = Math.round(95 * 0.6);
+  const kakaoWidth = Math.round(370 * 0.6);
+  const kakaoHeight = Math.round(755 * 0.6);
+
   return (
-    <div className="relative mx-auto flex w-full max-w-[380px] flex-col items-center gap-4 sm:max-w-[420px] lg:mx-0 lg:max-w-[440px]">
+    <div className="relative mx-auto flex w-full max-w-[480px] flex-col items-center gap-3 lg:mx-0">
       <Image
         src="/landing/hero-layer-excel-files.png"
         alt="스마트스토어, 11번가, 자사몰, 카페24, 쿠팡 등 쇼핑몰별 주문 엑셀 파일"
-        width={413}
-        height={95}
+        width={excelFilesWidth}
+        height={excelFilesHeight}
         priority
         unoptimized
-        className="h-auto w-full drop-shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
+        className="h-auto w-[248px] max-w-full drop-shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
       />
       <Image
         src="/landing/hero-layer-kakao-chat.png"
         alt="카카오톡 주문 대화 예시"
-        width={370}
-        height={755}
+        width={kakaoWidth}
+        height={kakaoHeight}
         priority
         unoptimized
-        className="h-auto w-full max-w-[320px] drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)] sm:max-w-[360px]"
+        className="h-auto w-[222px] max-w-full drop-shadow-[0_16px_40px_rgba(15,23,42,0.22)]"
+      />
+      <Image
+        src="/landing/hero-layer-excel-result.png"
+        alt="정리된 주문 엑셀 결과 예시"
+        width={910}
+        height={154}
+        priority
+        unoptimized
+        className="h-auto w-full max-w-[460px] drop-shadow-[0_12px_32px_rgba(15,23,42,0.2)]"
       />
     </div>
   );
