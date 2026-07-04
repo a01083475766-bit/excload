@@ -239,17 +239,23 @@ function LandingHeroExcelResult({
     >
       <div className="relative w-full aspect-[910/154] min-h-[96px] sm:min-h-[110px]">
         {showResult ? (
-          <Image
-            src="/landing/hero-layer-excel-result.png"
-            alt="정리된 주문 엑셀 결과 예시"
-            width={910}
-            height={154}
-            priority
-            unoptimized
-            className={`absolute inset-0 h-full w-full max-w-full object-contain object-left drop-shadow-[0_12px_32px_rgba(15,23,42,0.2)] transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
+          <div
+            className={`absolute inset-y-0 left-0 w-[97%] max-w-full transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
               resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
             }`}
-          />
+          >
+            <div className="flex h-full min-h-0 w-full overflow-hidden rounded-xl border border-blue-200/70 bg-white/62 px-1.5 py-1 shadow-[0_10px_28px_rgba(37,99,235,0.09)] backdrop-blur-sm dark:border-blue-800/50 dark:bg-zinc-900/62 sm:rounded-2xl sm:px-2 sm:py-1.5">
+              <Image
+                src="/landing/hero-layer-excel-result.png"
+                alt="정리된 주문 엑셀 결과 예시"
+                width={910}
+                height={154}
+                priority
+                unoptimized
+                className="h-full w-full max-w-full object-contain object-left opacity-[0.93] dark:opacity-[0.9]"
+              />
+            </div>
+          </div>
         ) : null}
       </div>
     </div>
