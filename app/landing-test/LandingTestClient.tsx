@@ -287,6 +287,35 @@ function LandingHeroExcelResult({
   );
 }
 
+function LandingHeroResultBlock({
+  showResult,
+  resultVisible,
+}: {
+  showResult: boolean;
+  resultVisible: boolean;
+}) {
+  return (
+    <div className="w-full min-w-0">
+      {showResult ? (
+        <div
+          className={`mb-2 flex w-full items-start gap-2.5 sm:mb-2.5 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
+            resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+          }`}
+          aria-hidden={!resultVisible}
+        >
+          <Check className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+          <p className="text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
+            양식이 다른 여러 파일을 올려도{' '}
+            <span className="font-bold text-blue-600 dark:text-blue-400">자동으로 하나의 파일로 변환</span>
+            됩니다.
+          </p>
+        </div>
+      ) : null}
+      <LandingHeroExcelResult showResult={showResult} resultVisible={resultVisible} />
+    </div>
+  );
+}
+
 /**
  * 실서비스 랜딩(app/excload/page.tsx)을 그대로 복제한 관리자 전용 테스트본입니다.
  * 여기서 자유롭게 수정·실험한 뒤, 확정된 내용만 실서비스 랜딩에 반영하세요.
@@ -366,7 +395,7 @@ export default function LandingTestPage() {
         <LandingHeroBackgroundImage />
         <div className={`${landingContainerClass} relative z-10 py-12 sm:py-16 lg:py-20`}>
           <div
-            className="grid w-full min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-x-12"
+            className="flex w-full min-w-0 flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-x-12"
             style={
               {
                 '--landing-hero-kakao-top-offset': `${LANDING_HERO_KAKAO_TOP_OFFSET}px`,
@@ -374,7 +403,7 @@ export default function LandingTestPage() {
               } as CSSProperties
             }
           >
-            <div className="flex min-w-0 w-full flex-col text-left lg:min-h-[var(--landing-hero-visual-height)] lg:justify-between lg:pt-[var(--landing-hero-kakao-top-offset)]">
+            <div className="order-1 flex min-w-0 w-full flex-col text-left lg:min-h-[var(--landing-hero-visual-height)] lg:justify-between lg:pt-[var(--landing-hero-kakao-top-offset)]">
               <div className="flex max-w-xl flex-col gap-[3.75rem] sm:gap-[4.5rem]">
                 <h1 className="text-[clamp(1.25rem,2.4vw,1.875rem)] font-bold leading-snug tracking-normal text-zinc-900 dark:text-zinc-100 [word-break:keep-all] lg:whitespace-nowrap">
                   <span className="text-blue-600 dark:text-blue-400">&quot;빠른 주문 정리&quot;</span>{' '}
@@ -387,30 +416,17 @@ export default function LandingTestPage() {
                 </p>
               </div>
 
-              <div className="mt-6 w-full min-w-0 lg:mt-0">
-                {heroScan.showResult ? (
-                  <div
-                    className={`mb-2 flex w-full items-start gap-2.5 sm:mb-2.5 transition-all duration-[800ms] ease-out motion-reduce:transition-none ${
-                      heroScan.resultVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
-                    }`}
-                    aria-hidden={!heroScan.resultVisible}
-                  >
-                    <Check className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
-                    <p className="text-base font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-lg [word-break:keep-all]">
-                      양식이 다른 여러 파일을 올려도{' '}
-                      <span className="font-bold text-blue-600 dark:text-blue-400">
-                        자동으로 하나의 파일로 변환
-                      </span>
-                      됩니다.
-                    </p>
-                  </div>
-                ) : null}
-                <LandingHeroExcelResult showResult={heroScan.showResult} resultVisible={heroScan.resultVisible} />
+              <div className="mt-6 hidden w-full min-w-0 lg:mt-0 lg:block">
+                <LandingHeroResultBlock showResult={heroScan.showResult} resultVisible={heroScan.resultVisible} />
               </div>
             </div>
 
-            <div className="min-w-0 shrink-0">
+            <div className="order-2 flex min-w-0 shrink-0 justify-center lg:justify-end">
               <LandingHeroVisualStack scanCycleKey={heroScan.cycleKey} isScanning={heroScan.isScanning} />
+            </div>
+
+            <div className="order-3 w-full min-w-0 lg:hidden">
+              <LandingHeroResultBlock showResult={heroScan.showResult} resultVisible={heroScan.resultVisible} />
             </div>
           </div>
         </div>
@@ -423,7 +439,7 @@ export default function LandingTestPage() {
               <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                 복잡한 주문 정리, 먼저 무료로 테스트해보세요.
                 <br className="hidden sm:block" />
-                마음에 들면{' '}
+                편리하면{' '}
                 <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span>으로 계속 사용할 수 있습니다.
               </p>
             </div>
