@@ -33,10 +33,6 @@ const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'
   ),
 });
 
-const LANDING_HERO_VIDEO_START_SECONDS = 0;
-const LANDING_HERO_VIDEO_END_OFFSET_SECONDS = 0.2;
-const LANDING_HERO_VIDEO_PLAYBACK_RATE = 0.5;
-
 type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
 type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
 
@@ -95,61 +91,21 @@ function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
   );
 }
 
-function LandingHeroBackgroundVideo() {
-  const applyPlaybackSettings = (video: HTMLVideoElement) => {
-    video.defaultPlaybackRate = LANDING_HERO_VIDEO_PLAYBACK_RATE;
-    video.playbackRate = LANDING_HERO_VIDEO_PLAYBACK_RATE;
-  };
-
-  const seekToStart = (video: HTMLVideoElement) => {
-    applyPlaybackSettings(video);
-    if (video.duration > LANDING_HERO_VIDEO_START_SECONDS) {
-      video.currentTime = LANDING_HERO_VIDEO_START_SECONDS;
-    }
-  };
-
+function LandingHeroBackgroundImage() {
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-full overflow-hidden rounded-2xl bg-zinc-200 sm:h-[430px] lg:h-[520px]" aria-hidden>
-      <video
-        className="absolute -inset-1 h-[calc(100%+0.5rem)] w-[calc(100%+0.5rem)] max-w-none object-cover opacity-100 brightness-[0.72] contrast-[1.08] saturate-[0.95]"
-        muted
-        playsInline
-        autoPlay
-        preload="metadata"
-        onLoadedMetadata={(event) => {
-          seekToStart(event.currentTarget);
-          void event.currentTarget.play().catch(() => undefined);
-        }}
-        onCanPlay={(event) => {
-          applyPlaybackSettings(event.currentTarget);
-        }}
-        onPlay={(event) => {
-          applyPlaybackSettings(event.currentTarget);
-        }}
-        onRateChange={(event) => {
-          if (event.currentTarget.playbackRate !== LANDING_HERO_VIDEO_PLAYBACK_RATE) {
-            applyPlaybackSettings(event.currentTarget);
-          }
-        }}
-        onTimeUpdate={(event) => {
-          const video = event.currentTarget;
-          if (
-            video.duration > LANDING_HERO_VIDEO_START_SECONDS + LANDING_HERO_VIDEO_END_OFFSET_SECONDS &&
-            video.currentTime >= video.duration - LANDING_HERO_VIDEO_END_OFFSET_SECONDS
-          ) {
-            seekToStart(video);
-          }
-        }}
-        onEnded={(event) => {
-          seekToStart(event.currentTarget);
-          void event.currentTarget.play().catch(() => undefined);
-        }}
-      >
-        <source src="/landing/videos/quick-order-bg-mobile.mp4" type="video/mp4" media="(max-width: 640px)" />
-        <source src="/landing/videos/quick-order-bg.mp4" type="video/mp4" />
-      </video>
-      <div className="absolute -inset-1 bg-blue-950/10 dark:bg-black/35" />
-      <div className="absolute -inset-1 bg-gradient-to-b from-white/30 via-white/10 to-zinc-50/25 dark:from-black/55 dark:via-black/25 dark:to-black/55" />
+    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl bg-zinc-100" aria-hidden>
+      <div className="absolute inset-0">
+        <Image
+          src="/landing/hero-bg-laptop.png"
+          alt=""
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 1152px"
+          className="scale-105 object-cover object-center opacity-45 blur-[3px]"
+        />
+      </div>
+      <div className="absolute inset-0 bg-white/30" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/45 via-white/20 to-zinc-50/35" />
     </div>
   );
 }
@@ -230,7 +186,7 @@ export default function LandingTestPage() {
         <section className="blue-unified-theme pt-7 pb-8 lg:pt-12 lg:pb-12">
           <div className="relative z-10 flex flex-col gap-8">
             <div className="relative isolate mx-auto mb-6 w-full max-w-6xl overflow-hidden rounded-2xl bg-zinc-200 px-4 py-12 text-center sm:mb-12 sm:px-8 lg:mb-14 lg:py-16">
-              <LandingHeroBackgroundVideo />
+              <LandingHeroBackgroundImage />
               <div className="relative z-10">
               <p className="text-sm font-bold tracking-[0.28em] text-blue-600 dark:text-blue-400">EXCLOAD</p>
               <h1 className="mt-4 text-[clamp(1.47rem,4.2vw,3.36rem)] font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 [word-break:keep-all]">
