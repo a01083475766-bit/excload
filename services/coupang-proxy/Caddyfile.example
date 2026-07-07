@@ -1,0 +1,6 @@
+# /etc/caddy/Caddyfile — coupang-proxy.excload.com
+# sudo systemctl reload caddy
+
+coupang-proxy.excload.com {
+    reverse_proxy localhost:8787
+}

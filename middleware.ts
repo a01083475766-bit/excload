@@ -97,6 +97,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /order/integration — 주문연동 (관리자 전용)
+  if (pathname.startsWith('/order/integration')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!token) {
+      const callbackPath = pathname + request.nextUrl.search;
+      return NextResponse.redirect(
+        buildAuthLoginRedirectUrl(request.url, callbackPath),
+      );
+    }
+    const email =
+      typeof token.email === 'string'
+        ? token.email
+        : typeof token.sub === 'string'
+          ? token.sub
+          : null;
+    if (!isAdminEmail(email)) {
+      return NextResponse.redirect(new URL('/order-convert', request.url));
+    }
+    return NextResponse.next();
+  }
+
   // /order — API 주문 수집 UI 등 (예: /order/fetch)
   if (pathname.startsWith('/order')) {
     return NextResponse.next();

@@ -1,0 +1,18 @@
+# /etc/systemd/system/excload-coupang-proxy.service
+# sudo systemctl daemon-reload && sudo systemctl enable --now excload-coupang-proxy
+
+[Unit]
+Description=Excload Coupang API Proxy
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/excload-coupang-proxy
+EnvironmentFile=/etc/excload-coupang-proxy.env
+ExecStart=/usr/bin/node /opt/excload-coupang-proxy/server.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
