@@ -297,13 +297,13 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     authType: ['api_key', 'ip_whitelist'],
     supportedActions: [...PHASE1_ACTIONS, 'order_confirm', 'invoice_upload'],
     apiStatus: 'available',
-    phase: 'planned',
+    phase: 'beta',
     requiredSellerAction:
       'SSG 파트너오피스(po.ssgadm.com) → API회원정보관리 → 운영·테스트 서버 IP에 54.180.45.46 등록 → 이메일 API키 활성화',
     tokenExpirePolicy: 'API 인증키 — Authorization 헤더, 별도 OAuth 없음',
     rateLimitMemo: 'eAPI POST — 기간별 조회 제한(7~180일) API별 상이',
     proxyDomains: [
-      proxyDomain('eapi.ssgadm.com', ['https'], 'planned'),
+      proxyDomain('eapi.ssgadm.com', ['https'], 'deployed', '배송지시·출고대상 조회 — Lightsail 1회 반영 대기'),
       proxyDomain('qa-eapi.ssgadm.com', ['https'], 'planned', 'QA 테스트'),
     ],
     requiredInputs: [
@@ -311,7 +311,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'vendorId', label: '협력사코드(로그인 ID)', required: true, storage: 'vendorId' },
       { key: 'apiKey', label: 'API 인증키', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '배송단계별 listShppDirection / listWarehouseOut 등. 사업자전환·승인 1~2일.',
+    memo: '베타. 1차: listShppDirection·listWarehouseOut 조회만. 발주확인·송장·상태변경 제외.',
     marketplaceGroupId: 'ssg',
     requiresFixedIpProxy: true,
   },

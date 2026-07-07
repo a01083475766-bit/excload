@@ -4,6 +4,7 @@ export type OrderIntegrationMallId =
   | 'smartstore'
   | 'cafe24'
   | 'lotteon'
+  | 'ssg'
   | 'gmarket'
   | 'sabangnet';
 
@@ -60,6 +61,14 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     status: 'available',
     badge: 'beta',
     priority: 5,
+  },
+  {
+    id: 'ssg',
+    name: 'SSG.COM',
+    description: 'SSG Open API로 배송지시·출고대상 주문을 조회·수집합니다. (베타)',
+    status: 'available',
+    badge: 'beta',
+    priority: 6,
   },
   {
     id: 'gmarket',

@@ -14,7 +14,7 @@ import { INTEGRATION_PROXY_HOST_RULES } from '../../../services/coupang-proxy/al
 
 describe('proxy whitelist sync (TS registry ↔ Lightsail allowed-hosts.mjs)', () => {
   /** Vercel SSOT에만 있고 Lightsail 1회 배포 전까지 mjs에 없는 exact hostname */
-  const pendingLightsailExactHosts = ['api.cafe24.com', 'openapi.lotteon.com'];
+  const pendingLightsailExactHosts = ['api.cafe24.com', 'openapi.lotteon.com', 'eapi.ssgadm.com'];
 
   it('keeps deployed exact hostname lists identical (suffix rules excluded until Lightsail 1-shot)', () => {
     const tsHosts = getIntegrationProxyAllowedHostnames()
@@ -89,6 +89,10 @@ describe('channel integration registry', () => {
 
   it('tracks lotteon host in Vercel whitelist before Lightsail 1-shot deploy', () => {
     expect(getIntegrationProxyAllowedHostnames()).toContain('openapi.lotteon.com');
+  });
+
+  it('tracks ssg host in Vercel whitelist before Lightsail 1-shot deploy', () => {
+    expect(getIntegrationProxyAllowedHostnames()).toContain('eapi.ssgadm.com');
   });
 
   it('tracks planned proxy domains beyond deployed whitelist', () => {
