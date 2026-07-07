@@ -10,27 +10,48 @@ import {
   getIntegrationProxyAllowedHostnames,
   validateSingleSourcePerMarketplace,
 } from '@/app/lib/order-integration/mall-integration-specs';
-import { INTEGRATION_PROXY_HOST_RULES } from '../../../services/coupang-proxy/allowed-hosts.mjs';
+import {
+  INTEGRATION_PROXY_HOST_RULES,
+  INTEGRATION_PROXY_SUFFIX_RULES,
+} from '../../../services/coupang-proxy/allowed-hosts.mjs';
+
+const LIGHTSAIL_ONE_SHOT_EXACT_HOSTS = [
+  'api-gateway.coupang.com',
+  'api.commerce.naver.com',
+  'api.11st.co.kr',
+  'sbadmin.sabangnet.co.kr',
+  'openapi.lotteon.com',
+  'eapi.ssgadm.com',
+  'api.cjonstyle.com',
+  'server-api.e-ncp.com',
+  'openhub.godo.co.kr',
+  'connect.makeshop.co.kr',
+] as const;
 
 describe('proxy whitelist sync (TS registry ↔ Lightsail allowed-hosts.mjs)', () => {
-  /** Vercel SSOT에만 있고 Lightsail 1회 배포 전까지 mjs에 없는 exact hostname */
-  const pendingLightsailExactHosts = ['api.cafe24.com', 'openapi.lotteon.com', 'eapi.ssgadm.com'];
-
-  it('keeps deployed exact hostname lists identical (suffix rules excluded until Lightsail 1-shot)', () => {
-    const tsHosts = getIntegrationProxyAllowedHostnames()
-      .filter((hostname) => !pendingLightsailExactHosts.includes(hostname))
-      .sort();
-    const mjsHosts = INTEGRATION_PROXY_HOST_RULES.map((r) => r.hostname)
-      .filter((hostname) => !pendingLightsailExactHosts.includes(hostname))
-      .sort();
-    expect(mjsHosts).toEqual(tsHosts);
+  it('keeps Lightsail exact host list at 1-shot deploy target', () => {
+    const mjsHosts = INTEGRATION_PROXY_HOST_RULES.map((r) => r.hostname).sort();
+    expect(mjsHosts).toEqual([...LIGHTSAIL_ONE_SHOT_EXACT_HOSTS].sort());
   });
 
-  it('tracks cafe24 suffix rule in registry', () => {
+  it('includes every Vercel deployed exact hostname in Lightsail mjs', () => {
+    const mjsHosts = new Set(INTEGRATION_PROXY_HOST_RULES.map((r) => r.hostname));
+    for (const hostname of getIntegrationProxyAllowedHostnames()) {
+      expect(mjsHosts.has(hostname)).toBe(true);
+    }
+  });
+
+  it('does not include legacy api.cafe24.com in Lightsail mjs', () => {
+    const mjsHosts = INTEGRATION_PROXY_HOST_RULES.map((r) => r.hostname);
+    expect(mjsHosts).not.toContain('api.cafe24.com');
+  });
+
+  it('tracks cafe24 suffix rule in registry and Lightsail mjs', () => {
     const spec = getChannelIntegrationSpec('cafe24');
     expect(spec?.proxyDomains.some((d) => d.hostname === '*.cafe24api.com' && d.matchKind === 'suffix')).toBe(
       true,
     );
+    expect(INTEGRATION_PROXY_SUFFIX_RULES.some((r) => r.suffix === 'cafe24api.com')).toBe(true);
   });
 });
 

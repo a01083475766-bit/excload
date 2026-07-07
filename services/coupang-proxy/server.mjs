@@ -16,9 +16,10 @@
 import { createServer } from 'node:http';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import {
+  assertUrlAllowed,
   getAllowedHostnames,
-  getAllowedProtocols,
   INTEGRATION_PROXY_HOST_RULES,
+  INTEGRATION_PROXY_SUFFIX_RULES,
 } from './allowed-hosts.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -28,8 +29,7 @@ const SHARED_SECRET = (
 const INTEGRATION_INVOKE_PATH = '/internal/integration/invoke';
 const COUPANG_INVOKE_PATH = '/internal/coupang/invoke';
 const MAX_AGE_MS = 5 * 60 * 1000;
-
-const ALLOWED_HOSTS = new Set(getAllowedHostnames());
+const DEFAULT_UPSTREAM_TIMEOUT_MS = 60_000;
 
 if (!SHARED_SECRET) {
   console.error('INTEGRATION_PROXY_SHARED_SECRET (or COUPANG_PROXY_SHARED_SECRET) is required');
@@ -75,6 +75,17 @@ function buildCoupangAuthorization({ method, pathWithQuery, accessKey, secretKey
   return `CEA algorithm=HmacSHA256, access-key=${accessKey}, signed-date=${signedDate}, signature=${signature}`;
 }
 
+async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_UPSTREAM_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function invokeCoupang(payload) {
   const authorization = buildCoupangAuthorization({
     method: payload.method,
@@ -84,7 +95,7 @@ async function invokeCoupang(payload) {
   });
 
   const url = `https://api-gateway.coupang.com${payload.pathWithQuery}`;
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: payload.method,
     headers: {
       Authorization: authorization,
@@ -102,32 +113,14 @@ async function invokeCoupang(payload) {
   };
 }
 
-function assertAllowedUrl(rawUrl) {
-  let parsed;
-  try {
-    parsed = new URL(rawUrl);
-  } catch {
-    throw new Error('invalid url');
-  }
-  const protocol = parsed.protocol.replace(':', '');
-  if (!ALLOWED_HOSTS.has(parsed.hostname.toLowerCase())) {
-    throw new Error('domain not allowed');
-  }
-  const allowedProtocols = getAllowedProtocols(parsed.hostname);
-  if (!allowedProtocols.includes(protocol)) {
-    throw new Error('protocol not allowed');
-  }
-  return parsed;
-}
-
 async function invokeIntegrationHttp(payload) {
-  assertAllowedUrl(payload.url);
+  assertUrlAllowed(payload.url);
 
   const headers = {
     ...(payload.headers ?? {}),
   };
 
-  const response = await fetch(payload.url, {
+  const response = await fetchWithTimeout(payload.url, {
     method: payload.method?.toUpperCase() || 'GET',
     headers,
     body: payload.body ?? undefined,
@@ -192,12 +185,17 @@ async function handleSignedInvoke(req, res, invokePath, handler) {
     sendJson(res, 200, { ok: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'invoke failed';
-    console.error('[integration-proxy] invoke failed', { requestId, path: invokePath, message });
+    const isAbort = error instanceof Error && error.name === 'AbortError';
+    console.error('[integration-proxy] invoke failed', {
+      requestId,
+      path: invokePath,
+      message: isAbort ? 'upstream timeout' : message,
+    });
     sendJson(res, 502, {
       ok: false,
       httpStatus: 502,
       bodyText: '',
-      error: message,
+      error: isAbort ? 'upstream timeout' : message,
     });
   }
 }
@@ -206,8 +204,19 @@ const server = createServer(async (req, res) => {
   if (req.url === '/healthz' && req.method === 'GET') {
     sendJson(res, 200, {
       ok: true,
-      allowedHosts: [...ALLOWED_HOSTS],
-      hostRules: INTEGRATION_PROXY_HOST_RULES,
+      integrationInvokeEnabled: true,
+      coupangInvokeEnabled: true,
+      allowedHosts: getAllowedHostnames(),
+      suffixRules: INTEGRATION_PROXY_SUFFIX_RULES.map((rule) => ({
+        suffix: rule.suffix,
+        protocols: rule.protocols,
+        malls: rule.malls,
+      })),
+      hostRules: INTEGRATION_PROXY_HOST_RULES.map((rule) => ({
+        hostname: rule.hostname,
+        protocols: rule.protocols,
+        malls: rule.malls,
+      })),
     });
     return;
   }
