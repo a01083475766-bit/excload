@@ -95,6 +95,11 @@ describe('channel integration registry', () => {
     expect(getIntegrationProxyAllowedHostnames()).toContain('eapi.ssgadm.com');
   });
 
+  it('tracks cjonstyle host in planned proxy domains before deploy', () => {
+    const planned = getAllPlannedProxyDomains();
+    expect(planned.some((d) => d.hostname === 'api.cjonstyle.com')).toBe(true);
+  });
+
   it('tracks planned proxy domains beyond deployed whitelist', () => {
     const planned = getAllPlannedProxyDomains();
     expect(planned.some((d) => d.hostname === 'openhub.godo.co.kr')).toBe(true);

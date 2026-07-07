@@ -322,13 +322,13 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     authType: ['api_key', 'ip_whitelist'],
     supportedActions: [...PHASE1_ACTIONS, 'order_confirm', 'invoice_upload'],
     apiStatus: 'restricted',
-    phase: 'planned',
+    phase: 'beta',
     requiredSellerAction:
-      'CJ온스타일 파트너시스템 입점 → API관리 → IP 등록 또는 셀러툴 선택 → vendorCode·authenticationKey 발급',
+      'CJ온스타일 파트너시스템 입점 → API 정보관리 → 직접개발 + 운영 IP 54.180.45.46 → vendorCode·authenticationKey 발급',
     tokenExpirePolicy: 'authenticationKey(60자) — Header vendorCode + authenticationKey',
     rateLimitMemo: '표준 API — 파트너 Docs 로그인 후 상세 확인',
     proxyDomains: [
-      proxyDomain('api.cjonstyle.com', ['https'], 'planned', '표준 API 호스트 — Docs 재확인'),
+      proxyDomain('api.cjonstyle.com', ['https'], 'planned', '표준 API 호스트 — Path는 api-spec.ts placeholder'),
     ],
     requiredInputs: [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
@@ -340,8 +340,14 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
         secret: true,
         storage: 'apiKey',
       },
+      {
+        key: 'deliveryMethodCode',
+        label: '배송타입 코드',
+        required: false,
+        storage: 'accessKey',
+      },
     ],
-    memo: '입점 협력사 전용. 배송타입별 수집 분리 가능.',
+    memo: 'restricted·베타. 입점 협력사 전용. 배송타입별 조회·중복제거. Path placeholder.',
     marketplaceGroupId: 'cjonstyle',
     requiresFixedIpProxy: true,
   },

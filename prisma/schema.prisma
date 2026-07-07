@@ -136,6 +136,7 @@ enum OrderIntegrationProvider {
   CAFE24
   LOTTEON
   SSG
+  CJONSTYLE
 }
 
 enum OrderIntegrationAccountStatus {

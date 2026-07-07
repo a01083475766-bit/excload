@@ -5,6 +5,7 @@ export type OrderIntegrationMallId =
   | 'cafe24'
   | 'lotteon'
   | 'ssg'
+  | 'cjonstyle'
   | 'gmarket'
   | 'sabangnet';
 
@@ -69,6 +70,14 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     status: 'available',
     badge: 'beta',
     priority: 6,
+  },
+  {
+    id: 'cjonstyle',
+    name: 'CJ온스타일',
+    description: 'CJ온스타일 표준 API로 배송타입별 주문을 조회·수집합니다. (베타·입점 협력사)',
+    status: 'available',
+    badge: 'beta',
+    priority: 7,
   },
   {
     id: 'gmarket',
