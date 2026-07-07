@@ -34,8 +34,9 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
   {
     id: 'smartstore',
     name: '스마트스토어',
-    description: '네이버 커머스 API 대행사·솔루션 입점 절차 검토 중입니다.',
-    status: 'preparing',
+    description: '네이버 커머스API(Smart Store Center)로 주문을 조회·수집합니다. (베타)',
+    status: 'available',
+    priority: 3,
   },
   {
     id: 'cafe24',
@@ -63,7 +64,7 @@ export function getOrderIntegrationMall(id: string): OrderIntegrationMall | unde
 
 export const EXCLOAD_INTEGRATION_INFO = {
   companyName: '엑클로드',
-  url: 'excload.com',
+  url: 'https://www.excload.com',
 } as const;
 
 export function getExcloadOutboundIp(): string {

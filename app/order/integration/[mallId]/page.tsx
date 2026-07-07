@@ -41,7 +41,7 @@ export default function OrderIntegrationMallPage() {
     );
   }
 
-  if (mallId === 'coupang' || mallId === 'eleven') {
+  if (mallId === 'coupang' || mallId === 'eleven' || mallId === 'smartstore') {
     return (
       <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
         <MallIntegrationForm mallId={mallId} mallName={mall.name} />

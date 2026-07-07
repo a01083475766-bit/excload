@@ -105,8 +105,8 @@ export default function OrderIntegrationPanel() {
       </div>
 
       <p className="mt-6 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-        관리자 전용 준비 화면입니다. 쿠팡 → 11번가 순으로 연동 기능을 구현할 예정이며, 스마트스토어는
-        네이버 커머스 API 공식 절차 검토 후 제공합니다.
+        관리자 전용 화면입니다. 쿠팡·스마트스토어(베타) 연동 테스트 후 11번가 등 순차 확장 예정입니다.
+        발주확인·송장 전송 등 상태 변경 기능은 별도 버튼으로 분리해 제공할 예정입니다.
       </p>
     </div>
   );

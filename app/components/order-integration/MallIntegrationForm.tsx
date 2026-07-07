@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { CoupangIntegrationForm } from '@/app/components/order-integration/CoupangIntegrationForm';
+import { SmartstoreIntegrationForm } from '@/app/components/order-integration/SmartstoreIntegrationForm';
 import {
   EXCLOAD_INTEGRATION_INFO,
   getExcloadOutboundIp,
@@ -12,7 +13,7 @@ import {
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 
 type Props = {
-  mallId: Extract<OrderIntegrationMallId, 'coupang' | 'eleven'>;
+  mallId: Extract<OrderIntegrationMallId, 'coupang' | 'eleven' | 'smartstore'>;
   mallName: string;
 };
 
@@ -178,6 +179,10 @@ function ElevenIntegrationPlaceholder({ mallName }: { mallName: string }) {
 export function MallIntegrationForm({ mallId, mallName }: Props) {
   if (mallId === 'coupang') {
     return <CoupangIntegrationForm />;
+  }
+
+  if (mallId === 'smartstore') {
+    return <SmartstoreIntegrationForm />;
   }
 
   return <ElevenIntegrationPlaceholder mallName={mallName} />;

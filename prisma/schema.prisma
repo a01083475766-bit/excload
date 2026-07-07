@@ -132,6 +132,7 @@ model User {
 enum OrderIntegrationProvider {
   COUPANG
   ELEVEN
+  SMARTSTORE
 }
 
 enum OrderIntegrationAccountStatus {

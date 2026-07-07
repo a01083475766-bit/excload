@@ -1,11 +1,14 @@
 /**
- * 쿠팡 Open API 고정 IP 프록시 — 참조 서버
+ * 엑클로드 주문연동 고정 IP 프록시 — 참조 서버
  *
  * 배포: Lightsail / EC2 등 고정 outbound IP가 있는 VM
- * Vercel env: COUPANG_PROXY_BASE_URL, COUPANG_PROXY_SHARED_SECRET
+ * Vercel env: INTEGRATION_PROXY_BASE_URL, INTEGRATION_PROXY_SHARED_SECRET
+ * (하위 호환: COUPANG_PROXY_*)
  *
- * 실행:
- *   COUPANG_PROXY_SHARED_SECRET=... node server.mjs
+ * 엔드포인트:
+ *   GET  /healthz
+ *   POST /internal/integration/invoke  — 범용 HTTPS 프록시 (도메인 whitelist)
+ *   POST /internal/coupang/invoke      — 쿠팡 HMAC 전용 (하위 호환)
  *
  * ⚠️ 참조 구현입니다. 운영 전 HTTPS(TLS), requestId 중복 차단, 로그 마스킹을 보강하세요.
  */
@@ -14,12 +17,20 @@ import { createServer } from 'node:http';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 8787);
-const SHARED_SECRET = process.env.COUPANG_PROXY_SHARED_SECRET?.trim();
-const INVOKE_PATH = '/internal/coupang/invoke';
+const SHARED_SECRET = (
+  process.env.INTEGRATION_PROXY_SHARED_SECRET ?? process.env.COUPANG_PROXY_SHARED_SECRET
+)?.trim();
+const INTEGRATION_INVOKE_PATH = '/internal/integration/invoke';
+const COUPANG_INVOKE_PATH = '/internal/coupang/invoke';
 const MAX_AGE_MS = 5 * 60 * 1000;
 
+const ALLOWED_HOSTS = new Set([
+  'api-gateway.coupang.com',
+  'api.commerce.naver.com',
+]);
+
 if (!SHARED_SECRET) {
-  console.error('COUPANG_PROXY_SHARED_SECRET is required');
+  console.error('INTEGRATION_PROXY_SHARED_SECRET (or COUPANG_PROXY_SHARED_SECRET) is required');
   process.exit(1);
 }
 
@@ -59,8 +70,7 @@ function buildCoupangAuthorization({ method, pathWithQuery, accessKey, secretKey
   const signedDate = formatSignedDate();
   const message = `${signedDate}${method.toUpperCase()}${path}${query}`;
   const signature = createHmac('sha256', secretKey).update(message, 'utf8').digest('hex');
-  const authorization = `CEA algorithm=HmacSHA256, access-key=${accessKey}, signed-date=${signedDate}, signature=${signature}`;
-  return authorization;
+  return `CEA algorithm=HmacSHA256, access-key=${accessKey}, signed-date=${signedDate}, signature=${signature}`;
 }
 
 async function invokeCoupang(payload) {
@@ -90,26 +100,55 @@ async function invokeCoupang(payload) {
   };
 }
 
+function assertAllowedUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('invalid url');
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error('https required');
+  }
+  if (!ALLOWED_HOSTS.has(parsed.hostname.toLowerCase())) {
+    throw new Error('domain not allowed');
+  }
+  return parsed;
+}
+
+async function invokeIntegrationHttp(payload) {
+  assertAllowedUrl(payload.url);
+
+  const headers = {
+    ...(payload.headers ?? {}),
+  };
+
+  const response = await fetch(payload.url, {
+    method: payload.method?.toUpperCase() || 'GET',
+    headers,
+    body: payload.body ?? undefined,
+  });
+
+  return {
+    httpStatus: response.status,
+    bodyText: await response.text(),
+  };
+}
+
 function sendJson(res, status, data) {
   const body = JSON.stringify(data);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(body);
 }
 
-const server = createServer(async (req, res) => {
-  if (req.url === '/healthz' && req.method === 'GET') {
-    sendJson(res, 200, { ok: true });
-    return;
-  }
-
-  if (req.url !== INVOKE_PATH || req.method !== 'POST') {
-    sendJson(res, 404, { ok: false, error: 'not found' });
-    return;
-  }
-
+async function readRequestBody(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
-  const rawBody = Buffer.concat(chunks).toString('utf8');
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function handleSignedInvoke(req, res, invokePath, handler) {
+  const rawBody = await readRequestBody(req);
 
   const timestamp = req.headers['x-excload-proxy-timestamp'];
   const signature = req.headers['x-excload-proxy-signature'];
@@ -122,7 +161,7 @@ const server = createServer(async (req, res) => {
 
   if (!verifySignature({
     method: 'POST',
-    path: INVOKE_PATH,
+    path: invokePath,
     body: rawBody,
     timestamp,
     signature,
@@ -140,20 +179,49 @@ const server = createServer(async (req, res) => {
   }
 
   try {
-    const result = await invokeCoupang(payload);
-    console.info('[coupang-proxy] invoke ok', { requestId, httpStatus: result.httpStatus });
+    const result = await handler(payload);
+    console.info('[integration-proxy] invoke ok', {
+      requestId,
+      path: invokePath,
+      httpStatus: result.httpStatus,
+    });
     sendJson(res, 200, { ok: true, ...result });
   } catch (error) {
-    console.error('[coupang-proxy] invoke failed', { requestId, message: error?.message });
+    const message = error instanceof Error ? error.message : 'invoke failed';
+    console.error('[integration-proxy] invoke failed', { requestId, path: invokePath, message });
     sendJson(res, 502, {
       ok: false,
       httpStatus: 502,
       bodyText: '',
-      error: 'coupang upstream failed',
+      error: message,
     });
   }
+}
+
+const server = createServer(async (req, res) => {
+  if (req.url === '/healthz' && req.method === 'GET') {
+    sendJson(res, 200, { ok: true, allowedHosts: [...ALLOWED_HOSTS] });
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    sendJson(res, 404, { ok: false, error: 'not found' });
+    return;
+  }
+
+  if (req.url === INTEGRATION_INVOKE_PATH) {
+    await handleSignedInvoke(req, res, INTEGRATION_INVOKE_PATH, invokeIntegrationHttp);
+    return;
+  }
+
+  if (req.url === COUPANG_INVOKE_PATH) {
+    await handleSignedInvoke(req, res, COUPANG_INVOKE_PATH, invokeCoupang);
+    return;
+  }
+
+  sendJson(res, 404, { ok: false, error: 'not found' });
 });
 
 server.listen(PORT, () => {
-  console.info(`coupang proxy listening on :${PORT}`);
+  console.info(`integration proxy listening on :${PORT}`);
 });
