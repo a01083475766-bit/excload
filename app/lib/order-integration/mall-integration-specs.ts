@@ -1,11 +1,37 @@
 /**
  * 주문연동 채널 DB (SSOT)
  *
- * - 엑클로드 판매자센터 등록: 업체명 엑클로드, URL https://www.excload.com, IP NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP
- * - Lightsail allowed-hosts.mjs ↔ getIntegrationProxyWhitelist() (deployStatus=deployed 만)
- * - 쇼핑몰 구현·등록 완료 후 server.mjs / allowed-hosts.mjs **한 번만** 교체 배포
+ * ## integrationType (3종 — 혼동 금지)
  *
- * 중복 수집 방지: 동일 marketplaceGroupId 에 direct_api·hub_api·excel_upload 중 하나의 source 만 활성화
+ * - **direct_api**: 각 쇼핑몰 Open API에 직접 연결 (쿠팡, 11번가, 스마트스토어 등).
+ *   Lightsail whitelist에는 **몰 upstream host**만 등록 (`api.11st.co.kr` 등).
+ * - **hub_api**: 플레이오토·사방넷·이지어드민 등 **허브 API** (우선 검토 3곳만).
+ *   **메인 주문 수집 경로가 아님** — 이미 허브를 쓰는 셀러가 주문 데이터를 엑클로드로 가져와
+ *   택배사 양식 변환·카톡 주문 통합 등 **보조** 용도. Lightsail에는 **허브 upstream host**만 등록.
+ * - **excel_upload**: API 없이 엑셀 업로드. **Lightsail upstream host 불필요**.
+ *
+ * ## Lightsail allowed-hosts.mjs
+ *
+ * “연동 가능한 전체 채널 목록”이 아니라, 프록시가 실제로 나가는 **upstream host 목록**이다.
+ * `9cadf36` 등 host sync 패치는 **direct 10채널 upstream + suffix + 사방넷 hub host** 용이며,
+ * hub 전체 구현 완료를 뜻하지 않는다. hub 우선 검토: playauto · sabangnet · easyadmin (`priority_hub`).
+ *
+ * ## hub_api 제품 전략 (2026-07)
+ *
+ * - **direct_api가 핵심** — 쿠팡·11번가 등 몰별 Open API 직접 연동.
+ * - hub_api 전체 구현 X — `priority_hub` 3곳만 API·계약 검토, 나머지 `deferred`·`backlog`.
+ * - 허브 유료 이용 셀러의 “단순 주문 수집” 니치는 약함 → UI에서 고급·보조 옵션으로 분리.
+ *
+ * ## 중복 수집 방지 (marketplaceGroupId 기준)
+ *
+ * 동일 `marketplaceGroupId`에 **direct_api + hub_api + excel_upload 중 활성 source는 하나만**.
+ * 예: `eleven` 그룹 — 11번가 direct, 플레이오토 hub, 사방넷 hub, (향후) 11번가 엑셀 중 **택1**.
+ * `excel_upload`도 `marketplaceGroupId`가 있으면 충돌 검사 대상 (`excel_tmon` → `tmon` 등).
+ * `marketplaceGroupId` 없는 `excel_generic`·`excel_pending`은 그룹 충돌 대상 아님.
+ *
+ * - 엑클로드 판매자센터 등록: 업체명 엑클로드, URL https://www.excload.com, IP NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP
+ * - Lightsail allowed-hosts.mjs ↔ getIntegrationProxyWhitelist() (deployStatus=deployed exact 만)
+ * - 쇼핑몰 구현·등록 완료 후 server.mjs / allowed-hosts.mjs **한 번만** 교체 배포
  */
 
 export type IntegrationType = 'direct_api' | 'hub_api' | 'excel_upload';
@@ -43,7 +69,12 @@ export type ChannelPhase =
   | 'beta'
   | 'planned'
   | 'blocked'
-  | 'partnership_required';
+  | 'partnership_required'
+  | 'research_required'
+  | 'backlog';
+
+/** hub_api 우선순위 — priority_hub 만 제품 검토, deferred 는 SSOT 보류 */
+export type HubPriority = 'priority_hub' | 'deferred';
 
 export type ChannelProxyDomain = {
   hostname: string;
@@ -88,6 +119,8 @@ export type ChannelIntegrationSpec = {
   marketplaceGroupId?: string;
   /** hub_api 전용 — 이 허브가 대신 수집하는 marketplaceGroupId 목록 */
   hubCoversMarketplaceGroups?: string[];
+  /** hub_api 전용 — priority_hub(검토 3곳) | deferred(로드맵 보류) */
+  hubPriority?: HubPriority;
   /** Vercel → Lightsail 고정 IP 프록시 필수 (direct·일부 hub) */
   requiresFixedIpProxy?: boolean;
 };
@@ -455,9 +488,10 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     integrationType: 'direct_api',
     authType: 'manual',
     supportedActions: [],
-    apiStatus: 'blocked',
-    phase: 'partnership_required',
-    requiredSellerAction: 'ESMPLUS 셀링툴 업체 등록 — 엑클로드 등록 전까지 direct API 불가',
+    apiStatus: 'pending_check',
+    phase: 'research_required',
+    requiredSellerAction:
+      'ESMPLUS 셀링툴 제휴·direct API 가능성·엑셀 업로드 대체 경로 병행 검토 (hub 전용 확정 아님)',
     tokenExpirePolicy: 'n/a',
     rateLimitMemo: 'n/a',
     proxyDomains: [],
@@ -465,7 +499,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '접속별칭', required: true, storage: 'accountName' },
       { key: 'sellerId', label: '판매 아이디', required: true, storage: 'sellerId' },
     ],
-    memo: '8888 1차 후보이나 ESM 셀링툴 승인 필요. hub 또는 excel 대안.',
+    memo: 'research_required. hub_only 확정 안 함. direct·셀링툴·excel_upload 경로 병행 검토.',
     marketplaceGroupId: 'gmarket',
     requiresFixedIpProxy: true,
   },
@@ -496,7 +530,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     requiresFixedIpProxy: true,
   },
 
-  // ── hub_api ─────────────────────────────────────────────────
+  // ── hub_api (priority_hub 3곳만 검토 · 나머지 backlog) ─────────
   {
     channelCode: 'playauto',
     channelName: '플레이오토',
@@ -505,7 +539,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
     phase: 'planned',
-    requiredSellerAction: '플레이오토 API 계약·키 발급 — 허브 경유 다채널 주문 수집',
+    requiredSellerAction:
+      '이미 플레이오토 사용 중인 경우 — API 계약·키 발급 후 허브 주문을 엑클로드로 가져와 택배사 양식·카톡 주문 통합 (메인 수집 대체 아님)',
     tokenExpirePolicy: '플레이오토 API 정책 — 계약 후 확인',
     rateLimitMemo: '허브 API — 플레이오토 문서',
     proxyDomains: [],
@@ -513,7 +548,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'apiKey', label: 'API Key', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '8888 허브 1순위. API 도메인·계약 조건 확인 필요.',
+    memo: 'priority_hub·검토 대상. 보조 연동 — direct_api가 메인. API 도메인·계약 확인 필요.',
+    hubPriority: 'priority_hub',
     hubCoversMarketplaceGroups: [
       'coupang',
       'smartstore',
@@ -538,7 +574,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
     phase: 'planned',
-    requiredSellerAction: '사방넷 API 서비스 신청 — companyId, authKey, 접근번호',
+    requiredSellerAction:
+      '이미 사방넷 사용 중인 경우 — API 서비스 신청(companyId, authKey, 접근번호). 허브 주문을 엑클로드로 가져와 추가 정리·양식 변환용',
     tokenExpirePolicy: 'XML API 인증키 — 사방넷 정책',
     rateLimitMemo: 'sbadmin XML API',
     proxyDomains: [
@@ -550,7 +587,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'authKey', label: '인증키', required: true, secret: true, storage: 'apiKey' },
       { key: 'accessNumber', label: '등록접근주소(숫자)', required: true, storage: 'sellerId' },
     ],
-    memo: '허브·OMS. 약 650 채널. 유료 API·호스트 번호 확인.',
+    memo: 'priority_hub·검토 대상. upstream host만 Lightsail 선반영. 구현·UI 미완. direct_api가 메인.',
+    hubPriority: 'priority_hub',
     hubCoversMarketplaceGroups: ['coupang', 'smartstore', 'eleven', 'gmarket', 'lotteon', 'ssg', 'cafe24'],
     requiresFixedIpProxy: true,
   },
@@ -561,8 +599,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     authType: 'api_key',
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
-    phase: 'planned',
-    requiredSellerAction: '샵링커 API·연동 계약 — 400+ 채널',
+    phase: 'backlog',
+    requiredSellerAction: '샵링커 API·연동 계약 — 400+ 채널 (로드맵 보류)',
     tokenExpirePolicy: '샵링커 API 정책',
     rateLimitMemo: '허브 API',
     proxyDomains: [],
@@ -570,7 +608,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'apiKey', label: 'API Key', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '8888 허브 후보. 연동 목록 공개 풍부.',
+    memo: 'deferred·backlog. direct_api 우선. SSOT·충돌 정책용 레지스트리만 유지.',
+    hubPriority: 'deferred',
     hubCoversMarketplaceGroups: [
       'coupang',
       'smartstore',
@@ -590,7 +629,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
     phase: 'planned',
-    requiredSellerAction: '이지어드민 API 연동 신청',
+    requiredSellerAction:
+      '이미 이지어드민 사용 중인 경우 — API 연동 신청. 허브 주문을 엑클로드로 가져와 추가 정리·양식 변환용',
     tokenExpirePolicy: '이지어드민 API 정책',
     rateLimitMemo: '허브 API',
     proxyDomains: [],
@@ -598,7 +638,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'apiKey', label: 'API Key', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '8888 기준군. 11번가·G마켓·롯데ON·스마트스토어·쿠팡 등.',
+    memo: 'priority_hub·검토 대상. 보조 연동. direct_api가 메인.',
+    hubPriority: 'priority_hub',
     hubCoversMarketplaceGroups: [
       'coupang',
       'smartstore',
@@ -617,8 +658,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     authType: 'api_key',
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
-    phase: 'planned',
-    requiredSellerAction: '샵플링 고도화 API 계약',
+    phase: 'backlog',
+    requiredSellerAction: '샵플링 고도화 API 계약 (로드맵 보류)',
     tokenExpirePolicy: '샵플링 API 정책',
     rateLimitMemo: '허브 API',
     proxyDomains: [],
@@ -626,7 +667,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'apiKey', label: 'API Key', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '8888 ERP 고도화 API 후보.',
+    memo: 'deferred·backlog. SSOT·충돌 정책용.',
+    hubPriority: 'deferred',
     hubCoversMarketplaceGroups: ['coupang', 'smartstore', 'eleven', 'gmarket'],
     requiresFixedIpProxy: false,
   },
@@ -637,8 +679,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     authType: 'api_key',
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
-    phase: 'planned',
-    requiredSellerAction: '셀메이트 API 신청',
+    phase: 'backlog',
+    requiredSellerAction: '셀메이트 API 신청 (로드맵 보류)',
     tokenExpirePolicy: '셀메이트 API 정책',
     rateLimitMemo: '허브 API',
     proxyDomains: [],
@@ -646,7 +688,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'apiKey', label: 'API Key', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '8888 기준군. 테무 등 확장 사례.',
+    memo: 'deferred·backlog.',
+    hubPriority: 'deferred',
     hubCoversMarketplaceGroups: ['coupang', 'smartstore', 'eleven'],
     requiresFixedIpProxy: false,
   },
@@ -657,8 +700,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     authType: 'api_key',
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
-    phase: 'planned',
-    requiredSellerAction: '셀릭(세원셀릭) API·연동 계약',
+    phase: 'backlog',
+    requiredSellerAction: '셀릭(세원셀릭) API·연동 계약 (로드맵 보류)',
     tokenExpirePolicy: '셀릭 API 정책',
     rateLimitMemo: '허브 API',
     proxyDomains: [],
@@ -666,7 +709,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'apiKey', label: 'API Key', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '8888 통합관리 솔루션.',
+    memo: 'deferred·backlog.',
+    hubPriority: 'deferred',
     hubCoversMarketplaceGroups: ['coupang', 'smartstore', 'eleven', 'gmarket'],
     requiresFixedIpProxy: false,
   },
@@ -677,8 +721,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     authType: 'api_key',
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
-    phase: 'planned',
-    requiredSellerAction: '셀픽(신세계셀픽) API·연동 계약',
+    phase: 'backlog',
+    requiredSellerAction: '셀픽(신세계셀픽) API·연동 계약 (로드맵 보류)',
     tokenExpirePolicy: '셀픽 API 정책',
     rateLimitMemo: '허브 API',
     proxyDomains: [],
@@ -686,7 +730,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'apiKey', label: 'API Key', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: 'SSG·스마트스토어·쿠팡·G마켓·11번가 연동 사례.',
+    memo: 'deferred·backlog.',
+    hubPriority: 'deferred',
     hubCoversMarketplaceGroups: ['coupang', 'smartstore', 'eleven', 'gmarket', 'ssg'],
     requiresFixedIpProxy: false,
   },
@@ -697,8 +742,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     authType: 'api_key',
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
     apiStatus: 'pending_check',
-    phase: 'planned',
-    requiredSellerAction: '이지위너 API·연동 계약',
+    phase: 'backlog',
+    requiredSellerAction: '이지위너 API·연동 계약 (로드맵 보류)',
     tokenExpirePolicy: '이지위너 API 정책',
     rateLimitMemo: '허브 API',
     proxyDomains: [],
@@ -706,7 +751,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'apiKey', label: 'API Key', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '8888 기준군(오늘의집 안내 9곳).',
+    memo: 'deferred·backlog.',
+    hubPriority: 'deferred',
     hubCoversMarketplaceGroups: ['coupang', 'smartstore', 'eleven'],
     requiresFixedIpProxy: false,
   },
@@ -802,6 +848,16 @@ export function getHubApiChannels(): ChannelIntegrationSpec[] {
   return getChannelsByIntegrationType('hub_api');
 }
 
+/** hub_api 우선 검토 3곳 — playauto · sabangnet · easyadmin */
+export function getPriorityHubChannels(): ChannelIntegrationSpec[] {
+  return getHubApiChannels().filter((c) => c.hubPriority === 'priority_hub');
+}
+
+/** hub_api 로드맵 보류 — SSOT·충돌 정책용 */
+export function getDeferredHubChannels(): ChannelIntegrationSpec[] {
+  return getHubApiChannels().filter((c) => c.hubPriority === 'deferred');
+}
+
 export function getExcelUploadChannels(): ChannelIntegrationSpec[] {
   return getChannelsByIntegrationType('excel_upload');
 }
@@ -824,7 +880,7 @@ export type MarketplaceSourceConflict = {
 
 /**
  * 판매자 계정에 활성화할 채널 코드 목록에서 marketplace 그룹당 source 가 2개 이상이면 충돌.
- * direct_api + hub_api 동시 활성화 시 중복 주문 수집 방지용.
+ * direct_api · hub_api · excel_upload(marketplaceGroupId 있을 때) 모두 동일 그룹에 1 source 만 허용.
  */
 export function detectMarketplaceSourceConflicts(
   activeChannelCodes: string[],
@@ -833,9 +889,10 @@ export function detectMarketplaceSourceConflicts(
 
   for (const code of activeChannelCodes) {
     const spec = getChannelIntegrationSpec(code);
-    if (!spec || spec.integrationType === 'excel_upload') continue;
+    if (!spec) continue;
 
     const groups = getMarketplaceGroupsForChannel(code);
+    if (groups.length === 0) continue;
     for (const groupId of groups) {
       if (!groupToChannels.has(groupId)) groupToChannels.set(groupId, new Set());
       groupToChannels.get(groupId)!.add(code);
@@ -880,7 +937,13 @@ export function getDirectChannelsBlockedByHub(
 // ── 프록시 whitelist (deployed 만 — Lightsail 미반영 도메인 제외) ──
 
 function channelToProxyHosts(spec: ChannelIntegrationSpec): MallProxyUpstreamHost[] {
-  if (spec.phase === 'blocked' || spec.integrationType === 'excel_upload') return [];
+  if (
+    spec.phase === 'blocked' ||
+    spec.phase === 'backlog' ||
+    spec.integrationType === 'excel_upload'
+  ) {
+    return [];
+  }
 
   return spec.proxyDomains
     .filter((d) => d.deployStatus === 'deployed' && (d.matchKind ?? 'exact') === 'exact')
@@ -1024,7 +1087,7 @@ function toLegacyMallSpec(spec: ChannelIntegrationSpec): MallIntegrationSpec {
   return {
     mallId: spec.channelCode,
     name: spec.channelName,
-    phase: spec.phase === 'partnership_required' ? 'blocked' : spec.phase,
+    phase: spec.phase === 'partnership_required' || spec.phase === 'research_required' ? 'blocked' : spec.phase,
     authKind: legacyAuthKind(spec),
     requiresFixedIpProxy: spec.requiresFixedIpProxy ?? false,
     upstreamHosts,
@@ -1032,7 +1095,9 @@ function toLegacyMallSpec(spec: ChannelIntegrationSpec): MallIntegrationSpec {
     orderFetchScope,
     stateMutationSupported: false,
     blockers:
-      spec.phase === 'blocked' || spec.phase === 'partnership_required'
+      spec.phase === 'blocked' ||
+      spec.phase === 'partnership_required' ||
+      spec.phase === 'research_required'
         ? [spec.requiredSellerAction]
         : undefined,
   };

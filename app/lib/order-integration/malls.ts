@@ -9,8 +9,7 @@ export type OrderIntegrationMallId =
   | 'shopby'
   | 'godomall'
   | 'makeshop'
-  | 'gmarket'
-  | 'sabangnet';
+  | 'gmarket';
 
 export type OrderIntegrationMallStatus = 'available' | 'preparing';
 
@@ -109,13 +108,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
   {
     id: 'gmarket',
     name: 'G마켓/옥션',
-    description: 'G마켓·옥션 API 연동을 준비 중입니다.',
-    status: 'preparing',
-  },
-  {
-    id: 'sabangnet',
-    name: '사방넷',
-    description: '사방넷 API 연동을 준비 중입니다.',
+    description: 'G마켓·옥션 연동 경로(direct·엑셀 등)를 검토 중입니다.',
     status: 'preparing',
   },
 ];

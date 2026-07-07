@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertUrlAllowed,
   getAllowedHostnames,
+  INTEGRATION_PROXY_HOST_RULES,
   INTEGRATION_PROXY_SUFFIX_RULES,
   isHostAllowed,
   parseCafe24MallIdFromHostname,
@@ -58,6 +59,14 @@ describe('Lightsail allowed-hosts.mjs', () => {
   it('allows https only for eleven', () => {
     expect(isHostAllowed('api.11st.co.kr', 'https')).toBe(true);
     expect(isHostAllowed('api.11st.co.kr', 'http')).toBe(false);
+  });
+
+  it('lists sabangnet as hub upstream only (not direct eleven host)', () => {
+    const sabangnetRule = INTEGRATION_PROXY_HOST_RULES.find((r) => r.hostname === 'sbadmin.sabangnet.co.kr');
+    expect(sabangnetRule?.malls).toEqual(['sabangnet']);
+    expect(INTEGRATION_PROXY_HOST_RULES.some((r) => r.hostname === 'api.11st.co.kr' && r.malls.includes('eleven'))).toBe(
+      true,
+    );
   });
 
   it('tracks cafe24 suffix rule', () => {

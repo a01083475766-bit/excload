@@ -5,15 +5,20 @@ import {
   getAllPlannedProxyDomains,
   getChannelIntegrationSpec,
   getDirectApiChannels,
+  getDeferredHubChannels,
   getExcelUploadChannels,
   getHubApiChannels,
+  getPriorityHubChannels,
   getIntegrationProxyAllowedHostnames,
+  getMarketplaceGroupsForChannel,
   validateSingleSourcePerMarketplace,
 } from '@/app/lib/order-integration/mall-integration-specs';
 import {
   INTEGRATION_PROXY_HOST_RULES,
   INTEGRATION_PROXY_SUFFIX_RULES,
 } from '../../../services/coupang-proxy/allowed-hosts.mjs';
+
+const INTEGRATION_TYPES = ['direct_api', 'hub_api', 'excel_upload'] as const;
 
 const LIGHTSAIL_ONE_SHOT_EXACT_HOSTS = [
   'api-gateway.coupang.com',
@@ -28,6 +33,89 @@ const LIGHTSAIL_ONE_SHOT_EXACT_HOSTS = [
   'connect.makeshop.co.kr',
 ] as const;
 
+const HUB_UPSTREAM_HOST = 'sbadmin.sabangnet.co.kr';
+
+function getDirectExactUpstreamHostnames(): Set<string> {
+  const hosts = new Set<string>();
+  for (const spec of getDirectApiChannels()) {
+    for (const domain of spec.proxyDomains) {
+      if ((domain.matchKind ?? 'exact') !== 'exact') continue;
+      if (!domain.hostname.startsWith('*.')) {
+        hosts.add(domain.hostname);
+      }
+    }
+  }
+  return hosts;
+}
+
+function getSsotExactUpstreamHostnames(): Set<string> {
+  const hosts = new Set<string>();
+  for (const spec of CHANNEL_INTEGRATION_SPECS) {
+    if (spec.integrationType === 'excel_upload') continue;
+    for (const domain of spec.proxyDomains) {
+      if ((domain.matchKind ?? 'exact') !== 'exact') continue;
+      if (!domain.hostname.startsWith('*.')) {
+        hosts.add(domain.hostname);
+      }
+    }
+  }
+  return hosts;
+}
+
+describe('integrationType policy (SSOT registry)', () => {
+  it('assigns every channel exactly one of direct_api / hub_api / excel_upload', () => {
+    for (const spec of CHANNEL_INTEGRATION_SPECS) {
+      expect(INTEGRATION_TYPES, spec.channelCode).toContain(spec.integrationType);
+    }
+  });
+
+  it('requires marketplaceGroupId on every direct_api channel', () => {
+    for (const spec of getDirectApiChannels()) {
+      expect(spec.marketplaceGroupId, spec.channelCode).toBeTruthy();
+    }
+  });
+
+  it('requires hubCoversMarketplaceGroups on every hub_api channel', () => {
+    for (const spec of getHubApiChannels()) {
+      expect(spec.hubCoversMarketplaceGroups?.length, spec.channelCode).toBeGreaterThan(0);
+    }
+  });
+
+  it('requires hubPriority on every hub_api channel', () => {
+    for (const spec of getHubApiChannels()) {
+      expect(['priority_hub', 'deferred'], spec.channelCode).toContain(spec.hubPriority);
+    }
+  });
+
+  it('keeps exactly 3 priority_hub candidates', () => {
+    expect(getPriorityHubChannels().map((c) => c.channelCode).sort()).toEqual(
+      ['easyadmin', 'playauto', 'sabangnet'].sort(),
+    );
+  });
+
+  it('defers non-priority hubs to backlog', () => {
+    const deferred = getDeferredHubChannels().map((c) => c.channelCode).sort();
+    expect(deferred).toEqual(
+      ['easywinner', 'sellmate', 'sellpick', 'sellric', 'shoplinker', 'shoppling'].sort(),
+    );
+    for (const spec of getDeferredHubChannels()) {
+      expect(spec.phase).toBe('backlog');
+      expect(spec.hubPriority).toBe('deferred');
+    }
+  });
+
+  it('does not put direct mall upstream hosts in hub_api proxyDomains', () => {
+    const directHosts = getDirectExactUpstreamHostnames();
+    for (const spec of getHubApiChannels()) {
+      const overlapping = spec.proxyDomains
+        .filter((d) => (d.matchKind ?? 'exact') === 'exact')
+        .map((d) => d.hostname)
+        .filter((h) => directHosts.has(h));
+      expect(overlapping, spec.channelCode).toEqual([]);
+    }
+  });
+});
+
 describe('proxy whitelist sync (TS registry ↔ Lightsail allowed-hosts.mjs)', () => {
   it('keeps Lightsail exact host list at 1-shot deploy target', () => {
     const mjsHosts = INTEGRATION_PROXY_HOST_RULES.map((r) => r.hostname).sort();
@@ -38,6 +126,13 @@ describe('proxy whitelist sync (TS registry ↔ Lightsail allowed-hosts.mjs)', (
     const mjsHosts = new Set(INTEGRATION_PROXY_HOST_RULES.map((r) => r.hostname));
     for (const hostname of getIntegrationProxyAllowedHostnames()) {
       expect(mjsHosts.has(hostname)).toBe(true);
+    }
+  });
+
+  it('keeps every Lightsail exact host in SSOT proxyDomains (upstream only)', () => {
+    const ssotHosts = getSsotExactUpstreamHostnames();
+    for (const rule of INTEGRATION_PROXY_HOST_RULES) {
+      expect(ssotHosts.has(rule.hostname), rule.hostname).toBe(true);
     }
   });
 
@@ -52,6 +147,16 @@ describe('proxy whitelist sync (TS registry ↔ Lightsail allowed-hosts.mjs)', (
       true,
     );
     expect(INTEGRATION_PROXY_SUFFIX_RULES.some((r) => r.suffix === 'cafe24api.com')).toBe(true);
+  });
+
+  it('allows sabangnet hub upstream host without implying full hub rollout', () => {
+    const sabangnet = getChannelIntegrationSpec('sabangnet');
+    expect(sabangnet?.integrationType).toBe('hub_api');
+    expect(sabangnet?.hubPriority).toBe('priority_hub');
+    expect(sabangnet?.phase).toBe('planned');
+    expect(INTEGRATION_PROXY_HOST_RULES.some((r) => r.hostname === HUB_UPSTREAM_HOST)).toBe(true);
+    expect(getHubApiChannels().find((h) => h.channelCode === 'playauto')?.proxyDomains).toHaveLength(0);
+    expect(getDeferredHubChannels().some((h) => h.channelCode === 'shoplinker')).toBe(true);
   });
 });
 
@@ -99,7 +204,7 @@ describe('channel integration registry', () => {
   });
 
   it('marks restricted channels', () => {
-    expect(getChannelIntegrationSpec('gmarket')?.phase).toBe('partnership_required');
+    expect(getChannelIntegrationSpec('gmarket')?.phase).toBe('research_required');
     expect(getChannelIntegrationSpec('kakao_talkstore')?.phase).toBe('partnership_required');
   });
 
@@ -139,14 +244,27 @@ describe('marketplace source deduplication', () => {
     expect(conflicts.some((c) => c.marketplaceGroupId === 'coupang')).toBe(true);
   });
 
+  it('detects conflict when eleven direct and sabangnet hub are both active', () => {
+    const conflicts = detectMarketplaceSourceConflicts(['eleven', 'sabangnet']);
+    expect(conflicts.some((c) => c.marketplaceGroupId === 'eleven')).toBe(true);
+  });
+
   it('passes when only one source per marketplace', () => {
     const result = validateSingleSourcePerMarketplace(['coupang', 'eleven']);
     expect(result.ok).toBe(true);
     expect(result.conflicts).toHaveLength(0);
   });
 
-  it('ignores excel_upload for marketplace conflict rules', () => {
-    const result = validateSingleSourcePerMarketplace(['coupang', 'excel_tmon']);
+  it('does not conflict excel_generic without marketplaceGroupId with direct channels', () => {
+    expect(getMarketplaceGroupsForChannel('excel_generic')).toEqual([]);
+    const result = validateSingleSourcePerMarketplace(['coupang', 'eleven', 'excel_generic']);
     expect(result.ok).toBe(true);
+  });
+
+  it('includes excel_upload with marketplaceGroupId in conflict policy scope', () => {
+    expect(getMarketplaceGroupsForChannel('excel_tmon')).toEqual(['tmon']);
+    expect(getMarketplaceGroupsForChannel('excel_wemakeprice')).toEqual(['wemakeprice']);
+    // tmon·wemakeprice direct 채널 없음 — 단독 활성화는 허용
+    expect(validateSingleSourcePerMarketplace(['excel_tmon', 'excel_wemakeprice']).ok).toBe(true);
   });
 });
