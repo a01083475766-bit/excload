@@ -134,6 +134,7 @@ enum OrderIntegrationProvider {
   ELEVEN
   SMARTSTORE
   CAFE24
+  LOTTEON
 }
 
 enum OrderIntegrationAccountStatus {

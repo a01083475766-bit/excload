@@ -4,11 +4,12 @@ import { Suspense } from 'react';
 import { CoupangIntegrationForm } from '@/app/components/order-integration/CoupangIntegrationForm';
 import { Cafe24IntegrationForm } from '@/app/components/order-integration/Cafe24IntegrationForm';
 import { ElevenIntegrationForm } from '@/app/components/order-integration/ElevenIntegrationForm';
+import { LotteonIntegrationForm } from '@/app/components/order-integration/LotteonIntegrationForm';
 import { SmartstoreIntegrationForm } from '@/app/components/order-integration/SmartstoreIntegrationForm';
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
 
 type Props = {
-  mallId: Extract<OrderIntegrationMallId, 'coupang' | 'eleven' | 'smartstore' | 'cafe24'>;
+  mallId: Extract<OrderIntegrationMallId, 'coupang' | 'eleven' | 'smartstore' | 'cafe24' | 'lotteon'>;
   mallName: string;
 };
 
@@ -27,6 +28,10 @@ export function MallIntegrationForm({ mallId }: Props) {
         <Cafe24IntegrationForm />
       </Suspense>
     );
+  }
+
+  if (mallId === 'lotteon') {
+    return <LotteonIntegrationForm />;
   }
 
   return <ElevenIntegrationForm />;

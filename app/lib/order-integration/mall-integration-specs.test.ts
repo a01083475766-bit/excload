@@ -13,10 +13,15 @@ import {
 import { INTEGRATION_PROXY_HOST_RULES } from '../../../services/coupang-proxy/allowed-hosts.mjs';
 
 describe('proxy whitelist sync (TS registry ↔ Lightsail allowed-hosts.mjs)', () => {
+  /** Vercel SSOT에만 있고 Lightsail 1회 배포 전까지 mjs에 없는 exact hostname */
+  const pendingLightsailExactHosts = ['api.cafe24.com', 'openapi.lotteon.com'];
+
   it('keeps deployed exact hostname lists identical (suffix rules excluded until Lightsail 1-shot)', () => {
-    const tsHosts = getIntegrationProxyAllowedHostnames().sort();
+    const tsHosts = getIntegrationProxyAllowedHostnames()
+      .filter((hostname) => !pendingLightsailExactHosts.includes(hostname))
+      .sort();
     const mjsHosts = INTEGRATION_PROXY_HOST_RULES.map((r) => r.hostname)
-      .filter((hostname) => hostname !== 'api.cafe24.com')
+      .filter((hostname) => !pendingLightsailExactHosts.includes(hostname))
       .sort();
     expect(mjsHosts).toEqual(tsHosts);
   });
@@ -82,9 +87,12 @@ describe('channel integration registry', () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
+  it('tracks lotteon host in Vercel whitelist before Lightsail 1-shot deploy', () => {
+    expect(getIntegrationProxyAllowedHostnames()).toContain('openapi.lotteon.com');
+  });
+
   it('tracks planned proxy domains beyond deployed whitelist', () => {
     const planned = getAllPlannedProxyDomains();
-    expect(planned.some((d) => d.hostname === 'openapi.lotteon.com')).toBe(true);
     expect(planned.some((d) => d.hostname === 'openhub.godo.co.kr')).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ export type OrderIntegrationMallId =
   | 'eleven'
   | 'smartstore'
   | 'cafe24'
+  | 'lotteon'
   | 'gmarket'
   | 'sabangnet';
 
@@ -51,6 +52,14 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     status: 'available',
     badge: 'beta',
     priority: 4,
+  },
+  {
+    id: 'lotteon',
+    name: '롯데ON',
+    description: '롯데ON OpenAPI로 출고지시·상품준비 주문을 조회·수집합니다. (베타)',
+    status: 'available',
+    badge: 'beta',
+    priority: 5,
   },
   {
     id: 'gmarket',
