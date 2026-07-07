@@ -6,6 +6,7 @@ export type OrderIntegrationMallId =
   | 'lotteon'
   | 'ssg'
   | 'cjonstyle'
+  | 'shopby'
   | 'gmarket'
   | 'sabangnet';
 
@@ -78,6 +79,14 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     status: 'available',
     badge: 'beta',
     priority: 7,
+  },
+  {
+    id: 'shopby',
+    name: 'NHN커머스/샵바이',
+    description: '샵바이 Server API로 주문을 조회·수집합니다. (베타·자사몰)',
+    status: 'available',
+    badge: 'beta',
+    priority: 8,
   },
   {
     id: 'gmarket',

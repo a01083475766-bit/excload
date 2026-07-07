@@ -5,6 +5,7 @@ import { CoupangIntegrationForm } from '@/app/components/order-integration/Coupa
 import { Cafe24IntegrationForm } from '@/app/components/order-integration/Cafe24IntegrationForm';
 import { ElevenIntegrationForm } from '@/app/components/order-integration/ElevenIntegrationForm';
 import { CjonstyleIntegrationForm } from '@/app/components/order-integration/CjonstyleIntegrationForm';
+import { ShopbyIntegrationForm } from '@/app/components/order-integration/ShopbyIntegrationForm';
 import { LotteonIntegrationForm } from '@/app/components/order-integration/LotteonIntegrationForm';
 import { SsgIntegrationForm } from '@/app/components/order-integration/SsgIntegrationForm';
 import { SmartstoreIntegrationForm } from '@/app/components/order-integration/SmartstoreIntegrationForm';
@@ -13,7 +14,7 @@ import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
 type Props = {
   mallId: Extract<
     OrderIntegrationMallId,
-    'coupang' | 'eleven' | 'smartstore' | 'cafe24' | 'lotteon' | 'ssg' | 'cjonstyle'
+    'coupang' | 'eleven' | 'smartstore' | 'cafe24' | 'lotteon' | 'ssg' | 'cjonstyle' | 'shopby'
   >;
   mallName: string;
 };
@@ -45,6 +46,10 @@ export function MallIntegrationForm({ mallId }: Props) {
 
   if (mallId === 'cjonstyle') {
     return <CjonstyleIntegrationForm />;
+  }
+
+  if (mallId === 'shopby') {
+    return <ShopbyIntegrationForm />;
   }
 
   return <ElevenIntegrationForm />;
