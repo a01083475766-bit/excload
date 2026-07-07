@@ -8,6 +8,7 @@ export type OrderIntegrationMallId =
   | 'cjonstyle'
   | 'shopby'
   | 'godomall'
+  | 'makeshop'
   | 'gmarket'
   | 'sabangnet';
 
@@ -96,6 +97,14 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     status: 'available',
     badge: 'beta',
     priority: 9,
+  },
+  {
+    id: 'makeshop',
+    name: '메이크샵',
+    description: '메이크샵 APP API(주문 2.0)로 주문을 조회·수집합니다. (베타·APP 연동)',
+    status: 'available',
+    badge: 'beta',
+    priority: 10,
   },
   {
     id: 'gmarket',

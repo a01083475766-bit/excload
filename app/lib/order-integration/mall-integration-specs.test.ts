@@ -108,6 +108,7 @@ describe('channel integration registry', () => {
   it('tracks planned proxy domains beyond deployed whitelist', () => {
     const planned = getAllPlannedProxyDomains();
     expect(planned.some((d) => d.hostname === 'openhub.godo.co.kr')).toBe(true);
+    expect(planned.some((d) => d.hostname === 'connect.makeshop.co.kr')).toBe(true);
   });
 });
 

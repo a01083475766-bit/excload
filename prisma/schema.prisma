@@ -139,6 +139,7 @@ enum OrderIntegrationProvider {
   CJONSTYLE
   SHOPBY
   GODOMALL
+  MAKESHOP
 }
 
 enum OrderIntegrationAccountStatus {
