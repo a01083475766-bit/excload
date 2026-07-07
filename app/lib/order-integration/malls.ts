@@ -7,6 +7,7 @@ export type OrderIntegrationMallId =
   | 'ssg'
   | 'cjonstyle'
   | 'shopby'
+  | 'godomall'
   | 'gmarket'
   | 'sabangnet';
 
@@ -87,6 +88,14 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     status: 'available',
     badge: 'beta',
     priority: 8,
+  },
+  {
+    id: 'godomall',
+    name: '고도몰',
+    description: '고도몰5 Open API(Order_Search)로 주문을 조회·수집합니다. (베타·입점 제휴)',
+    status: 'available',
+    badge: 'beta',
+    priority: 9,
   },
   {
     id: 'gmarket',

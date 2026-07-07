@@ -5,6 +5,7 @@ import { CoupangIntegrationForm } from '@/app/components/order-integration/Coupa
 import { Cafe24IntegrationForm } from '@/app/components/order-integration/Cafe24IntegrationForm';
 import { ElevenIntegrationForm } from '@/app/components/order-integration/ElevenIntegrationForm';
 import { CjonstyleIntegrationForm } from '@/app/components/order-integration/CjonstyleIntegrationForm';
+import { GodomallIntegrationForm } from '@/app/components/order-integration/GodomallIntegrationForm';
 import { ShopbyIntegrationForm } from '@/app/components/order-integration/ShopbyIntegrationForm';
 import { LotteonIntegrationForm } from '@/app/components/order-integration/LotteonIntegrationForm';
 import { SsgIntegrationForm } from '@/app/components/order-integration/SsgIntegrationForm';
@@ -14,7 +15,7 @@ import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
 type Props = {
   mallId: Extract<
     OrderIntegrationMallId,
-    'coupang' | 'eleven' | 'smartstore' | 'cafe24' | 'lotteon' | 'ssg' | 'cjonstyle' | 'shopby'
+    'coupang' | 'eleven' | 'smartstore' | 'cafe24' | 'lotteon' | 'ssg' | 'cjonstyle' | 'shopby' | 'godomall'
   >;
   mallName: string;
 };
@@ -50,6 +51,10 @@ export function MallIntegrationForm({ mallId }: Props) {
 
   if (mallId === 'shopby') {
     return <ShopbyIntegrationForm />;
+  }
+
+  if (mallId === 'godomall') {
+    return <GodomallIntegrationForm />;
   }
 
   return <ElevenIntegrationForm />;

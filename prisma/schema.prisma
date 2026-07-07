@@ -138,6 +138,7 @@ enum OrderIntegrationProvider {
   SSG
   CJONSTYLE
   SHOPBY
+  GODOMALL
 }
 
 enum OrderIntegrationAccountStatus {

@@ -49,7 +49,8 @@ export default function OrderIntegrationMallPage() {
     mallId === 'lotteon' ||
     mallId === 'ssg' ||
     mallId === 'cjonstyle' ||
-    mallId === 'shopby'
+    mallId === 'shopby' ||
+    mallId === 'godomall'
   ) {
     return (
       <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
