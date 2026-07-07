@@ -1,5 +1,7 @@
-import type { IntegrationProxyAllowedHost } from '@/app/lib/integration-proxy/allowed-domains';
-import { INTEGRATION_PROXY_ALLOWED_HOSTS } from '@/app/lib/integration-proxy/allowed-domains';
+import {
+  getIntegrationProxyAllowedHostnames,
+  getIntegrationProxyWhitelist,
+} from '@/app/lib/integration-proxy/allowed-domains';
 
 export type IntegrationTransportMode = 'proxy' | 'direct';
 
@@ -52,7 +54,8 @@ export function getIntegrationTransportInfo() {
     mode,
     proxyBaseUrl,
     proxyConfigured: Boolean(proxyBaseUrl && getIntegrationProxySharedSecret()),
-    allowedHosts: [...INTEGRATION_PROXY_ALLOWED_HOSTS] as IntegrationProxyAllowedHost[],
+    allowedHosts: getIntegrationProxyAllowedHostnames(),
+    whitelist: getIntegrationProxyWhitelist(),
     invokePath: INTEGRATION_INVOKE_PATH,
     legacyCoupangInvokePath: '/internal/coupang/invoke',
   };

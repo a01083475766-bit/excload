@@ -10,6 +10,35 @@ import {
 } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 
+function MallBadge({ badge }: { badge?: OrderIntegrationMall['badge'] }) {
+  if (badge === 'live') {
+    return (
+      <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">
+        운영
+      </span>
+    );
+  }
+  if (badge === 'beta') {
+    return (
+      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        베타
+      </span>
+    );
+  }
+  if (badge === 'planned') {
+    return (
+      <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-900 dark:bg-sky-950 dark:text-sky-100">
+        예정
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">
+      연동 가능
+    </span>
+  );
+}
+
 function MallCard({ mall }: { mall: OrderIntegrationMall }) {
   const isAvailable = mall.status === 'available';
 
@@ -18,9 +47,7 @@ function MallCard({ mall }: { mall: OrderIntegrationMall }) {
       <div className="flex items-start justify-between gap-2">
         <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{mall.name}</h2>
         {isAvailable ? (
-          <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">
-            연동 가능
-          </span>
+          <MallBadge badge={mall.badge} />
         ) : (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             <Clock className="h-3 w-3" />
@@ -105,8 +132,8 @@ export default function OrderIntegrationPanel() {
       </div>
 
       <p className="mt-6 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-        관리자 전용 화면입니다. 쿠팡·스마트스토어(베타) 연동 테스트 후 11번가 등 순차 확장 예정입니다.
-        발주확인·송장 전송 등 상태 변경 기능은 별도 버튼으로 분리해 제공할 예정입니다.
+        관리자 전용 화면입니다. 쿠팡(운영), 카페24·11번가·스마트스토어(베타) 코드 배포 완료.
+        실연동 테스트는 개발자센터 App 등록 및 Lightsail 프록시 1회 반영 후 진행합니다. 발주확인·송장 전송 등 상태 변경 기능은 별도 버튼으로 분리해 제공할 예정입니다.
       </p>
     </div>
   );

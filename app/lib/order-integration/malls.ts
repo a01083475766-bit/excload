@@ -8,11 +8,14 @@ export type OrderIntegrationMallId =
 
 export type OrderIntegrationMallStatus = 'available' | 'preparing';
 
+export type OrderIntegrationMallBadge = 'live' | 'beta' | 'planned';
+
 export type OrderIntegrationMall = {
   id: OrderIntegrationMallId;
   name: string;
   description: string;
   status: OrderIntegrationMallStatus;
+  badge?: OrderIntegrationMallBadge;
   priority?: number;
 };
 
@@ -22,13 +25,15 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     name: '쿠팡',
     description: '쿠팡 Wing Open API로 주문을 자동 수집합니다.',
     status: 'available',
+    badge: 'live',
     priority: 1,
   },
   {
     id: 'eleven',
     name: '11번가',
-    description: '11ST OPEN API로 주문을 자동 수집합니다.',
+    description: '11ST OPEN API로 결제완료·배송준비 주문을 조회·수집합니다. (베타)',
     status: 'available',
+    badge: 'beta',
     priority: 2,
   },
   {
@@ -36,13 +41,16 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     name: '스마트스토어',
     description: '네이버 커머스API(Smart Store Center)로 주문을 조회·수집합니다. (베타)',
     status: 'available',
+    badge: 'beta',
     priority: 3,
   },
   {
     id: 'cafe24',
     name: '카페24',
-    description: '카페24 API 연동을 준비 중입니다.',
-    status: 'preparing',
+    description: '카페24 OAuth Admin API로 주문을 조회·수집합니다. (베타)',
+    status: 'available',
+    badge: 'beta',
+    priority: 4,
   },
   {
     id: 'gmarket',

@@ -8,16 +8,23 @@ import { generateSmartstoreClientSecretSign } from '@/app/lib/smartstore/client'
 import { mapSmartstoreOrdersToPreviewRows } from '@/app/lib/smartstore/map-smartstore-orders';
 
 describe('integration proxy allowed domains', () => {
-  it('allows official coupang and naver commerce hosts', () => {
+  it('allows registered mall upstream hosts', () => {
     expect(isIntegrationProxyHostAllowed('api-gateway.coupang.com')).toBe(true);
     expect(isIntegrationProxyHostAllowed('api.commerce.naver.com')).toBe(true);
+    expect(isIntegrationProxyHostAllowed('api.11st.co.kr')).toBe(true);
     expect(isIntegrationProxyHostAllowed('example.com')).toBe(false);
   });
 
-  it('rejects non-https urls', () => {
+  it('allows http for 11st seller API host', () => {
+    expect(() =>
+      assertIntegrationProxyUrlAllowed('http://api.11st.co.kr/rest/ordservices/complete'),
+    ).not.toThrow();
+  });
+
+  it('rejects http for https-only hosts', () => {
     expect(() =>
       assertIntegrationProxyUrlAllowed('http://api.commerce.naver.com/external/v1/oauth2/token'),
-    ).toThrow(/HTTPS/);
+    ).toThrow(/프로토콜/);
   });
 });
 

@@ -15,6 +15,11 @@
 
 import { createServer } from 'node:http';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
+import {
+  getAllowedHostnames,
+  getAllowedProtocols,
+  INTEGRATION_PROXY_HOST_RULES,
+} from './allowed-hosts.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const SHARED_SECRET = (
@@ -24,10 +29,7 @@ const INTEGRATION_INVOKE_PATH = '/internal/integration/invoke';
 const COUPANG_INVOKE_PATH = '/internal/coupang/invoke';
 const MAX_AGE_MS = 5 * 60 * 1000;
 
-const ALLOWED_HOSTS = new Set([
-  'api-gateway.coupang.com',
-  'api.commerce.naver.com',
-]);
+const ALLOWED_HOSTS = new Set(getAllowedHostnames());
 
 if (!SHARED_SECRET) {
   console.error('INTEGRATION_PROXY_SHARED_SECRET (or COUPANG_PROXY_SHARED_SECRET) is required');
@@ -107,11 +109,13 @@ function assertAllowedUrl(rawUrl) {
   } catch {
     throw new Error('invalid url');
   }
-  if (parsed.protocol !== 'https:') {
-    throw new Error('https required');
-  }
+  const protocol = parsed.protocol.replace(':', '');
   if (!ALLOWED_HOSTS.has(parsed.hostname.toLowerCase())) {
     throw new Error('domain not allowed');
+  }
+  const allowedProtocols = getAllowedProtocols(parsed.hostname);
+  if (!allowedProtocols.includes(protocol)) {
+    throw new Error('protocol not allowed');
   }
   return parsed;
 }
@@ -200,7 +204,11 @@ async function handleSignedInvoke(req, res, invokePath, handler) {
 
 const server = createServer(async (req, res) => {
   if (req.url === '/healthz' && req.method === 'GET') {
-    sendJson(res, 200, { ok: true, allowedHosts: [...ALLOWED_HOSTS] });
+    sendJson(res, 200, {
+      ok: true,
+      allowedHosts: [...ALLOWED_HOSTS],
+      hostRules: INTEGRATION_PROXY_HOST_RULES,
+    });
     return;
   }
 
