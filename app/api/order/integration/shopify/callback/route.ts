@@ -9,6 +9,7 @@ import {
 } from '@/app/lib/order-integration/shopify-account';
 import { verifyShopifyOAuthHmac } from '@/app/lib/shopify/oauth';
 import {
+  isShopifyIntegrationEnabled,
   resolveShopifyClientId,
   resolveShopifyClientSecret,
 } from '@/app/lib/shopify/oauth-credentials';
@@ -39,6 +40,11 @@ function searchParamsToRecord(params: URLSearchParams): Record<string, string> {
 }
 
 export async function GET(request: NextRequest) {
+  // Feature flag — hmac / client_secret / token exchange / save 전 차단
+  if (!isShopifyIntegrationEnabled()) {
+    return redirectToUi({ status: 'disabled' });
+  }
+
   const url = new URL(request.url);
   const oauthError = url.searchParams.get('error');
   const oauthErrorDescription = url.searchParams.get('error_description');

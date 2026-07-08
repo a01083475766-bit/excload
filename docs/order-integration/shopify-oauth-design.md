@@ -1,8 +1,32 @@
 # Shopify 주문연동 OAuth·설계
 
-> **상태**: 설계 문서 (2026-07) — **구현 전**  
+> **상태**: 설계 문서 (2026-07) — OAuth connect/callback 유틸·route 구현됨. **feature flag로 Production 비활성**  
 > **SSOT**: `channelCode: shopify`, `integrationType: direct_api`, `phase: planned`, `requiresFixedIpProxy: false`  
-> **금지 (본 문서 작성 시점)**: OAuth/client/route 구현, Prisma migration, Lightsail `allowed-hosts` 반영, Production API 호출
+> **활성 조건**: `SHOPIFY_INTEGRATION_ENABLED=true`일 때만 connect/callback 동작. 그 외 기본 **비활성(false)**  
+> **금지 (활성화 전)**: Production DB migrate, Lightsail `allowed-hosts`, UI 클릭 가능, GraphQL 주문조회
+
+---
+
+## 0. Feature flag (`SHOPIFY_INTEGRATION_ENABLED`)
+
+| 항목 | 내용 |
+|------|------|
+| env | `SHOPIFY_INTEGRATION_ENABLED` |
+| 기본값 | **false** (미설정·`false`·그 외 → 비활성) |
+| 활성 | 값이 정확히 `true`일 때만 |
+| 적용 위치 | `/api/order/integration/shopify/connect`, `/callback` |
+| disabled connect | **404** JSON (`Shopify 주문연동이 비활성화되어 있습니다.`) — env 누락 500과 구분 |
+| disabled callback | UI redirect `?shopify_oauth=1&status=disabled` — HMAC·token exchange·save **미실행** |
+
+**Production DB migration 적용 전·UI 클릭 가능 처리 전·Partners/테스트 스토어 준비 전**에는 반드시 `false`를 유지합니다.
+
+### 활성화 순서
+
+1. Production DB에 `SHOPIFY` enum migration 적용 승인·실행  
+2. Vercel 등에 `SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET` / redirect URI 등록  
+3. 개발용 테스트 스토어 준비  
+4. `SHOPIFY_INTEGRATION_ENABLED=true`  
+5. UI에서 Shopify 클릭 가능 처리 (별도 작업)
 
 ---
 
@@ -566,11 +590,12 @@ app/components/order-integration/OrderIntegrationPanel.tsx  # Shopify UI 활성�
 
 ### API·인프라
 
+- [ ] **`SHOPIFY_INTEGRATION_ENABLED=true` 활성화 시점 확정** — migration·env·테스트 스토어·UI 순서 §0
 - [ ] **GraphQL API version 고정 전략 확정** (예: `2026-01`, env `SHOPIFY_API_VERSION`, 분기별 업그레이드 절차)
 - [ ] 개발용 테스트 스토어 생성
 - [ ] GraphQL `orders` 샘플 응답 확보 (한국 배송·해외 배송 각 1건)
 - [ ] `shopDomain` SSRF 정규화 규칙 확정
-- [ ] **Prisma `SHOPIFY` enum 추가** — 별도 승인
+- [ ] **Prisma `SHOPIFY` enum** — 레포 migration 있음. **Production DB 적용은 별도 승인**
 - [ ] **Lightsail suffix** — 프록시 미사용 시 생략 가능, SSOT와 정합 확인
 - [ ] 1차 제외 항목(Webhook·송장·상품·REST orders.json) 재확인
 

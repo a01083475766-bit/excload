@@ -1,4 +1,23 @@
+import { NextResponse } from 'next/server';
 import { EXCLOAD_INTEGRATION_INFO } from '@/app/lib/order-integration/malls';
+
+/**
+ * Shopify OAuth connect/callback 활성화 게이트.
+ * 명시적으로 `true`일 때만 활성. 미설정·false·그 외 → 비활성 (기본 false).
+ *
+ * Production DB migration / Partners env / UI 활성화 전에는 false 유지.
+ */
+export function isShopifyIntegrationEnabled(): boolean {
+  return process.env.SHOPIFY_INTEGRATION_ENABLED?.trim() === 'true';
+}
+
+/** connect route — disabled 시 404 (env 누락 500과 구분) */
+export function shopifyIntegrationDisabledJsonResponse(): NextResponse {
+  return NextResponse.json(
+    { error: 'Shopify 주문연동이 비활성화되어 있습니다.' },
+    { status: 404 },
+  );
+}
 
 /**
  * Shopify Partners 앱 credential — 실행 시점에만 검증 (build 시 env 없어도 실패하지 않음).
