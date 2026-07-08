@@ -120,13 +120,15 @@ model User {
   /// 관리자 수동 PRO 혜택 (plan=FREE 유지, 만료 시 PRO 권한만 종료)
   adminTrialEndsAt DateTime?
 
-  pointHistory           PointHistory[]
-  subscriptions          Subscription[]
-  favoriteMalls          UserFavoriteMall[]
-  feedbackSubmissions    FeedbackSubmission[]
-  templateHeaderLogs     TemplateHeaderLog[]
-  headerMappingAuditLogs HeaderMappingAuditLog[]
+  pointHistory             PointHistory[]
+  subscriptions            Subscription[]
+  favoriteMalls            UserFavoriteMall[]
+  feedbackSubmissions      FeedbackSubmission[]
+  templateHeaderLogs       TemplateHeaderLog[]
+  headerMappingAuditLogs   HeaderMappingAuditLog[]
   orderIntegrationAccounts OrderIntegrationAccount[]
+  orderSyncBatches         OrderSyncBatch[]
+  orderSyncOrders          OrderSyncOrder[]
 }
 
 enum OrderIntegrationProvider {
@@ -149,8 +151,28 @@ enum OrderIntegrationAccountStatus {
   ERROR
 }
 
+enum OrderSyncBatchSourceType {
+  API
+  EXCEL
+  MANUAL
+}
+
+enum OrderSyncBatchStatus {
+  ACTIVE
+  ARCHIVED
+  ERROR
+}
+
+enum OrderSyncTransmissionStatus {
+  NONE
+  READY
+  SENT
+  FAILED
+  SKIPPED
+}
+
 model OrderIntegrationAccount {
-  id          String                      @id @default(cuid())
+  id          String                   @id @default(cuid())
   userId      String
   provider    OrderIntegrationProvider
   accountName String
@@ -183,10 +205,83 @@ model OrderIntegrationAccount {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderSyncBatches OrderSyncBatch[]
+  orderSyncOrders  OrderSyncOrder[]
 
   @@unique([userId, provider, vendorId])
   @@index([userId, provider])
+}
+
+model OrderSyncBatch {
+  id                   String                   @id @default(cuid())
+  userId               String
+  provider             OrderIntegrationProvider
+  integrationAccountId String?
+  sourceType           OrderSyncBatchSourceType @default(API)
+  fetchedAt            DateTime                 @default(now())
+  orderCount           Int                      @default(0)
+  status               OrderSyncBatchStatus     @default(ACTIVE)
+  memo                 String?                  @db.Text
+  errorMessage         String?                  @db.Text
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integrationAccount OrderIntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+  orders             OrderSyncOrder[]
+
+  @@index([userId, provider])
+  @@index([integrationAccountId])
+  @@index([fetchedAt])
+}
+
+model OrderSyncOrder {
+  id                    String                      @id @default(cuid())
+  batchId               String
+  userId                String
+  provider              OrderIntegrationProvider
+  integrationAccountId  String?
+  excloadOrderNo        String
+  mallOrderNo           String
+  mallOrderId           String?
+  mallLineItemIds       Json?
+  receiverName          String?
+  receiverPhone         String?
+  receiverAddress       String?                     @db.Text
+  productSummary        String?                     @db.Text
+  quantity              Int?
+  deliveryMemo          String?                     @db.Text
+  orderedAt             DateTime?
+  orderStatus           String?
+  rawPayloadJson        Json?
+  normalizedPayloadJson Json?
+  trackingNumber        String?
+  carrierCode           String?
+  shippedAt             DateTime?
+  transmissionStatus    OrderSyncTransmissionStatus @default(NONE)
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  batch              OrderSyncBatch           @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integrationAccount OrderIntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, excloadOrderNo])
+  @@index([userId, provider])
+  @@index([userId, provider, mallOrderNo])
+  @@index([batchId])
+  @@index([integrationAccountId])
+}
+
+model ExcloadOrderNoSequence {
+  id         String   @id @default(cuid())
+  dateKey    String
+  lastNumber Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([dateKey])
 }
 
 model EmailVerificationToken {
