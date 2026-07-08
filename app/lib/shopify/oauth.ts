@@ -68,8 +68,7 @@ export function buildShopifyAuthorizeUrl(input: {
   });
 
   // Offline access token: grant_options[]=per-user 는 online(per-user) 토큰용 — 포함하지 않음.
-  // TODO(token-exchange): expiring offline token은 authorize URL이 아니라
-  //   POST /admin/oauth/access_token 요청 body에 expiring=1 로 전달 (설계 문서 §3.7).
+  // expiring=1 은 authorize URL이 아니라 token-exchange.ts 의 access_token POST body에 전달.
 
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
 }
