@@ -1,4 +1,8 @@
-import { OrderIntegrationProvider } from '@prisma/client';
+import {
+  OrderIntegrationProvider,
+  OrderSyncBatchStatus,
+  OrderSyncTransmissionStatus,
+} from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildOrderSyncSnapshots } from '@/app/lib/order-integration/snapshots/build-order-sync-snapshots';
@@ -39,7 +43,7 @@ function createMockTransactionClient(sequenceStore: Map<string, number>) {
         sourceType: data.sourceType as 'API',
         fetchedAt: data.fetchedAt as Date,
         orderCount: data.orderCount as number,
-        status: 'ACTIVE',
+        status: OrderSyncBatchStatus.ACTIVE,
         memo: (data.memo as string | null) ?? null,
         errorMessage: null,
         createdAt: new Date('2026-07-09T00:00:00.000Z'),
@@ -72,7 +76,7 @@ function createMockTransactionClient(sequenceStore: Map<string, number>) {
           trackingNumber: (data.trackingNumber as string | null) ?? null,
           carrierCode: null,
           shippedAt: null,
-          transmissionStatus: 'NONE',
+          transmissionStatus: OrderSyncTransmissionStatus.NONE,
           createdAt: new Date('2026-07-09T00:00:00.000Z'),
           updatedAt: new Date('2026-07-09T00:00:00.000Z'),
         };
