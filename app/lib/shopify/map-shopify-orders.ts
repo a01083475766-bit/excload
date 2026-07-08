@@ -83,20 +83,49 @@ export function formatShopifyShippingAddress(
   };
 }
 
-export function mapShopifyLineItemToStandardRow(input: {
-  order: ShopifyOrderRecord;
-  lineItem: ShopifyLineItem;
-  shopDomain?: string;
-}): BaseHeaderRow {
+/** line item 1개를 상품요약 조각으로 변환 — 예: `반팔티 (블랙/L) x1` */
+export function formatShopifyLineItemSummary(lineItem: ShopifyLineItem): string {
+  const title = lineItem.title?.trim() ?? '';
+  if (!title) return '';
+
+  const variant = lineItem.variantTitle?.trim();
+  const quantity = lineItem.quantity > 0 ? lineItem.quantity : 1;
+
+  if (variant) {
+    return `${title} (${variant}) x${quantity}`;
+  }
+
+  return `${title} x${quantity}`;
+}
+
+/** 주문 내 lineItems를 택배 업로드용 상품요약 문자열로 합칩니다. */
+export function formatShopifyLineItemsSummary(lineItems: ShopifyLineItem[]): string {
+  return lineItems.map(formatShopifyLineItemSummary).filter(Boolean).join(' / ');
+}
+
+export function sumShopifyLineItemQuantities(lineItems: ShopifyLineItem[]): number {
+  return lineItems.reduce((sum, item) => sum + (item.quantity > 0 ? item.quantity : 0), 0);
+}
+
+/**
+ * Shopify 주문 1건 → 표준 행 1개 (배송/택배 업로드 기준).
+ * lineItems 상세 배열은 OrderStandardFile row에 별도 필드가 없어 상품명 요약 문자열로만 반영합니다.
+ *
+ * TODO(2차): 부분배송·상품별 송장·품절 분리 등 — line item별 행 분리 옵션 검토
+ */
+export function mapShopifyOrderToStandardRow(
+  order: ShopifyOrderRecord,
+  shopDomain?: string,
+): BaseHeaderRow {
   const row = createEmptyBaseHeaderRow();
-  const { order, lineItem } = input;
   const shipping = order.shippingAddress;
   const customer = order.customer;
   const addresses = formatShopifyShippingAddress(shipping);
-  const lineItemId = extractShopifyGidNumericId(lineItem.id);
+  const productSummary = formatShopifyLineItemsSummary(order.lineItems);
+  const totalQuantity = sumShopifyLineItemQuantities(order.lineItems);
 
   row['주문번호'] = order.name;
-  row['상품주문번호'] = `${order.name}-${lineItemId}`;
+  row['상품주문번호'] = order.name;
   row['주문상태'] = formatShopifyOrderStatus(order);
   row['주문일시'] = formatShopifyDateTime(order.createdAt);
   row['결제일시'] = formatShopifyDateTime(order.processedAt || order.createdAt);
@@ -106,14 +135,14 @@ export function mapShopifyLineItemToStandardRow(input: {
   row['받는사람주소2'] = addresses.address2;
   row['주문자'] = customer?.displayName?.trim() || '';
   row['주문자연락처'] = normalizePhone(customer?.phone);
-  row['상품명'] = lineItem.title;
-  row['상품옵션'] = lineItem.variantTitle?.trim() || '';
-  row['수량'] = String(lineItem.quantity || 1);
+  row['상품명'] = productSummary;
+  row['상품옵션'] = '';
+  row['수량'] = String(totalQuantity);
   row['배송메시지'] = order.note?.trim() || '';
   row['판매처'] = 'Shopify';
 
-  if (input.shopDomain) {
-    row['내부메모'] = input.shopDomain;
+  if (shopDomain) {
+    row['내부메모'] = shopDomain;
   }
 
   return row;
@@ -123,30 +152,14 @@ export function mapShopifyOrderToStandardRows(
   order: ShopifyOrderRecord,
   shopDomain?: string,
 ): BaseHeaderRow[] {
-  if (order.lineItems.length === 0) {
-    return [
-      mapShopifyLineItemToStandardRow({
-        order,
-        lineItem: {
-          id: `${order.id}-empty`,
-          title: '',
-          quantity: 0,
-        },
-        shopDomain,
-      }),
-    ];
-  }
-
-  return order.lineItems.map((lineItem) =>
-    mapShopifyLineItemToStandardRow({ order, lineItem, shopDomain }),
-  );
+  return [mapShopifyOrderToStandardRow(order, shopDomain)];
 }
 
 export function mapShopifyOrdersToStandardRows(
   orders: ShopifyOrderRecord[],
   shopDomain?: string,
 ): BaseHeaderRow[] {
-  return orders.flatMap((order) => mapShopifyOrderToStandardRows(order, shopDomain));
+  return orders.map((order) => mapShopifyOrderToStandardRow(order, shopDomain));
 }
 
 export function mapShopifyOrdersToOrderStandardFile(

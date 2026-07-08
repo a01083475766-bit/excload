@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   extractShopifyGidNumericId,
+  formatShopifyLineItemSummary,
+  formatShopifyLineItemsSummary,
   formatShopifyShippingAddress,
   mapShopifyOrdersToOrderStandardFile,
   mapShopifyOrdersToPreviewRows,
   mapShopifyOrdersToStandardRows,
+  sumShopifyLineItemQuantities,
 } from '@/app/lib/shopify/map-shopify-orders';
 import type { ShopifyOrderRecord } from '@/app/lib/shopify/orders';
 
@@ -49,14 +52,25 @@ function buildOrder(overrides: Partial<ShopifyOrderRecord> = {}): ShopifyOrderRe
   };
 }
 
+describe('formatShopifyLineItemsSummary', () => {
+  it('combines line items with options and quantities', () => {
+    expect(formatShopifyLineItemSummary(buildOrder().lineItems[0]!)).toBe('T-Shirt (Blue / M) x2');
+    expect(formatShopifyLineItemsSummary(buildOrder().lineItems)).toBe(
+      'T-Shirt (Blue / M) x2 / Cap (Black) x1',
+    );
+    expect(sumShopifyLineItemQuantities(buildOrder().lineItems)).toBe(3);
+  });
+});
+
 describe('mapShopifyOrdersToStandardRows', () => {
-  it('maps line item 1개 = 1행', () => {
+  it('maps order 1건 = 1행 (lineItems 2개여도 배송 기준 1행)', () => {
     const rows = mapShopifyOrdersToStandardRows([buildOrder()]);
-    expect(rows).toHaveLength(2);
-    expect(rows[0]?.['상품주문번호']).toBe('#1001-11');
-    expect(rows[1]?.['상품주문번호']).toBe('#1001-12');
-    expect(rows[0]?.['상품명']).toBe('T-Shirt');
-    expect(rows[1]?.['상품명']).toBe('Cap');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.['주문번호']).toBe('#1001');
+    expect(rows[0]?.['상품주문번호']).toBe('#1001');
+    expect(rows[0]?.['상품명']).toBe('T-Shirt (Blue / M) x2 / Cap (Black) x1');
+    expect(rows[0]?.['수량']).toBe('3');
+    expect(rows[0]?.['상품옵션']).toBe('');
   });
 
   it('uses shippingAddress with international address fallback', () => {
@@ -84,20 +98,30 @@ describe('mapShopifyOrdersToStandardRows', () => {
     expect(rows[0]?.['받는사람주소1']).toBe('');
   });
 
-  it('builds OrderStandardFile with base headers', () => {
+  it('builds OrderStandardFile with one row per order', () => {
     const file = mapShopifyOrdersToOrderStandardFile([buildOrder()], 'mystore.myshopify.com');
     expect(file.unknownHeaders).toEqual([]);
-    expect(file.rows).toHaveLength(2);
+    expect(file.rows).toHaveLength(1);
     expect(file.baseHeaders).toContain('주문번호');
     expect(file.rows[0]?.['판매처']).toBe('Shopify');
     expect(file.rows[0]?.['내부메모']).toBe('mystore.myshopify.com');
+    expect(file.rows[0]?.['상품명']).toContain('T-Shirt');
+    expect(file.rows[0]?.['상품명']).toContain('Cap');
   });
 
-  it('maps preview rows with shopDomain', () => {
+  it('maps preview rows as one row per order with combined product summary', () => {
     const previewRows = mapShopifyOrdersToPreviewRows([buildOrder()], 'mystore.myshopify.com');
-    expect(previewRows).toHaveLength(2);
+    expect(previewRows).toHaveLength(1);
     expect(previewRows[0]?.shopDomain).toBe('mystore.myshopify.com');
-    expect(previewRows[0]?.['상품옵션']).toBe('Blue / M');
+    expect(previewRows[0]?.['상품명']).toBe('T-Shirt (Blue / M) x2 / Cap (Black) x1');
+    expect(previewRows[0]?.['수량']).toBe('3');
+    expect(previewRows[0]?.['상품옵션']).toBe('');
+  });
+
+  it('does not repeat the same order number across multiple preview rows', () => {
+    const previewRows = mapShopifyOrdersToPreviewRows([buildOrder(), buildOrder({ name: '#1002' })]);
+    expect(previewRows).toHaveLength(2);
+    expect(previewRows.map((row) => row['주문번호'])).toEqual(['#1001', '#1002']);
   });
 });
 
