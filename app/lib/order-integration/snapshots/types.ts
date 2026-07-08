@@ -170,3 +170,49 @@ export type OrderSyncPersistTransactionClient = {
 export type OrderSyncPersistPrismaClient = {
   $transaction: <T>(fn: (tx: OrderSyncPersistTransactionClient) => Promise<T>) => Promise<T>;
 };
+
+export type OrderFetchStandardFileLike = {
+  rows: ReadonlyArray<Record<string, unknown>>;
+};
+
+export type MaybePersistOrderFetchResultInput = {
+  client: OrderSyncPersistPrismaClient;
+  /** `isOrderSyncSnapshotPersistEnabled()` 등 env 기반 플래그 */
+  enabled: boolean;
+  userId: string;
+  provider: OrderIntegrationProvider;
+  integrationAccountId: string;
+  orderStandardFile?: OrderFetchStandardFileLike | null;
+  rawOrders?: unknown;
+  fetchedAt?: Date;
+};
+
+export type OrderFetchSnapshotPersistResult =
+  | {
+      persisted: false;
+      reason: 'disabled' | 'empty_rows' | 'missing_order_standard_file';
+    }
+  | {
+      persisted: true;
+      batchId: string;
+      orderCount: number;
+      excloadOrderNos: string[];
+    }
+  | {
+      persisted: false;
+      reason: 'persist_failed';
+      errorMessage: string;
+    };
+
+/**
+ * Phase C-3b fetch-orders 응답 확장 예정 필드.
+ * 기존 success/message/count/previewRows/orderStandardFile 응답에 snapshotPersist를 추가합니다.
+ */
+export type OrderFetchWithSnapshotPersistResponse<TPreviewRow = unknown> = {
+  success: true;
+  message: string;
+  count: number;
+  previewRows: TPreviewRow[];
+  orderStandardFile: OrderFetchStandardFileLike;
+  snapshotPersist: OrderFetchSnapshotPersistResult;
+};
