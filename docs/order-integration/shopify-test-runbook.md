@@ -68,7 +68,7 @@ Production에 `SHOPIFY` enum이 없으면 계정 저장·조회가 실패합니�
 | `SHOPIFY_CLIENT_ID` | ✅ | Partners 앱 Client ID |
 | `SHOPIFY_CLIENT_SECRET` | ✅ | Partners 앱 Client Secret |
 | `SHOPIFY_OAUTH_REDIRECT_URI` | 선택 | 미설정 시 `https://www.excload.com/api/order/integration/shopify/callback` |
-| `SHOPIFY_API_VERSION` | 선택 | 미설정 시 `2026-01` (코드 `SHOPIFY_DEFAULT_API_VERSION`) |
+| `SHOPIFY_API_VERSION` | 선택 | 미설정 시 `2026-01` (코드 `SHOPIFY_DEFAULT_API_VERSION`). `.env.example`에도 placeholder 등록됨 |
 | `SHOPIFY_OAUTH_STATE_SECRET` | 선택 | 미설정 시 `EXCLOAD_INTEGRATION_ENCRYPTION_KEY` → `NEXTAUTH_SECRET` fallback |
 | `EXCLOAD_INTEGRATION_ENCRYPTION_KEY` | ✅ (토큰 저장 시) | OAuth token AES 암호화용 — 기존 연동과 동일 |
 
