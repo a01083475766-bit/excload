@@ -85,3 +85,88 @@ export type BuildOrderPreviewDisplayRowOptions = BuildCourierExportRowOptions & 
 export type BuildOrderPreviewDisplayRowsInput = BuildOrderPreviewDisplayRowOptions & {
   snapshots: ReadonlyArray<OrderSyncOrderSnapshotForPersist>;
 };
+
+export type ReserveExcloadOrderNosInput = {
+  count: number;
+  date?: Date;
+  dateKey?: string;
+};
+
+export type PersistOrderSyncBatchInput = {
+  userId: string;
+  provider: OrderIntegrationProvider;
+  integrationAccountId?: string | null;
+  sourceType?: 'API' | 'EXCEL' | 'MANUAL';
+  fetchedAt: Date | string;
+  memo?: string | null;
+  snapshots: ReadonlyArray<OrderSyncOrderSnapshotForPersist>;
+};
+
+export type PersistedOrderSyncBatchLike = {
+  id: string;
+  userId: string;
+  provider: OrderIntegrationProvider;
+  integrationAccountId: string | null;
+  sourceType: 'API' | 'EXCEL' | 'MANUAL';
+  fetchedAt: Date;
+  orderCount: number;
+  status: 'ACTIVE' | 'ARCHIVED' | 'ERROR';
+  memo: string | null;
+  errorMessage: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type PersistedOrderSyncOrderLike = {
+  id: string;
+  batchId: string;
+  userId: string;
+  provider: OrderIntegrationProvider;
+  integrationAccountId: string | null;
+  excloadOrderNo: string;
+  mallOrderNo: string;
+  mallOrderId: string | null;
+  mallLineItemIds: unknown;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverAddress: string | null;
+  productSummary: string | null;
+  quantity: number | null;
+  deliveryMemo: string | null;
+  orderedAt: Date | null;
+  orderStatus: string | null;
+  rawPayloadJson: unknown;
+  normalizedPayloadJson: unknown;
+  trackingNumber: string | null;
+  carrierCode: string | null;
+  shippedAt: Date | null;
+  transmissionStatus: 'NONE' | 'READY' | 'SENT' | 'FAILED' | 'SKIPPED';
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type PersistOrderSyncBatchResult = {
+  batch: PersistedOrderSyncBatchLike;
+  orders: PersistedOrderSyncOrderLike[];
+  excloadOrderNos: string[];
+};
+
+export type OrderSyncPersistTransactionClient = {
+  excloadOrderNoSequence: {
+    upsert: (args: {
+      where: { dateKey: string };
+      create: { dateKey: string; lastNumber: number };
+      update: { lastNumber: { increment: number } };
+    }) => Promise<{ dateKey: string; lastNumber: number }>;
+  };
+  orderSyncBatch: {
+    create: (args: { data: Record<string, unknown> }) => Promise<PersistedOrderSyncBatchLike>;
+  };
+  orderSyncOrder: {
+    create: (args: { data: Record<string, unknown> }) => Promise<PersistedOrderSyncOrderLike>;
+  };
+};
+
+export type OrderSyncPersistPrismaClient = {
+  $transaction: <T>(fn: (tx: OrderSyncPersistTransactionClient) => Promise<T>) => Promise<T>;
+};
