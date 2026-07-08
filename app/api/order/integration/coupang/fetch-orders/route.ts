@@ -1,4 +1,6 @@
+import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
+import { prisma } from '@/app/lib/prisma';
 import { fetchCoupangOrderSheets } from '@/app/lib/coupang/client';
 import { getCoupangTransportInfo } from '@/app/lib/coupang/transport/resolve-transport';
 import {
@@ -17,6 +19,10 @@ import {
   markCoupangAccountSyncResult,
   toCoupangCredentials,
 } from '@/app/lib/order-integration/coupang-account';
+import {
+  isOrderSyncSnapshotPersistEnabled,
+  maybePersistOrderFetchResult,
+} from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 
 export async function POST() {
   const auth = await requireOrderIntegrationAdmin();
@@ -50,6 +56,17 @@ export async function POST() {
 
     await markCoupangAccountSyncResult({ accountId: account.id, success: true });
 
+    const snapshotPersist = await maybePersistOrderFetchResult({
+      client: prisma,
+      enabled: isOrderSyncSnapshotPersistEnabled(),
+      userId: auth.userId,
+      provider: OrderIntegrationProvider.COUPANG,
+      integrationAccountId: account.id,
+      orderStandardFile,
+      rawOrders: undefined,
+      fetchedAt: new Date(),
+    });
+
     const transport = getCoupangTransportInfo();
 
     return NextResponse.json({
@@ -61,6 +78,7 @@ export async function POST() {
       previewHeaders: COUPANG_PREVIEW_HEADERS,
       previewRows,
       orderStandardFile,
+      snapshotPersist,
       debug: {
         transport,
         rawOrderCount: orders.length,

@@ -1,4 +1,4 @@
-import type { OrderIntegrationProvider } from '@prisma/client';
+import type { OrderIntegrationProvider, PrismaClient } from '@prisma/client';
 
 /**
  * DB persist 직전 in-memory DTO.
@@ -176,7 +176,7 @@ export type OrderFetchStandardFileLike = {
 };
 
 export type MaybePersistOrderFetchResultInput = {
-  client: OrderSyncPersistPrismaClient;
+  client: Pick<PrismaClient, '$transaction'> | OrderSyncPersistPrismaClient;
   /** `isOrderSyncSnapshotPersistEnabled()` 등 env 기반 플래그 */
   enabled: boolean;
   userId: string;

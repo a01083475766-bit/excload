@@ -1,4 +1,6 @@
+import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
+import { prisma } from '@/app/lib/prisma';
 import {
   isAdminAuthFailure,
   requireOrderIntegrationAdmin,
@@ -19,6 +21,10 @@ import {
   mapShopifyOrdersToPreviewRows,
 } from '@/app/lib/shopify/map-shopify-orders';
 import { fetchShopifyOrders } from '@/app/lib/shopify/orders';
+import {
+  isOrderSyncSnapshotPersistEnabled,
+  maybePersistOrderFetchResult,
+} from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 
 export async function POST() {
   const auth = await requireOrderIntegrationAdmin();
@@ -62,6 +68,17 @@ export async function POST() {
 
     await markShopifyAccountSyncResult({ accountId: account.id, success: true });
 
+    const snapshotPersist = await maybePersistOrderFetchResult({
+      client: prisma,
+      enabled: isOrderSyncSnapshotPersistEnabled(),
+      userId: auth.userId,
+      provider: OrderIntegrationProvider.SHOPIFY,
+      integrationAccountId: account.id,
+      orderStandardFile,
+      rawOrders: undefined,
+      fetchedAt: new Date(),
+    });
+
     return NextResponse.json({
       success: true,
       message: `Shopify 주문 ${previewRows.length}건을 불러왔습니다.`,
@@ -69,6 +86,7 @@ export async function POST() {
       previewHeaders: SHOPIFY_PREVIEW_HEADERS,
       previewRows,
       orderStandardFile,
+      snapshotPersist,
       debug: {
         transport: { mode: 'direct' as const },
         rawOrderCount: orders.length,

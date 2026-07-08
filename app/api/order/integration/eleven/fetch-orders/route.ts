@@ -1,5 +1,7 @@
+import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { getIntegrationTransportInfo, isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
+import { prisma } from '@/app/lib/prisma';
 import {
   isAdminAuthFailure,
   requireOrderIntegrationAdmin,
@@ -15,6 +17,10 @@ import {
   mapElevenOrdersToOrderStandardFile,
   mapElevenOrdersToPreviewRows,
 } from '@/app/lib/eleven/map-eleven-orders';
+import {
+  isOrderSyncSnapshotPersistEnabled,
+  maybePersistOrderFetchResult,
+} from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 
 export async function POST() {
   const auth = await requireOrderIntegrationAdmin();
@@ -45,6 +51,17 @@ export async function POST() {
 
     await markElevenAccountSyncResult({ accountId: account.id, success: true });
 
+    const snapshotPersist = await maybePersistOrderFetchResult({
+      client: prisma,
+      enabled: isOrderSyncSnapshotPersistEnabled(),
+      userId: auth.userId,
+      provider: OrderIntegrationProvider.ELEVEN,
+      integrationAccountId: account.id,
+      orderStandardFile,
+      rawOrders: undefined,
+      fetchedAt: new Date(),
+    });
+
     const transport = getIntegrationTransportInfo();
 
     return NextResponse.json({
@@ -54,6 +71,7 @@ export async function POST() {
       previewHeaders: ELEVEN_PREVIEW_HEADERS,
       previewRows,
       orderStandardFile,
+      snapshotPersist,
       debug: {
         transport,
         rawOrderCount: orders.length,

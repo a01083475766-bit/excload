@@ -3,6 +3,7 @@ import { persistOrderSyncBatch } from '@/app/lib/order-integration/snapshots/per
 import type {
   MaybePersistOrderFetchResultInput,
   OrderFetchSnapshotPersistResult,
+  OrderSyncPersistPrismaClient,
 } from '@/app/lib/order-integration/snapshots/types';
 
 const PII_PATTERNS: ReadonlyArray<RegExp> = [
@@ -93,7 +94,9 @@ export async function maybePersistOrderFetchResult(
       rawOrders: normalizeRawOrders(input.rawOrders),
     });
 
-    const result = await persistOrderSyncBatch(input.client, {
+    const result = await persistOrderSyncBatch(
+      input.client as unknown as OrderSyncPersistPrismaClient,
+      {
       userId: input.userId,
       provider: input.provider,
       integrationAccountId: input.integrationAccountId,

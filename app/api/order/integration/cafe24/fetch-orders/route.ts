@@ -1,5 +1,7 @@
+import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { getIntegrationTransportInfo, isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
+import { prisma } from '@/app/lib/prisma';
 import {
   isAdminAuthFailure,
   requireOrderIntegrationAdmin,
@@ -16,6 +18,10 @@ import {
   mapCafe24OrdersToOrderStandardFile,
   mapCafe24OrdersToPreviewRows,
 } from '@/app/lib/cafe24/map-cafe24-orders';
+import {
+  isOrderSyncSnapshotPersistEnabled,
+  maybePersistOrderFetchResult,
+} from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 
 export async function POST() {
   const auth = await requireOrderIntegrationAdmin();
@@ -47,6 +53,17 @@ export async function POST() {
 
     await markCafe24AccountSyncResult({ accountId: account.id, success: true });
 
+    const snapshotPersist = await maybePersistOrderFetchResult({
+      client: prisma,
+      enabled: isOrderSyncSnapshotPersistEnabled(),
+      userId: auth.userId,
+      provider: OrderIntegrationProvider.CAFE24,
+      integrationAccountId: account.id,
+      orderStandardFile,
+      rawOrders: undefined,
+      fetchedAt: new Date(),
+    });
+
     const transport = getIntegrationTransportInfo();
 
     return NextResponse.json({
@@ -56,6 +73,7 @@ export async function POST() {
       previewHeaders: CAFE24_PREVIEW_HEADERS,
       previewRows,
       orderStandardFile,
+      snapshotPersist,
       debug: {
         transport,
         rawOrderCount: orders.length,

@@ -1,5 +1,7 @@
+import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { getIntegrationTransportInfo, isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
+import { prisma } from '@/app/lib/prisma';
 import {
   isAdminAuthFailure,
   requireOrderIntegrationAdmin,
@@ -18,6 +20,10 @@ import {
   mapSmartstoreOrdersToPreviewRows,
   SMARTSTORE_PREVIEW_HEADERS,
 } from '@/app/lib/smartstore/map-smartstore-orders';
+import {
+  isOrderSyncSnapshotPersistEnabled,
+  maybePersistOrderFetchResult,
+} from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 
 export async function POST() {
   const auth = await requireOrderIntegrationAdmin();
@@ -49,6 +55,17 @@ export async function POST() {
 
     await markSmartstoreAccountSyncResult({ accountId: account.id, success: true });
 
+    const snapshotPersist = await maybePersistOrderFetchResult({
+      client: prisma,
+      enabled: isOrderSyncSnapshotPersistEnabled(),
+      userId: auth.userId,
+      provider: OrderIntegrationProvider.SMARTSTORE,
+      integrationAccountId: account.id,
+      orderStandardFile,
+      rawOrders: undefined,
+      fetchedAt: new Date(),
+    });
+
     const transport = getIntegrationTransportInfo();
 
     return NextResponse.json({
@@ -58,6 +75,7 @@ export async function POST() {
       previewHeaders: SMARTSTORE_PREVIEW_HEADERS,
       previewRows,
       orderStandardFile,
+      snapshotPersist,
       debug: {
         transport,
         rawOrderCount: orders.length,
