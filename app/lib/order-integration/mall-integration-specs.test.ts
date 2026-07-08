@@ -8,6 +8,9 @@ import {
   getDeferredHubChannels,
   getExcelUploadChannels,
   getHubApiChannels,
+  getLiveDirectApiChannels,
+  getPartnershipDirectChannels,
+  getPlannedDirectApiChannels,
   getPriorityHubChannels,
   getIntegrationProxyAllowedHostnames,
   getMarketplaceGroupsForChannel,
@@ -204,8 +207,28 @@ describe('channel integration registry', () => {
   });
 
   it('marks restricted channels', () => {
-    expect(getChannelIntegrationSpec('gmarket')?.phase).toBe('research_required');
+    expect(getChannelIntegrationSpec('gmarket')?.phase).toBe('partnership_required');
     expect(getChannelIntegrationSpec('kakao_talkstore')?.phase).toBe('partnership_required');
+  });
+
+  it('registers zigzag and shopify as planned direct_api', () => {
+    expect(getChannelIntegrationSpec('zigzag')).toMatchObject({
+      integrationType: 'direct_api',
+      phase: 'planned',
+      marketplaceGroupId: 'zigzag',
+    });
+    expect(getChannelIntegrationSpec('shopify')).toMatchObject({
+      integrationType: 'direct_api',
+      phase: 'planned',
+      marketplaceGroupId: 'shopify',
+    });
+  });
+
+  it('keeps gmarket as single ESM channel without auction channelCode', () => {
+    const codes = CHANNEL_INTEGRATION_SPECS.map((c) => c.channelCode);
+    expect(codes).toContain('gmarket');
+    expect(codes).not.toContain('auction');
+    expect(getChannelIntegrationSpec('gmarket')?.marketplaceGroupId).toBe('gmarket');
   });
 
   it('has unique channelCode values', () => {
@@ -235,6 +258,65 @@ describe('channel integration registry', () => {
     const planned = getAllPlannedProxyDomains();
     expect(planned.some((d) => d.hostname === 'openhub.godo.co.kr')).toBe(true);
     expect(planned.some((d) => d.hostname === 'connect.makeshop.co.kr')).toBe(true);
+    expect(planned.some((d) => d.hostname === 'sa2.esmplus.com')).toBe(true);
+    expect(planned.some((d) => d.hostname === 'zigzag.kr')).toBe(true);
+  });
+
+  it('does not mix planned proxy hosts into deployed allowed-hostnames', () => {
+    const deployed = getIntegrationProxyAllowedHostnames();
+    expect(deployed).not.toContain('sa2.esmplus.com');
+    expect(deployed).not.toContain('zigzag.kr');
+    expect(deployed).not.toContain('kapi.kakao.com');
+    expect(deployed).not.toContain('*.myshopify.com');
+  });
+});
+
+describe('direct channel phase helpers', () => {
+  const LIVE_DIRECT_CODES = [
+    'coupang',
+    'smartstore',
+    'eleven',
+    'cafe24',
+    'lotteon',
+    'ssg',
+    'cjonstyle',
+    'godomall',
+    'shopby',
+    'makeshop',
+  ] as const;
+
+  it('getLiveDirectApiChannels returns only live/beta operational channels', () => {
+    const codes = getLiveDirectApiChannels().map((c) => c.channelCode).sort();
+    expect(codes).toEqual([...LIVE_DIRECT_CODES].sort());
+    expect(codes).not.toContain('gmarket');
+    expect(codes).not.toContain('zigzag');
+    expect(codes).not.toContain('shopify');
+  });
+
+  it('getPlannedDirectApiChannels returns zigzag and shopify only', () => {
+    expect(getPlannedDirectApiChannels().map((c) => c.channelCode).sort()).toEqual(
+      ['shopify', 'zigzag'].sort(),
+    );
+  });
+
+  it('getPartnershipDirectChannels includes gmarket and kakao_talkstore', () => {
+    const codes = getPartnershipDirectChannels().map((c) => c.channelCode).sort();
+    expect(codes).toEqual(
+      expect.arrayContaining(['ably', 'domeggook', 'gmarket', 'kakao_talkstore', 'musinsa', 'tenbyten']),
+    );
+  });
+
+  it('partitions live, planned, and partnership direct channels without overlap', () => {
+    const live = new Set(getLiveDirectApiChannels().map((c) => c.channelCode));
+    const planned = new Set(getPlannedDirectApiChannels().map((c) => c.channelCode));
+    const partnership = new Set(getPartnershipDirectChannels().map((c) => c.channelCode));
+    for (const code of live) {
+      expect(planned.has(code)).toBe(false);
+      expect(partnership.has(code)).toBe(false);
+    }
+    for (const code of planned) {
+      expect(partnership.has(code)).toBe(false);
+    }
   });
 });
 

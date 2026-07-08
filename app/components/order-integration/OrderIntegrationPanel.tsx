@@ -9,7 +9,12 @@ import {
   ORDER_INTEGRATION_MALLS,
   type OrderIntegrationMall,
 } from '@/app/lib/order-integration/malls';
-import { getPriorityHubChannels } from '@/app/lib/order-integration/mall-integration-specs';
+import {
+  getPlannedDirectApiChannels,
+  getPartnershipDirectChannels,
+  getPriorityHubChannels,
+  type ChannelIntegrationSpec,
+} from '@/app/lib/order-integration/mall-integration-specs';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 
 function MallBadge({ badge }: { badge?: OrderIntegrationMall['badge'] }) {
@@ -53,7 +58,7 @@ function MallCard({ mall }: { mall: OrderIntegrationMall }) {
         ) : (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             <Clock className="h-3 w-3" />
-            준비중
+            {mall.preparingLabel ?? '준비중'}
           </span>
         )}
       </div>
@@ -82,10 +87,39 @@ function MallCard({ mall }: { mall: OrderIntegrationMall }) {
   );
 }
 
+function reviewChannelBadge(channelCode: string): string {
+  if (channelCode === 'shopify') return '추가 검토 중 (글로벌)';
+  if (channelCode === 'kakao_talkstore') return '제휴 준비 중';
+  return '추가 검토 중';
+}
+
+function ReviewChannelCard({ channel }: { channel: ChannelIntegrationSpec }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/60">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{channel.channelName}</h3>
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <Clock className="h-3 w-3" />
+          {reviewChannelBadge(channel.channelCode)}
+        </span>
+      </div>
+      <p className="mt-1.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+        {channel.requiredSellerAction}
+      </p>
+    </div>
+  );
+}
+
 export default function OrderIntegrationPanel() {
   const outboundIp = getExcloadOutboundIp();
   const [hubSectionOpen, setHubSectionOpen] = useState(false);
+  const [reviewSectionOpen, setReviewSectionOpen] = useState(false);
   const priorityHubs = getPriorityHubChannels();
+  const plannedReviewChannels = getPlannedDirectApiChannels();
+  const partnershipReviewChannels = getPartnershipDirectChannels().filter(
+    (c) => c.channelCode !== 'gmarket',
+  );
+  const additionalReviewChannels = [...plannedReviewChannels, ...partnershipReviewChannels];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 pb-10 sm:px-6">
@@ -138,6 +172,38 @@ export default function OrderIntegrationPanel() {
           <MallCard key={mall.id} mall={mall} />
         ))}
       </div>
+
+      <section className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 dark:border-zinc-600 dark:bg-zinc-900/40">
+        <button
+          type="button"
+          onClick={() => setReviewSectionOpen((open) => !open)}
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+        >
+          <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            추가 검토 중인 쇼핑몰
+          </span>
+          {reviewSectionOpen ? (
+            <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
+          ) : (
+            <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
+          )}
+        </button>
+        {reviewSectionOpen ? (
+          <div className="border-t border-dashed border-zinc-300 px-4 py-3 dark:border-zinc-600">
+            <p className="mb-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+              아래 채널은 direct 연동 후보이며, 제휴 승인 또는 추가 검토가 필요합니다. 현재는 연동 설정이
+              불가합니다.
+            </p>
+            <ul className="space-y-2">
+              {additionalReviewChannels.map((channel) => (
+                <li key={channel.channelCode}>
+                  <ReviewChannelCard channel={channel} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </section>
 
       <section className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 dark:border-zinc-600 dark:bg-zinc-900/40">
         <button

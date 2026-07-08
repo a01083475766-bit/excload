@@ -486,20 +486,25 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     channelCode: 'gmarket',
     channelName: 'G마켓/옥션 (ESM)',
     integrationType: 'direct_api',
-    authType: 'manual',
-    supportedActions: [],
-    apiStatus: 'pending_check',
-    phase: 'research_required',
+    authType: ['api_key', 'hmac'],
+    supportedActions: [...PHASE1_ACTIONS],
+    apiStatus: 'restricted',
+    phase: 'partnership_required',
     requiredSellerAction:
-      'ESMPLUS 셀링툴 제휴·direct API 가능성·엑셀 업로드 대체 경로 병행 검토 (hub 전용 확정 아님)',
-    tokenExpirePolicy: 'n/a',
-    rateLimitMemo: 'n/a',
-    proxyDomains: [],
+      'ESM+ 셀링툴 등록·etapihelp@gmail.com 제휴 승인 → ESM+ 셀링툴 관리에서 엑클로드 지정, JWT(HS256) 연동',
+    tokenExpirePolicy: 'JWT Bearer — 호출 직전 생성, ESM+ Master ID kid',
+    rateLimitMemo: 'ESM Trading API — etapi.gmarket.com 가이드',
+    proxyDomains: [
+      proxyDomain('sa2.esmplus.com', ['https'], 'planned', '주문·클레임·발송 API'),
+    ],
     requiredInputs: [
       { key: 'accountName', label: '접속별칭', required: true, storage: 'accountName' },
-      { key: 'sellerId', label: '판매 아이디', required: true, storage: 'sellerId' },
+      { key: 'sellerId', label: '판매 아이디(G/A)', required: true, storage: 'sellerId' },
+      { key: 'masterId', label: 'ESM+ Master ID (셀링툴)', required: true, storage: 'vendorId' },
+      { key: 'secretKey', label: 'JWT Secret Key', required: true, secret: true, storage: 'secretKey' },
     ],
-    memo: 'research_required. hub_only 확정 안 함. direct·셀링툴·excel_upload 경로 병행 검토.',
+    memo:
+      'partnership_required. 지마켓·옥션 ESM 1채널(gmarket). auction channelCode 없음. 셀링툴 승인 전 구현 금지.',
     marketplaceGroupId: 'gmarket',
     requiresFixedIpProxy: true,
   },
@@ -508,11 +513,11 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     channelName: '카카오톡스토어',
     integrationType: 'direct_api',
     authType: ['oauth2', 'api_key'],
-    supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
+    supportedActions: [...PHASE1_ACTIONS],
     apiStatus: 'restricted',
     phase: 'partnership_required',
     requiredSellerAction:
-      '카카오쇼핑 Open API 연동대행사 별도 신청 → 카카오 Developers 앱 + 판매자 API 인증키 + POST /v1/store/register',
+      '카카오쇼핑 API 연동 검토 신청서 제출 → 검토·계약 → 연동대행사(엑클로드) 선정·등록 → 카카오 Developers 앱 + 판매자 API 인증키 + POST /v1/store/register',
     tokenExpirePolicy: 'kapi.kakao.com OAuth Bearer + 판매자 API 키',
     rateLimitMemo: '카카오 API 플랫폼 Rate Limit',
     proxyDomains: [
@@ -525,8 +530,151 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'apiAuthKey', label: 'API 인증키(판매자센터)', required: true, secret: true, storage: 'apiKey' },
       { key: 'restApiKey', label: 'REST API Key (연동대행사 앱)', required: true, secret: true, storage: 'accessKey' },
     ],
-    memo: '대형제휴·대행사·호스팅사 선정 후 이용. 테스트 환경 없음.',
+    memo:
+      'partnership_required. 모든 판매자/솔루션사에 개방되지 않음 — 연동 검토·계약·연동대행사 선정 후 이용. 판매자당 연동대행사 최대 3개. 테스트 환경 없음. 구현 금지.',
     marketplaceGroupId: 'kakao_talkstore',
+    requiresFixedIpProxy: true,
+  },
+  {
+    channelCode: 'zigzag',
+    channelName: '지그재그',
+    integrationType: 'direct_api',
+    authType: 'api_key',
+    supportedActions: [...PHASE1_ACTIONS],
+    apiStatus: 'pending_check',
+    phase: 'planned',
+    requiredSellerAction:
+      '카카오스타일 파트너센터 → API 인증키 관리 → Access/Secret Key 발급 (최초 연동 시 담당 MD 문의 권장)',
+    tokenExpirePolicy: 'Access Key + Secret Key — 파트너센터 정책',
+    rateLimitMemo: 'GraphQL Open API — zigzag.kr/_openapi',
+    proxyDomains: [
+      proxyDomain('zigzag.kr', ['https'], 'planned', 'GraphQL /_openapi/openapi.graphql'),
+    ],
+    requiredInputs: [
+      { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
+      { key: 'accessKey', label: 'Access Key', required: true, storage: 'accessKey' },
+      { key: 'secretKey', label: 'Secret Key', required: true, secret: true, storage: 'secretKey' },
+    ],
+    memo: 'planned direct 후보. 구현 전.',
+    marketplaceGroupId: 'zigzag',
+    requiresFixedIpProxy: true,
+  },
+  {
+    channelCode: 'shopify',
+    channelName: '쇼피파이',
+    integrationType: 'direct_api',
+    authType: 'oauth2',
+    supportedActions: [...PHASE1_ACTIONS],
+    apiStatus: 'pending_check',
+    phase: 'planned',
+    requiredSellerAction:
+      'Shopify Partners Dev Dashboard 앱 등록 → OAuth install → read_orders scope (필요 시 read_all_orders 별도 승인)',
+    tokenExpirePolicy: 'OAuth access token — 앱 정책에 따름',
+    rateLimitMemo: 'Admin API GraphQL/REST Rate Limit',
+    proxyDomains: [
+      proxyDomain(
+        '*.myshopify.com',
+        ['https'],
+        'planned',
+        'Admin API — {store}.myshopify.com',
+        'suffix',
+      ),
+    ],
+    requiredInputs: [
+      { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
+      { key: 'shopDomain', label: 'Shop URL ({id}.myshopify.com)', required: true, storage: 'vendorId' },
+      { key: 'accessToken', label: 'Admin API Access Token', required: true, secret: true, storage: 'apiKey' },
+    ],
+    memo:
+      'planned direct 후보. 글로벌·자사몰 — 국내 오픈마켓 주문연동과 별도 제품군. OAuth 구현 전.',
+    marketplaceGroupId: 'shopify',
+    requiresFixedIpProxy: false,
+  },
+
+  // ── 후순위 direct (SSOT 메모만 · UI 미노출) ───────────────────
+  {
+    channelCode: 'tenbyten',
+    channelName: '텐바이텐',
+    integrationType: 'direct_api',
+    authType: 'api_key',
+    supportedActions: [],
+    apiStatus: 'restricted',
+    phase: 'partnership_required',
+    requiredSellerAction: 'SCM 입점 승인 후 API Key 발급 (api.10x10.co.kr Inbound API)',
+    tokenExpirePolicy: 'bearer API Key — SCM 관리',
+    rateLimitMemo: '10x10 Inbound REST API',
+    proxyDomains: [proxyDomain('api.10x10.co.kr', ['https'], 'planned')],
+    requiredInputs: [],
+    memo: '후순위 partnership_required. UI 미노출.',
+    marketplaceGroupId: 'tenbyten',
+    requiresFixedIpProxy: true,
+  },
+  {
+    channelCode: 'domeggook',
+    channelName: '도매꾹',
+    integrationType: 'direct_api',
+    authType: 'api_key',
+    supportedActions: [],
+    apiStatus: 'restricted',
+    phase: 'partnership_required',
+    requiredSellerAction: 'Open API Key + Private API 권한 승인 (주문수집 등)',
+    tokenExpirePolicy: 'API Key + Private API 승인 — 도매꾹 정책',
+    rateLimitMemo: 'openapi.domeggook.com',
+    proxyDomains: [proxyDomain('domeggook.com', ['https'], 'planned', '/ssl/api/')],
+    requiredInputs: [],
+    memo: '후순위 partnership_required. B2B 도매. UI 미노출.',
+    marketplaceGroupId: 'domeggook',
+    requiresFixedIpProxy: true,
+  },
+  {
+    channelCode: 'qoo10',
+    channelName: '큐텐',
+    integrationType: 'direct_api',
+    authType: 'api_key',
+    supportedActions: [],
+    apiStatus: 'pending_check',
+    phase: 'research_required',
+    requiredSellerAction: 'QSM 문의·API Key 발급 (일본 QAPI, 연동회사명 신청)',
+    tokenExpirePolicy: 'Certification Key — 1년 갱신',
+    rateLimitMemo: 'QAPI — api.qoo10.jp',
+    proxyDomains: [proxyDomain('api.qoo10.jp', ['https'], 'planned')],
+    requiredInputs: [],
+    memo: '후순위 research_required. 일본 시장 한정. UI 미노출.',
+    marketplaceGroupId: 'qoo10',
+    requiresFixedIpProxy: true,
+  },
+  {
+    channelCode: 'musinsa',
+    channelName: '무신사',
+    integrationType: 'direct_api',
+    authType: 'api_key',
+    supportedActions: [],
+    apiStatus: 'restricted',
+    phase: 'partnership_required',
+    requiredSellerAction: '파트너센터 API 인증키 + API 대행사 지정 (주문 연동만)',
+    tokenExpirePolicy: 'API Key — 1년 갱신',
+    rateLimitMemo: '무신사 파트너 API 정책',
+    proxyDomains: [],
+    requiredInputs: [],
+    memo: '후순위 partnership_required. API 대행사 whitelist. UI 미노출.',
+    marketplaceGroupId: 'musinsa',
+    requiresFixedIpProxy: true,
+  },
+  {
+    channelCode: 'ably',
+    channelName: '에이블리',
+    integrationType: 'direct_api',
+    authType: 'api_key',
+    supportedActions: [],
+    apiStatus: 'restricted',
+    phase: 'partnership_required',
+    requiredSellerAction: '에이블리 Sellers API Token (솔루션 연동 위주)',
+    tokenExpirePolicy: 'API Token — Sellers 어드민',
+    rateLimitMemo: '공식 개발자 포털 없음',
+    proxyDomains: [],
+    requiredInputs: [],
+    memo: '후순위 partnership_required. UI 미노출.',
+    marketplaceGroupId: 'ably',
     requiresFixedIpProxy: true,
   },
 
@@ -842,6 +990,21 @@ export function getChannelsByIntegrationType(
 
 export function getDirectApiChannels(): ChannelIntegrationSpec[] {
   return getChannelsByIntegrationType('direct_api');
+}
+
+/** 운영 중 direct 10채널 (live·beta) — planned/partnership 후보 제외 */
+export function getLiveDirectApiChannels(): ChannelIntegrationSpec[] {
+  return getDirectApiChannels().filter((c) => c.phase === 'live' || c.phase === 'beta');
+}
+
+/** direct planned 후보 (zigzag·shopify 등) */
+export function getPlannedDirectApiChannels(): ChannelIntegrationSpec[] {
+  return getDirectApiChannels().filter((c) => c.phase === 'planned');
+}
+
+/** direct partnership_required (gmarket·kakao_talkstore 등) */
+export function getPartnershipDirectChannels(): ChannelIntegrationSpec[] {
+  return getDirectApiChannels().filter((c) => c.phase === 'partnership_required');
 }
 
 export function getHubApiChannels(): ChannelIntegrationSpec[] {

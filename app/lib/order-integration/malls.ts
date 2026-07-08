@@ -21,6 +21,8 @@ export type OrderIntegrationMall = {
   description: string;
   status: OrderIntegrationMallStatus;
   badge?: OrderIntegrationMallBadge;
+  /** status=preparing 일 때 배지 문구 (기본: 준비중) */
+  preparingLabel?: string;
   priority?: number;
 };
 
@@ -108,8 +110,9 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
   {
     id: 'gmarket',
     name: 'G마켓/옥션',
-    description: 'G마켓·옥션 연동 경로(direct·엑셀 등)를 검토 중입니다.',
+    description: 'ESM 셀링툴 제휴 승인 후 연동 예정입니다.',
     status: 'preparing',
+    preparingLabel: '제휴 준비 중',
   },
 ];
 
