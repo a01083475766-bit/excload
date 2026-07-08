@@ -504,7 +504,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'secretKey', label: 'JWT Secret Key', required: true, secret: true, storage: 'secretKey' },
     ],
     memo:
-      'partnership_required. 지마켓·옥션 ESM 1채널(gmarket). auction channelCode 없음. 셀링툴 승인 전 구현 금지.',
+      '문의/승인 필요. ESM 셀링툴 승인 전 구현 금지. 지마켓·옥션 ESM 1채널(gmarket). auction channelCode 없음.',
     marketplaceGroupId: 'gmarket',
     requiresFixedIpProxy: true,
   },
@@ -517,7 +517,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     apiStatus: 'restricted',
     phase: 'partnership_required',
     requiredSellerAction:
-      '카카오쇼핑 API 연동 검토 신청서 제출 → 검토·계약 → 연동대행사(엑클로드) 선정·등록 → 카카오 Developers 앱 + 판매자 API 인증키 + POST /v1/store/register',
+      '카카오쇼핑 API 연동 검토 신청 → 계약 → 연동대행사(엑클로드) 선정·등록 → Developers 앱 + 판매자 API 키',
     tokenExpirePolicy: 'kapi.kakao.com OAuth Bearer + 판매자 API 키',
     rateLimitMemo: '카카오 API 플랫폼 Rate Limit',
     proxyDomains: [
@@ -531,7 +531,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'restApiKey', label: 'REST API Key (연동대행사 앱)', required: true, secret: true, storage: 'accessKey' },
     ],
     memo:
-      'partnership_required. 모든 판매자/솔루션사에 개방되지 않음 — 연동 검토·계약·연동대행사 선정 후 이용. 판매자당 연동대행사 최대 3개. 테스트 환경 없음. 구현 금지.',
+      '문의/승인 필요. 연동대행사·계약 전 구현 금지. 판매자당 연동대행사 최대 3개. 테스트 환경 없음.',
     marketplaceGroupId: 'kakao_talkstore',
     requiresFixedIpProxy: true,
   },
@@ -541,10 +541,10 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     integrationType: 'direct_api',
     authType: 'api_key',
     supportedActions: [...PHASE1_ACTIONS],
-    apiStatus: 'pending_check',
-    phase: 'planned',
+    apiStatus: 'restricted',
+    phase: 'partnership_required',
     requiredSellerAction:
-      '카카오스타일 파트너센터 → API 인증키 관리 → Access/Secret Key 발급 (최초 연동 시 담당 MD 문의 권장)',
+      '카카오스타일 담당 MD 문의 → Access/Secret Key·인증 헤더명 확정 후 파트너센터 키 발급',
     tokenExpirePolicy: 'Access Key + Secret Key — 파트너센터 정책',
     rateLimitMemo: 'GraphQL Open API — zigzag.kr/_openapi',
     proxyDomains: [
@@ -555,7 +555,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accessKey', label: 'Access Key', required: true, storage: 'accessKey' },
       { key: 'secretKey', label: 'Secret Key', required: true, secret: true, storage: 'secretKey' },
     ],
-    memo: 'planned direct 후보. 구현 전.',
+    memo:
+      '문의/승인 필요. MD 회신·헤더명 확정 전 구현 금지. docs/order-integration/zigzag-md-inquiry.md',
     marketplaceGroupId: 'zigzag',
     requiresFixedIpProxy: true,
   },
@@ -568,7 +569,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     apiStatus: 'pending_check',
     phase: 'planned',
     requiredSellerAction:
-      'Shopify Partners Dev Dashboard 앱 등록 → OAuth install → read_orders scope (필요 시 read_all_orders 별도 승인)',
+      'Shopify Partners 앱 등록 → OAuth install → read_orders (필요 시 read_all_orders 승인) → 테스트 스토어',
     tokenExpirePolicy: 'OAuth access token — 앱 정책에 따름',
     rateLimitMemo: 'Admin API GraphQL/REST Rate Limit',
     proxyDomains: [
@@ -586,12 +587,12 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accessToken', label: 'Admin API Access Token', required: true, secret: true, storage: 'apiKey' },
     ],
     memo:
-      'planned direct 후보. 글로벌·자사몰 — 국내 오픈마켓 주문연동과 별도 제품군. OAuth 구현 전.',
+      '다음 API 개발 후보 (app_setup_required). 제휴 승인 불필요 — Partners 앱·OAuth·테스트 스토어 준비 후 구현. 글로벌·자사몰 별도 트랙. OAuth/client/Prisma/Lightsail 미구현.',
     marketplaceGroupId: 'shopify',
     requiresFixedIpProxy: false,
   },
 
-  // ── 후순위 direct (SSOT 메모만 · UI 미노출) ───────────────────
+  // ── 문의/승인 필요 direct (SSOT · UI 접이식 「문의/승인」) ─────
   {
     channelCode: 'tenbyten',
     channelName: '텐바이텐',
@@ -600,12 +601,12 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     supportedActions: [],
     apiStatus: 'restricted',
     phase: 'partnership_required',
-    requiredSellerAction: 'SCM 입점 승인 후 API Key 발급 (api.10x10.co.kr Inbound API)',
+    requiredSellerAction: 'SCM 입점·기술지원(kobula@10x10.co.kr) 문의 후 API Key 발급',
     tokenExpirePolicy: 'bearer API Key — SCM 관리',
     rateLimitMemo: '10x10 Inbound REST API',
     proxyDomains: [proxyDomain('api.10x10.co.kr', ['https'], 'planned')],
     requiredInputs: [],
-    memo: '후순위 partnership_required. UI 미노출.',
+    memo: '문의/승인 필요. SCM/API 문의 전 구현 금지. UI는 문의/승인 섹션.',
     marketplaceGroupId: 'tenbyten',
     requiresFixedIpProxy: true,
   },
@@ -617,12 +618,13 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     supportedActions: [],
     apiStatus: 'restricted',
     phase: 'partnership_required',
-    requiredSellerAction: 'Open API Key + Private API 권한 승인 (주문수집 등)',
+    requiredSellerAction:
+      'Open API Key + Private API 권한 승인 (주문수집). 로그인 sId·비밀번호 세션 이슈 확인 필요',
     tokenExpirePolicy: 'API Key + Private API 승인 — 도매꾹 정책',
     rateLimitMemo: 'openapi.domeggook.com',
     proxyDomains: [proxyDomain('domeggook.com', ['https'], 'planned', '/ssl/api/')],
     requiredInputs: [],
-    memo: '후순위 partnership_required. B2B 도매. UI 미노출.',
+    memo: '문의/승인 필요. B2B·비밀번호 세션. UI는 문의/승인 섹션.',
     marketplaceGroupId: 'domeggook',
     requiresFixedIpProxy: true,
   },
@@ -634,12 +636,12 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     supportedActions: [],
     apiStatus: 'pending_check',
     phase: 'research_required',
-    requiredSellerAction: 'QSM 문의·API Key 발급 (일본 QAPI, 연동회사명 신청)',
+    requiredSellerAction: 'QSM 문의·연동회사명 신청 후 Certification Key (QAPI)',
     tokenExpirePolicy: 'Certification Key — 1년 갱신',
     rateLimitMemo: 'QAPI — api.qoo10.jp',
     proxyDomains: [proxyDomain('api.qoo10.jp', ['https'], 'planned')],
     requiredInputs: [],
-    memo: '후순위 research_required. 일본 시장 한정. UI 미노출.',
+    memo: '문의/승인 필요 (research). 일본 QAPI. UI는 문의/승인 섹션.',
     marketplaceGroupId: 'qoo10',
     requiresFixedIpProxy: true,
   },
@@ -651,12 +653,12 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     supportedActions: [],
     apiStatus: 'restricted',
     phase: 'partnership_required',
-    requiredSellerAction: '파트너센터 API 인증키 + API 대행사 지정 (주문 연동만)',
+    requiredSellerAction: '파트너센터 API 인증키 + 엑클로드 API 대행사 등록 문의',
     tokenExpirePolicy: 'API Key — 1년 갱신',
-    rateLimitMemo: '무신사 파트너 API 정책',
+    rateLimitMemo: '무신사 파트너 API — 공개 host/스키마 확인 필요',
     proxyDomains: [],
     requiredInputs: [],
-    memo: '후순위 partnership_required. API 대행사 whitelist. UI 미노출.',
+    memo: '문의/승인 필요. API 대행사 whitelist. UI는 문의/승인 섹션.',
     marketplaceGroupId: 'musinsa',
     requiresFixedIpProxy: true,
   },
@@ -668,12 +670,12 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     supportedActions: [],
     apiStatus: 'restricted',
     phase: 'partnership_required',
-    requiredSellerAction: '에이블리 Sellers API Token (솔루션 연동 위주)',
+    requiredSellerAction: 'Sellers API Token·upstream host/문서 확인 문의 (셀러스 입점만)',
     tokenExpirePolicy: 'API Token — Sellers 어드민',
-    rateLimitMemo: '공식 개발자 포털 없음',
+    rateLimitMemo: '공식 개발자 포털 없음 — host 확인 필요',
     proxyDomains: [],
     requiredInputs: [],
-    memo: '후순위 partnership_required. UI 미노출.',
+    memo: '문의/승인 필요. Sellers 문서·host 미확정. UI는 문의/승인 섹션.',
     marketplaceGroupId: 'ably',
     requiresFixedIpProxy: true,
   },
@@ -992,20 +994,79 @@ export function getDirectApiChannels(): ChannelIntegrationSpec[] {
   return getChannelsByIntegrationType('direct_api');
 }
 
-/** 운영 중 direct 10채널 (live·beta) — planned/partnership 후보 제외 */
+/** 운영 중 direct 10채널 (live·beta) — planned/문의·승인 후보 제외 */
 export function getLiveDirectApiChannels(): ChannelIntegrationSpec[] {
   return getDirectApiChannels().filter((c) => c.phase === 'live' || c.phase === 'beta');
 }
 
-/** direct planned 후보 (zigzag·shopify 등) */
+/**
+ * direct planned — 현재 Shopify만 (다음 API 개발 후보).
+ * 제휴 승인 불필요, Partners 앱·OAuth 등 app_setup_required.
+ */
 export function getPlannedDirectApiChannels(): ChannelIntegrationSpec[] {
   return getDirectApiChannels().filter((c) => c.phase === 'planned');
 }
 
-/** direct partnership_required (gmarket·kakao_talkstore 등) */
+/** 다음 API 개발 후보 — Shopify (planned 중 app_setup_required) */
+export function getNextApiDirectCandidates(): ChannelIntegrationSpec[] {
+  return getPlannedDirectApiChannels().filter((c) => c.channelCode === 'shopify');
+}
+
+/** direct partnership_required (gmarket·zigzag·tenbyten 등) */
 export function getPartnershipDirectChannels(): ChannelIntegrationSpec[] {
   return getDirectApiChannels().filter((c) => c.phase === 'partnership_required');
 }
+
+/**
+ * 문의/승인 필요 direct — partnership_required + research_required.
+ * UI 「문의/승인 필요 쇼핑몰」·문서 로드맵용. 구현 가능처럼 취급 금지.
+ */
+export function getInquiryApprovalDirectChannels(): ChannelIntegrationSpec[] {
+  return getDirectApiChannels().filter(
+    (c) => c.phase === 'partnership_required' || c.phase === 'research_required',
+  );
+}
+
+/** 문의/승인 그룹 표시 순서 (UI) */
+export const INQUIRY_APPROVAL_UI_ORDER = [
+  'zigzag',
+  'gmarket',
+  'kakao_talkstore',
+  'tenbyten',
+  'domeggook',
+  'qoo10',
+  'musinsa',
+  'ably',
+] as const;
+
+export function getInquiryApprovalDirectChannelsForUi(): ChannelIntegrationSpec[] {
+  const byCode = new Map(getInquiryApprovalDirectChannels().map((c) => [c.channelCode, c]));
+  return INQUIRY_APPROVAL_UI_ORDER.map((code) => byCode.get(code)).filter(
+    (c): c is ChannelIntegrationSpec => Boolean(c),
+  );
+}
+
+/**
+ * hub_only / excel_upload_first 후보 — SSOT channelCode 없을 수 있음 (문서·로드맵용).
+ * UI 메인·클릭 카드에 넣지 않음. docs/order-integration/remaining-malls-roadmap.md
+ */
+export const HUB_OR_EXCEL_PRIORITY_ROADMAP = [
+  { code: 'todayhouse', name: '오늘의집', kind: 'hub_only' as const },
+  { code: 'brandi', name: '브랜디', kind: 'hub_only' as const },
+  { code: 'hiver', name: '하이버', kind: 'hub_only' as const },
+  { code: 'ballan', name: '발란', kind: 'hub_only' as const },
+  { code: 'buyzzle', name: '바이즐', kind: 'hub_only' as const },
+  { code: 'hottracks', name: '핫트랙스', kind: 'excel_upload_first' as const },
+  { code: 'babosarang', name: '바보사랑', kind: 'excel_upload_first' as const },
+  { code: '1300k', name: '1300K', kind: 'excel_upload_first' as const },
+  { code: 'goldii', name: '골디', kind: 'excel_upload_first' as const },
+] as const;
+
+/** 보류/차단 — excel_tmon / excel_wemakeprice 만 SSOT. 정상 영업·API 재개 전 UI 미노출 */
+export const BLOCKED_OR_CLOSED_ROADMAP = [
+  { code: 'tmon', name: '티몬', ssotExcelCode: 'excel_tmon' },
+  { code: 'wemakeprice', name: '위메프', ssotExcelCode: 'excel_wemakeprice' },
+] as const;
 
 export function getHubApiChannels(): ChannelIntegrationSpec[] {
   return getChannelsByIntegrationType('hub_api');

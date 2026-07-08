@@ -1,7 +1,8 @@
 # 주문연동 외부 문의 진행 현황
 
-> **목적**: partnership_required / planned 채널의 외부 문의·승인 진행 상태 관리  
-> **갱신**: 문의 발송·회신 시 이 표를 수동 업데이트
+> **목적**: partnership_required / research_required 채널의 외부 문의·승인 진행 상태 관리  
+> **갱신**: 문의 발송·회신 시 이 표를 수동 업데이트  
+> **로드맵**: [remaining-malls-roadmap.md](./remaining-malls-roadmap.md) (Shopify는 문의가 아닌 다음 API 개발 후보)
 
 ---
 
@@ -29,7 +30,7 @@
 
 | channelCode | phase | marketplaceGroupId |
 |-------------|-------|-------------------|
-| `zigzag` | `planned` | `zigzag` |
+| `zigzag` | `partnership_required` | `zigzag` |
 | `gmarket` | `partnership_required` | `gmarket` |
 | `kakao_talkstore` | `partnership_required` | `kakao_talkstore` |
 

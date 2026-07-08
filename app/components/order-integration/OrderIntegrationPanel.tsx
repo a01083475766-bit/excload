@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ChevronDown, ChevronUp, Link2, Clock } from 'lucide-react';
 import {
@@ -10,9 +10,10 @@ import {
   type OrderIntegrationMall,
 } from '@/app/lib/order-integration/malls';
 import {
-  getPlannedDirectApiChannels,
-  getPartnershipDirectChannels,
+  getNextApiDirectCandidates,
+  getInquiryApprovalDirectChannelsForUi,
   getPriorityHubChannels,
+  HUB_OR_EXCEL_PRIORITY_ROADMAP,
   type ChannelIntegrationSpec,
 } from '@/app/lib/order-integration/mall-integration-specs';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
@@ -87,20 +88,20 @@ function MallCard({ mall }: { mall: OrderIntegrationMall }) {
   );
 }
 
-function reviewChannelBadge(channelCode: string): string {
-  if (channelCode === 'shopify') return '추가 검토 중 (글로벌)';
-  if (channelCode === 'kakao_talkstore') return '제휴 준비 중';
-  return '추가 검토 중';
-}
-
-function ReviewChannelCard({ channel }: { channel: ChannelIntegrationSpec }) {
+function ReviewChannelCard({
+  channel,
+  badge,
+}: {
+  channel: ChannelIntegrationSpec;
+  badge: string;
+}) {
   return (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/60">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{channel.channelName}</h3>
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
           <Clock className="h-3 w-3" />
-          {reviewChannelBadge(channel.channelCode)}
+          {badge}
         </span>
       </div>
       <p className="mt-1.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -110,16 +111,49 @@ function ReviewChannelCard({ channel }: { channel: ChannelIntegrationSpec }) {
   );
 }
 
+function CollapsibleRoadmapSection({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 dark:border-zinc-600 dark:bg-zinc-900/40">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+      >
+        <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{title}</span>
+        {open ? (
+          <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
+        )}
+      </button>
+      {open ? (
+        <div className="border-t border-dashed border-zinc-300 px-4 py-3 dark:border-zinc-600">
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default function OrderIntegrationPanel() {
   const outboundIp = getExcloadOutboundIp();
   const [hubSectionOpen, setHubSectionOpen] = useState(false);
-  const [reviewSectionOpen, setReviewSectionOpen] = useState(false);
+  const [nextApiOpen, setNextApiOpen] = useState(false);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [hubExcelOpen, setHubExcelOpen] = useState(false);
   const priorityHubs = getPriorityHubChannels();
-  const plannedReviewChannels = getPlannedDirectApiChannels();
-  const partnershipReviewChannels = getPartnershipDirectChannels().filter(
-    (c) => c.channelCode !== 'gmarket',
-  );
-  const additionalReviewChannels = [...plannedReviewChannels, ...partnershipReviewChannels];
+  const nextApiChannels = getNextApiDirectCandidates();
+  const inquiryChannels = getInquiryApprovalDirectChannelsForUi();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 pb-10 sm:px-6">
@@ -173,37 +207,75 @@ export default function OrderIntegrationPanel() {
         ))}
       </div>
 
-      <section className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 dark:border-zinc-600 dark:bg-zinc-900/40">
-        <button
-          type="button"
-          onClick={() => setReviewSectionOpen((open) => !open)}
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
-        >
-          <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-            추가 검토 중인 쇼핑몰
-          </span>
-          {reviewSectionOpen ? (
-            <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
-          ) : (
-            <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
-          )}
-        </button>
-        {reviewSectionOpen ? (
-          <div className="border-t border-dashed border-zinc-300 px-4 py-3 dark:border-zinc-600">
-            <p className="mb-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-              아래 채널은 direct 연동 후보이며, 제휴 승인 또는 추가 검토가 필요합니다. 현재는 연동 설정이
-              불가합니다.
-            </p>
-            <ul className="space-y-2">
-              {additionalReviewChannels.map((channel) => (
-                <li key={channel.channelCode}>
-                  <ReviewChannelCard channel={channel} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </section>
+      <CollapsibleRoadmapSection
+        title="다음 API 개발 후보"
+        open={nextApiOpen}
+        onToggle={() => setNextApiOpen((v) => !v)}
+      >
+        <p className="mb-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+          공식 API·OAuth 구조가 명확해 제휴 승인 대기 없이 개발 검토가 가능한 후보입니다. Partners 앱
+          등록·scope·테스트 스토어 준비 전까지는 연동 설정을 열지 않습니다.
+        </p>
+        <ul className="space-y-2">
+          {nextApiChannels.map((channel) => (
+            <li key={channel.channelCode}>
+              <ReviewChannelCard
+                channel={{
+                  ...channel,
+                  requiredSellerAction:
+                    channel.channelCode === 'shopify'
+                      ? 'Shopify OAuth 앱 등록 후 주문 조회 연동 검토'
+                      : channel.requiredSellerAction,
+                }}
+                badge="API 개발 후보"
+              />
+            </li>
+          ))}
+        </ul>
+      </CollapsibleRoadmapSection>
+
+      <CollapsibleRoadmapSection
+        title="문의/승인 필요 쇼핑몰"
+        open={inquiryOpen}
+        onToggle={() => setInquiryOpen((v) => !v)}
+      >
+        <p className="mb-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+          MD·셀링툴·연동대행사·SCM·Private API 등 외부 문의·승인이 필요합니다. 회신·승인 전에는 구현·연동
+          설정이 불가합니다.
+        </p>
+        <ul className="space-y-2">
+          {inquiryChannels.map((channel) => (
+            <li key={channel.channelCode}>
+              <ReviewChannelCard channel={channel} badge="문의/승인 필요" />
+            </li>
+          ))}
+        </ul>
+      </CollapsibleRoadmapSection>
+
+      <CollapsibleRoadmapSection
+        title="허브 또는 엑셀 우선 후보"
+        open={hubExcelOpen}
+        onToggle={() => setHubExcelOpen((v) => !v)}
+      >
+        <p className="mb-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+          공개 판매자 API가 없거나 솔루션(허브) 연동이 현실적인 채널입니다. Direct API 메인 후보가 아니며,
+          상세는 로드맵 문서를 참고하세요.
+        </p>
+        <ul className="space-y-1.5">
+          {HUB_OR_EXCEL_PRIORITY_ROADMAP.map((item) => (
+            <li
+              key={item.code}
+              className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              <span className="font-medium text-zinc-800 dark:text-zinc-200">{item.name}</span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-500">
+                <Clock className="h-3 w-3" />
+                허브 또는 엑셀 우선
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CollapsibleRoadmapSection>
 
       <section className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 dark:border-zinc-600 dark:bg-zinc-900/40">
         <button
@@ -248,8 +320,7 @@ export default function OrderIntegrationPanel() {
 
       <p className="mt-6 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
         관리자 전용 화면입니다. 쿠팡(운영), 나머지 9개 몰 direct API(베타) 코드 배포 완료.
-        허브(플레이오토·사방넷·이지어드민)는 API·계약 검토 단계이며 구현 미완입니다.
-        실연동 테스트는 개발자센터 App 등록 및 Lightsail 프록시 1회 반영 후 진행합니다.
+        추가 채널은 문의·승인 또는 앱 준비 후 연동합니다. G마켓/옥션은 ESM 제휴 승인 전까지 설정 불가입니다.
       </p>
     </div>
   );

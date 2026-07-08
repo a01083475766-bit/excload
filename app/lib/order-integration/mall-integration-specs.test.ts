@@ -11,6 +11,12 @@ import {
   getLiveDirectApiChannels,
   getPartnershipDirectChannels,
   getPlannedDirectApiChannels,
+  getNextApiDirectCandidates,
+  getInquiryApprovalDirectChannels,
+  getInquiryApprovalDirectChannelsForUi,
+  INQUIRY_APPROVAL_UI_ORDER,
+  HUB_OR_EXCEL_PRIORITY_ROADMAP,
+  BLOCKED_OR_CLOSED_ROADMAP,
   getPriorityHubChannels,
   getIntegrationProxyAllowedHostnames,
   getMarketplaceGroupsForChannel,
@@ -211,16 +217,21 @@ describe('channel integration registry', () => {
     expect(getChannelIntegrationSpec('kakao_talkstore')?.phase).toBe('partnership_required');
   });
 
-  it('registers zigzag and shopify as planned direct_api', () => {
-    expect(getChannelIntegrationSpec('zigzag')).toMatchObject({
-      integrationType: 'direct_api',
-      phase: 'planned',
-      marketplaceGroupId: 'zigzag',
-    });
+  it('registers shopify as planned next API candidate (direct_api)', () => {
     expect(getChannelIntegrationSpec('shopify')).toMatchObject({
       integrationType: 'direct_api',
       phase: 'planned',
+      apiStatus: 'pending_check',
       marketplaceGroupId: 'shopify',
+    });
+    expect(getChannelIntegrationSpec('shopify')?.memo).toMatch(/app_setup_required|다음 API 개발/);
+  });
+
+  it('registers zigzag as partnership_required (inquiry/approval)', () => {
+    expect(getChannelIntegrationSpec('zigzag')).toMatchObject({
+      integrationType: 'direct_api',
+      phase: 'partnership_required',
+      marketplaceGroupId: 'zigzag',
     });
   });
 
@@ -293,29 +304,64 @@ describe('direct channel phase helpers', () => {
     expect(codes).not.toContain('shopify');
   });
 
-  it('getPlannedDirectApiChannels returns zigzag and shopify only', () => {
-    expect(getPlannedDirectApiChannels().map((c) => c.channelCode).sort()).toEqual(
-      ['shopify', 'zigzag'].sort(),
-    );
+  it('getPlannedDirectApiChannels returns shopify only (next API candidate)', () => {
+    expect(getPlannedDirectApiChannels().map((c) => c.channelCode)).toEqual(['shopify']);
+    expect(getNextApiDirectCandidates().map((c) => c.channelCode)).toEqual(['shopify']);
   });
 
-  it('getPartnershipDirectChannels includes gmarket and kakao_talkstore', () => {
-    const codes = getPartnershipDirectChannels().map((c) => c.channelCode).sort();
+  it('getInquiryApprovalDirectChannels covers partnership + research inquiry list', () => {
+    const codes = getInquiryApprovalDirectChannels().map((c) => c.channelCode).sort();
     expect(codes).toEqual(
-      expect.arrayContaining(['ably', 'domeggook', 'gmarket', 'kakao_talkstore', 'musinsa', 'tenbyten']),
+      expect.arrayContaining([
+        'ably',
+        'domeggook',
+        'gmarket',
+        'kakao_talkstore',
+        'musinsa',
+        'qoo10',
+        'tenbyten',
+        'zigzag',
+      ]),
+    );
+    expect(codes).not.toContain('shopify');
+    expect(getPartnershipDirectChannels().map((c) => c.channelCode)).toEqual(
+      expect.arrayContaining(['ably', 'domeggook', 'gmarket', 'kakao_talkstore', 'musinsa', 'tenbyten', 'zigzag']),
     );
   });
 
-  it('partitions live, planned, and partnership direct channels without overlap', () => {
+  it('getInquiryApprovalDirectChannelsForUi follows INQUIRY_APPROVAL_UI_ORDER', () => {
+    expect(getInquiryApprovalDirectChannelsForUi().map((c) => c.channelCode)).toEqual([
+      ...INQUIRY_APPROVAL_UI_ORDER,
+    ]);
+  });
+
+  it('keeps tmon/wemakeprice out of usable direct API channels', () => {
+    const directCodes = getDirectApiChannels().map((c) => c.channelCode);
+    expect(directCodes).not.toContain('tmon');
+    expect(directCodes).not.toContain('wemakeprice');
+    expect(BLOCKED_OR_CLOSED_ROADMAP.map((r) => r.code).sort()).toEqual(['tmon', 'wemakeprice'].sort());
+    expect(getChannelIntegrationSpec('excel_tmon')?.integrationType).toBe('excel_upload');
+    expect(getChannelIntegrationSpec('excel_wemakeprice')?.integrationType).toBe('excel_upload');
+  });
+
+  it('tracks hub/excel priority roadmap labels without promoting them to live direct', () => {
+    const live = new Set(getLiveDirectApiChannels().map((c) => c.channelCode));
+    for (const item of HUB_OR_EXCEL_PRIORITY_ROADMAP) {
+      expect(live.has(item.code)).toBe(false);
+      expect(getChannelIntegrationSpec(item.code)).toBeUndefined();
+    }
+  });
+
+  it('partitions live, planned, and inquiry/approval direct channels without overlap', () => {
     const live = new Set(getLiveDirectApiChannels().map((c) => c.channelCode));
     const planned = new Set(getPlannedDirectApiChannels().map((c) => c.channelCode));
-    const partnership = new Set(getPartnershipDirectChannels().map((c) => c.channelCode));
+    const inquiry = new Set(getInquiryApprovalDirectChannels().map((c) => c.channelCode));
     for (const code of live) {
       expect(planned.has(code)).toBe(false);
-      expect(partnership.has(code)).toBe(false);
+      expect(inquiry.has(code)).toBe(false);
     }
     for (const code of planned) {
-      expect(partnership.has(code)).toBe(false);
+      expect(inquiry.has(code)).toBe(false);
     }
   });
 });

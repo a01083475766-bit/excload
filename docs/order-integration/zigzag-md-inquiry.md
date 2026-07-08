@@ -1,7 +1,7 @@
 # 지그재그 Open API 연동 검토 요청 (MD 문의용)
 
 > **상태**: 문의 전 준비 문서 — 실제 연동·구현 완료 아님  
-> **SSOT**: `channelCode: zigzag`, `phase: planned`, `marketplaceGroupId: zigzag`  
+> **SSOT**: `channelCode: zigzag`, `phase: partnership_required`, `marketplaceGroupId: zigzag`  
 > **공식 참고**: [카카오스타일 Open API 기본 정보](https://zigzag.kr/_openapi/docs/), [GraphQL 스키마](https://zigzag.kr/_openapi/openapi.graphql)
 
 ---
