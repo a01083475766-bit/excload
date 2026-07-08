@@ -140,6 +140,7 @@ enum OrderIntegrationProvider {
   SHOPBY
   GODOMALL
   MAKESHOP
+  SHOPIFY
 }
 
 enum OrderIntegrationAccountStatus {
