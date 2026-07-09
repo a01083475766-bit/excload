@@ -9,7 +9,12 @@ import { OrderIntegrationProvider } from '@prisma/client';
 import {
   MAX_SHIPMENT_UPLOAD_FILE_BYTES,
 } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
-import type { ShipmentMatchUploadSuccessResponse } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
+import {
+  buildShipmentMatchPanelViewStateFromUpload,
+  type ShipmentMatchPanelViewState,
+} from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
+import type { ShipmentUploadBatchDetailResponse } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
+import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
 import {
   SHIPMENT_MATCH_TABS,
   buildShipmentMatchSummaryCards,
@@ -64,30 +69,30 @@ export default function ShipmentMatchPanel() {
   const [batchId, setBatchId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [result, setResult] = useState<ShipmentMatchUploadSuccessResponse | null>(null);
+  const [viewState, setViewState] = useState<ShipmentMatchPanelViewState | null>(null);
   const [activeTab, setActiveTab] = useState<ShipmentMatchTabId>('all');
 
   const inputClass =
     'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
 
   const summaryCards = useMemo(
-    () => (result ? buildShipmentMatchSummaryCards(result.match) : []),
-    [result],
+    () => (viewState ? buildShipmentMatchSummaryCards(viewState.summary) : []),
+    [viewState],
   );
 
   const filteredRows = useMemo(() => {
-    if (!result) return [];
-    return filterShipmentMatchDisplayRows(result.match.displayRows, activeTab);
-  }, [activeTab, result]);
+    if (!viewState) return [];
+    return filterShipmentMatchDisplayRows(viewState.displayRows, activeTab);
+  }, [activeTab, viewState]);
 
   const emptySnapshotMessage = useMemo(() => {
-    if (!result) return null;
-    return getEmptyOrderSnapshotMessage(result.orders.loadedCount, result.match.totalRows);
-  }, [result]);
+    if (!viewState) return null;
+    return getEmptyOrderSnapshotMessage(viewState.ordersLoadedCount, viewState.summary.totalRows);
+  }, [viewState]);
 
   const assignSelectedFile = useCallback((file: File | null) => {
     setSelectedFile(file);
-    setResult(null);
+    setViewState(null);
     setErrorMessage(null);
     setActiveTab('all');
   }, []);
@@ -138,37 +143,68 @@ export default function ShipmentMatchPanel() {
     if (batchId.trim()) formData.append('batchId', batchId.trim());
 
     try {
-      const response = await fetch('/api/order/integration/shipments/match', {
+      const uploadResponse = await fetch('/api/order/integration/shipments/uploads', {
         method: 'POST',
         body: formData,
       });
 
-      const json = (await response.json().catch(() => null)) as
-        | ShipmentMatchUploadSuccessResponse
+      const uploadJson = (await uploadResponse.json().catch(() => null)) as
+        | ShipmentUploadPersistSuccessResponse
         | { error?: string }
         | null;
 
-      if (!response.ok) {
+      if (!uploadResponse.ok) {
         const errorBody =
-          json && typeof json === 'object' && 'error' in json
-            ? { error: json.error }
+          uploadJson && typeof uploadJson === 'object' && 'error' in uploadJson
+            ? { error: uploadJson.error }
             : null;
-        setErrorMessage(mapShipmentMatchFetchError(response.status, errorBody));
-        setResult(null);
+        setErrorMessage(mapShipmentMatchFetchError(uploadResponse.status, errorBody));
+        setViewState(null);
         return;
       }
 
-      if (!json || !('success' in json) || !json.success) {
+      if (
+        !uploadJson ||
+        !('success' in uploadJson) ||
+        !uploadJson.success ||
+        !uploadJson.uploadBatch?.id
+      ) {
         setErrorMessage('파일을 읽는 중 문제가 발생했습니다. 파일 형식을 확인해주세요.');
-        setResult(null);
+        setViewState(null);
         return;
       }
 
-      setResult(json);
+      const savedBatchId = uploadJson.uploadBatch.id;
+      const detailResponse = await fetch(
+        `/api/order/integration/shipments/uploads/${encodeURIComponent(savedBatchId)}`,
+      );
+
+      const detailJson = (await detailResponse.json().catch(() => null)) as
+        | ShipmentUploadBatchDetailResponse
+        | { error?: string }
+        | null;
+
+      if (!detailResponse.ok) {
+        const errorBody =
+          detailJson && typeof detailJson === 'object' && 'error' in detailJson
+            ? { error: detailJson.error }
+            : null;
+        setErrorMessage(mapShipmentMatchFetchError(detailResponse.status, errorBody));
+        setViewState(null);
+        return;
+      }
+
+      if (!detailJson || !('success' in detailJson) || !detailJson.success) {
+        setErrorMessage('저장된 매칭 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+        setViewState(null);
+        return;
+      }
+
+      setViewState(buildShipmentMatchPanelViewStateFromUpload(uploadJson, detailJson));
       setActiveTab('all');
     } catch {
       setErrorMessage('네트워크 오류가 발생했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.');
-      setResult(null);
+      setViewState(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -190,7 +226,7 @@ export default function ShipmentMatchPanel() {
         <p>택배사 프로그램에서 받은 송장파일을 업로드하면 기존 주문과 송장번호를 매칭합니다.</p>
         <p className="mt-1 font-medium">아직 쇼핑몰에 송장전송되지 않습니다.</p>
         <p className="mt-1">
-          매칭 결과를 확인한 뒤 다음 단계에서 송장 업로드용 엑셀 또는 API 전송을 진행합니다.
+          업로드한 매칭 결과는 저장되며, 다음 단계에서 확정·송장전송을 진행합니다.
         </p>
       </section>
 
@@ -327,15 +363,18 @@ export default function ShipmentMatchPanel() {
         </p>
       ) : null}
 
-      {result ? (
+      {viewState ? (
         <section className="mt-6 space-y-4">
           <div className={`rounded-lg border px-3 py-2 text-sm ${statusBannerClass('success')}`}>
             <p>
-              파일 <strong>{result.file.name}</strong> · {result.parse.rowCount}행 읽음 · 주문 스냅샷{' '}
-              {result.orders.loadedCount}건 로드
+              파일 <strong>{viewState.file.name}</strong> · {viewState.parse.rowCount}행 읽음 · 주문
+              스냅샷 {viewState.ordersLoadedCount}건 로드
             </p>
-            {result.parse.warningCount > 0 ? (
-              <p className="mt-1 text-xs">파싱 경고 {result.parse.warningCount}건이 있습니다.</p>
+            <p className="mt-1 text-xs">
+              저장된 업로드 배치 ID: <span className="font-mono">{viewState.uploadBatchId}</span>
+            </p>
+            {viewState.parse.warningCount > 0 ? (
+              <p className="mt-1 text-xs">파싱 경고 {viewState.parse.warningCount}건이 있습니다.</p>
             ) : null}
           </div>
 
@@ -403,10 +442,10 @@ export default function ShipmentMatchPanel() {
                     </td>
                   </tr>
                 ) : (
-                  filteredRows.map((row) => {
+                  filteredRows.map((row, index) => {
                     const statusMeta = getShipmentMatchStatusMeta(row.matchStatus);
                     return (
-                      <tr key={`${row.shipmentRowIndex}-${row.matchStatus}`}>
+                      <tr key={`${row.shipmentRowIndex}-${row.matchStatus}-${index}`}>
                         <td className="whitespace-nowrap px-3 py-2">
                           <span
                             className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusMeta.badgeClass}`}
