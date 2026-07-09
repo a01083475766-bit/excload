@@ -10,10 +10,16 @@ import {
   MAX_SHIPMENT_UPLOAD_FILE_BYTES,
 } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
 import {
+  buildShipmentMatchPanelViewStateFromConfirmResponse,
   buildShipmentMatchPanelViewStateFromUpload,
+  canShowShipmentMatchConfirmButton,
+  isShipmentMatchPanelRowConfirmed,
   type ShipmentMatchPanelViewState,
 } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
-import type { ShipmentUploadBatchDetailResponse } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
+import {
+  fetchShipmentUploadBatchDetail,
+  postShipmentUploadMatchConfirm,
+} from '@/app/lib/order-integration/shipments/shipment-match-panel-confirm-client';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
 import {
   SHIPMENT_MATCH_TABS,
@@ -24,6 +30,7 @@ import {
   mapShipmentMatchFetchError,
   type ShipmentMatchTabId,
 } from '@/app/lib/order-integration/shipments/shipment-match-ui';
+import type { ShipmentMatchPanelDisplayRow } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
 
 const ACCEPTED_EXTENSIONS = '.csv,.xlsx,.xls';
 const TABLE_HEADERS = [
@@ -39,6 +46,7 @@ const TABLE_HEADERS = [
   '송장번호',
   '매칭 사유',
   '원본 행',
+  '확정',
 ] as const;
 
 function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
@@ -71,6 +79,8 @@ export default function ShipmentMatchPanel() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [viewState, setViewState] = useState<ShipmentMatchPanelViewState | null>(null);
   const [activeTab, setActiveTab] = useState<ShipmentMatchTabId>('all');
+  const [confirmingMatchId, setConfirmingMatchId] = useState<string | null>(null);
+  const [rowActionError, setRowActionError] = useState<string | null>(null);
 
   const inputClass =
     'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
@@ -80,9 +90,12 @@ export default function ShipmentMatchPanel() {
     [viewState],
   );
 
-  const filteredRows = useMemo(() => {
+  const filteredRows = useMemo((): ShipmentMatchPanelDisplayRow[] => {
     if (!viewState) return [];
-    return filterShipmentMatchDisplayRows(viewState.displayRows, activeTab);
+    return filterShipmentMatchDisplayRows(
+      viewState.displayRows,
+      activeTab,
+    ) as ShipmentMatchPanelDisplayRow[];
   }, [activeTab, viewState]);
 
   const emptySnapshotMessage = useMemo(() => {
@@ -94,6 +107,7 @@ export default function ShipmentMatchPanel() {
     setSelectedFile(file);
     setViewState(null);
     setErrorMessage(null);
+    setRowActionError(null);
     setActiveTab('all');
   }, []);
 
@@ -175,32 +189,15 @@ export default function ShipmentMatchPanel() {
       }
 
       const savedBatchId = uploadJson.uploadBatch.id;
-      const detailResponse = await fetch(
-        `/api/order/integration/shipments/uploads/${encodeURIComponent(savedBatchId)}`,
-      );
+      const detailResult = await fetchShipmentUploadBatchDetail(savedBatchId);
 
-      const detailJson = (await detailResponse.json().catch(() => null)) as
-        | ShipmentUploadBatchDetailResponse
-        | { error?: string }
-        | null;
-
-      if (!detailResponse.ok) {
-        const errorBody =
-          detailJson && typeof detailJson === 'object' && 'error' in detailJson
-            ? { error: detailJson.error }
-            : null;
-        setErrorMessage(mapShipmentMatchFetchError(detailResponse.status, errorBody));
+      if (!detailResult.ok) {
+        setErrorMessage(detailResult.error);
         setViewState(null);
         return;
       }
 
-      if (!detailJson || !('success' in detailJson) || !detailJson.success) {
-        setErrorMessage('저장된 매칭 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
-        setViewState(null);
-        return;
-      }
-
-      setViewState(buildShipmentMatchPanelViewStateFromUpload(uploadJson, detailJson));
+      setViewState(buildShipmentMatchPanelViewStateFromUpload(uploadJson, detailResult.body));
       setActiveTab('all');
     } catch {
       setErrorMessage('네트워크 오류가 발생했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.');
@@ -209,6 +206,33 @@ export default function ShipmentMatchPanel() {
       setIsSubmitting(false);
     }
   }, [batchId, integrationAccountId, provider, selectedFile, sessionStatus]);
+
+  const handleConfirmMatch = useCallback(
+    async (matchId: string) => {
+      if (!viewState || sessionStatus !== 'authenticated') {
+        setRowActionError('로그인이 필요합니다. 다시 로그인한 뒤 시도해주세요.');
+        return;
+      }
+
+      setConfirmingMatchId(matchId);
+      setRowActionError(null);
+
+      try {
+        const result = await postShipmentUploadMatchConfirm(viewState.uploadBatchId, matchId);
+        if (!result.ok) {
+          setRowActionError(result.error);
+          return;
+        }
+
+        setViewState(buildShipmentMatchPanelViewStateFromConfirmResponse(result.body, viewState));
+      } catch {
+        setRowActionError('매칭 확정 중 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      } finally {
+        setConfirmingMatchId(null);
+      }
+    },
+    [sessionStatus, viewState],
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-10 sm:px-6">
@@ -363,6 +387,12 @@ export default function ShipmentMatchPanel() {
         </p>
       ) : null}
 
+      {rowActionError ? (
+        <p className={`mt-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
+          {rowActionError}
+        </p>
+      ) : null}
+
       {viewState ? (
         <section className="mt-6 space-y-4">
           <div className={`rounded-lg border px-3 py-2 text-sm ${statusBannerClass('success')}`}>
@@ -485,6 +515,27 @@ export default function ShipmentMatchPanel() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-zinc-800 dark:text-zinc-200">
                           {row.shipmentRowIndex + 1}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          {isShipmentMatchPanelRowConfirmed(row) ? (
+                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">
+                              확정됨
+                            </span>
+                          ) : canShowShipmentMatchConfirmButton(row) ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleConfirmMatch(row.matchId!)}
+                              disabled={confirmingMatchId === row.matchId}
+                              className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {confirmingMatchId === row.matchId ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : null}
+                              확정
+                            </button>
+                          ) : (
+                            <span className="text-xs text-zinc-400">-</span>
+                          )}
                         </td>
                       </tr>
                     );

@@ -1,13 +1,23 @@
+import type { ShipmentUserConfirmationStatus } from '@prisma/client';
+
 import type {
   ShipmentUploadBatchDetailResponse,
   ShipmentUploadBatchDetailRow,
 } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
+import { CONFIRMABLE_ALGORITHM_STATUSES } from '@/app/lib/order-integration/shipments/confirm-shipment-upload-match';
+import type { ConfirmShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/confirm-shipment-upload-match';
 import type {
   ShipmentMatchDisplayRow,
   ShipmentMatchSummaryCounts,
 } from '@/app/lib/order-integration/shipments/shipment-match-ui';
 import type { ShipmentMatchStatus } from '@/app/lib/order-integration/shipments/types';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
+
+export type ShipmentMatchPanelDisplayRow = ShipmentMatchDisplayRow & {
+  matchId: string | null;
+  userConfirmationStatus: ShipmentUserConfirmationStatus | null;
+  hasLinkedOrder: boolean;
+};
 
 export type ShipmentMatchPanelViewState = {
   uploadBatchId: string;
@@ -21,7 +31,7 @@ export type ShipmentMatchPanelViewState = {
   };
   ordersLoadedCount: number;
   summary: ShipmentMatchSummaryCounts;
-  displayRows: ShipmentMatchDisplayRow[];
+  displayRows: ShipmentMatchPanelDisplayRow[];
 };
 
 export function toShipmentMatchStatus(
@@ -33,10 +43,13 @@ export function toShipmentMatchStatus(
 
 export function adaptShipmentUploadBatchDetailRowForDisplay(
   row: ShipmentUploadBatchDetailRow,
-): ShipmentMatchDisplayRow {
+): ShipmentMatchPanelDisplayRow {
+  const matchStatus = toShipmentMatchStatus(row.algorithmMatchStatus);
+  const hasLinkedOrder = Boolean(row.excloadOrderNo?.trim() || row.mallOrderNo?.trim());
+
   return {
     shipmentRowIndex: row.originalRowIndex,
-    matchStatus: toShipmentMatchStatus(row.algorithmMatchStatus),
+    matchStatus,
     matchReason: row.matchReason ?? '',
     providerLabel: row.provider,
     mallOrderNo: row.mallOrderNo,
@@ -47,7 +60,21 @@ export function adaptShipmentUploadBatchDetailRowForDisplay(
     productSummary: row.productSummary,
     carrierName: row.carrierName,
     trackingNumberMasked: row.trackingNumberMasked,
+    matchId: row.matchId,
+    userConfirmationStatus: row.userConfirmationStatus,
+    hasLinkedOrder,
   };
+}
+
+export function canShowShipmentMatchConfirmButton(row: ShipmentMatchPanelDisplayRow): boolean {
+  if (!row.matchId?.trim()) return false;
+  if (row.userConfirmationStatus !== 'UNCONFIRMED') return false;
+  if (!CONFIRMABLE_ALGORITHM_STATUSES.has(row.matchStatus)) return false;
+  return row.hasLinkedOrder;
+}
+
+export function isShipmentMatchPanelRowConfirmed(row: ShipmentMatchPanelDisplayRow): boolean {
+  return row.userConfirmationStatus === 'CONFIRMED';
 }
 
 export function adaptShipmentUploadBatchDetailForUi(
@@ -81,4 +108,22 @@ export function buildShipmentMatchPanelViewStateFromUpload(
     ordersLoadedCount: uploadBody.orders.loadedCount,
     parseWarningCount: uploadBody.parse.warningCount,
   });
+}
+
+export function buildShipmentMatchPanelViewStateFromConfirmResponse(
+  response: ConfirmShipmentUploadMatchSuccessResponse,
+  previous: ShipmentMatchPanelViewState,
+): ShipmentMatchPanelViewState {
+  return adaptShipmentUploadBatchDetailForUi(
+    {
+      success: true,
+      uploadBatch: response.uploadBatch,
+      rows: response.rows,
+      summary: response.summary,
+    },
+    {
+      ordersLoadedCount: previous.ordersLoadedCount,
+      parseWarningCount: previous.parse.warningCount,
+    },
+  );
 }

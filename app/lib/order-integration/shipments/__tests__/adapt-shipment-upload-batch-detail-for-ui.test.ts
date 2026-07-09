@@ -4,6 +4,8 @@ import {
   adaptShipmentUploadBatchDetailForUi,
   adaptShipmentUploadBatchDetailRowForDisplay,
   buildShipmentMatchPanelViewStateFromUpload,
+  canShowShipmentMatchConfirmButton,
+  isShipmentMatchPanelRowConfirmed,
 } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
 import type { ShipmentUploadBatchDetailResponse } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
@@ -126,6 +128,9 @@ describe('adaptShipmentUploadBatchDetailRowForDisplay', () => {
       productSummary: '티셔츠',
       carrierName: 'CJ대한통운',
       trackingNumberMasked: '1234****5678',
+      matchId: 'match-1',
+      userConfirmationStatus: 'UNCONFIRMED',
+      hasLinkedOrder: true,
     });
     expect(JSON.stringify(mapped)).not.toContain('rawRowJson');
     expect(JSON.stringify(mapped)).not.toContain('candidateOrdersJson');
@@ -156,5 +161,27 @@ describe('buildShipmentMatchPanelViewStateFromUpload', () => {
     expect(viewState.ordersLoadedCount).toBe(0);
     expect(viewState.parse.warningCount).toBe(1);
     expect(viewState.displayRows).toHaveLength(2);
+  });
+});
+
+describe('confirm button visibility', () => {
+  it('shows confirm button for eligible unconfirmed confident match', () => {
+    const row = adaptShipmentUploadBatchDetailRowForDisplay(buildDetail().rows[0]);
+    expect(canShowShipmentMatchConfirmButton(row)).toBe(true);
+    expect(isShipmentMatchPanelRowConfirmed(row)).toBe(false);
+  });
+
+  it('hides confirm button for not matched row', () => {
+    const row = adaptShipmentUploadBatchDetailRowForDisplay(buildDetail().rows[1]);
+    expect(canShowShipmentMatchConfirmButton(row)).toBe(false);
+  });
+
+  it('treats confirmed row as confirmed', () => {
+    const row = adaptShipmentUploadBatchDetailRowForDisplay({
+      ...buildDetail().rows[0],
+      userConfirmationStatus: 'CONFIRMED',
+    });
+    expect(isShipmentMatchPanelRowConfirmed(row)).toBe(true);
+    expect(canShowShipmentMatchConfirmButton(row)).toBe(false);
   });
 });
