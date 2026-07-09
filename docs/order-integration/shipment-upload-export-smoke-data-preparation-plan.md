@@ -228,14 +228,14 @@ D-4h-준비 (본 문서)  →  C안 승인  →  D-4h-1 test DB plan  →  D-4h-
 | **D-4h-준비** | 준비 방식·데이터 기준 문서화 | ✅ 본 문서 |
 | **사용자 합의** | 테스트 계정/`userId`, **C안(별도 DB)** 승인 | smoke user 제공 또는 생성 승인 |
 | **D-4h-1** | 별도 테스트 DB 준비 **계획** | ✅ [test-db-plan](./shipment-upload-export-test-db-plan.md) |
-| **D-4h-2** | 테스트 DB 세부 준비 runbook (생성·migrate·env) | C안 승인 후 |
+| **D-4h-2** | 테스트 DB setup runbook | ✅ [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) — 실행은 승인 후 |
 | **D-4h-3** | smoke 데이터 insert runbook | 테스트 DB·env 준비 후 |
 | **D-4h-4** | [smoke runbook](./shipment-upload-export-smoke-test-runbook.md) 실제 실행 | readiness **재점검** 후 |
 
 **지금 할 일 (팀/사용자)**  
 1. smoke test 전용 로그인 계정·`userId` 지정  
 2. **C안(별도 테스트 DB)** 승인  
-3. D-4h-2 test DB setup runbook 작성 요청 (승인 후)
+3. D-4h-2 setup runbook — [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) (실행은 승인 후)
 
 **지금 하지 않을 일**  
 - DB 생성, env 변경, migration, insert, smoke 업로드/다운로드 실행
@@ -252,6 +252,6 @@ D-4h-준비 (본 문서)  →  C안 승인  →  D-4h-1 test DB plan  →  D-4h-
 | D-4g | [readiness-report](./shipment-upload-export-smoke-readiness-report.md) — **보류** |
 | D-4h-준비 | **본 문서** |
 | D-4h-1 | [test-db-plan](./shipment-upload-export-test-db-plan.md) |
-| D-4h-2 | (예정) test DB setup runbook |
+| D-4h-2 | [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) |
 | D-4h-3 | (예정) smoke data insert runbook |
 | D-4h-4 | (예정) smoke 실행·결과 |

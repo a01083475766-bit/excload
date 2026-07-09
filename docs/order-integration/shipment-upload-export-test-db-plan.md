@@ -4,6 +4,7 @@
 > **단계**: D-4h-1  
 > **목적**: D-4 smoke test를 **운영 DB와 분리된 테스트 DB**에서 안전하게 실행하기 위한 절차·규칙 정리  
 > **관련 문서**  
+> - [shipment-upload-export-test-db-setup-runbook.md](./shipment-upload-export-test-db-setup-runbook.md) — D-4h-2 setup runbook  
 > - [shipment-upload-export-smoke-data-preparation-plan.md](./shipment-upload-export-smoke-data-preparation-plan.md) — D-4h-준비 (C안 1순위)  
 > - [shipment-upload-export-smoke-readiness-report.md](./shipment-upload-export-smoke-readiness-report.md) — D-4g (판정: **보류**)  
 > - [shipment-upload-export-preflight-checklist.md](./shipment-upload-export-preflight-checklist.md) — D-4f  
@@ -205,7 +206,7 @@ D-4h-1 (본 문서)  →  사용자 C안 승인  →  D-4h-2  →  D-4h-3  →  
 | 단계 | 내용 | 실행 |
 |------|------|------|
 | **D-4h-1** | 별도 테스트 DB 준비 **계획** | ✅ 문서만 (본 문서) |
-| **D-4h-2** | 테스트 DB **세부 준비 runbook** (생성·migrate·env 적용 절차) | 사용자 **C안 승인** 후 작성 — **실행은 승인 후** |
+| **D-4h-2** | 테스트 DB **세부 준비 runbook** (생성·migrate·env 적용 절차) | ✅ [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) — **실행은 승인 후** |
 | **D-4h-3** | smoke용 **데이터 insert runbook** (user, account, order 5건) | 테스트 DB·env 준비 **후** |
 | **D-4h-4** | **실제 smoke 실행** + 결과 기록 | preflight·readiness 재통과 후 |
 
@@ -226,6 +227,6 @@ D-4h-1 (본 문서)  →  사용자 C안 승인  →  D-4h-2  →  D-4h-3  →  
 | D-4g | [readiness-report](./shipment-upload-export-smoke-readiness-report.md) — 보류 |
 | D-4h-준비 | [data-preparation-plan](./shipment-upload-export-smoke-data-preparation-plan.md) — C안 1순위 |
 | D-4h-1 | **본 문서** — test DB plan |
-| D-4h-2 | (예정) test DB setup runbook |
+| D-4h-2 | [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) |
 | D-4h-3 | (예정) smoke data insert runbook |
 | D-4h-4 | (예정) smoke 실행·결과 |
