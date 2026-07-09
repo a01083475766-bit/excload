@@ -4,6 +4,10 @@ import { loadOrderSyncSnapshotsForMatching } from '@/app/lib/order-integration/s
 import type { OrderSyncSnapshotLoadClient } from '@/app/lib/order-integration/snapshots/types';
 import { matchShipmentRows } from '@/app/lib/order-integration/shipments/match-shipment-row';
 import {
+  buildShipmentMatchDisplayRows,
+  type ShipmentMatchDisplayRow,
+} from '@/app/lib/order-integration/shipments/shipment-match-ui';
+import {
   extractNormalizedShipmentRows,
   parseShipmentCsv,
   parseShipmentWorkbook,
@@ -70,6 +74,7 @@ export type ShipmentMatchUploadSuccessResponse = {
     alreadyShippedCount: number;
     cancelledOrInvalidOrderCount: number;
     rows: ShipmentMatchResult[];
+    displayRows: ShipmentMatchDisplayRow[];
   };
 };
 
@@ -203,6 +208,11 @@ export async function matchUploadedShipmentFile(input: {
       accountId: input.scope.integrationAccountId ?? null,
     },
   });
+  const displayRows = buildShipmentMatchDisplayRows({
+    shipments: shipmentRows,
+    orders: orderSnapshots,
+    matchRows,
+  });
 
   return {
     success: true,
@@ -227,7 +237,10 @@ export async function matchUploadedShipmentFile(input: {
           batchId: input.scope.batchId,
         },
       },
-      match: summarizeShipmentMatchResults(matchRows),
+      match: {
+        ...summarizeShipmentMatchResults(matchRows),
+        displayRows,
+      },
     },
   };
 }

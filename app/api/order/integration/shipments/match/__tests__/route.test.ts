@@ -64,6 +64,7 @@ describe('POST /api/order/integration/shipments/match', () => {
           alreadyShippedCount: 0,
           cancelledOrInvalidOrderCount: 0,
           rows: [],
+          displayRows: [],
         },
       },
     });

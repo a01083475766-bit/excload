@@ -179,6 +179,23 @@ export default function OrderIntegrationPanel() {
         아래 정보를 판매자센터 API 설정에 입력한 뒤, 쇼핑몰별 연동을 진행해 주세요.
       </p>
 
+      <section className="mb-8 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-indigo-900 dark:text-indigo-100">송장파일 매칭</h2>
+            <p className="mt-1 text-xs leading-relaxed text-indigo-800 dark:text-indigo-200">
+              택배사 송장파일을 업로드해 저장된 주문 스냅샷과 송장번호를 매칭합니다. (송장전송 전 단계)
+            </p>
+          </div>
+          <Link
+            href="/order/integration/shipments"
+            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          >
+            송장 매칭 화면 열기
+          </Link>
+        </div>
+      </section>
+
       <section className="mb-8 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
         <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">
           판매자센터에 등록할 엑클로드 정보
