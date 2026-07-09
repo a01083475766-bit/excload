@@ -7,12 +7,19 @@ import type {
 import { CONFIRMABLE_ALGORITHM_STATUSES } from '@/app/lib/order-integration/shipments/confirm-shipment-upload-match';
 import type { ConfirmShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/confirm-shipment-upload-match';
 import type { ExcludeShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/exclude-shipment-upload-match';
+import type { LinkShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/link-shipment-upload-match';
 import type {
   ShipmentMatchDisplayRow,
   ShipmentMatchSummaryCounts,
 } from '@/app/lib/order-integration/shipments/shipment-match-ui';
 import type { ShipmentMatchStatus } from '@/app/lib/order-integration/shipments/types';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
+
+export const LINKABLE_ALGORITHM_STATUSES: ReadonlySet<ShipmentMatchStatus> = new Set([
+  'NOT_MATCHED',
+  'MULTIPLE_CANDIDATES',
+  'MATCHED_WARNING',
+]);
 
 export type ShipmentMatchPanelDisplayRow = ShipmentMatchDisplayRow & {
   matchId: string | null;
@@ -88,6 +95,16 @@ export function canShowShipmentMatchExcludeButton(row: ShipmentMatchPanelDisplay
   return true;
 }
 
+export function canShowShipmentMatchLinkButton(row: ShipmentMatchPanelDisplayRow): boolean {
+  if (!row.matchId?.trim()) return false;
+  if (row.userConfirmationStatus !== 'UNCONFIRMED') return false;
+  return LINKABLE_ALGORITHM_STATUSES.has(row.matchStatus);
+}
+
+export function isShipmentMatchPanelRowManuallyLinked(row: ShipmentMatchPanelDisplayRow): boolean {
+  return row.userConfirmationStatus === 'MANUALLY_LINKED';
+}
+
 export function adaptShipmentUploadBatchDetailForUi(
   detail: ShipmentUploadBatchDetailResponse,
   context: {
@@ -141,6 +158,24 @@ export function buildShipmentMatchPanelViewStateFromConfirmResponse(
 
 export function buildShipmentMatchPanelViewStateFromExcludeResponse(
   response: ExcludeShipmentUploadMatchSuccessResponse,
+  previous: ShipmentMatchPanelViewState,
+): ShipmentMatchPanelViewState {
+  return adaptShipmentUploadBatchDetailForUi(
+    {
+      success: true,
+      uploadBatch: response.uploadBatch,
+      rows: response.rows,
+      summary: response.summary,
+    },
+    {
+      ordersLoadedCount: previous.ordersLoadedCount,
+      parseWarningCount: previous.parse.warningCount,
+    },
+  );
+}
+
+export function buildShipmentMatchPanelViewStateFromLinkResponse(
+  response: LinkShipmentUploadMatchSuccessResponse,
   previous: ShipmentMatchPanelViewState,
 ): ShipmentMatchPanelViewState {
   return adaptShipmentUploadBatchDetailForUi(

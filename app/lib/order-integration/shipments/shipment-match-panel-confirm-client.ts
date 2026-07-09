@@ -1,5 +1,8 @@
 import type { ConfirmShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/confirm-shipment-upload-match';
 import type { ExcludeShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/exclude-shipment-upload-match';
+import type { LinkShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/link-shipment-upload-match';
+import type { LinkableOrdersForShipmentUploadBatchResponse } from '@/app/lib/order-integration/shipments/load-linkable-orders-for-shipment-upload-batch';
+import { DEFAULT_LINKABLE_ORDERS_LIMIT } from '@/app/lib/order-integration/shipments/load-linkable-orders-for-shipment-upload-batch';
 import type { ShipmentUploadBatchDetailResponse } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import { mapShipmentMatchFetchError } from '@/app/lib/order-integration/shipments/shipment-match-ui';
 
@@ -17,6 +20,22 @@ export function buildShipmentUploadMatchExcludeUrl(batchId: string, matchId: str
   return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/matches/${encodeURIComponent(matchId)}/exclude`;
 }
 
+export function buildShipmentUploadLinkableOrdersUrl(
+  batchId: string,
+  options: { q?: string | null; limit?: number } = {},
+): string {
+  const params = new URLSearchParams();
+  const q = options.q?.trim();
+  if (q) params.set('q', q);
+  params.set('limit', String(options.limit ?? DEFAULT_LINKABLE_ORDERS_LIMIT));
+  const query = params.toString();
+  return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/linkable-orders${query ? `?${query}` : ''}`;
+}
+
+export function buildShipmentUploadMatchLinkUrl(batchId: string, matchId: string): string {
+  return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/matches/${encodeURIComponent(matchId)}/link`;
+}
+
 export type ShipmentUploadBatchDetailFetchResult =
   | { ok: true; body: ShipmentUploadBatchDetailResponse }
   | { ok: false; status: number; error: string };
@@ -27,6 +46,14 @@ export type ShipmentUploadMatchConfirmFetchResult =
 
 export type ShipmentUploadMatchExcludeFetchResult =
   | { ok: true; body: ExcludeShipmentUploadMatchSuccessResponse }
+  | { ok: false; status: number; error: string };
+
+export type ShipmentUploadLinkableOrdersFetchResult =
+  | { ok: true; body: LinkableOrdersForShipmentUploadBatchResponse }
+  | { ok: false; status: number; error: string };
+
+export type ShipmentUploadMatchLinkFetchResult =
+  | { ok: true; body: LinkShipmentUploadMatchSuccessResponse }
   | { ok: false; status: number; error: string };
 
 export async function fetchShipmentUploadBatchDetail(
@@ -128,6 +155,77 @@ export async function postShipmentUploadMatchExclude(
       ok: false,
       status: 500,
       error: '제외 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+    };
+  }
+
+  return { ok: true, body: json };
+}
+
+export async function fetchShipmentUploadLinkableOrders(
+  batchId: string,
+  options: { q?: string | null; limit?: number } = {},
+  fetchFn: typeof fetch = fetch,
+): Promise<ShipmentUploadLinkableOrdersFetchResult> {
+  const response = await fetchFn(buildShipmentUploadLinkableOrdersUrl(batchId, options));
+  const json = (await response.json().catch(() => null)) as
+    | LinkableOrdersForShipmentUploadBatchResponse
+    | { error?: string }
+    | null;
+
+  if (!response.ok) {
+    const errorBody =
+      json && typeof json === 'object' && 'error' in json ? { error: json.error } : null;
+    return {
+      ok: false,
+      status: response.status,
+      error: mapShipmentMatchFetchError(response.status, errorBody),
+    };
+  }
+
+  if (!json || !('success' in json) || !json.success) {
+    return {
+      ok: false,
+      status: 500,
+      error: '연결 가능한 주문 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.',
+    };
+  }
+
+  return { ok: true, body: json };
+}
+
+export async function postShipmentUploadMatchLink(
+  batchId: string,
+  matchId: string,
+  orderSyncOrderId: string,
+  fetchFn: typeof fetch = fetch,
+): Promise<ShipmentUploadMatchLinkFetchResult> {
+  const response = await fetchFn(buildShipmentUploadMatchLinkUrl(batchId, matchId), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ orderSyncOrderId }),
+  });
+  const json = (await response.json().catch(() => null)) as
+    | LinkShipmentUploadMatchSuccessResponse
+    | { error?: string }
+    | null;
+
+  if (!response.ok) {
+    const errorBody =
+      json && typeof json === 'object' && 'error' in json ? { error: json.error } : null;
+    return {
+      ok: false,
+      status: response.status,
+      error:
+        mapShipmentMatchFetchError(response.status, errorBody) ||
+        '주문 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+    };
+  }
+
+  if (!json || !('success' in json) || !json.success) {
+    return {
+      ok: false,
+      status: 500,
+      error: '주문 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.',
     };
   }
 

@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  buildShipmentUploadLinkableOrdersUrl,
   buildShipmentUploadMatchConfirmUrl,
   buildShipmentUploadMatchExcludeUrl,
+  buildShipmentUploadMatchLinkUrl,
+  fetchShipmentUploadLinkableOrders,
   postShipmentUploadMatchConfirm,
   postShipmentUploadMatchExclude,
+  postShipmentUploadMatchLink,
 } from '@/app/lib/order-integration/shipments/shipment-match-panel-confirm-client';
 
 describe('buildShipmentUploadMatchConfirmUrl', () => {
@@ -131,6 +135,132 @@ describe('postShipmentUploadMatchExclude', () => {
       ok: false,
       status: 400,
       error: '확정된 매칭은 제외할 수 없습니다.',
+    });
+  });
+});
+
+describe('buildShipmentUploadLinkableOrdersUrl', () => {
+  it('builds linkable orders url with q and limit', () => {
+    expect(buildShipmentUploadLinkableOrdersUrl('batch-1', { q: '홍길동', limit: 30 })).toBe(
+      '/api/order/integration/shipments/uploads/batch-1/linkable-orders?q=%ED%99%8D%EA%B8%B8%EB%8F%99&limit=30',
+    );
+    expect(buildShipmentUploadLinkableOrdersUrl('batch-1')).toBe(
+      '/api/order/integration/shipments/uploads/batch-1/linkable-orders?limit=30',
+    );
+  });
+});
+
+describe('buildShipmentUploadMatchLinkUrl', () => {
+  it('builds nested link route url', () => {
+    expect(buildShipmentUploadMatchLinkUrl('batch-1', 'match-1')).toBe(
+      '/api/order/integration/shipments/uploads/batch-1/matches/match-1/link',
+    );
+  });
+});
+
+describe('fetchShipmentUploadLinkableOrders', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetches linkable orders with q and limit', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        batchId: 'batch-1',
+        orders: [
+          {
+            id: 'order-1',
+            provider: 'SMARTSTORE',
+            integrationAccountId: 'acc-1',
+            mallOrderNo: 'ORD-1',
+            excloadOrderNo: 'EXC-1',
+            recipientName: '홍*동',
+            recipientPhone: '010-****-5678',
+            address: '서울 ... 101',
+            orderedAt: '2026-07-08T10:00:00.000Z',
+            usedInShipmentMatch: false,
+          },
+        ],
+      }),
+    });
+
+    const result = await fetchShipmentUploadLinkableOrders(
+      'batch-1',
+      { q: 'ORD-1', limit: 30 },
+      fetchMock,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/order/integration/shipments/uploads/batch-1/linkable-orders?q=ORD-1&limit=30',
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.orders).toHaveLength(1);
+    expect(JSON.stringify(result.body)).not.toContain('rawRowJson');
+    expect(JSON.stringify(result.body)).not.toContain('candidateOrdersJson');
+  });
+});
+
+describe('postShipmentUploadMatchLink', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('posts to link API with orderSyncOrderId and returns latest detail payload', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        linkedMatchId: 'match-1',
+        orderSyncOrderId: 'order-1',
+        match: {
+          matchId: 'match-1',
+          userConfirmationStatus: 'MANUALLY_LINKED',
+        },
+        uploadBatch: { id: 'batch-1', rowCount: 1 },
+        rows: [],
+        summary: { totalRows: 1 },
+      }),
+    });
+
+    const result = await postShipmentUploadMatchLink('batch-1', 'match-1', 'order-1', fetchMock);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/order/integration/shipments/uploads/batch-1/matches/match-1/link',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ orderSyncOrderId: 'order-1' }),
+      },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.linkedMatchId).toBe('match-1');
+    expect(JSON.stringify(result.body)).not.toContain('rawRowJson');
+    expect(JSON.stringify(result.body)).not.toContain('candidateOrdersJson');
+  });
+
+  it('returns mapped error when link fails', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: '확정된 매칭은 수동 연결할 수 없습니다.' }),
+    });
+
+    const result = await postShipmentUploadMatchLink('batch-1', 'match-1', 'order-1', fetchMock);
+
+    expect(result).toEqual({
+      ok: false,
+      status: 400,
+      error: '확정된 매칭은 수동 연결할 수 없습니다.',
     });
   });
 });

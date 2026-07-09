@@ -12,17 +12,23 @@ import {
 import {
   buildShipmentMatchPanelViewStateFromConfirmResponse,
   buildShipmentMatchPanelViewStateFromExcludeResponse,
+  buildShipmentMatchPanelViewStateFromLinkResponse,
   buildShipmentMatchPanelViewStateFromUpload,
   canShowShipmentMatchConfirmButton,
   canShowShipmentMatchExcludeButton,
+  canShowShipmentMatchLinkButton,
   isShipmentMatchPanelRowConfirmed,
   isShipmentMatchPanelRowExcluded,
+  isShipmentMatchPanelRowManuallyLinked,
   type ShipmentMatchPanelViewState,
 } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
+import type { LinkableOrderListItem } from '@/app/lib/order-integration/shipments/load-linkable-orders-for-shipment-upload-batch';
 import {
   fetchShipmentUploadBatchDetail,
+  fetchShipmentUploadLinkableOrders,
   postShipmentUploadMatchConfirm,
   postShipmentUploadMatchExclude,
+  postShipmentUploadMatchLink,
 } from '@/app/lib/order-integration/shipments/shipment-match-panel-confirm-client';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
 import {
@@ -32,6 +38,7 @@ import {
   getEmptyOrderSnapshotMessage,
   getShipmentMatchStatusMeta,
   mapShipmentMatchFetchError,
+  resolveProviderLabel,
   type ShipmentMatchTabId,
 } from '@/app/lib/order-integration/shipments/shipment-match-ui';
 import type { ShipmentMatchPanelDisplayRow } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
@@ -50,9 +57,17 @@ const TABLE_HEADERS = [
   '송장번호',
   '매칭 사유',
   '원본 행',
+  '연결',
   '확정',
   '제외',
 ] as const;
+
+function formatOrderedAt(iso: string | null): string {
+  if (!iso) return '-';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' });
+}
 
 function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
   if (kind === 'success') {
@@ -87,6 +102,13 @@ export default function ShipmentMatchPanel() {
   const [confirmingMatchId, setConfirmingMatchId] = useState<string | null>(null);
   const [excludingMatchId, setExcludingMatchId] = useState<string | null>(null);
   const [rowActionError, setRowActionError] = useState<string | null>(null);
+  const [linkPanelMatchId, setLinkPanelMatchId] = useState<string | null>(null);
+  const [linkSearchQuery, setLinkSearchQuery] = useState('');
+  const [linkableOrders, setLinkableOrders] = useState<LinkableOrderListItem[]>([]);
+  const [selectedLinkOrderId, setSelectedLinkOrderId] = useState<string | null>(null);
+  const [isLoadingLinkableOrders, setIsLoadingLinkableOrders] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [linkPanelError, setLinkPanelError] = useState<string | null>(null);
 
   const inputClass =
     'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
@@ -266,6 +288,93 @@ export default function ShipmentMatchPanel() {
     },
     [sessionStatus, viewState],
   );
+
+  const closeLinkPanel = useCallback(() => {
+    setLinkPanelMatchId(null);
+    setLinkSearchQuery('');
+    setLinkableOrders([]);
+    setSelectedLinkOrderId(null);
+    setLinkPanelError(null);
+    setIsLoadingLinkableOrders(false);
+    setIsLinking(false);
+  }, []);
+
+  const loadLinkableOrders = useCallback(
+    async (query: string) => {
+      if (!viewState) return;
+
+      setIsLoadingLinkableOrders(true);
+      setLinkPanelError(null);
+
+      try {
+        const result = await fetchShipmentUploadLinkableOrders(viewState.uploadBatchId, {
+          q: query.trim() || null,
+          limit: 30,
+        });
+        if (!result.ok) {
+          setLinkPanelError(result.error);
+          setLinkableOrders([]);
+          setSelectedLinkOrderId(null);
+          return;
+        }
+
+        setLinkableOrders(result.body.orders);
+        const firstSelectable = result.body.orders.find((order) => !order.usedInShipmentMatch);
+        setSelectedLinkOrderId(firstSelectable?.id ?? null);
+      } catch {
+        setLinkPanelError('연결 가능한 주문 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+        setLinkableOrders([]);
+        setSelectedLinkOrderId(null);
+      } finally {
+        setIsLoadingLinkableOrders(false);
+      }
+    },
+    [viewState],
+  );
+
+  const handleOpenLinkPanel = useCallback(
+    (matchId: string) => {
+      setLinkPanelMatchId(matchId);
+      setLinkSearchQuery('');
+      setLinkableOrders([]);
+      setSelectedLinkOrderId(null);
+      setLinkPanelError(null);
+      void loadLinkableOrders('');
+    },
+    [loadLinkableOrders],
+  );
+
+  const handleLinkMatch = useCallback(async () => {
+    if (!viewState || !linkPanelMatchId || !selectedLinkOrderId || sessionStatus !== 'authenticated') {
+      setLinkPanelError('연결할 주문을 선택해 주세요.');
+      return;
+    }
+
+    setIsLinking(true);
+    setLinkPanelError(null);
+    setRowActionError(null);
+
+    try {
+      const result = await postShipmentUploadMatchLink(
+        viewState.uploadBatchId,
+        linkPanelMatchId,
+        selectedLinkOrderId,
+      );
+      if (!result.ok) {
+        setLinkPanelError(
+          result.error || '주문 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        );
+        return;
+      }
+
+      setViewState(buildShipmentMatchPanelViewStateFromLinkResponse(result.body, viewState));
+      closeLinkPanel();
+    } catch {
+      setLinkPanelError('주문 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setIsLinking(false);
+    }
+  }, [closeLinkPanel, linkPanelMatchId, selectedLinkOrderId, sessionStatus, viewState]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-10 sm:px-6">
@@ -550,6 +659,23 @@ export default function ShipmentMatchPanel() {
                           {row.shipmentRowIndex + 1}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2">
+                          {isShipmentMatchPanelRowManuallyLinked(row) ? (
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-200">
+                              연결됨
+                            </span>
+                          ) : canShowShipmentMatchLinkButton(row) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenLinkPanel(row.matchId!)}
+                              className="inline-flex items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-950/60"
+                            >
+                              주문 연결
+                            </button>
+                          ) : (
+                            <span className="text-xs text-zinc-400">-</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2">
                           {isShipmentMatchPanelRowConfirmed(row) ? (
                             <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">
                               확정됨
@@ -599,6 +725,152 @@ export default function ShipmentMatchPanel() {
             </table>
           </div>
         </section>
+      ) : null}
+
+      {linkPanelMatchId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shipment-link-panel-title"
+            className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+              <h3
+                id="shipment-link-panel-title"
+                className="text-base font-bold text-zinc-900 dark:text-zinc-100"
+              >
+                연결할 주문 선택
+              </h3>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto px-4 py-4">
+              <div className="flex gap-2">
+                <input
+                  value={linkSearchQuery}
+                  onChange={(event) => setLinkSearchQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void loadLinkableOrders(linkSearchQuery);
+                    }
+                  }}
+                  placeholder="주문번호, 이름, 전화번호 일부로 검색"
+                  className={`${inputClass} flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={() => void loadLinkableOrders(linkSearchQuery)}
+                  disabled={isLoadingLinkableOrders}
+                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+                >
+                  검색
+                </button>
+              </div>
+
+              {linkPanelError ? (
+                <p className={`rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
+                  {linkPanelError}
+                </p>
+              ) : null}
+
+              {isLoadingLinkableOrders ? (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  주문 목록을 불러오는 중…
+                </div>
+              ) : linkableOrders.length === 0 ? (
+                <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                  연결할 주문을 찾지 못했습니다.
+                </p>
+              ) : (
+                <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-700">
+                  {linkableOrders.map((order) => {
+                    const isUsed = order.usedInShipmentMatch;
+                    const isSelected = selectedLinkOrderId === order.id;
+                    return (
+                      <li key={order.id}>
+                        <label
+                          className={`flex cursor-pointer gap-3 px-3 py-3 transition ${
+                            isUsed
+                              ? 'cursor-not-allowed bg-zinc-50 opacity-70 dark:bg-zinc-950/40'
+                              : isSelected
+                                ? 'bg-blue-50 dark:bg-blue-950/30'
+                                : 'hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="linkable-order"
+                            value={order.id}
+                            checked={isSelected}
+                            disabled={isUsed}
+                            onChange={() => setSelectedLinkOrderId(order.id)}
+                            className="mt-1"
+                          />
+                          <div className="min-w-0 flex-1 text-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                {resolveProviderLabel(order.provider) ?? order.provider}
+                              </span>
+                              {isUsed ? (
+                                <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
+                                  이미 사용됨
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+                              엑클로드 관리번호: {order.excloadOrderNo}
+                            </p>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                              쇼핑몰 주문번호: {order.mallOrderNo}
+                            </p>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                              수취인: {order.recipientName ?? '-'} · {order.recipientPhone ?? '-'}
+                            </p>
+                            <p className="truncate text-xs text-zinc-600 dark:text-zinc-300">
+                              주소: {order.address ?? '-'}
+                            </p>
+                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                              주문일: {formatOrderedAt(order.orderedAt)}
+                            </p>
+                          </div>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
+              <button
+                type="button"
+                onClick={closeLinkPanel}
+                disabled={isLinking}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleLinkMatch()}
+                disabled={
+                  isLinking ||
+                  isLoadingLinkableOrders ||
+                  !selectedLinkOrderId ||
+                  linkableOrders.some(
+                    (order) => order.id === selectedLinkOrderId && order.usedInShipmentMatch,
+                  )
+                }
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLinking ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isLinking ? '연결 중…' : '이 주문에 연결'}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

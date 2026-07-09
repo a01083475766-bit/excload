@@ -4,11 +4,14 @@ import {
   adaptShipmentUploadBatchDetailForUi,
   adaptShipmentUploadBatchDetailRowForDisplay,
   buildShipmentMatchPanelViewStateFromExcludeResponse,
+  buildShipmentMatchPanelViewStateFromLinkResponse,
   buildShipmentMatchPanelViewStateFromUpload,
   canShowShipmentMatchConfirmButton,
   canShowShipmentMatchExcludeButton,
+  canShowShipmentMatchLinkButton,
   isShipmentMatchPanelRowConfirmed,
   isShipmentMatchPanelRowExcluded,
+  isShipmentMatchPanelRowManuallyLinked,
 } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
 import type { ShipmentUploadBatchDetailResponse } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
@@ -219,6 +222,53 @@ describe('exclude button visibility', () => {
   });
 });
 
+describe('link button visibility', () => {
+  it('shows link button for unconfirmed not matched row', () => {
+    const row = adaptShipmentUploadBatchDetailRowForDisplay(buildDetail().rows[1]);
+    expect(canShowShipmentMatchLinkButton(row)).toBe(true);
+  });
+
+  it('shows link button for multiple candidates and matched warning', () => {
+    const multipleCandidates = adaptShipmentUploadBatchDetailRowForDisplay({
+      ...buildDetail().rows[1],
+      algorithmMatchStatus: 'MULTIPLE_CANDIDATES',
+    });
+    const matchedWarning = adaptShipmentUploadBatchDetailRowForDisplay({
+      ...buildDetail().rows[0],
+      algorithmMatchStatus: 'MATCHED_WARNING',
+      userConfirmationStatus: 'UNCONFIRMED',
+    });
+
+    expect(canShowShipmentMatchLinkButton(multipleCandidates)).toBe(true);
+    expect(canShowShipmentMatchLinkButton(matchedWarning)).toBe(true);
+  });
+
+  it('hides link button for matched confident row', () => {
+    const row = adaptShipmentUploadBatchDetailRowForDisplay(buildDetail().rows[0]);
+    expect(canShowShipmentMatchLinkButton(row)).toBe(false);
+  });
+
+  it('hides link button for confirmed, excluded, and manually linked rows', () => {
+    const confirmed = adaptShipmentUploadBatchDetailRowForDisplay({
+      ...buildDetail().rows[1],
+      userConfirmationStatus: 'CONFIRMED',
+    });
+    const excluded = adaptShipmentUploadBatchDetailRowForDisplay({
+      ...buildDetail().rows[1],
+      userConfirmationStatus: 'EXCLUDED',
+    });
+    const manuallyLinked = adaptShipmentUploadBatchDetailRowForDisplay({
+      ...buildDetail().rows[1],
+      userConfirmationStatus: 'MANUALLY_LINKED',
+    });
+
+    expect(canShowShipmentMatchLinkButton(confirmed)).toBe(false);
+    expect(canShowShipmentMatchLinkButton(excluded)).toBe(false);
+    expect(canShowShipmentMatchLinkButton(manuallyLinked)).toBe(false);
+    expect(isShipmentMatchPanelRowManuallyLinked(manuallyLinked)).toBe(true);
+  });
+});
+
 describe('buildShipmentMatchPanelViewStateFromExcludeResponse', () => {
   it('refreshes panel view state from exclude response detail', () => {
     const previous = buildShipmentMatchPanelViewStateFromUpload(buildUploadBody(), buildDetail());
@@ -258,6 +308,56 @@ describe('buildShipmentMatchPanelViewStateFromExcludeResponse', () => {
 
     expect(next.ordersLoadedCount).toBe(previous.ordersLoadedCount);
     expect(next.displayRows[1].userConfirmationStatus).toBe('EXCLUDED');
+    expect(JSON.stringify(next)).not.toContain('rawRowJson');
+    expect(JSON.stringify(next)).not.toContain('candidateOrdersJson');
+  });
+});
+
+describe('buildShipmentMatchPanelViewStateFromLinkResponse', () => {
+  it('refreshes panel view state from link response detail', () => {
+    const previous = buildShipmentMatchPanelViewStateFromUpload(buildUploadBody(), buildDetail());
+
+    const next = buildShipmentMatchPanelViewStateFromLinkResponse(
+      {
+        success: true,
+        linkedMatchId: 'match-2',
+        orderSyncOrderId: 'order-2',
+        match: {
+          shipmentRowIndex: 1,
+          matchStatus: 'NOT_MATCHED',
+          matchReason: 'manual link',
+          providerLabel: '스마트스토어',
+          mallOrderNo: 'ORD-2',
+          excloadOrderNo: 'EXC-2',
+          receiverName: '김*수',
+          receiverPhoneMasked: '010-****-1234',
+          receiverAddressMasked: '서울 ... 101',
+          productSummary: null,
+          carrierName: null,
+          trackingNumberMasked: '9876****4321',
+          matchId: 'match-2',
+          uploadRowId: 'row-2',
+          userConfirmationStatus: 'MANUALLY_LINKED',
+          transmissionStatus: 'NONE',
+        },
+        uploadBatch: buildDetail().uploadBatch,
+        rows: buildDetail().rows.map((row) =>
+          row.matchId === 'match-2'
+            ? {
+                ...row,
+                userConfirmationStatus: 'MANUALLY_LINKED' as const,
+                excloadOrderNo: 'EXC-2',
+              }
+            : row,
+        ),
+        summary: buildDetail().summary,
+      },
+      previous,
+    );
+
+    expect(next.ordersLoadedCount).toBe(previous.ordersLoadedCount);
+    expect(next.displayRows[1].userConfirmationStatus).toBe('MANUALLY_LINKED');
+    expect(isShipmentMatchPanelRowManuallyLinked(next.displayRows[1])).toBe(true);
     expect(JSON.stringify(next)).not.toContain('rawRowJson');
     expect(JSON.stringify(next)).not.toContain('candidateOrdersJson');
   });
