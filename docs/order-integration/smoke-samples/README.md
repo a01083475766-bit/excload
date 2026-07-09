@@ -55,5 +55,6 @@
 
 ## 관련 문서
 
+- [shipment-upload-export-preflight-checklist.md](../shipment-upload-export-preflight-checklist.md) — 실행 전 preflight (D-4f)
 - [shipment-upload-export-smoke-test-runbook.md](../shipment-upload-export-smoke-test-runbook.md)
 - [shipment-upload-matching-design.md](../shipment-upload-matching-design.md)

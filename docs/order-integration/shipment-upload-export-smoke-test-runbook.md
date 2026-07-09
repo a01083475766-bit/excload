@@ -3,12 +3,15 @@
 > **상태**: 운영 준비 문서 (2026-07) — **체크리스트만** (실행은 별도 승인 후)  
 > **목적**: Phase D-4까지 구현된 송장파일 업로드 → 매칭 저장 → 확정/제외/주문 연결 → READY 승격 → 쇼핑몰 업로드용 엑셀 다운로드 흐름을 **안전하게** 검증하기 위한 절차·성공 기준 정리  
 > **관련 문서**  
+> - [shipment-upload-export-preflight-checklist.md](./shipment-upload-export-preflight-checklist.md) — smoke **실행 전** preflight (D-4f)  
+> - [smoke-samples/README.md](./smoke-samples/README.md) — 테스트 샘플 데이터 (D-4e)  
 > - [shipment-upload-matching-design.md](./shipment-upload-matching-design.md) — 송장 업로드·매칭 전체 설계  
 > - [shipment-match-confirmation-design.md](./shipment-match-confirmation-design.md) — 확정·제외·연결 설계  
 > - [snapshot-persist-smoke-test.md](./snapshot-persist-smoke-test.md) — 주문 스냅샷 저장 smoke test  
 > - [order-sync-shipment-roadmap.md](./order-sync-shipment-roadmap.md) — 1~4차 로드맵
 
 **이 문서는 절차·체크리스트만 다룹니다.**  
+실행 전에는 [shipment-upload-export-preflight-checklist.md](../shipment-upload-export-preflight-checklist.md) (D-4f)를 먼저 확인하세요.  
 아래 작업은 **본 문서 작성 단계에서 수행하지 않습니다**: 실제 smoke 실행, 코드 구현, DB/schema/migration 변경, env 변경, 외부 쇼핑몰 API 호출, 송장전송.
 
 **검증 범위가 아닌 것 (명시)**  
