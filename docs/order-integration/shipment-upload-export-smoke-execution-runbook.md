@@ -9,7 +9,8 @@
 > - [shipment-upload-export-smoke-data-insert-runbook.md](./shipment-upload-export-smoke-data-insert-runbook.md) — D-4h-3  
 > - [shipment-upload-export-preflight-checklist.md](./shipment-upload-export-preflight-checklist.md) — D-4f  
 > - [smoke-samples/README.md](./smoke-samples/README.md) — D-4e  
-> - [smoke-samples/shipment-upload-smoke-file.csv](./smoke-samples/shipment-upload-smoke-file.csv)
+> - [smoke-samples/shipment-upload-smoke-file.csv](./smoke-samples/shipment-upload-smoke-file.csv)  
+> - [shipment-upload-export-smoke-cleanup-runbook.md](./shipment-upload-export-smoke-cleanup-runbook.md) — D-4h-5
 
 **본 문서는 D-4h-4 문서 작성 단계입니다.**  
 **이번 단계에서 수행하지 않는 것**: 실제 smoke 실행, 송장파일 업로드, API 호출, export 다운로드, DB write, env 변경, 쇼핑몰 API 호출, 송장전송.
@@ -218,7 +219,7 @@ NextAuth 세션 필요. 미로그인 **401**.
 
 | 단계 | 내용 |
 |------|------|
-| **D-4h-5** | cleanup runbook (예정) — `OrderSyncOrder`, upload batch 등 **삭제 여부** 별도 승인 |
+| **D-4h-5** | [cleanup-runbook](./shipment-upload-export-smoke-cleanup-runbook.md) — `OrderSyncOrder`, upload batch 등 **삭제 별도 승인** |
 | **결과 보고** | PASS/FAIL, §8·§9 요약 문서 (별도 작성) |
 | **이후 Phase** | provider별 업로드 양식 고도화, **송장전송** — smoke PASS 후 **별도 기획** |
 
@@ -242,4 +243,4 @@ NextAuth 세션 필요. 미로그인 **401**.
 | D-4h-2 | [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) |
 | D-4h-3 | [insert-runbook](./shipment-upload-export-smoke-data-insert-runbook.md) |
 | D-4h-4 | **본 runbook** |
-| D-4h-5 | (예정) cleanup runbook |
+| D-4h-5 | [cleanup-runbook](./shipment-upload-export-smoke-cleanup-runbook.md) |

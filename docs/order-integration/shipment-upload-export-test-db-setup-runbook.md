@@ -291,6 +291,7 @@ D-4h-2 (본 runbook)  →  [승인] setup 실행  →  D-4h-3 insert  →  D-4h-
 | **D-4h-2 실행** | Supabase 프로젝트·migrate·env (승인 후) | schema만 (migrate) |
 | **D-4h-3** | smoke 데이터 insert runbook | ✅ [insert-runbook](./shipment-upload-export-smoke-data-insert-runbook.md) — **승인 후 실행** |
 | **D-4h-4** | [execution-runbook](./shipment-upload-export-smoke-execution-runbook.md) 실행 | upload batch 등 |
+| **D-4h-5** | [cleanup-runbook](./shipment-upload-export-smoke-cleanup-runbook.md) — **승인 후 실행** | smoke 데이터 삭제 |
 
 **지금 할 일 (사용자)**  
 1. **C안** 및 본 runbook **실행 승인**  
@@ -310,4 +311,4 @@ D-4h-2 (본 runbook)  →  [승인] setup 실행  →  D-4h-3 insert  →  D-4h-
 | D-4h-2 | **본 runbook** |
 | D-4h-3 | [insert-runbook](./shipment-upload-export-smoke-data-insert-runbook.md) |
 | D-4h-4 | [execution-runbook](./shipment-upload-export-smoke-execution-runbook.md) |
-| D-4h-5 | (예정) cleanup runbook |
+| D-4h-5 | [cleanup-runbook](./shipment-upload-export-smoke-cleanup-runbook.md) — **승인 후 실행** |

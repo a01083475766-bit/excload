@@ -255,4 +255,4 @@ D-4h-준비 (본 문서)  →  C안 승인  →  D-4h-1 test DB plan  →  D-4h-
 | D-4h-2 | [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) |
 | D-4h-3 | [insert-runbook](./shipment-upload-export-smoke-data-insert-runbook.md) |
 | D-4h-4 | [execution-runbook](./shipment-upload-export-smoke-execution-runbook.md) |
-| D-4h-5 | (예정) cleanup runbook |
+| D-4h-5 | [cleanup-runbook](./shipment-upload-export-smoke-cleanup-runbook.md) |
