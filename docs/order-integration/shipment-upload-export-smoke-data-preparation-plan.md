@@ -220,25 +220,25 @@ DB write를 **시작하기 전** (D-4h-1 이후, 사용자 승인 필수):
 ## 10. 다음 단계 제안
 
 ```
-D-4h-준비 (본 문서)  →  사용자 합의  →  D-4h-1 insert runbook  →  D-4h-2 smoke 실행
+D-4h-준비 (본 문서)  →  C안 승인  →  D-4h-1 test DB plan  →  D-4h-2 setup  →  D-4h-3 insert  →  D-4h-4 smoke
 ```
 
 | 단계 | 내용 | 전제 |
 |------|------|------|
 | **D-4h-준비** | 준비 방식·데이터 기준 문서화 | ✅ 본 문서 |
-| **사용자 합의** | 테스트 계정/`userId`, DB(C vs B), insert 승인 | smoke user 제공 또는 생성 승인 |
-| **D-4h-1** | 안전한 test data insert **runbook** 작성 | **별도 승인 후** — runbook만 먼저 가능 |
-| **D-4h-1 실행** | 승인된 runbook대로 DB write | rollback 계획 포함 |
-| **D-4h-2** | [smoke runbook](./shipment-upload-export-smoke-test-runbook.md) 실제 실행 | readiness **재점검** 후 |
-| **D-4h-2 결과** | 실행 결과 별도 보고 | |
+| **사용자 합의** | 테스트 계정/`userId`, **C안(별도 DB)** 승인 | smoke user 제공 또는 생성 승인 |
+| **D-4h-1** | 별도 테스트 DB 준비 **계획** | ✅ [test-db-plan](./shipment-upload-export-test-db-plan.md) |
+| **D-4h-2** | 테스트 DB 세부 준비 runbook (생성·migrate·env) | C안 승인 후 |
+| **D-4h-3** | smoke 데이터 insert runbook | 테스트 DB·env 준비 후 |
+| **D-4h-4** | [smoke runbook](./shipment-upload-export-smoke-test-runbook.md) 실제 실행 | readiness **재점검** 후 |
 
 **지금 할 일 (팀/사용자)**  
 1. smoke test 전용 로그인 계정·`userId` 지정  
-2. **C안(별도 DB)** vs **B안(동일 DB·제한 insert)** 선택  
-3. 선택 후 D-4h-1 insert runbook 작성 요청  
+2. **C안(별도 테스트 DB)** 승인  
+3. D-4h-2 test DB setup runbook 작성 요청 (승인 후)
 
 **지금 하지 않을 일**  
-- DB insert, seed, env 변경, smoke 업로드/다운로드 실행
+- DB 생성, env 변경, migration, insert, smoke 업로드/다운로드 실행
 
 ---
 
@@ -251,5 +251,7 @@ D-4h-준비 (본 문서)  →  사용자 합의  →  D-4h-1 insert runbook  →
 | D-4f | [preflight-checklist](./shipment-upload-export-preflight-checklist.md) |
 | D-4g | [readiness-report](./shipment-upload-export-smoke-readiness-report.md) — **보류** |
 | D-4h-준비 | **본 문서** |
-| D-4h-1 | (예정) insert runbook |
-| D-4h-2 | (예정) smoke 실행·결과 |
+| D-4h-1 | [test-db-plan](./shipment-upload-export-test-db-plan.md) |
+| D-4h-2 | (예정) test DB setup runbook |
+| D-4h-3 | (예정) smoke data insert runbook |
+| D-4h-4 | (예정) smoke 실행·결과 |

@@ -42,7 +42,8 @@
 | D-4h 즉시 실행 | **불가** |
 
 **권고**: 테스트 전용 사용자·`OrderIntegrationAccount`·`OrderSyncOrder` snapshot 5건을 **별도 준비**한 뒤 preflight 재확인 후 D-4h 진행.  
-준비 방법: [shipment-upload-export-smoke-data-preparation-plan.md](./shipment-upload-export-smoke-data-preparation-plan.md) (D-4h-준비)
+준비 방법: [shipment-upload-export-smoke-data-preparation-plan.md](./shipment-upload-export-smoke-data-preparation-plan.md) (D-4h-준비)  
+별도 테스트 DB: [shipment-upload-export-test-db-plan.md](./shipment-upload-export-test-db-plan.md) (D-4h-1)
 
 ---
 
