@@ -98,6 +98,16 @@ smoke 실행 시 생성되는 `ShipmentUploadBatch` / `ShipmentUploadMatch` row�
 
 ## 4. 테스트 데이터 준비 체크리스트
 
+### 4.0 샘플 데이터 (D-4e)
+
+레포에 포함된 더미 샘플을 사용할 수 있습니다. **자동 DB insert는 없습니다** — snapshot은 테스트 계정에 **수동 준비**합니다.
+
+| 파일 | 설명 |
+|------|------|
+| [smoke-samples/README.md](./smoke-samples/README.md) | 샘플 폴더 안내 |
+| [smoke-samples/shipment-upload-smoke-orders.md](./smoke-samples/shipment-upload-smoke-orders.md) | 주문 snapshot 예시 5건 |
+| [smoke-samples/shipment-upload-smoke-file.csv](./smoke-samples/shipment-upload-smoke-file.csv) | 송장파일 CSV 5행 |
+
 ### 4.1 주문 snapshot
 
 - [ ] 테스트 `userId`에 속한 `OrderSyncOrder` **2~5건** 확보
