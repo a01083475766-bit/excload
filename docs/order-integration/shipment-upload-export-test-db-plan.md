@@ -228,5 +228,6 @@ D-4h-1 (본 문서)  →  사용자 C안 승인  →  D-4h-2  →  D-4h-3  →  
 | D-4h-준비 | [data-preparation-plan](./shipment-upload-export-smoke-data-preparation-plan.md) — C안 1순위 |
 | D-4h-1 | **본 문서** — test DB plan |
 | D-4h-2 | [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) |
-| D-4h-3 | (예정) smoke data insert runbook |
-| D-4h-4 | (예정) smoke 실행·결과 |
+| D-4h-3 | [insert-runbook](./shipment-upload-export-smoke-data-insert-runbook.md) |
+| D-4h-4 | [smoke-test-runbook](./shipment-upload-export-smoke-test-runbook.md) |
+| D-4h-5 | (예정) cleanup runbook |
