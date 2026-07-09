@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   adaptShipmentUploadBatchDetailForUi,
   adaptShipmentUploadBatchDetailRowForDisplay,
+  buildShipmentMatchPanelViewStateFromExcludeResponse,
   buildShipmentMatchPanelViewStateFromUpload,
   canShowShipmentMatchConfirmButton,
+  canShowShipmentMatchExcludeButton,
   isShipmentMatchPanelRowConfirmed,
+  isShipmentMatchPanelRowExcluded,
 } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
 import type { ShipmentUploadBatchDetailResponse } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
@@ -183,5 +186,79 @@ describe('confirm button visibility', () => {
     });
     expect(isShipmentMatchPanelRowConfirmed(row)).toBe(true);
     expect(canShowShipmentMatchConfirmButton(row)).toBe(false);
+    expect(canShowShipmentMatchExcludeButton(row)).toBe(false);
+  });
+});
+
+describe('exclude button visibility', () => {
+  it('shows exclude button for unconfirmed rows with matchId', () => {
+    const confidentRow = adaptShipmentUploadBatchDetailRowForDisplay(buildDetail().rows[0]);
+    const notMatchedRow = adaptShipmentUploadBatchDetailRowForDisplay(buildDetail().rows[1]);
+
+    expect(canShowShipmentMatchExcludeButton(confidentRow)).toBe(true);
+    expect(canShowShipmentMatchExcludeButton(notMatchedRow)).toBe(true);
+  });
+
+  it('shows excluded badge state for excluded rows', () => {
+    const row = adaptShipmentUploadBatchDetailRowForDisplay({
+      ...buildDetail().rows[1],
+      userConfirmationStatus: 'EXCLUDED',
+    });
+
+    expect(isShipmentMatchPanelRowExcluded(row)).toBe(true);
+    expect(canShowShipmentMatchExcludeButton(row)).toBe(false);
+  });
+
+  it('hides exclude button for confirmed rows', () => {
+    const row = adaptShipmentUploadBatchDetailRowForDisplay({
+      ...buildDetail().rows[0],
+      userConfirmationStatus: 'CONFIRMED',
+    });
+
+    expect(canShowShipmentMatchExcludeButton(row)).toBe(false);
+  });
+});
+
+describe('buildShipmentMatchPanelViewStateFromExcludeResponse', () => {
+  it('refreshes panel view state from exclude response detail', () => {
+    const previous = buildShipmentMatchPanelViewStateFromUpload(buildUploadBody(), buildDetail());
+
+    const next = buildShipmentMatchPanelViewStateFromExcludeResponse(
+      {
+        success: true,
+        excludedMatchId: 'match-2',
+        match: {
+          shipmentRowIndex: 1,
+          matchStatus: 'NOT_MATCHED',
+          matchReason: 'no candidate',
+          providerLabel: null,
+          mallOrderNo: 'ORD-2',
+          excloadOrderNo: null,
+          receiverName: null,
+          receiverPhoneMasked: null,
+          receiverAddressMasked: null,
+          productSummary: null,
+          carrierName: null,
+          trackingNumberMasked: '9876****4321',
+          matchId: 'match-2',
+          uploadRowId: 'row-2',
+          userConfirmationStatus: 'EXCLUDED',
+          transmissionStatus: 'NONE',
+        },
+        uploadBatch: buildDetail().uploadBatch,
+        rows: buildDetail().rows.map((row) =>
+          row.matchId === 'match-2'
+            ? { ...row, userConfirmationStatus: 'EXCLUDED' as const }
+            : row,
+        ),
+        summary: buildDetail().summary,
+      },
+      previous,
+    );
+
+    expect(next.ordersLoadedCount).toBe(previous.ordersLoadedCount);
+    expect(next.displayRows[1].userConfirmationStatus).toBe('EXCLUDED');
+    expect(JSON.stringify(next)).not.toContain('rawRowJson');
+    expect(JSON.stringify(next)).not.toContain('candidateOrdersJson');
   });
 });

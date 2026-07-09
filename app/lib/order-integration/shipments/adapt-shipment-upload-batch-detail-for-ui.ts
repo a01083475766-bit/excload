@@ -6,6 +6,7 @@ import type {
 } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import { CONFIRMABLE_ALGORITHM_STATUSES } from '@/app/lib/order-integration/shipments/confirm-shipment-upload-match';
 import type { ConfirmShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/confirm-shipment-upload-match';
+import type { ExcludeShipmentUploadMatchSuccessResponse } from '@/app/lib/order-integration/shipments/exclude-shipment-upload-match';
 import type {
   ShipmentMatchDisplayRow,
   ShipmentMatchSummaryCounts,
@@ -77,6 +78,16 @@ export function isShipmentMatchPanelRowConfirmed(row: ShipmentMatchPanelDisplayR
   return row.userConfirmationStatus === 'CONFIRMED';
 }
 
+export function isShipmentMatchPanelRowExcluded(row: ShipmentMatchPanelDisplayRow): boolean {
+  return row.userConfirmationStatus === 'EXCLUDED';
+}
+
+export function canShowShipmentMatchExcludeButton(row: ShipmentMatchPanelDisplayRow): boolean {
+  if (!row.matchId?.trim()) return false;
+  if (row.userConfirmationStatus !== 'UNCONFIRMED') return false;
+  return true;
+}
+
 export function adaptShipmentUploadBatchDetailForUi(
   detail: ShipmentUploadBatchDetailResponse,
   context: {
@@ -112,6 +123,24 @@ export function buildShipmentMatchPanelViewStateFromUpload(
 
 export function buildShipmentMatchPanelViewStateFromConfirmResponse(
   response: ConfirmShipmentUploadMatchSuccessResponse,
+  previous: ShipmentMatchPanelViewState,
+): ShipmentMatchPanelViewState {
+  return adaptShipmentUploadBatchDetailForUi(
+    {
+      success: true,
+      uploadBatch: response.uploadBatch,
+      rows: response.rows,
+      summary: response.summary,
+    },
+    {
+      ordersLoadedCount: previous.ordersLoadedCount,
+      parseWarningCount: previous.parse.warningCount,
+    },
+  );
+}
+
+export function buildShipmentMatchPanelViewStateFromExcludeResponse(
+  response: ExcludeShipmentUploadMatchSuccessResponse,
   previous: ShipmentMatchPanelViewState,
 ): ShipmentMatchPanelViewState {
   return adaptShipmentUploadBatchDetailForUi(

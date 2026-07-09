@@ -11,14 +11,18 @@ import {
 } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
 import {
   buildShipmentMatchPanelViewStateFromConfirmResponse,
+  buildShipmentMatchPanelViewStateFromExcludeResponse,
   buildShipmentMatchPanelViewStateFromUpload,
   canShowShipmentMatchConfirmButton,
+  canShowShipmentMatchExcludeButton,
   isShipmentMatchPanelRowConfirmed,
+  isShipmentMatchPanelRowExcluded,
   type ShipmentMatchPanelViewState,
 } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
 import {
   fetchShipmentUploadBatchDetail,
   postShipmentUploadMatchConfirm,
+  postShipmentUploadMatchExclude,
 } from '@/app/lib/order-integration/shipments/shipment-match-panel-confirm-client';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
 import {
@@ -47,6 +51,7 @@ const TABLE_HEADERS = [
   '매칭 사유',
   '원본 행',
   '확정',
+  '제외',
 ] as const;
 
 function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
@@ -80,6 +85,7 @@ export default function ShipmentMatchPanel() {
   const [viewState, setViewState] = useState<ShipmentMatchPanelViewState | null>(null);
   const [activeTab, setActiveTab] = useState<ShipmentMatchTabId>('all');
   const [confirmingMatchId, setConfirmingMatchId] = useState<string | null>(null);
+  const [excludingMatchId, setExcludingMatchId] = useState<string | null>(null);
   const [rowActionError, setRowActionError] = useState<string | null>(null);
 
   const inputClass =
@@ -229,6 +235,33 @@ export default function ShipmentMatchPanel() {
         setRowActionError('매칭 확정 중 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       } finally {
         setConfirmingMatchId(null);
+      }
+    },
+    [sessionStatus, viewState],
+  );
+
+  const handleExcludeMatch = useCallback(
+    async (matchId: string) => {
+      if (!viewState || sessionStatus !== 'authenticated') {
+        setRowActionError('로그인이 필요합니다. 다시 로그인한 뒤 시도해주세요.');
+        return;
+      }
+
+      setExcludingMatchId(matchId);
+      setRowActionError(null);
+
+      try {
+        const result = await postShipmentUploadMatchExclude(viewState.uploadBatchId, matchId);
+        if (!result.ok) {
+          setRowActionError(result.error);
+          return;
+        }
+
+        setViewState(buildShipmentMatchPanelViewStateFromExcludeResponse(result.body, viewState));
+      } catch {
+        setRowActionError('제외 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      } finally {
+        setExcludingMatchId(null);
       }
     },
     [sessionStatus, viewState],
@@ -532,6 +565,27 @@ export default function ShipmentMatchPanel() {
                                 <Loader2 className="h-3 w-3 animate-spin" />
                               ) : null}
                               확정
+                            </button>
+                          ) : (
+                            <span className="text-xs text-zinc-400">-</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          {isShipmentMatchPanelRowExcluded(row) ? (
+                            <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                              제외됨
+                            </span>
+                          ) : canShowShipmentMatchExcludeButton(row) ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleExcludeMatch(row.matchId!)}
+                              disabled={excludingMatchId === row.matchId}
+                              className="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                            >
+                              {excludingMatchId === row.matchId ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : null}
+                              {excludingMatchId === row.matchId ? '제외 중…' : '제외'}
                             </button>
                           ) : (
                             <span className="text-xs text-zinc-400">-</span>
