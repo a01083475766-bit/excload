@@ -3,6 +3,7 @@
 > **상태**: 운영 준비 문서 (2026-07) — **체크리스트만** (실행은 별도 승인 후)  
 > **목적**: Phase D-4까지 구현된 송장파일 업로드 → 매칭 저장 → 확정/제외/주문 연결 → READY 승격 → 쇼핑몰 업로드용 엑셀 다운로드 흐름을 **안전하게** 검증하기 위한 절차·성공 기준 정리  
 > **관련 문서**  
+> - [shipment-upload-export-smoke-execution-runbook.md](./shipment-upload-export-smoke-execution-runbook.md) — D-4h-4 **실제 실행** runbook (테스트 DB 전제)  
 > - [shipment-upload-export-preflight-checklist.md](./shipment-upload-export-preflight-checklist.md) — smoke **실행 전** preflight (D-4f)  
 > - [smoke-samples/README.md](./smoke-samples/README.md) — 테스트 샘플 데이터 (D-4e)  
 > - [shipment-upload-matching-design.md](./shipment-upload-matching-design.md) — 송장 업로드·매칭 전체 설계  

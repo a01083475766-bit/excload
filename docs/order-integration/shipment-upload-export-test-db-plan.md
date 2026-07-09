@@ -208,7 +208,7 @@ D-4h-1 (본 문서)  →  사용자 C안 승인  →  D-4h-2  →  D-4h-3  →  
 | **D-4h-1** | 별도 테스트 DB 준비 **계획** | ✅ 문서만 (본 문서) |
 | **D-4h-2** | 테스트 DB **세부 준비 runbook** (생성·migrate·env 적용 절차) | ✅ [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) — **실행은 승인 후** |
 | **D-4h-3** | smoke용 **데이터 insert runbook** (user, account, order 5건) | 테스트 DB·env 준비 **후** |
-| **D-4h-4** | **실제 smoke 실행** + 결과 기록 | preflight·readiness 재통과 후 |
+| **D-4h-4** | [execution-runbook](./shipment-upload-export-smoke-execution-runbook.md) | preflight·readiness 재통과 후 |
 
 **지금 필요한 사용자 결정**  
 1. **C안(별도 테스트 DB)** 승인 여부  
@@ -229,5 +229,5 @@ D-4h-1 (본 문서)  →  사용자 C안 승인  →  D-4h-2  →  D-4h-3  →  
 | D-4h-1 | **본 문서** — test DB plan |
 | D-4h-2 | [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) |
 | D-4h-3 | [insert-runbook](./shipment-upload-export-smoke-data-insert-runbook.md) |
-| D-4h-4 | [smoke-test-runbook](./shipment-upload-export-smoke-test-runbook.md) |
+| D-4h-4 | [execution-runbook](./shipment-upload-export-smoke-execution-runbook.md) |
 | D-4h-5 | (예정) cleanup runbook |

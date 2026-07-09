@@ -331,7 +331,7 @@ D-4h-3 (본 runbook)  →  [승인] insert 실행  →  D-4h-4 smoke  →  D-4h-
 |------|------|
 | **D-4h-3 문서** | 본 runbook (실행 없음) |
 | **insert 실행** | 사용자 승인 후, 테스트 DB만 |
-| **D-4h-4** | [smoke-test-runbook](./shipment-upload-export-smoke-test-runbook.md) 실제 실행 |
+| **D-4h-4** | [execution-runbook](./shipment-upload-export-smoke-execution-runbook.md) 실제 실행 |
 | **D-4h-5** | cleanup runbook (예정) — delete 별도 승인 |
 
 **지금 할 일**  
@@ -350,5 +350,5 @@ D-4h-3 (본 runbook)  →  [승인] insert 실행  →  D-4h-4 smoke  →  D-4h-
 |------|------|
 | D-4h-2 | [setup-runbook](./shipment-upload-export-test-db-setup-runbook.md) |
 | D-4h-3 | **본 runbook** |
-| D-4h-4 | [smoke-test-runbook](./shipment-upload-export-smoke-test-runbook.md) |
+| D-4h-4 | [execution-runbook](./shipment-upload-export-smoke-execution-runbook.md) |
 | D-4h-5 | (예정) cleanup runbook |
