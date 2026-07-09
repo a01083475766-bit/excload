@@ -216,3 +216,28 @@ export type OrderFetchWithSnapshotPersistResponse<TPreviewRow = unknown> = {
   orderStandardFile: OrderFetchStandardFileLike;
   snapshotPersist: OrderFetchSnapshotPersistResult;
 };
+
+export const DEFAULT_LOAD_ORDER_SYNC_SNAPSHOTS_FOR_MATCHING_LIMIT = 500;
+
+export type LoadOrderSyncSnapshotsForMatchingInput = {
+  userId: string;
+  provider?: OrderIntegrationProvider;
+  integrationAccountId?: string;
+  batchId?: string;
+  limit?: number;
+};
+
+export type OrderSyncSnapshotLoadClient = {
+  orderSyncOrder: {
+    findMany: (args: {
+      where: {
+        userId: string;
+        provider?: OrderIntegrationProvider;
+        integrationAccountId?: string;
+        batchId?: string;
+      };
+      orderBy: { createdAt: 'desc' };
+      take: number;
+    }) => Promise<PersistedOrderSyncOrderLike[]>;
+  };
+};
