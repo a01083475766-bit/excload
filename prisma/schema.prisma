@@ -129,6 +129,9 @@ model User {
   orderIntegrationAccounts OrderIntegrationAccount[]
   orderSyncBatches         OrderSyncBatch[]
   orderSyncOrders          OrderSyncOrder[]
+  shipmentUploadBatches    ShipmentUploadBatch[]
+  shipmentUploadRows       ShipmentUploadRow[]
+  shipmentMatches          ShipmentMatch[]
 }
 
 enum OrderIntegrationProvider {
@@ -171,6 +174,34 @@ enum OrderSyncTransmissionStatus {
   SKIPPED
 }
 
+enum ShipmentUploadBatchStatus {
+  UPLOADED
+  PARSED
+  MATCHED
+  PARTIALLY_CONFIRMED
+  CONFIRMED
+  READY
+  CANCELLED
+}
+
+enum ShipmentAlgorithmMatchStatus {
+  MATCHED_CONFIDENT
+  MATCHED_WARNING
+  MULTIPLE_CANDIDATES
+  NOT_MATCHED
+  DUPLICATE_TRACKING_NUMBER
+  ALREADY_SHIPPED
+  CANCELLED_OR_INVALID_ORDER
+}
+
+enum ShipmentUserConfirmationStatus {
+  UNCONFIRMED
+  CONFIRMED
+  MANUALLY_LINKED
+  EDITED
+  EXCLUDED
+}
+
 model OrderIntegrationAccount {
   id          String                   @id @default(cuid())
   userId      String
@@ -205,9 +236,11 @@ model OrderIntegrationAccount {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderSyncBatches OrderSyncBatch[]
-  orderSyncOrders  OrderSyncOrder[]
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderSyncBatches      OrderSyncBatch[]
+  orderSyncOrders       OrderSyncOrder[]
+  shipmentUploadBatches ShipmentUploadBatch[]
+  shipmentMatches       ShipmentMatch[]
 
   @@unique([userId, provider, vendorId])
   @@index([userId, provider])
@@ -266,6 +299,7 @@ model OrderSyncOrder {
   batch              OrderSyncBatch           @relation(fields: [batchId], references: [id], onDelete: Cascade)
   user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   integrationAccount OrderIntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+  shipmentMatches    ShipmentMatch[]
 
   @@unique([userId, excloadOrderNo])
   @@index([userId, provider])
@@ -282,6 +316,112 @@ model ExcloadOrderNoSequence {
   updatedAt  DateTime @updatedAt
 
   @@unique([dateKey])
+}
+
+model ShipmentUploadBatch {
+  id                           String                    @id @default(cuid())
+  userId                       String
+  provider                     OrderIntegrationProvider?
+  integrationAccountId         String?
+  originalFileName             String
+  fileHash                     String?
+  fileSize                     Int
+  fileType                     String?
+  rowCount                     Int                       @default(0)
+  matchedConfidentCount        Int                       @default(0)
+  matchedWarningCount          Int                       @default(0)
+  multipleCandidatesCount      Int                       @default(0)
+  notMatchedCount              Int                       @default(0)
+  duplicateTrackingNumberCount Int                       @default(0)
+  alreadyShippedCount          Int                       @default(0)
+  cancelledOrInvalidOrderCount Int                       @default(0)
+  status                       ShipmentUploadBatchStatus @default(UPLOADED)
+  createdAt                    DateTime                  @default(now())
+  updatedAt                    DateTime                  @updatedAt
+
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integrationAccount OrderIntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+  rows               ShipmentUploadRow[]
+  matches            ShipmentMatch[]
+
+  @@index([userId, createdAt])
+  @@index([userId, provider])
+  @@index([integrationAccountId])
+}
+
+model ShipmentUploadRow {
+  id                       String   @id @default(cuid())
+  uploadBatchId            String
+  userId                   String
+  originalRowIndex         Int
+  rawRowJson               Json
+  trackingNumber           String
+  trackingNumberNormalized String
+  carrierName              String?
+  carrierCode              String?
+  receiverName             String?
+  receiverPhone            String?
+  receiverPhoneNormalized  String?
+  receiverAddress          String?  @db.Text
+  mallOrderNo              String?
+  excloadOrderNo           String?
+  productText              String?
+  warningsJson             Json?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  uploadBatch ShipmentUploadBatch @relation(fields: [uploadBatchId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match       ShipmentMatch?
+
+  @@unique([uploadBatchId, originalRowIndex])
+  @@index([uploadBatchId])
+  @@index([userId])
+  @@index([trackingNumberNormalized])
+  @@index([excloadOrderNo])
+  @@index([mallOrderNo])
+}
+
+model ShipmentMatch {
+  id                       String                         @id @default(cuid())
+  uploadBatchId            String
+  uploadRowId              String                         @unique
+  userId                   String
+  orderSyncOrderId         String?
+  provider                 OrderIntegrationProvider?
+  integrationAccountId     String?
+  algorithmMatchStatus     ShipmentAlgorithmMatchStatus
+  userConfirmationStatus   ShipmentUserConfirmationStatus @default(UNCONFIRMED)
+  /// OrderSyncTransmissionStatus.NONE = 앱 레이어 NOT_READY
+  transmissionStatus       OrderSyncTransmissionStatus    @default(NONE)
+  matchScore               Int                            @default(0)
+  matchReason              String?                        @db.Text
+  mismatchFieldsJson       Json?
+  candidateOrdersJson      Json?
+  finalTrackingNumber      String?
+  finalCarrierCode         String?
+  finalCarrierName         String?
+  confirmedAt              DateTime?
+  confirmedByUserId        String?
+  excludedAt               DateTime?
+  excludeReason            String?                        @db.Text
+  transmissionErrorMessage String?                        @db.Text
+  createdAt                DateTime                       @default(now())
+  updatedAt                DateTime                       @updatedAt
+
+  uploadBatch        ShipmentUploadBatch      @relation(fields: [uploadBatchId], references: [id], onDelete: Cascade)
+  uploadRow          ShipmentUploadRow        @relation(fields: [uploadRowId], references: [id], onDelete: Cascade)
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderSyncOrder     OrderSyncOrder?          @relation(fields: [orderSyncOrderId], references: [id], onDelete: SetNull)
+  integrationAccount OrderIntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+
+  @@index([uploadBatchId])
+  @@index([uploadRowId])
+  @@index([orderSyncOrderId])
+  @@index([userId, algorithmMatchStatus])
+  @@index([userId, userConfirmationStatus])
+  @@index([userId, transmissionStatus])
+  @@index([integrationAccountId])
 }
 
 model EmailVerificationToken {
