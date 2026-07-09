@@ -1,6 +1,9 @@
 node_modules
 .next
 .env
+.env.local
+.env.*.local
+.env.smoke.local
 
 # Google Drive for Desktop 동기화 임시 파일 (커밋 금지)
 .tmp.driveupload/
