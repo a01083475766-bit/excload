@@ -8,7 +8,8 @@
 > - [shipment-upload-export-smoke-data-insert-runbook.md](./shipment-upload-export-smoke-data-insert-runbook.md) — D-4h-3 (insert)  
 > - [shipment-upload-export-test-db-setup-runbook.md](./shipment-upload-export-test-db-setup-runbook.md) — D-4h-2 (테스트 DB setup)  
 > - [shipment-upload-export-test-db-plan.md](./shipment-upload-export-test-db-plan.md) — D-4h-1  
-> - [shipment-upload-export-smoke-data-preparation-plan.md](./shipment-upload-export-smoke-data-preparation-plan.md) — D-4h-준비
+> - [shipment-upload-export-smoke-data-preparation-plan.md](./shipment-upload-export-smoke-data-preparation-plan.md) — D-4h-준비  
+> - [shipment-upload-export-smoke-result-template.md](./shipment-upload-export-smoke-result-template.md) — D-4h-6
 
 **본 문서는 cleanup 전 승인용 runbook입니다.**  
 **D-4h-5 문서 작성 단계에서 수행하지 않는 것**: 실제 DB delete/update, SQL 실행, Prisma script 파일 작성, env 변경, migration 실행, smoke test 재실행, 쇼핑몰 API 호출, 송장전송.
@@ -374,7 +375,7 @@ D-4h-4 smoke  →  [승인] cleanup 실행  →  결과 보고  →  D-4 최종 
 |------|------|
 | **D-4h-5 문서** | 본 runbook (실행 없음) |
 | **cleanup 실행** | 사용자 승인 후, 테스트 DB만 |
-| **결과 보고** | D-4 smoke PASS/FAIL·cleanup 완료 요약 문서 (별도 작성) |
+| **결과 보고** | [result-template](./shipment-upload-export-smoke-result-template.md) — D-4 smoke PASS/FAIL·cleanup 완료 요약 |
 | **D-4 최종 판정** | smoke + cleanup 완료 후 Phase D-4 종료 여부 결정 |
 | **이후** | provider별 업로드 양식 고도화, 다음 Phase 검토 |
 | **송장전송** | **별도 Phase** — smoke/cleanup과 분리 |
@@ -395,3 +396,4 @@ D-4h-4 smoke  →  [승인] cleanup 실행  →  결과 보고  →  D-4 최종 
 | D-4h-3 | [insert-runbook](./shipment-upload-export-smoke-data-insert-runbook.md) |
 | D-4h-4 | [execution-runbook](./shipment-upload-export-smoke-execution-runbook.md) |
 | D-4h-5 | **본 runbook** |
+| D-4h-6 | [result-template](./shipment-upload-export-smoke-result-template.md) |
