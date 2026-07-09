@@ -1,4 +1,4 @@
-import type { ShipmentUserConfirmationStatus } from '@prisma/client';
+import type { ShipmentUserConfirmationStatus, ShipmentUploadBatchStatus } from '@prisma/client';
 
 import type {
   ShipmentUploadBatchDetailResponse,
@@ -14,6 +14,7 @@ import type {
 } from '@/app/lib/order-integration/shipments/shipment-match-ui';
 import type { ShipmentMatchStatus } from '@/app/lib/order-integration/shipments/types';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
+import { SHIPMENT_UPLOAD_BATCH_READY_STATUS } from '@/app/lib/order-integration/shipments/refresh-shipment-upload-batch-ready-status';
 
 export const LINKABLE_ALGORITHM_STATUSES: ReadonlySet<ShipmentMatchStatus> = new Set([
   'NOT_MATCHED',
@@ -29,6 +30,7 @@ export type ShipmentMatchPanelDisplayRow = ShipmentMatchDisplayRow & {
 
 export type ShipmentMatchPanelViewState = {
   uploadBatchId: string;
+  batchStatus: ShipmentUploadBatchStatus;
   file: {
     name: string;
     size: number;
@@ -105,6 +107,12 @@ export function isShipmentMatchPanelRowManuallyLinked(row: ShipmentMatchPanelDis
   return row.userConfirmationStatus === 'MANUALLY_LINKED';
 }
 
+export function isShipmentMatchPanelBatchReady(
+  viewState: Pick<ShipmentMatchPanelViewState, 'batchStatus'>,
+): boolean {
+  return viewState.batchStatus === SHIPMENT_UPLOAD_BATCH_READY_STATUS;
+}
+
 export function adaptShipmentUploadBatchDetailForUi(
   detail: ShipmentUploadBatchDetailResponse,
   context: {
@@ -114,6 +122,7 @@ export function adaptShipmentUploadBatchDetailForUi(
 ): ShipmentMatchPanelViewState {
   return {
     uploadBatchId: detail.uploadBatch.id,
+    batchStatus: detail.uploadBatch.status,
     file: {
       name: detail.uploadBatch.originalFileName,
       size: detail.uploadBatch.fileSize,

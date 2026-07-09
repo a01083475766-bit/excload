@@ -12,6 +12,7 @@ import {
   isShipmentMatchPanelRowConfirmed,
   isShipmentMatchPanelRowExcluded,
   isShipmentMatchPanelRowManuallyLinked,
+  isShipmentMatchPanelBatchReady,
 } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
 import type { ShipmentUploadBatchDetailResponse } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
@@ -151,6 +152,7 @@ describe('adaptShipmentUploadBatchDetailForUi', () => {
     });
 
     expect(viewState.uploadBatchId).toBe('upload-batch-1');
+    expect(viewState.batchStatus).toBe('MATCHED');
     expect(viewState.file.name).toBe('shipments.csv');
     expect(viewState.parse).toEqual({ rowCount: 2, warningCount: 2 });
     expect(viewState.ordersLoadedCount).toBe(5);
@@ -360,5 +362,27 @@ describe('buildShipmentMatchPanelViewStateFromLinkResponse', () => {
     expect(isShipmentMatchPanelRowManuallyLinked(next.displayRows[1])).toBe(true);
     expect(JSON.stringify(next)).not.toContain('rawRowJson');
     expect(JSON.stringify(next)).not.toContain('candidateOrdersJson');
+  });
+});
+
+describe('batch ready state for export download', () => {
+  it('detects READY batch status from detail', () => {
+    const viewState = adaptShipmentUploadBatchDetailForUi(
+      {
+        ...buildDetail(),
+        uploadBatch: {
+          ...buildDetail().uploadBatch,
+          status: 'READY',
+        },
+      },
+      { ordersLoadedCount: 1 },
+    );
+
+    expect(isShipmentMatchPanelBatchReady(viewState)).toBe(true);
+  });
+
+  it('returns false for non-READY batch status', () => {
+    const viewState = buildShipmentMatchPanelViewStateFromUpload(buildUploadBody(), buildDetail());
+    expect(isShipmentMatchPanelBatchReady(viewState)).toBe(false);
   });
 });

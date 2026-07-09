@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  buildShipmentUploadExportUrl,
   buildShipmentUploadLinkableOrdersUrl,
   buildShipmentUploadMatchConfirmUrl,
   buildShipmentUploadMatchExcludeUrl,
   buildShipmentUploadMatchLinkUrl,
+  downloadShipmentUploadExportFile,
   fetchShipmentUploadLinkableOrders,
+  parseContentDispositionFileName,
   postShipmentUploadMatchConfirm,
   postShipmentUploadMatchExclude,
   postShipmentUploadMatchLink,
+  resolveShipmentUploadExportDownloadFileName,
 } from '@/app/lib/order-integration/shipments/shipment-match-panel-confirm-client';
 
 describe('buildShipmentUploadMatchConfirmUrl', () => {
@@ -261,6 +265,84 @@ describe('postShipmentUploadMatchLink', () => {
       ok: false,
       status: 400,
       error: '확정된 매칭은 수동 연결할 수 없습니다.',
+    });
+  });
+});
+
+describe('buildShipmentUploadExportUrl', () => {
+  it('builds export download url with default xlsx format', () => {
+    expect(buildShipmentUploadExportUrl('batch-1')).toBe(
+      '/api/order/integration/shipments/uploads/batch-1/export?format=xlsx',
+    );
+  });
+});
+
+describe('parseContentDispositionFileName', () => {
+  it('extracts filename from Content-Disposition header', () => {
+    expect(
+      parseContentDispositionFileName('attachment; filename="excload-shipment-upload-batch-1.xlsx"'),
+    ).toBe('excload-shipment-upload-batch-1.xlsx');
+  });
+});
+
+describe('resolveShipmentUploadExportDownloadFileName', () => {
+  it('falls back to default export filename when header is missing', () => {
+    expect(
+      resolveShipmentUploadExportDownloadFileName({
+        batchId: 'batch-1',
+        format: 'xlsx',
+        contentDisposition: null,
+      }),
+    ).toBe('excload-shipment-upload-batch-1.xlsx');
+  });
+});
+
+describe('downloadShipmentUploadExportFile', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetches export blob and returns resolved filename', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === 'content-disposition'
+            ? 'attachment; filename="excload-shipment-upload-batch-1.xlsx"'
+            : null,
+      },
+      blob: async () => new Blob(['xlsx'], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+    });
+
+    const result = await downloadShipmentUploadExportFile('batch-1', { format: 'xlsx' }, fetchMock);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/order/integration/shipments/uploads/batch-1/export?format=xlsx',
+    );
+    expect(result).toEqual({
+      ok: true,
+      fileName: 'excload-shipment-upload-batch-1.xlsx',
+    });
+  });
+
+  it('returns mapped error when export download fails', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: 'READY 상태의 배치만 보낼 수 있습니다.' }),
+    });
+
+    const result = await downloadShipmentUploadExportFile('batch-1', { format: 'xlsx' }, fetchMock);
+
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+      error: 'READY 상태의 배치만 보낼 수 있습니다.',
     });
   });
 });

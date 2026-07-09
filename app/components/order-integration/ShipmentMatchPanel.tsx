@@ -20,10 +20,12 @@ import {
   isShipmentMatchPanelRowConfirmed,
   isShipmentMatchPanelRowExcluded,
   isShipmentMatchPanelRowManuallyLinked,
+  isShipmentMatchPanelBatchReady,
   type ShipmentMatchPanelViewState,
 } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
 import type { LinkableOrderListItem } from '@/app/lib/order-integration/shipments/load-linkable-orders-for-shipment-upload-batch';
 import {
+  downloadShipmentUploadExportFile,
   fetchShipmentUploadBatchDetail,
   fetchShipmentUploadLinkableOrders,
   postShipmentUploadMatchConfirm,
@@ -109,6 +111,8 @@ export default function ShipmentMatchPanel() {
   const [isLoadingLinkableOrders, setIsLoadingLinkableOrders] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [linkPanelError, setLinkPanelError] = useState<string | null>(null);
+  const [isDownloadingExport, setIsDownloadingExport] = useState(false);
+  const [exportDownloadError, setExportDownloadError] = useState<string | null>(null);
 
   const inputClass =
     'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
@@ -131,12 +135,18 @@ export default function ShipmentMatchPanel() {
     return getEmptyOrderSnapshotMessage(viewState.ordersLoadedCount, viewState.summary.totalRows);
   }, [viewState]);
 
+  const isBatchReady = useMemo(
+    () => (viewState ? isShipmentMatchPanelBatchReady(viewState) : false),
+    [viewState],
+  );
+
   const assignSelectedFile = useCallback((file: File | null) => {
     setSelectedFile(file);
     setViewState(null);
     setErrorMessage(null);
     setRowActionError(null);
     setActiveTab('all');
+    setExportDownloadError(null);
   }, []);
 
   const handleFileSelection = useCallback(
@@ -376,6 +386,30 @@ export default function ShipmentMatchPanel() {
     }
   }, [closeLinkPanel, linkPanelMatchId, selectedLinkOrderId, sessionStatus, viewState]);
 
+  const handleDownloadExport = useCallback(async () => {
+    if (!viewState || sessionStatus !== 'authenticated' || !isBatchReady) {
+      return;
+    }
+
+    setIsDownloadingExport(true);
+    setExportDownloadError(null);
+
+    try {
+      const result = await downloadShipmentUploadExportFile(viewState.uploadBatchId, {
+        format: 'xlsx',
+      });
+      if (!result.ok) {
+        setExportDownloadError(
+          result.error || '파일 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        );
+      }
+    } catch {
+      setExportDownloadError('파일 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setIsDownloadingExport(false);
+    }
+  }, [isBatchReady, sessionStatus, viewState]);
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-10 sm:px-6">
       <Link
@@ -535,6 +569,12 @@ export default function ShipmentMatchPanel() {
         </p>
       ) : null}
 
+      {exportDownloadError ? (
+        <p className={`mt-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
+          {exportDownloadError}
+        </p>
+      ) : null}
+
       {viewState ? (
         <section className="mt-6 space-y-4">
           <div className={`rounded-lg border px-3 py-2 text-sm ${statusBannerClass('success')}`}>
@@ -555,6 +595,36 @@ export default function ShipmentMatchPanel() {
               {emptySnapshotMessage}
             </p>
           ) : null}
+
+          <section
+            className={`rounded-xl border px-4 py-4 ${
+              isBatchReady
+                ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
+                : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/60'
+            }`}
+          >
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+              쇼핑몰 업로드용 파일
+            </h3>
+            <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+              {isBatchReady
+                ? '모든 송장 매칭 처리가 완료되었습니다. 쇼핑몰 관리자에 업로드할 파일을 다운로드할 수 있습니다.'
+                : '확정, 제외, 주문 연결을 모두 완료하면 업로드용 파일을 다운로드할 수 있습니다.'}
+            </p>
+            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+              이 파일은 쇼핑몰에 직접 전송되지 않습니다. 다운로드 후 각 쇼핑몰 관리자에서 업로드해
+              주세요.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleDownloadExport()}
+              disabled={!isBatchReady || isDownloadingExport || sessionStatus !== 'authenticated'}
+              className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDownloadingExport ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isDownloadingExport ? '파일 준비 중…' : '쇼핑몰 업로드용 엑셀 다운로드'}
+            </button>
+          </section>
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {summaryCards.map((card) => (
