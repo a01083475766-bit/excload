@@ -91,18 +91,34 @@ function buildDetailBody() {
 }
 
 function buildClient(input: {
-  batch?: { id: string } | null;
+  batch?: { id: string; status?: 'MATCHED' | 'READY' } | null;
   match?: ReturnType<typeof buildMatch> | null;
+  allMatches?: Array<{ userConfirmationStatus: 'UNCONFIRMED' | 'CONFIRMED' | 'EXCLUDED' | 'MANUALLY_LINKED' | 'EDITED' }>;
 }): ExcludeShipmentUploadMatchClient {
+  const batchRecord = input.batch ?? null;
+
   return {
     shipmentUploadBatch: {
-      findFirst: vi.fn().mockResolvedValue(input.batch ?? null),
+      findFirst: vi.fn().mockImplementation((args: { select?: { status?: boolean } }) => {
+        if (!batchRecord) return null;
+        if (args?.select?.status) {
+          return { id: batchRecord.id, status: batchRecord.status ?? 'MATCHED' };
+        }
+        return { id: batchRecord.id };
+      }),
+      update: vi.fn().mockResolvedValue({
+        id: batchRecord?.id ?? 'batch-1',
+        status: 'READY',
+      }),
     },
     shipmentUploadRow: {
       findMany: vi.fn(),
     },
     shipmentMatch: {
       findFirst: vi.fn().mockResolvedValue(input.match ?? null),
+      findMany: vi.fn().mockResolvedValue(
+        input.allMatches ?? [{ userConfirmationStatus: 'EXCLUDED' }],
+      ),
       update: vi.fn().mockResolvedValue(
         buildMatch({
           userConfirmationStatus: 'EXCLUDED',
@@ -249,6 +265,26 @@ describe('excludeShipmentUploadMatch', () => {
       success: false,
       status: 400,
       error: '확정된 매칭은 제외할 수 없습니다.',
+    });
+  });
+
+  it('promotes batch to READY after excluding the last unconfirmed match', async () => {
+    const client = buildClient({
+      batch: { id: 'batch-1', status: 'MATCHED' },
+      match: buildMatch(),
+      allMatches: [{ userConfirmationStatus: 'EXCLUDED' }],
+    });
+
+    const result = await excludeShipmentUploadMatch(client, {
+      userId: 'user-a',
+      batchId: 'batch-1',
+      matchId: 'match-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(client.shipmentUploadBatch.update).toHaveBeenCalledWith({
+      where: { id: 'batch-1' },
+      data: { status: 'READY' },
     });
   });
 });

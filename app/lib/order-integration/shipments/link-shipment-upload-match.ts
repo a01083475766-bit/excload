@@ -10,6 +10,8 @@ import {
   type ShipmentUploadBatchDetailResponse,
 } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import { adaptShipmentUploadBatchDetailRowForDisplay } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
+import { refreshShipmentUploadBatchReadyStatus } from '@/app/lib/order-integration/shipments/refresh-shipment-upload-batch-ready-status';
+import type { RefreshShipmentUploadBatchReadyStatusClient } from '@/app/lib/order-integration/shipments/refresh-shipment-upload-batch-ready-status';
 import type { ShipmentMatchDisplayRow } from '@/app/lib/order-integration/shipments/shipment-match-ui';
 
 type LoadedShipmentMatch = {
@@ -34,14 +36,16 @@ type LoadedOrderSyncOrder = {
   integrationAccountId: string | null;
 };
 
-export type LinkShipmentUploadMatchClient = ShipmentUploadBatchDetailLoadClient & {
-  shipmentUploadBatch: ShipmentUploadBatchDetailLoadClient['shipmentUploadBatch'] & {
+export type LinkShipmentUploadMatchClient = ShipmentUploadBatchDetailLoadClient &
+  RefreshShipmentUploadBatchReadyStatusClient & {
+  shipmentUploadBatch: ShipmentUploadBatchDetailLoadClient['shipmentUploadBatch'] &
+    RefreshShipmentUploadBatchReadyStatusClient['shipmentUploadBatch'] & {
     findFirst: (args: {
       where: { id: string; userId: string };
       select: { id: true; provider: true; integrationAccountId: true };
     }) => Promise<LoadedShipmentUploadBatch | null>;
   };
-  shipmentMatch: {
+  shipmentMatch: RefreshShipmentUploadBatchReadyStatusClient['shipmentMatch'] & {
     findFirst: (args: {
       where: { id: string; uploadBatchId: string; userId: string };
       select: Record<string, boolean>;
@@ -261,6 +265,14 @@ export async function linkShipmentUploadMatch(
         integrationAccountId: order.integrationAccountId,
       },
     });
+  }
+
+  const refreshResult = await refreshShipmentUploadBatchReadyStatus(client, {
+    userId: input.userId,
+    batchId: input.batchId,
+  });
+  if (!refreshResult.success) {
+    return { success: false, status: 404, error: refreshResult.error };
   }
 
   const detailResult = await loadShipmentUploadBatchDetail(client, {

@@ -98,19 +98,35 @@ function buildDetailBody() {
 }
 
 function buildClient(input: {
-  batch?: { id: string } | null;
+  batch?: { id: string; status?: 'MATCHED' | 'READY' } | null;
   match?: ReturnType<typeof buildMatch> | null;
   order?: { id: string } | null;
+  allMatches?: Array<{ userConfirmationStatus: ShipmentUserConfirmationStatus }>;
 }) {
+  const batchRecord = input.batch ?? null;
+
   return {
     shipmentUploadBatch: {
-      findFirst: vi.fn().mockResolvedValue(input.batch ?? null),
+      findFirst: vi.fn().mockImplementation((args: { select?: { status?: boolean } }) => {
+        if (!batchRecord) return null;
+        if (args?.select?.status) {
+          return { id: batchRecord.id, status: batchRecord.status ?? 'MATCHED' };
+        }
+        return { id: batchRecord.id };
+      }),
+      update: vi.fn().mockResolvedValue({
+        id: batchRecord?.id ?? 'batch-1',
+        status: 'READY',
+      }),
     },
     shipmentUploadRow: {
       findMany: vi.fn(),
     },
     shipmentMatch: {
       findFirst: vi.fn().mockResolvedValue(input.match ?? null),
+      findMany: vi.fn().mockResolvedValue(
+        input.allMatches ?? [{ userConfirmationStatus: 'CONFIRMED' }],
+      ),
       update: vi.fn().mockResolvedValue(
         buildMatch({
           userConfirmationStatus: 'CONFIRMED',
@@ -322,5 +338,47 @@ describe('confirmShipmentUploadMatch', () => {
 
     expect(result.success).toBe(true);
     expect(client.shipmentMatch.update).not.toHaveBeenCalled();
+  });
+
+  it('promotes batch to READY after confirming the last unconfirmed match', async () => {
+    const client = buildClient({
+      batch: { id: 'batch-1', status: 'MATCHED' },
+      match: buildMatch(),
+      order: { id: 'order-1' },
+      allMatches: [{ userConfirmationStatus: 'CONFIRMED' }],
+    });
+
+    const result = await confirmShipmentUploadMatch(client, {
+      userId: 'user-a',
+      batchId: 'batch-1',
+      matchId: 'match-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(client.shipmentUploadBatch.update).toHaveBeenCalledWith({
+      where: { id: 'batch-1' },
+      data: { status: 'READY' },
+    });
+  });
+
+  it('does not promote batch when another match remains unconfirmed', async () => {
+    const client = buildClient({
+      batch: { id: 'batch-1', status: 'MATCHED' },
+      match: buildMatch(),
+      order: { id: 'order-1' },
+      allMatches: [
+        { userConfirmationStatus: 'CONFIRMED' },
+        { userConfirmationStatus: 'UNCONFIRMED' },
+      ],
+    });
+
+    const result = await confirmShipmentUploadMatch(client, {
+      userId: 'user-a',
+      batchId: 'batch-1',
+      matchId: 'match-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(client.shipmentUploadBatch.update).not.toHaveBeenCalled();
   });
 });

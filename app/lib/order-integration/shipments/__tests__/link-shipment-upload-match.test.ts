@@ -113,16 +113,36 @@ function buildClient(input: {
   batch?: ReturnType<typeof buildBatch> | null;
   match?: ReturnType<typeof buildMatch> | null;
   order?: ReturnType<typeof buildOrder> | null;
+  allMatches?: Array<{ userConfirmationStatus: 'UNCONFIRMED' | 'CONFIRMED' | 'EXCLUDED' | 'MANUALLY_LINKED' | 'EDITED' }>;
+  batchStatus?: 'MATCHED' | 'READY';
 }): LinkShipmentUploadMatchClient {
+  const batchRecord = input.batch ?? null;
+
   return {
     shipmentUploadBatch: {
-      findFirst: vi.fn().mockResolvedValue(input.batch ?? null),
+      findFirst: vi.fn().mockImplementation((args: { select?: { status?: boolean } }) => {
+        if (!batchRecord) return null;
+        if (args?.select?.status) {
+          return {
+            ...batchRecord,
+            status: input.batchStatus ?? 'MATCHED',
+          };
+        }
+        return batchRecord;
+      }),
+      update: vi.fn().mockResolvedValue({
+        id: batchRecord?.id ?? 'batch-1',
+        status: 'READY',
+      }),
     },
     shipmentUploadRow: {
       findMany: vi.fn(),
     },
     shipmentMatch: {
       findFirst: vi.fn().mockResolvedValue(input.match ?? null),
+      findMany: vi.fn().mockResolvedValue(
+        input.allMatches ?? [{ userConfirmationStatus: 'MANUALLY_LINKED' }],
+      ),
       update: vi.fn().mockResolvedValue(
         buildMatch({
           orderSyncOrderId: 'order-1',
@@ -379,5 +399,31 @@ describe('linkShipmentUploadMatch', () => {
 
     expect(result.success).toBe(true);
     expect(client.shipmentMatch.update).not.toHaveBeenCalled();
+  });
+
+  it('promotes batch to READY after linking the last unconfirmed match', async () => {
+    const client = buildClient({
+      batch: buildBatch(),
+      match: buildMatch(),
+      order: buildOrder(),
+      allMatches: [{ userConfirmationStatus: 'MANUALLY_LINKED' }],
+      batchStatus: 'MATCHED',
+    });
+
+    const result = await linkShipmentUploadMatch(client, {
+      userId: 'user-a',
+      batchId: 'batch-1',
+      matchId: 'match-1',
+      orderSyncOrderId: 'order-1',
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(client.shipmentUploadBatch.update).toHaveBeenCalledWith({
+      where: { id: 'batch-1' },
+      data: { status: 'READY' },
+    });
+    expect(JSON.stringify(result.body)).not.toContain('rawRowJson');
+    expect(JSON.stringify(result.body)).not.toContain('candidateOrdersJson');
   });
 });
