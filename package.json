@@ -12,6 +12,7 @@
     "build:vercel": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "db:migrate:deploy": "prisma migrate deploy",
+    "order-transmission:test-db:check": "node scripts/check-shipment-transmission-test-db-env.mjs",
     "lint": "eslint",
     "test": "vitest"
   },

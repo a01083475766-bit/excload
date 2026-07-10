@@ -7,18 +7,26 @@
  *   node scripts/check-order-sync-realtest-env.mjs --env-file=.env.smoke.local
  *   node scripts/check-order-sync-realtest-env.mjs --env-file=.env.smoke.local.example
  *
- * - 운영 Supabase ref(xtlgtphceakmzmtqihnn) 감지 시 exit 1
- * - 테스트 ref(qejjcjwbnxhmhcgwrbvt) 여부 보고
+ * - 운영 Supabase ref 감지 시 exit 1
+ * - 테스트 ref 여부 보고
  * - 필수 키 존재 여부만 확인 (값은 출력하지 않음)
  * - 외부 API / DB 연결 시도 없음
+ *
+ * 참고: 송장전송 DB mutation preflight는
+ *   scripts/check-shipment-transmission-test-db-env.mjs
+ * (암호화 키 불필요, ALLOW_TEST_DB_MUTATION 필요)
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-const PROD_REF = 'xtlgtphceakmzmtqihnn';
-const TEST_REF = 'qejjcjwbnxhmhcgwrbvt';
+import {
+  EXCLOAD_PROD_SUPABASE_REF as PROD_REF,
+  EXCLOAD_TEST_SUPABASE_REF as TEST_REF,
+  isPresent,
+  parseEnvFileContent,
+} from './lib/excload-db-env-shared.mjs';
 
 const REQUIRED_KEYS = [
   'DATABASE_URL',
@@ -43,31 +51,6 @@ function parseArgs(argv) {
     }
   }
   return { envFile };
-}
-
-function parseEnvFile(content) {
-  /** @type {Record<string, string>} */
-  const out = {};
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    const eq = line.indexOf('=');
-    if (eq <= 0) continue;
-    const key = line.slice(0, eq).trim();
-    let value = line.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    out[key] = value;
-  }
-  return out;
-}
-
-function isPresent(value) {
-  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function findRefsInText(text) {
@@ -95,7 +78,7 @@ function main() {
   }
 
   const raw = fs.readFileSync(abs, 'utf8');
-  const env = parseEnvFile(raw);
+  const env = parseEnvFileContent(raw);
 
   let failed = false;
   const notes = [];
@@ -107,26 +90,24 @@ function main() {
   const hasTest = refs.some((r) => r.kind === 'test');
 
   if (hasProd) {
-    console.error(`FAIL: production Supabase ref detected (${PROD_REF})`);
+    console.error('FAIL: production Supabase ref detected');
     console.error('  abort: do not run realtest / persist against production DB');
     failed = true;
   } else {
-    console.log(`  production ref (${PROD_REF}): not found`);
+    console.log('  production ref: not found');
   }
 
   if (hasTest) {
-    console.log(`  test ref (${TEST_REF}): found`);
+    console.log('  test ref: found');
   } else {
-    console.log(`  test ref (${TEST_REF}): NOT found`);
+    console.log('  test ref: NOT found');
     notes.push('DATABASE_URL/DIRECT_URL에 테스트 ref가 보이지 않습니다. 테스트 DB인지 재확인하세요.');
     if (!hasProd && isPresent(env.DATABASE_URL)) {
-      // Non-empty DB URL without known test ref — warn hard
       failed = true;
       console.error('FAIL: DB URL is set but expected test ref is missing');
     }
   }
 
-  // --- required keys (presence only) ---
   console.log('  required keys:');
   for (const key of REQUIRED_KEYS) {
     const ok = isPresent(env[key]);
@@ -137,7 +118,6 @@ function main() {
     }
   }
 
-  // --- snapshot persist flag ---
   const persistRaw = (env.ORDER_SYNC_SNAPSHOT_PERSIST_ENABLED ?? '').trim();
   const persistOn = persistRaw === 'true';
   console.log(`  ORDER_SYNC_SNAPSHOT_PERSIST_ENABLED: ${persistRaw === '' ? '(unset)' : persistRaw}`);
@@ -147,7 +127,6 @@ function main() {
     console.log('  snapshot persist: ON (local realtest OK if test DB)');
   }
 
-  // --- proxy (optional for Coupang, required later for Smartstore) ---
   console.log('  proxy keys (optional for Coupang direct):');
   for (const key of OPTIONAL_PROXY_KEYS) {
     console.log(`    ${key}: ${maskPresence(isPresent(env[key]))}`);
@@ -164,7 +143,6 @@ function main() {
     notes.push('스마트스토어 실테스트 전에는 INTEGRATION_PROXY_BASE_URL + SHARED_SECRET 이 필요합니다.');
   }
 
-  // --- remind: mall secrets not in env ---
   console.log('  mall credentials: must be saved via UI (not in this env file)');
 
   for (const note of notes) {
