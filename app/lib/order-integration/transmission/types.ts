@@ -128,8 +128,44 @@ export type ShipmentTransmissionAdapter = {
   /** 공통 DTO → provider payload (타입만; 실제 변환은 provider 모듈) */
   buildPayload(candidate: ShipmentTransmissionCandidate): unknown;
   /**
-   * 전송 실행 자리. D-6b에서는 구현하지 않음.
-   * 구현 시에도 credential을 candidate에 넣지 말 것.
+   * 전송 실행. credential은 candidate에 넣지 말 것.
+   * mock / 실 adapter 모두 이 계약을 구현.
    */
-  transmit?(candidate: ShipmentTransmissionCandidate): Promise<ShipmentTransmissionAdapterResult>;
+  transmit(candidate: ShipmentTransmissionCandidate): Promise<ShipmentTransmissionAdapterResult>;
+};
+
+/** executor 전용 오류 코드 (eligibility reasonCode 와 별도) */
+export type ShipmentTransmissionExecutorErrorCode =
+  | 'ADAPTER_NOT_REGISTERED'
+  | 'ADAPTER_EXECUTION_ERROR'
+  | 'TRANSMISSION_NOT_ALLOWED'
+  | 'DUPLICATE_MATCH_ID'
+  | 'MOCK_RETRYABLE_FAILURE'
+  | 'MOCK_NON_RETRYABLE_FAILURE';
+
+/**
+ * 단건 전송 실행 결과 (DB 미반영 — persist 힌트만).
+ */
+export type ShipmentTransmissionExecutionResult = {
+  success: boolean;
+  provider: ShipmentTransmissionAdapterProvider;
+  matchId: string;
+  previousStatus: ShipmentMatchTransmissionStatus;
+  nextStatus: ShipmentMatchTransmissionStatus;
+  adapterCalled: boolean;
+  providerRequestId: string | null;
+  errorCode: ShipmentTransmissionExecutorErrorCode | string | null;
+  errorMessage: string | null;
+  retryable: boolean;
+  responseSummary: ShipmentTransmissionResponseSummary | null;
+};
+
+export type ShipmentTransmissionBatchExecutionResult = {
+  totalCount: number;
+  successCount: number;
+  failureCount: number;
+  /** 실행 불가·스킵·중복 등 adapter 미호출 또는 전송 미시도 */
+  skippedCount: number;
+  retryableFailureCount: number;
+  results: ShipmentTransmissionExecutionResult[];
 };
