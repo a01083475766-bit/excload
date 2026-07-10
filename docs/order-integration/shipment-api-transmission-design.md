@@ -299,6 +299,65 @@ schema·SQL은 레포에 준비됨. **어떤 DB에도 아직 적용하지 않음
 
 ---
 
+## 15. D-6f — repository / persist orchestration
+
+### repository 책임
+
+- `reserveTransmissionAttempt` — 짧은 TX: Match READY→PROCESSING + lease + Attempt PENDING
+- `markTransmissionAttemptDispatched` — Attempt PENDING→PROCESSING + `dispatchedAt` (adapter 호출 직전)
+- `completeTransmissionAttemptSuccess|Failure|Unknown` — Attempt/Match 결과 + lease 해제 + Order 요약
+- `recoverStalePendingAttempt` / `recoverStaleProcessingAttempt` — lease 만료 복구
+- DI: `ShipmentTransmissionPersistClient` (`$transaction`) — 실 Prisma 또는 테스트 memory client
+
+### 짧은 transaction 범위 / 외부 호출 위치
+
+- TX 안: 조건부 update·Attempt create/update·Order 요약만
+- **adapter `transmit`은 TX 밖** (`runPersistedShipmentTransmission`)
+- 이유: 긴 외부 I/O로 DB 락·타임아웃을 막기 위함
+
+### lease token / stale writer
+
+- `executionToken`을 Match lease와 Attempt에 동일 저장
+- complete/dispatch 시 토큰 불일치 → `LEASE_TOKEN_MISMATCH`, 덮어쓰기 금지
+- **completion은 lease 시각 만료만으로 거부하지 않음** (상태·token이 유효하면 결과 저장 허용)
+- stale recovery와 completion은 조건부 update로 상호 배타 (한쪽만 성공)
+
+### transaction 원자성
+
+- Attempt 결과 갱신 후 Match 갱신 실패 → rollback (`TransmissionPersistRollbackError`)
+- Order 요약 갱신 실패 → 동일 TX rollback
+- 테스트 memory client는 `$transaction` snapshot/rollback 지원
+- 위치: `transmission/__tests__/support/memory-persist-client.ts` (운영 코드 import 금지)
+
+### attemptNo
+
+- Match별 `max(attemptNo)+1`, `@@unique([shipmentMatchId, attemptNo])`
+- unique 충돌 → `ATTEMPT_NUMBER_CONFLICT` (무한 재시도 없음)
+
+### 흐름
+
+`READY` reserve → Attempt `PENDING` → dispatch `PROCESSING` → adapter → `SUCCESS|FAILED|UNKNOWN`
+
+### Order 요약 우선순위
+
+`UNKNOWN` > `PROCESSING` > `FAILED` > `READY` > `SENT`(SKIPPED 혼재 포함) > `SKIPPED` > `NONE`
+
+### responseSummary allowlist
+
+`httpStatus`, `providerStatusCode`, `providerRequestId`, `message`만 새 객체로 복사 후 저장.
+
+### adapter 결과 분류
+
+- `outcomeKind: 'unknown'` 또는 dispatch 이후 throw → UNKNOWN
+- 명확한 `success=false` → FAILED
+- `success=true` → SENT
+
+### migration
+
+여전히 **어떤 DB에도 미적용**.
+
+---
+
 ## 13. 코드 위치
 
 | 파일 | 역할 |

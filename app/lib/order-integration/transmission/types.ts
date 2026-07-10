@@ -112,6 +112,8 @@ export type ShipmentTransmissionResponseSummary = {
   message?: string | null;
 };
 
+export type ShipmentTransmissionAdapterOutcomeKind = 'success' | 'failure' | 'unknown';
+
 export type ShipmentTransmissionAdapterResult = {
   success: boolean;
   provider: ShipmentTransmissionAdapterProvider;
@@ -121,6 +123,11 @@ export type ShipmentTransmissionAdapterResult = {
   errorMessage: string | null;
   retryable: boolean;
   responseSummary: ShipmentTransmissionResponseSummary | null;
+  /**
+   * 결과 분류. 미지정 시 success=true → success, false → failure.
+   * 타임아웃 등 결과 불명은 'unknown' (dispatch 이후만 의미 있음).
+   */
+  outcomeKind?: ShipmentTransmissionAdapterOutcomeKind;
 };
 
 export type ShipmentTransmissionAdapter = {
