@@ -354,7 +354,59 @@ schema·SQL은 레포에 준비됨. **어떤 DB에도 아직 적용하지 않음
 
 ### migration
 
-여전히 **어떤 DB에도 미적용**.
+운영(Production)과 smoke 테스트 DB 모두 `20260710230000_add_shipment_transmission_attempts` **적용 완료** (D-6g-c / Vercel `6616521`).  
+**D-6g-d 단계에서는 실 DB에 접속하지 않음** — Prisma persist client 단위 테스트(mock)만.
+
+---
+
+## 16. D-6g-d — Prisma persist client
+
+### 책임 분리
+
+| 계층 | 책임 |
+|------|------|
+| `repository.ts` | lease·상태·fingerprint·sanitize·Order 요약 **정책** |
+| `prisma-persist-client.ts` | Prisma `$transaction` + updateMany/find/create **primitive** |
+| `prisma-persist-mappers.ts` | 허용 필드 select·JSON 정규화 |
+| `prisma-persist-error.ts` | P2002 등 오류 코드 정규화 (원문 비노출) |
+
+### DI
+
+- `createPrismaShipmentTransmissionPersistClient(prisma)` — **명시 주입**
+- module import만으로 DB 연결·singleton 자동 생성 **없음**
+- API route는 향후 `createPrismaShipmentTransmissionPersistClient(prisma)` 호출
+
+### transaction
+
+- Prisma interactive `$transaction` callback
+- callback에는 래핑된 `tx`만 사용 (전역 `prisma` write 금지)
+- adapter/네트워크 호출은 TX 밖 (`persisted-executor`)
+- create/update 실패는 reject → 전체 rollback
+
+### 보안
+
+- Match/Attempt **필요 필드만** select
+- `rawRowJson` / credential / 수취인 PII 미조회
+- Prisma 입력은 **allowlist mapper**로만 구성 (임의 key spread 금지)
+- Prisma `error.message`·SQL·connection string을 persist 결과에 넣지 않음
+
+### JSON null
+
+| 필드 | null/없음 | 빈 배열 `[]` | JSON literal null |
+|------|-----------|--------------|-------------------|
+| `responseSummaryJson` | SQL NULL (`Prisma.DbNull`) | (해당 없음) | **미사용** |
+| `mallLineItemIdsJson` | SQL NULL (`Prisma.DbNull`) = 없음 | 명시적 빈 목록 | **미사용** |
+
+update 시 키를 넣지 않으면 해당 JSON 필드는 **미변경**.
+
+### transaction client
+
+- interactive `$transaction` callback의 `tx`만 write/read
+- root Prisma를 closure로 캡처해 TX 안에서 쓰지 않음
+
+### 실 DB integration test
+
+→ **D-6g-e** (smoke env 강제 주입 + mutation guard). 운영/테스트 schema는 적용됐으나 본 단계는 DB 미접속.
 
 ---
 
@@ -368,6 +420,11 @@ schema·SQL은 레포에 준비됨. **어떤 DB에도 아직 적용하지 않음
 | `transmission/adapter-registry.ts` | provider → adapter |
 | `transmission/mock-adapter.ts` | 결정적 mock |
 | `transmission/executor.ts` | 단건·배치 실행 |
+| `transmission/repository.ts` | persist 정책 |
+| `transmission/persisted-executor.ts` | reserve→dispatch→adapter→complete |
+| `transmission/prisma-persist-client.ts` | Prisma DI persist client |
+| `transmission/prisma-persist-mappers.ts` | select·JSON mapper |
+| `transmission/prisma-persist-error.ts` | Prisma 오류 정규화 |
 | `prisma/schema.prisma` | Attempt·enum·lease |
-| `prisma/migrations/20260710230000_add_shipment_transmission_attempts/` | migration SQL (미적용) |
+| `prisma/migrations/20260710230000_add_shipment_transmission_attempts/` | migration SQL (운영·smoke 적용됨) |
 | `transmission/__tests__/*` | 단위 테스트 |

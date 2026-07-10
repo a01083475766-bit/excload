@@ -9,6 +9,7 @@ import {
   SHIPMENT_TRANSMISSION_FINGERPRINT_VERSION,
 } from '@/app/lib/order-integration/transmission/fingerprint';
 import { summarizeOrderSyncTransmissionStatus } from '@/app/lib/order-integration/transmission/order-status-summary';
+import { classifyPrismaPersistFailure } from '@/app/lib/order-integration/transmission/prisma-persist-error';
 import type {
   ShipmentTransmissionCandidate,
   ShipmentTransmissionResponseSummary,
@@ -191,16 +192,16 @@ async function withPersistTransaction(
     if (error instanceof TransmissionPersistRollbackError) {
       return error.result;
     }
-    const message = error instanceof Error ? error.message : 'persistence error';
+    const classified = classifyPrismaPersistFailure(error);
     return failResult({
-      reasonCode: 'PERSISTENCE_ERROR',
+      reasonCode: classified.reasonCode,
       shipmentMatchId: '',
       attemptId: null,
       attemptNo: null,
       executionToken: null,
       previousStatus: null,
       nextStatus: null,
-      reasonMessage: message,
+      reasonMessage: classified.safeMessage,
     });
   }
 }
@@ -375,28 +376,16 @@ export async function reserveTransmissionAttempt(
     if (error instanceof TransmissionPersistRollbackError) {
       return error.result;
     }
-    const message = error instanceof Error ? error.message : 'persistence error';
-    if (/unique|Unique|P2002/i.test(message)) {
-      return failResult({
-        reasonCode: 'ATTEMPT_NUMBER_CONFLICT',
-        shipmentMatchId: candidate.matchId,
-        attemptId: null,
-        attemptNo: null,
-        executionToken: null,
-        previousStatus: null,
-        nextStatus: null,
-        reasonMessage: message,
-      });
-    }
+    const classified = classifyPrismaPersistFailure(error);
     return failResult({
-      reasonCode: 'PERSISTENCE_ERROR',
+      reasonCode: classified.reasonCode,
       shipmentMatchId: candidate.matchId,
       attemptId: null,
       attemptNo: null,
       executionToken: null,
       previousStatus: null,
       nextStatus: null,
-      reasonMessage: message,
+      reasonMessage: classified.safeMessage,
     });
   }
 }
