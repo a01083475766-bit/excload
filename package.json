@@ -6,7 +6,8 @@
     "schema": "./prisma/schema.prisma"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:turbo": "next dev --turbopack",
     "build": "prisma generate && next build",
     "build:vercel": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
