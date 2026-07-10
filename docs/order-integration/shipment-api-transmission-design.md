@@ -250,6 +250,55 @@ executor는 `NONE`/`FAILED`를 내부에서 자동으로 `READY`로 바꾸지 �
 
 ---
 
+## 14. D-6e — Prisma schema / migration (미적용)
+
+**상태:** schema + migration SQL 준비됨. **실제 DB에는 아직 적용하지 않음** (`migrate deploy` 미실행).
+
+### Attempt 상태: PENDING vs PROCESSING
+
+| Attempt.status | 의미 |
+|----------------|------|
+| `PENDING` | DB 실행권·Attempt 행 생성됨, **외부 API 호출 시작 전** |
+| `PROCESSING` | 외부 호출 직전 또는 호출 시작 (`dispatchedAt` 설정) |
+| `SUCCESS` / `FAILED` | 확정 결과 |
+| `UNKNOWN` | 타임아웃 등으로 결과 불명 |
+| `CANCELLED` | stale PENDING 정리 등 |
+
+`dispatchedAt`: Attempt를 `PENDING → PROCESSING`으로 바꾼 시각(외부 호출 직전 짧은 DB 갱신).
+
+### stale 복구
+
+| 상황 | 처리 |
+|------|------|
+| lease 만료 + Attempt `PENDING` | 외부 호출 전으로 보고 `CANCELLED`, Match → `READY` 복구 가능 |
+| lease 만료 + Attempt `PROCESSING` | 외부 접수 가능 → Attempt/Match **`UNKNOWN`** |
+| `UNKNOWN` | **자동 재시도 금지**, reconciliation 후 수동 처리 |
+| PROCESSING 전환 직후·요청 전 종료 | 안전상 **UNKNOWN** |
+
+### requestSummaryJson 미추가 이유
+
+mallOrderNo, line items, tracking, courier, fingerprint가 개별 필드로 충분하고, request 원문·credential 혼입 위험을 줄이기 위함.
+
+### responseSummaryJson 보안
+
+앱 계층에서 `ShipmentTransmissionResponseSummary`만 허용 (httpStatus, providerStatusCode, providerRequestId, 비민감 message). Prisma Json은 강제하지 못하므로 persist 시 검증 필수. `errorMessage`는 DB `VarChar(500)` + 앱 sanitize/truncate.
+
+### Match lease 필드
+
+`transmissionLeaseToken`, `transmissionLeaseExpiresAt`, `lastTransmissionAttemptAt`  
+`lastProviderRequestId`는 Attempt에서 조회 — Match에 중복 저장하지 않음.
+
+### exactly-once 한계
+
+provider idempotency 또는 전송 상태 조회 API가 없으면 **정확히 한 번 전송을 완전히 보장할 수 없습니다.**  
+목표는 중복 최소화(lease·fingerprint·SENT 재전송 금지) + Attempt 감사 + UNKNOWN reconcile입니다.
+
+### migration 적용 상태
+
+schema·SQL은 레포에 준비됨. **어떤 DB에도 아직 적용하지 않음** (`migrate deploy` 미실행).
+
+---
+
 ## 13. 코드 위치
 
 | 파일 | 역할 |
@@ -260,4 +309,6 @@ executor는 `NONE`/`FAILED`를 내부에서 자동으로 `READY`로 바꾸지 �
 | `transmission/adapter-registry.ts` | provider → adapter |
 | `transmission/mock-adapter.ts` | 결정적 mock |
 | `transmission/executor.ts` | 단건·배치 실행 |
+| `prisma/schema.prisma` | Attempt·enum·lease |
+| `prisma/migrations/20260710230000_add_shipment_transmission_attempts/` | migration SQL (미적용) |
 | `transmission/__tests__/*` | 단위 테스트 |

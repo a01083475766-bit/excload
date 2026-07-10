@@ -236,6 +236,13 @@ export function evaluateShipmentTransmissionEligibility(
       return fail('ALREADY_SENT', '이미 전송된 매칭은 재전송할 수 없습니다.');
     case 'SKIPPED':
       return fail('TRANSMISSION_SKIPPED', '전송 스킵된 매칭은 대상이 아닙니다.');
+    case 'PROCESSING':
+      return fail('TRANSMISSION_SKIPPED', '전송이 진행 중인 매칭은 대상이 아닙니다.');
+    case 'UNKNOWN':
+      return fail(
+        'TRANSMISSION_SKIPPED',
+        '결과가 불명확한(UNKNOWN) 매칭은 자동 재시도할 수 없습니다. reconciliation 후 처리하세요.',
+      );
     case 'FAILED':
       if (!retryFailed) {
         return fail(

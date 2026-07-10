@@ -277,6 +277,19 @@ describe('evaluateShipmentTransmissionEligibility', () => {
     expect(result.eligible).toBe(true);
   });
 
+  it('blocks PROCESSING and UNKNOWN without retry', () => {
+    expect(
+      evaluate({
+        match: buildMatch({ transmissionStatus: 'PROCESSING' }),
+      }).eligible,
+    ).toBe(false);
+    expect(
+      evaluate({
+        match: buildMatch({ transmissionStatus: 'UNKNOWN' }),
+      }).eligible,
+    ).toBe(false);
+  });
+
   it('blocks SENT retransmission', () => {
     const result = evaluate({
       match: buildMatch({ transmissionStatus: 'SENT' }),

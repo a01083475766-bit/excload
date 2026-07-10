@@ -140,7 +140,7 @@ export type PersistedOrderSyncOrderLike = {
   trackingNumber: string | null;
   carrierCode: string | null;
   shippedAt: Date | null;
-  transmissionStatus: 'NONE' | 'READY' | 'SENT' | 'FAILED' | 'SKIPPED';
+  transmissionStatus: 'NONE' | 'READY' | 'PROCESSING' | 'SENT' | 'FAILED' | 'SKIPPED' | 'UNKNOWN';
   createdAt: Date;
   updatedAt: Date;
 };

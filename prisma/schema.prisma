@@ -120,18 +120,19 @@ model User {
   /// 관리자 수동 PRO 혜택 (plan=FREE 유지, 만료 시 PRO 권한만 종료)
   adminTrialEndsAt DateTime?
 
-  pointHistory             PointHistory[]
-  subscriptions            Subscription[]
-  favoriteMalls            UserFavoriteMall[]
-  feedbackSubmissions      FeedbackSubmission[]
-  templateHeaderLogs       TemplateHeaderLog[]
-  headerMappingAuditLogs   HeaderMappingAuditLog[]
-  orderIntegrationAccounts OrderIntegrationAccount[]
-  orderSyncBatches         OrderSyncBatch[]
-  orderSyncOrders          OrderSyncOrder[]
-  shipmentUploadBatches    ShipmentUploadBatch[]
-  shipmentUploadRows       ShipmentUploadRow[]
-  shipmentMatches          ShipmentMatch[]
+  pointHistory                 PointHistory[]
+  subscriptions                Subscription[]
+  favoriteMalls                UserFavoriteMall[]
+  feedbackSubmissions          FeedbackSubmission[]
+  templateHeaderLogs           TemplateHeaderLog[]
+  headerMappingAuditLogs       HeaderMappingAuditLog[]
+  orderIntegrationAccounts     OrderIntegrationAccount[]
+  orderSyncBatches             OrderSyncBatch[]
+  orderSyncOrders              OrderSyncOrder[]
+  shipmentUploadBatches        ShipmentUploadBatch[]
+  shipmentUploadRows           ShipmentUploadRow[]
+  shipmentMatches              ShipmentMatch[]
+  shipmentTransmissionAttempts ShipmentTransmissionAttempt[]
 }
 
 enum OrderIntegrationProvider {
@@ -169,9 +170,24 @@ enum OrderSyncBatchStatus {
 enum OrderSyncTransmissionStatus {
   NONE
   READY
+  /// Match가 실행 lease를 확보하고 전송 절차 진행 중
+  PROCESSING
   SENT
   FAILED
   SKIPPED
+  /// 외부 API 결과를 확정할 수 없어 reconciliation 필요
+  UNKNOWN
+}
+
+enum ShipmentTransmissionAttemptStatus {
+  /// DB 실행권·Attempt 생성됨, 외부 API 호출 시작 전
+  PENDING
+  /// 외부 API 호출 직전 또는 호출 시작됨
+  PROCESSING
+  SUCCESS
+  FAILED
+  UNKNOWN
+  CANCELLED
 }
 
 enum ShipmentUploadBatchStatus {
@@ -236,11 +252,12 @@ model OrderIntegrationAccount {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderSyncBatches      OrderSyncBatch[]
-  orderSyncOrders       OrderSyncOrder[]
-  shipmentUploadBatches ShipmentUploadBatch[]
-  shipmentMatches       ShipmentMatch[]
+  user                         User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderSyncBatches             OrderSyncBatch[]
+  orderSyncOrders              OrderSyncOrder[]
+  shipmentUploadBatches        ShipmentUploadBatch[]
+  shipmentMatches              ShipmentMatch[]
+  shipmentTransmissionAttempts ShipmentTransmissionAttempt[]
 
   @@unique([userId, provider, vendorId])
   @@index([userId, provider])
@@ -296,10 +313,11 @@ model OrderSyncOrder {
   createdAt             DateTime                    @default(now())
   updatedAt             DateTime                    @updatedAt
 
-  batch              OrderSyncBatch           @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  integrationAccount OrderIntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
-  shipmentMatches    ShipmentMatch[]
+  batch                        OrderSyncBatch                @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  user                         User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integrationAccount           OrderIntegrationAccount?      @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+  shipmentMatches              ShipmentMatch[]
+  shipmentTransmissionAttempts ShipmentTransmissionAttempt[]
 
   @@unique([userId, excloadOrderNo])
   @@index([userId, provider])
@@ -383,37 +401,42 @@ model ShipmentUploadRow {
 }
 
 model ShipmentMatch {
-  id                       String                         @id @default(cuid())
-  uploadBatchId            String
-  uploadRowId              String                         @unique
-  userId                   String
-  orderSyncOrderId         String?
-  provider                 OrderIntegrationProvider?
-  integrationAccountId     String?
-  algorithmMatchStatus     ShipmentAlgorithmMatchStatus
-  userConfirmationStatus   ShipmentUserConfirmationStatus @default(UNCONFIRMED)
+  id                         String                         @id @default(cuid())
+  uploadBatchId              String
+  uploadRowId                String                         @unique
+  userId                     String
+  orderSyncOrderId           String?
+  provider                   OrderIntegrationProvider?
+  integrationAccountId       String?
+  algorithmMatchStatus       ShipmentAlgorithmMatchStatus
+  userConfirmationStatus     ShipmentUserConfirmationStatus @default(UNCONFIRMED)
   /// OrderSyncTransmissionStatus.NONE = 앱 레이어 NOT_READY
-  transmissionStatus       OrderSyncTransmissionStatus    @default(NONE)
-  matchScore               Int                            @default(0)
-  matchReason              String?                        @db.Text
-  mismatchFieldsJson       Json?
-  candidateOrdersJson      Json?
-  finalTrackingNumber      String?
-  finalCarrierCode         String?
-  finalCarrierName         String?
-  confirmedAt              DateTime?
-  confirmedByUserId        String?
-  excludedAt               DateTime?
-  excludeReason            String?                        @db.Text
-  transmissionErrorMessage String?                        @db.Text
-  createdAt                DateTime                       @default(now())
-  updatedAt                DateTime                       @updatedAt
+  transmissionStatus         OrderSyncTransmissionStatus    @default(NONE)
+  matchScore                 Int                            @default(0)
+  matchReason                String?                        @db.Text
+  mismatchFieldsJson         Json?
+  candidateOrdersJson        Json?
+  finalTrackingNumber        String?
+  finalCarrierCode           String?
+  finalCarrierName           String?
+  confirmedAt                DateTime?
+  confirmedByUserId          String?
+  excludedAt                 DateTime?
+  excludeReason              String?                        @db.Text
+  transmissionErrorMessage   String?                        @db.Text
+  /// 동시 실행 lease 토큰 (실행권 확보 시 설정)
+  transmissionLeaseToken     String?                        @db.VarChar(64)
+  transmissionLeaseExpiresAt DateTime?
+  lastTransmissionAttemptAt  DateTime?
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
 
-  uploadBatch        ShipmentUploadBatch      @relation(fields: [uploadBatchId], references: [id], onDelete: Cascade)
-  uploadRow          ShipmentUploadRow        @relation(fields: [uploadRowId], references: [id], onDelete: Cascade)
-  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderSyncOrder     OrderSyncOrder?          @relation(fields: [orderSyncOrderId], references: [id], onDelete: SetNull)
-  integrationAccount OrderIntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+  uploadBatch          ShipmentUploadBatch           @relation(fields: [uploadBatchId], references: [id], onDelete: Cascade)
+  uploadRow            ShipmentUploadRow             @relation(fields: [uploadRowId], references: [id], onDelete: Cascade)
+  user                 User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderSyncOrder       OrderSyncOrder?               @relation(fields: [orderSyncOrderId], references: [id], onDelete: SetNull)
+  integrationAccount   OrderIntegrationAccount?      @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+  transmissionAttempts ShipmentTransmissionAttempt[]
 
   @@index([uploadBatchId])
   @@index([uploadRowId])
@@ -422,6 +445,62 @@ model ShipmentMatch {
   @@index([userId, userConfirmationStatus])
   @@index([userId, transmissionStatus])
   @@index([integrationAccountId])
+  @@index([transmissionStatus, transmissionLeaseExpiresAt])
+}
+
+/// 송장전송 시도 이력 (Match = 논리 상태 SSOT, Attempt = 실행 이력)
+model ShipmentTransmissionAttempt {
+  id                   String                   @id @default(cuid())
+  userId               String
+  shipmentMatchId      String
+  orderSyncOrderId     String?
+  /// Match.uploadBatchId snapshot (별도 Batch relation 없음 — 중복 FK 방지)
+  uploadBatchId        String
+  provider             OrderIntegrationProvider
+  integrationAccountId String?
+
+  mallOrderNo              String
+  excloadOrderNo           String
+  mallLineItemIdsJson      Json?
+  trackingNumberNormalized String
+  courierCode              String?
+  courierName              String?
+
+  /// SHA-256 hex (v1). unique 금지 — 동일 fingerprint 재시도 허용
+  payloadFingerprint  String                            @db.VarChar(64)
+  fingerprintVersion  Int                               @default(1)
+  attemptNo           Int
+  status              ShipmentTransmissionAttemptStatus
+  providerRequestId   String?
+  /// ShipmentTransmissionResponseSummary 수준만 (앱에서 검증)
+  responseSummaryJson Json?
+  errorCode           String?
+  errorMessage        String?                           @db.VarChar(500)
+  retryable           Boolean                           @default(false)
+  /// Match lease 토큰과 동일 — stale writer 방지
+  executionToken      String                            @db.VarChar(64)
+
+  startedAt    DateTime  @default(now())
+  /// 외부 API 호출 직전 PENDING→PROCESSING 전환 시각
+  dispatchedAt DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shipmentMatch      ShipmentMatch            @relation(fields: [shipmentMatchId], references: [id], onDelete: Cascade)
+  orderSyncOrder     OrderSyncOrder?          @relation(fields: [orderSyncOrderId], references: [id], onDelete: SetNull)
+  integrationAccount OrderIntegrationAccount? @relation(fields: [integrationAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([shipmentMatchId, attemptNo])
+  @@index([shipmentMatchId, createdAt])
+  @@index([userId, provider, createdAt])
+  @@index([payloadFingerprint])
+  @@index([providerRequestId])
+  @@index([status, startedAt])
+  @@index([uploadBatchId])
+  @@index([integrationAccountId])
+  @@index([orderSyncOrderId])
 }
 
 model EmailVerificationToken {
