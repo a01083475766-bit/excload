@@ -140,5 +140,7 @@ describe('shipment transmission integration support (no DB)', () => {
     );
     expect(text).toContain('maxWorkers: 1');
     expect(text).toContain('fileParallelism: false');
+    expect(text).toContain('testTimeout');
+    expect(text).toContain('hookTimeout');
   });
 });

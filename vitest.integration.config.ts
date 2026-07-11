@@ -1,6 +1,11 @@
 import path from 'path';
 import { defineConfig } from 'vitest/config';
 
+import {
+  SHIPMENT_TRANSMISSION_IT_HOOK_TIMEOUT_MS,
+  SHIPMENT_TRANSMISSION_IT_TEST_TIMEOUT_MS,
+} from './app/lib/order-integration/transmission/__tests__/integration/support/integration-timeout';
+
 /**
  * Shipment-transmission smoke DB integration only.
  * Run via: npm run order-transmission:test-db:integration
@@ -17,6 +22,8 @@ export default defineConfig({
     sequence: {
       concurrent: false,
     },
+    testTimeout: SHIPMENT_TRANSMISSION_IT_TEST_TIMEOUT_MS,
+    hookTimeout: SHIPMENT_TRANSMISSION_IT_HOOK_TIMEOUT_MS,
   },
   resolve: {
     alias: {

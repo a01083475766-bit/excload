@@ -6,6 +6,10 @@ import {
   type CleanupCountReport,
   type ShipmentTransmissionItIds,
 } from '@/app/lib/order-integration/transmission/__tests__/integration/support/cleanup-plans';
+import {
+  clearIdsAfterSuccessfulCleanup,
+  hasAnyTrackedIds,
+} from '@/app/lib/order-integration/transmission/__tests__/integration/support/cleanup-registry';
 import { isItEmail } from '@/app/lib/order-integration/transmission/__tests__/integration/support/ids';
 import { assertIntegrationMutationAllowed } from '@/app/lib/order-integration/transmission/__tests__/integration/support/mutation-gate';
 
@@ -13,12 +17,14 @@ export type CleanupResult = {
   ok: boolean;
   counts: CleanupCountReport[];
   summary: string;
+  deletedTotal: number;
   errorCode?: string;
 };
 
 /**
  * Deletes only IDs tracked for this run. FK-safe order.
- * Outputs counts only — never row contents / URLs.
+ * Idempotent: empty tracked IDs → ok without DB delete.
+ * On full success, clears tracked ID fields so re-cleanup is a no-op.
  */
 export async function cleanupShipmentTransmissionItIds(
   prisma: PrismaClient,
@@ -31,8 +37,13 @@ export async function cleanupShipmentTransmissionItIds(
       ok: false,
       counts: [],
       summary: '',
+      deletedTotal: 0,
       errorCode: 'MUTATION_GATE_BLOCKED',
     };
+  }
+
+  if (!hasAnyTrackedIds(ids)) {
+    return { ok: true, counts: [], summary: '', deletedTotal: 0 };
   }
 
   if (ids.userId && ids.userEmail && !isItEmail(ids.userEmail)) {
@@ -40,28 +51,41 @@ export async function cleanupShipmentTransmissionItIds(
       ok: false,
       counts: [],
       summary: '',
+      deletedTotal: 0,
       errorCode: 'USER_EMAIL_PREFIX_MISMATCH',
     };
   }
 
   const plans = buildCleanupDeletePlans(ids);
+  if (plans.length === 0) {
+    return { ok: true, counts: [], summary: '', deletedTotal: 0 };
+  }
+
   const counts: CleanupCountReport[] = [];
+  const clearedTables: string[] = [];
 
   try {
     for (const plan of plans) {
       const deleted = await deleteByPlan(prisma, plan.table, plan.where);
       counts.push({ table: plan.table, deleted });
+      // Clear successfully processed table scope even if a later table fails
+      clearIdsAfterSuccessfulCleanup(ids, [plan.table]);
+      clearedTables.push(plan.table);
     }
+    const deletedTotal = counts.reduce((sum, c) => sum + c.deleted, 0);
     return {
-      ok: true,
+      ok: !hasAnyTrackedIds(ids),
       counts,
       summary: formatCleanupCountReport(counts),
+      deletedTotal,
+      errorCode: hasAnyTrackedIds(ids) ? 'CLEANUP_IDS_REMAIN' : undefined,
     };
   } catch {
     return {
       ok: false,
       counts,
       summary: formatCleanupCountReport(counts),
+      deletedTotal: counts.reduce((sum, c) => sum + c.deleted, 0),
       errorCode: 'CLEANUP_FAILED',
     };
   }

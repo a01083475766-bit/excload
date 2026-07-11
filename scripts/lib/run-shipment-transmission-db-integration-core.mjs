@@ -5,6 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 
 import {
   EXCLOAD_PROD_SUPABASE_REF,
@@ -22,6 +23,9 @@ import {
 export const SHIPMENT_TRANSMISSION_IT_RUN_ENV = 'SHIPMENT_TRANSMISSION_IT_RUN';
 export const INTEGRATION_LOCK_FILE = '.shipment-transmission-it.lock';
 export const INTEGRATION_VITEST_CONFIG = 'vitest.integration.config.ts';
+export const INTEGRATION_SUMMARY_ENV = 'SHIPMENT_TRANSMISSION_IT_SUMMARY_PATH';
+export const INTEGRATION_RUN_ID_ENV = 'SHIPMENT_TRANSMISSION_IT_RUN_ID';
+export const INTEGRATION_SUMMARY_PREFIX = '.shipment-transmission-it-summary.';
 
 /** Parent env keys that must never leak into child as-is (stripped then smoke-forced). */
 export const CHILD_ENV_DB_RISK_KEYS = [
@@ -93,7 +97,9 @@ export function buildIntegrationChildEnv(input) {
       key === 'EXCLOAD_ENV_PROFILE' ||
       key === 'TEST_DB_ENV_FILE' ||
       key === 'ALLOW_TEST_DB_MUTATION' ||
-      key === SHIPMENT_TRANSMISSION_IT_RUN_ENV
+      key === SHIPMENT_TRANSMISSION_IT_RUN_ENV ||
+      key === INTEGRATION_SUMMARY_ENV ||
+      key === INTEGRATION_RUN_ID_ENV
     ) {
       continue;
     }
@@ -109,6 +115,25 @@ export function buildIntegrationChildEnv(input) {
   child[SHIPMENT_TRANSMISSION_IT_RUN_ENV] = 'true';
   child.DOTENV_CONFIG_PATH = path.resolve(SMOKE_ENV_FILE);
   return child;
+}
+
+/**
+ * @param {string} [runId]
+ */
+export function createIntegrationRunId(runId) {
+  return runId && /^[a-zA-Z0-9_-]+$/.test(runId) ? runId : randomBytes(8).toString('hex');
+}
+
+/**
+ * @param {string} cwd
+ * @param {string} runId
+ */
+export function buildIntegrationSummaryPath(cwd, runId) {
+  const safe = String(runId);
+  if (!/^[a-zA-Z0-9_-]+$/.test(safe)) {
+    throw new Error('invalid integration runId');
+  }
+  return path.resolve(cwd, `${INTEGRATION_SUMMARY_PREFIX}${safe}.json`);
 }
 
 /**
@@ -303,6 +328,84 @@ export function integrationCommandLooksUnsafe(commandText) {
 }
 
 /**
+ * @param {string} filePath
+ * @param {{ readFileSync?: typeof fs.readFileSync, existsSync?: typeof fs.existsSync }} [io]
+ */
+export function readIntegrationSummaryFile(filePath, io = {}) {
+  const existsSync = io.existsSync ?? fs.existsSync;
+  const readFileSync = io.readFileSync ?? fs.readFileSync;
+  try {
+    if (!existsSync(filePath)) return null;
+    const raw = JSON.parse(String(readFileSync(filePath, 'utf8')));
+    if (raw?.version !== 1) return null;
+    if (typeof raw.runId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(raw.runId)) return null;
+    const status = (v) => (v === 'PASS' || v === 'FAIL' || v === 'UNKNOWN' ? v : 'UNKNOWN');
+    return {
+      version: 1,
+      runId: raw.runId,
+      testsPassed: Number(raw.testsPassed) || 0,
+      testsFailed: Number(raw.testsFailed) || 0,
+      testsTimedOut: Number(raw.testsTimedOut) || 0,
+      cleanupStatus: status(raw.cleanupStatus),
+      disconnectStatus: status(raw.disconnectStatus),
+      lockReleased: typeof raw.lockReleased === 'boolean' ? raw.lockReleased : null,
+      cleanupDeletedCount: Number(raw.cleanupDeletedCount) || 0,
+      pendingRegistryEntries: Number(raw.pendingRegistryEntries) || 0,
+      cleanupErrorCode: raw.cleanupErrorCode ? String(raw.cleanupErrorCode) : null,
+      suiteAborted: Boolean(raw.suiteAborted),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {string} filePath
+ * @param {{ unlinkSync?: typeof fs.unlinkSync, existsSync?: typeof fs.existsSync }} [io]
+ */
+export function deleteIntegrationSummaryFile(filePath, io = {}) {
+  try {
+    if ((io.existsSync ?? fs.existsSync)(filePath)) {
+      (io.unlinkSync ?? fs.unlinkSync)(filePath);
+    }
+    return { ok: true, errorCode: null };
+  } catch {
+    return { ok: false, errorCode: 'SUMMARY_DELETE_FAILED' };
+  }
+}
+
+/**
+ * Final judgment: child exit + summary with matching runId. Stale/mismatch ⇒ fail.
+ * @param {{
+ *   childExitCode: number,
+ *   lockReleased: boolean,
+ *   expectedRunId: string,
+ *   summary: null | Record<string, unknown>,
+ * }} input
+ */
+export function evaluateIntegrationWrapperResult(input) {
+  /** @type {string[]} */
+  const reasons = [];
+  if (!input.lockReleased) reasons.push('LOCK_NOT_RELEASED');
+  if (!input.summary) {
+    reasons.push('SUMMARY_MISSING');
+  } else if (input.summary.runId !== input.expectedRunId) {
+    reasons.push('SUMMARY_RUN_ID_MISMATCH');
+  } else {
+    if ((Number(input.summary.testsFailed) || 0) > 0) reasons.push('TESTS_FAILED');
+    if ((Number(input.summary.testsTimedOut) || 0) > 0) reasons.push('TESTS_TIMED_OUT');
+    if (input.summary.cleanupStatus !== 'PASS') reasons.push('CLEANUP_FAIL');
+    if (input.summary.disconnectStatus !== 'PASS') reasons.push('DISCONNECT_FAIL');
+    if ((Number(input.summary.pendingRegistryEntries) || 0) > 0) reasons.push('REGISTRY_PENDING');
+    if (input.summary.suiteAborted) reasons.push('SUITE_ABORTED');
+  }
+  if (input.childExitCode !== 0) reasons.push('CHILD_EXIT_NONZERO');
+
+  const ok = reasons.length === 0;
+  return { ok, exitCode: ok ? 0 : 1, reasons };
+}
+
+/**
  * Orchestrate preflight → lock → spawn vitest. Injectable spawn for unit tests.
  * @param {{
  *   cwd: string,
@@ -314,6 +417,10 @@ export function integrationCommandLooksUnsafe(commandText) {
  *   log?: (line: string) => void,
  *   prodRef?: string,
  *   testRef?: string,
+ *   createRunId?: () => string,
+ *   readSummary?: typeof readIntegrationSummaryFile,
+ *   deleteSummary?: typeof deleteIntegrationSummaryFile,
+ *   existsSync?: typeof fs.existsSync,
  * }} options
  */
 export function runShipmentTransmissionDbIntegration(options) {
@@ -321,6 +428,10 @@ export function runShipmentTransmissionDbIntegration(options) {
   const loadSmoke = options.loadSmoke ?? loadSmokeEnvFromDisk;
   const preflightFn = options.preflight ?? runIntegrationPreflight;
   const acquireLock = options.acquireLock ?? acquireIntegrationLock;
+  const readSummary = options.readSummary ?? readIntegrationSummaryFile;
+  const deleteSummary = options.deleteSummary ?? deleteIntegrationSummaryFile;
+  const existsSync = options.existsSync ?? fs.existsSync;
+  const createRunId = options.createRunId ?? (() => createIntegrationRunId());
 
   const loaded = loadSmoke({ cwd: options.cwd });
   const preflight = preflightFn({
@@ -357,11 +468,28 @@ export function runShipmentTransmissionDbIntegration(options) {
     urls: [loaded.env.DATABASE_URL, loaded.env.DIRECT_URL].filter(Boolean),
   };
 
+  const runId = createRunId();
+  const summaryPath = buildIntegrationSummaryPath(options.cwd, runId);
+  if (existsSync(summaryPath)) {
+    lock.release();
+    log('[shipment-transmission-it] summary path collision — refuse stale reuse');
+    return {
+      exitCode: 1,
+      childStarted: false,
+      preflightOk: true,
+      lockOk: true,
+      judged: { ok: false, exitCode: 1, reasons: ['SUMMARY_PATH_EXISTS'] },
+    };
+  }
+
+  let summaryDeleteWarning = null;
   try {
     const childEnv = buildIntegrationChildEnv({
       smokeEnv: loaded.env,
       parentEnv: options.parentEnv,
     });
+    childEnv[INTEGRATION_SUMMARY_ENV] = summaryPath;
+    childEnv[INTEGRATION_RUN_ID_ENV] = runId;
 
     const spawnTarget = buildIntegrationVitestSpawn(options.cwd);
     if (integrationCommandLooksUnsafe(spawnTarget.commandText)) {
@@ -385,12 +513,36 @@ export function runShipmentTransmissionDbIntegration(options) {
     if (stdout) log(stdout);
     if (stderr) log(stderr);
 
-    const exitCode = typeof result.status === 'number' ? result.status : 1;
+    const childExitCode = typeof result.status === 'number' ? result.status : 1;
+    const summary = readSummary(summaryPath);
+    const del = deleteSummary(summaryPath);
+    if (del && del.ok === false) {
+      summaryDeleteWarning = del.errorCode ?? 'SUMMARY_DELETE_FAILED';
+      log(`[shipment-transmission-it] warning: ${summaryDeleteWarning}`);
+    }
+
+    const judged = evaluateIntegrationWrapperResult({
+      childExitCode,
+      lockReleased: true,
+      expectedRunId: runId,
+      summary,
+    });
+    if (!judged.ok) {
+      log(`[shipment-transmission-it] final FAIL: ${judged.reasons.join(',')}`);
+    } else {
+      log('[shipment-transmission-it] final PASS');
+    }
+
     return {
-      exitCode,
+      exitCode: judged.exitCode,
       childStarted: true,
       preflightOk: true,
       lockOk: true,
+      lockReleased: true,
+      childExitCode,
+      runId,
+      judged,
+      summaryDeleteWarning,
       childEnvKeys: Object.keys(childEnv).sort(),
       injectedDatabaseUrl: childEnv.DATABASE_URL === loaded.env.DATABASE_URL,
       ignoredParentDatabaseUrl: true,
@@ -400,5 +552,6 @@ export function runShipmentTransmissionDbIntegration(options) {
     throw error;
   } finally {
     lock.release();
+    deleteSummary(summaryPath);
   }
 }

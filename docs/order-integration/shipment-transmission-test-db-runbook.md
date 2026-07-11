@@ -213,18 +213,46 @@ integration wrapper는:
 
 운영 `.env` fallback으로 integration을 돌리지 마세요.
 
-### D-6g-e2 시작 직전 (사용자)
+### D-6g-e2 / e2a — 실실행·timeout·cleanup 보강
 
-1. `.env.smoke.local`의 `EXCLOAD_ENV_PROFILE` / `TEST_DB_ENV_FILE` / DB URL 확인
-2. `ALLOW_TEST_DB_MUTATION=true` (로컬만)
-3. `npm run order-transmission:test-db:check` → PASS
-4. `npm run order-transmission:test-db:integration` 실행
+#### 첫 D-6g-e2 실행 결과 (기록)
 
-### D-6g-e2 종료 후 (사용자)
+| 항목 | 결과 |
+|------|------|
+| 결과 | 12 tests 중 **6 PASS / 6 FAIL** |
+| 실패 | C, D, E, G, I, J — 전부 Vitest 기본 **5000ms timeout** |
+| assertion / Prisma / DB 오류 | **확인되지 않음** |
+| timeout cleanup | 출력으로 완료 여부 **미확인** |
+| mutation flag | 종료 후 `false` 복구됨 |
+| lock | 제거됨 |
 
-1. cleanup 성공(건수) 확인
-2. `ALLOW_TEST_DB_MUTATION=false` 복구
-3. `git status` — secret·의도치 않은 변경 없음
+#### D-6g-e2a 보강
+
+| 항목 | 내용 |
+|------|------|
+| timeout | `vitest.integration.config.ts`만 `testTimeout`/`hookTimeout` **60_000** (unit config 미변경) |
+| cleanup registry | 테스트별 ID 추적 + `afterEach`/`afterAll` fallback |
+| markers | testsPassed/Failed/TimedOut + cleanup/disconnect status + per-run summary JSON |
+| wrapper 판정 | child exit + **runId 일치** summary (stale/mismatch/누락 ⇒ FAIL) |
+| summary 경로 | `.shipment-transmission-it-summary.<runId>.json` (실행마다 고유) |
+| cleanup 실패 | suite abort — 이후 mutation 시나리오 중단 |
+| Vitest 한계 | test timeout이 async를 cancel하지 않을 수 있음. body `finally`만 의존하지 않고 hook fallback 유지. hook도 `hookTimeout`을 넘으면 FAIL |
+
+#### 기존 실패 run 잔여 데이터
+
+- timeout 시나리오는 cleanup 미확인 → smoke DB에 fixture **일부 잔존 가능**
+- **전체 prefix / 광범위 cleanup 금지**
+- 정확한 runId·생성 ID 없이 임의 삭제 금지
+- 고립 테스트 데이터는 운영 DB에 영향 없음
+- 후속 orphan 탐지·cleanup은 별도 과제 가능
+
+#### D-6g-e2b
+
+1. `ALLOW_TEST_DB_MUTATION=true`
+2. preflight PASS
+3. `npm run order-transmission:test-db:integration` **한 번만**
+4. cleanup/disconnect marker + wrapper final PASS 확인
+5. `ALLOW_TEST_DB_MUTATION=false` 복구
 
 ### 시나리오 K (TX rollback)
 
@@ -240,6 +268,8 @@ repository / prisma-persist **단위 테스트**로 충분하다고 본다.
 | D-6g-b | guard·runbook |
 | D-6g-c | 테스트 DB `migrate deploy` (완료) |
 | D-6g-d | Prisma persist client (완료) |
-| D-6g-e1 | integration 코드 준비 (DB 미실행) ← 현재 |
-| D-6g-e2 | smoke DB에서 integration 실실행 |
+| D-6g-e1 | integration 코드 준비 (DB 미실행) |
+| D-6g-e2 | 첫 실 DB 실행 — 6 PASS / 6 timeout |
+| D-6g-e2a | timeout·cleanup registry·wrapper 판정 보강 ← 현재 |
+| D-6g-e2b | smoke DB integration 재실행 (1회) |
 | D-6g-f | dry-run API |

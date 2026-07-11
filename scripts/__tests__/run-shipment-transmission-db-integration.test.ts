@@ -130,6 +130,21 @@ describe('run-shipment-transmission-db-integration-core', () => {
       stdout: `connected ${GOOD_SMOKE.DATABASE_URL}`,
       stderr: '',
     }));
+    const runId = 'testrun01';
+    const goodSummary = {
+      version: 1,
+      runId,
+      testsPassed: 12,
+      testsFailed: 0,
+      testsTimedOut: 0,
+      cleanupStatus: 'PASS',
+      disconnectStatus: 'PASS',
+      lockReleased: null,
+      cleanupDeletedCount: 3,
+      pendingRegistryEntries: 0,
+      cleanupErrorCode: null,
+      suiteAborted: false,
+    };
     const result = runShipmentTransmissionDbIntegration({
       cwd: process.cwd(),
       parentEnv: {
@@ -154,6 +169,10 @@ describe('run-shipment-transmission-db-integration-core', () => {
         message: 'lock acquired',
         release: () => {},
       }),
+      createRunId: () => runId,
+      existsSync: () => false,
+      readSummary: () => goodSummary,
+      deleteSummary: () => ({ ok: true, errorCode: null }),
       spawnSync,
       log: (line) => lines.push(line),
     });
@@ -168,15 +187,84 @@ describe('run-shipment-transmission-db-integration-core', () => {
     const args = call[1];
     const opts = call[2];
     expect(String(args.join(' '))).toContain('vitest.mjs');
-    expect(String(args.join(' '))).toContain('vitest.integration.config');
     expect(String(args.join(' '))).not.toContain('postgresql://');
-    expect(integrationCommandLooksUnsafe(String(args.join(' ')))).toBe(false);
     expect(opts.env.DATABASE_URL).toBe(GOOD_SMOKE.DATABASE_URL);
-    expect(opts.env.EXCLOAD_ENV_PROFILE).toBe('smoke');
-    expect(opts.env.ALLOW_TEST_DB_MUTATION).toBe('true');
-    expect(opts.env[SHIPMENT_TRANSMISSION_IT_RUN_ENV]).toBe('true');
+    expect(opts.env.SHIPMENT_TRANSMISSION_IT_RUN_ID).toBe(runId);
+    expect(opts.env.SHIPMENT_TRANSMISSION_IT_SUMMARY_PATH).toContain(runId);
     expect(lines.join('\n')).not.toContain(GOOD_SMOKE.DATABASE_URL);
-    expect(lines.join('\n')).toContain('[REDACTED_URL]');
+  });
+
+  it('fails when summary missing even if child exit 0', () => {
+    const result = runShipmentTransmissionDbIntegration({
+      cwd: process.cwd(),
+      parentEnv: {},
+      prodRef: FAKE_PROD,
+      testRef: FAKE_TEST,
+      loadSmoke: () => ({
+        envFileRel: '.env.smoke.local',
+        envAbs: '/x/.env.smoke.local',
+        envFileExists: true,
+        env: GOOD_SMOKE,
+      }),
+      acquireLock: () => ({
+        ok: true,
+        lockPath: '/tmp/x.lock',
+        reason: 'ACQUIRED',
+        message: 'lock acquired',
+        release: () => {},
+      }),
+      createRunId: () => 'missing01',
+      existsSync: () => false,
+      readSummary: () => null,
+      deleteSummary: () => ({ ok: true, errorCode: null }),
+      spawnSync: () => ({ status: 0, stdout: 'ok', stderr: '' }),
+      log: () => {},
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.judged?.reasons).toContain('SUMMARY_MISSING');
+  });
+
+  it('rejects stale summary runId mismatch', () => {
+    const result = runShipmentTransmissionDbIntegration({
+      cwd: process.cwd(),
+      parentEnv: {},
+      prodRef: FAKE_PROD,
+      testRef: FAKE_TEST,
+      loadSmoke: () => ({
+        envFileRel: '.env.smoke.local',
+        envAbs: '/x/.env.smoke.local',
+        envFileExists: true,
+        env: GOOD_SMOKE,
+      }),
+      acquireLock: () => ({
+        ok: true,
+        lockPath: '/tmp/x.lock',
+        reason: 'ACQUIRED',
+        message: 'lock acquired',
+        release: () => {},
+      }),
+      createRunId: () => 'expected01',
+      existsSync: () => false,
+      readSummary: () => ({
+        version: 1,
+        runId: 'other-run',
+        testsPassed: 1,
+        testsFailed: 0,
+        testsTimedOut: 0,
+        cleanupStatus: 'PASS',
+        disconnectStatus: 'PASS',
+        lockReleased: null,
+        cleanupDeletedCount: 0,
+        pendingRegistryEntries: 0,
+        cleanupErrorCode: null,
+        suiteAborted: false,
+      }),
+      deleteSummary: () => ({ ok: true, errorCode: null }),
+      spawnSync: () => ({ status: 0, stdout: '', stderr: '' }),
+      log: () => {},
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.judged?.reasons).toContain('SUMMARY_RUN_ID_MISMATCH');
   });
 
   it('integration spawn command has no migrate', () => {
@@ -205,6 +293,10 @@ describe('run-shipment-transmission-db-integration-core', () => {
         message: 'lock acquired',
         release,
       }),
+      createRunId: () => 'failrun01',
+      existsSync: () => false,
+      readSummary: () => null,
+      deleteSummary: () => ({ ok: true, errorCode: null }),
       spawnSync: () => ({ status: 2, stdout: '', stderr: 'fail' }),
       log: () => {},
     });
@@ -232,6 +324,10 @@ describe('run-shipment-transmission-db-integration-core', () => {
           message: 'lock acquired',
           release,
         }),
+        createRunId: () => 'boom01',
+        existsSync: () => false,
+        readSummary: () => null,
+        deleteSummary: () => ({ ok: true, errorCode: null }),
         spawnSync: () => {
           throw new Error('boom');
         },

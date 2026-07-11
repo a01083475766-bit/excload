@@ -1,14 +1,13 @@
 /**
- * Prisma persist — smoke DB integration scenarios (D-6g-e1 write / D-6g-e2 run).
+ * Prisma persist — smoke DB integration scenarios (D-6g-e2a harness).
  *
  * Gated by SHIPMENT_TRANSMISSION_IT_RUN=true (wrapper only).
  * Excluded from default vitest via vitest.config.ts.
  *
- * K (TX rollback): not forced here — unique conflict / missing-order paths can leave
- * unstable rows; covered by repository + prisma-persist unit tests.
+ * K (TX rollback): not forced here — covered by repository + prisma-persist unit tests.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished } from 'vitest';
 
 import { createPrismaShipmentTransmissionPersistClient } from '@/app/lib/order-integration/transmission/prisma-persist-client';
 import {
@@ -29,6 +28,7 @@ import {
   trackAttemptsForMatches,
 } from '@/app/lib/order-integration/transmission/__tests__/integration/support/cleanup';
 import { createEmptyItIds } from '@/app/lib/order-integration/transmission/__tests__/integration/support/cleanup-plans';
+import { createCleanupRegistry } from '@/app/lib/order-integration/transmission/__tests__/integration/support/cleanup-registry';
 import {
   createAdditionalReadyMatch,
   createReadyTransmissionFixture,
@@ -40,6 +40,17 @@ import {
   createIntegrationPrismaClient,
   disconnectIntegrationPrisma,
 } from '@/app/lib/order-integration/transmission/__tests__/integration/support/prisma-it-client';
+import {
+  cleanupPendingRegistryEntries,
+  runTrackedCleanup,
+} from '@/app/lib/order-integration/transmission/__tests__/integration/support/scenario-harness';
+import {
+  createEmptySummary,
+  formatLifecycleMarkers,
+  INTEGRATION_RUN_ID_ENV,
+  resolveSummaryPathFromEnv,
+  writeIntegrationSummary,
+} from '@/app/lib/order-integration/transmission/__tests__/integration/support/run-summary';
 import {
   IT_ATTEMPT_VERIFY_SELECT,
   IT_MATCH_VERIFY_SELECT,
@@ -55,36 +66,30 @@ describe.skipIf(!enabled)('shipment transmission persist integration (smoke DB)'
     fx: ReadyTransmissionFixture;
   };
 
-  async function withReadyFixture(
-    run: (ctx: Ctx) => Promise<void>,
-    slot = 'a',
-  ): Promise<void> {
-    // Re-check gate inside each test (direct vitest.integration.config bypass still blocked)
-    expect(evaluateIntegrationMutationGate().ok).toBe(true);
-    const prisma = createIntegrationPrismaClient();
-    const persist = createPrismaShipmentTransmissionPersistClient(prisma);
-    const ids = createEmptyItIds(createShipmentTransmissionItRunId());
-    let cleanupOk = false;
-    let cleanupCode: string | undefined;
-    try {
-      const fx = await createReadyTransmissionFixture(prisma, {
-        runId: ids.runId,
-        slot,
-        ids,
-      });
-      await run({ prisma, persist, fx });
-    } finally {
-      try {
-        await trackAttemptsForMatches(prisma, ids);
-        const cleanup = await cleanupShipmentTransmissionItIds(prisma, ids);
-        cleanupOk = cleanup.ok;
-        cleanupCode = cleanup.errorCode;
-      } finally {
-        await disconnectIntegrationPrisma(prisma);
+  const registry = createCleanupRegistry();
+  let totalDeleted = 0;
+  let disconnectPass = true;
+  let scenarioSeq = 0;
+  let testsPassed = 0;
+  let testsFailed = 0;
+  let testsTimedOut = 0;
+
+  onTestFinished(({ task }) => {
+    const state = task.result?.state;
+    if (state === 'pass') {
+      testsPassed += 1;
+      return;
+    }
+    if (state === 'fail') {
+      testsFailed += 1;
+      const msgs = (task.result?.errors ?? [])
+        .map((e) => String((e as { message?: string }).message ?? e))
+        .join(' ');
+      if (/timed out|Test timed out/i.test(msgs)) {
+        testsTimedOut += 1;
       }
     }
-    expect(cleanupOk, `cleanup failed: ${cleanupCode ?? 'unknown'}`).toBe(true);
-  }
+  });
 
   function fingerprintFor(fx: ReadyTransmissionFixture): string {
     return buildShipmentTransmissionFingerprint({
@@ -108,12 +113,130 @@ describe.skipIf(!enabled)('shipment transmission persist integration (smoke DB)'
     };
   }
 
+  async function withReadyFixture(
+    run: (ctx: Ctx) => Promise<void>,
+    slot = 'a',
+  ): Promise<void> {
+    const abort = registry.getSuiteAbortReason();
+    if (abort) {
+      throw new Error(`suite aborted before scenario: ${abort}`);
+    }
+    expect(evaluateIntegrationMutationGate().ok).toBe(true);
+
+    const key = `scenario-${++scenarioSeq}`;
+    const ids = createEmptyItIds(createShipmentTransmissionItRunId());
+    const entry = registry.register(key, ids);
+    const prisma = createIntegrationPrismaClient();
+    const persist = createPrismaShipmentTransmissionPersistClient(prisma);
+
+    try {
+      const fx = await createReadyTransmissionFixture(prisma, {
+        runId: ids.runId,
+        slot,
+        ids,
+      });
+      entry.flags.fixtureCreated = true;
+      await run({ prisma, persist, fx });
+      entry.flags.testCompleted = true;
+    } finally {
+      const result = await runTrackedCleanup({
+        entry,
+        trackAttempts: (tracked) => trackAttemptsForMatches(prisma, tracked),
+        cleanup: (tracked) => cleanupShipmentTransmissionItIds(prisma, tracked),
+        disconnect: () => disconnectIntegrationPrisma(prisma),
+      });
+      totalDeleted += result.deletedTotal;
+      if (!result.disconnectOk) disconnectPass = false;
+      if (!result.cleanupOk) {
+        registry.abortSuite(entry.flags.cleanupErrorCode ?? 'CLEANUP_FAIL');
+      } else {
+        registry.markFullyCleaned(key);
+      }
+      // Do not treat cleanup failure as test success
+      expect(result.cleanupOk, `cleanup failed: ${entry.flags.cleanupErrorCode ?? 'unknown'}`).toBe(
+        true,
+      );
+      expect(result.disconnectOk, 'disconnect failed').toBe(true);
+    }
+  }
+
   beforeAll(() => {
     expect(evaluateIntegrationMutationGate().ok).toBe(true);
   });
 
-  afterAll(() => {
-    // disconnect handled per-test; no shared client
+  beforeEach(() => {
+    const abort = registry.getSuiteAbortReason();
+    if (abort) {
+      throw new Error(`suite aborted: ${abort}`);
+    }
+  });
+
+  afterEach(async () => {
+    // Fallback if test timeout interrupted body finally mid-flight
+    if (!registry.hasPending()) return;
+    const fallback = await cleanupPendingRegistryEntries({
+      registry,
+      createCleanupClient: () => {
+        const prisma = createIntegrationPrismaClient();
+        return {
+          trackAttempts: (ids) => trackAttemptsForMatches(prisma, ids),
+          cleanup: (ids) => cleanupShipmentTransmissionItIds(prisma, ids),
+          disconnect: () => disconnectIntegrationPrisma(prisma),
+        };
+      },
+    });
+    totalDeleted += fallback.deletedTotal;
+    if (!fallback.disconnectPass) disconnectPass = false;
+    if (!fallback.cleanupPass) {
+      expect.fail(`afterEach cleanup FAIL: ${fallback.errorCode ?? 'unknown'}`);
+    }
+  });
+
+  afterAll(async () => {
+    const finalSweep = await cleanupPendingRegistryEntries({
+      registry,
+      createCleanupClient: () => {
+        const prisma = createIntegrationPrismaClient();
+        return {
+          trackAttempts: (ids) => trackAttemptsForMatches(prisma, ids),
+          cleanup: (ids) => cleanupShipmentTransmissionItIds(prisma, ids),
+          disconnect: () => disconnectIntegrationPrisma(prisma),
+        };
+      },
+    });
+    totalDeleted += finalSweep.deletedTotal;
+    if (!finalSweep.disconnectPass) disconnectPass = false;
+
+    const cleanupPass =
+      finalSweep.cleanupPass && !registry.hasPending() && !registry.getSuiteAbortReason();
+    const resolved = resolveSummaryPathFromEnv(process.cwd());
+    const runId = resolved.runId ?? process.env[INTEGRATION_RUN_ID_ENV] ?? '';
+    const summaryPath = resolved.summaryPath;
+    if (!runId || !summaryPath) {
+      throw new Error('integration summary path/runId missing from env');
+    }
+
+    const summary = createEmptySummary(runId);
+    summary.testsPassed = testsPassed;
+    summary.testsFailed = testsFailed;
+    summary.testsTimedOut = testsTimedOut;
+    summary.cleanupStatus = cleanupPass ? 'PASS' : 'FAIL';
+    summary.disconnectStatus =
+      disconnectPass && finalSweep.disconnectPass ? 'PASS' : 'FAIL';
+    summary.lockReleased = null;
+    summary.cleanupDeletedCount = totalDeleted;
+    summary.pendingRegistryEntries = registry.listPending().length;
+    summary.cleanupErrorCode = finalSweep.errorCode ?? registry.getSuiteAbortReason();
+    summary.suiteAborted = Boolean(registry.getSuiteAbortReason());
+
+    // Final write only after cleanup + disconnect attempts
+    writeIntegrationSummary(summaryPath, summary);
+    console.log(formatLifecycleMarkers(summary));
+
+    expect(summary.cleanupStatus, `final cleanup FAIL: ${summary.cleanupErrorCode ?? ''}`).toBe(
+      'PASS',
+    );
+    expect(summary.disconnectStatus).toBe('PASS');
   });
 
   it('A: reserves READY match → PROCESSING + PENDING attemptNo=1 + lease', async () => {
@@ -496,7 +619,6 @@ describe.skipIf(!enabled)('shipment transmission persist integration (smoke DB)'
         responseSummary: null,
       });
 
-      // Test policy: prepare Match READY again for retry
       await prisma.shipmentMatch.updateMany({
         where: { id: fx.matchId, userId: fx.userId },
         data: {
@@ -548,13 +670,10 @@ describe.skipIf(!enabled)('shipment transmission persist integration (smoke DB)'
         now: new Date(now.getTime() + 500),
       });
 
-      // Expire + recover path then new reserve, or force new lease via recover pending after expire
       await prisma.shipmentMatch.updateMany({
         where: { id: fx.matchId, userId: fx.userId },
         data: { transmissionLeaseExpiresAt: new Date(now.getTime() - 1) },
       });
-      // Mark attempt back to PENDING without dispatched for recover? Already PROCESSING.
-      // Use recover PROCESSING → UNKNOWN, then set READY for new reserve.
       await recoverStaleProcessingAttempt(persist, {
         userId: fx.userId,
         shipmentMatchId: fx.matchId,
@@ -624,7 +743,6 @@ describe.skipIf(!enabled)('shipment transmission persist integration (smoke DB)'
 
 describe('shipment transmission integration gate (no DB)', () => {
   it('skips real scenarios when IT run env is not set', () => {
-    // This file is excluded from default vitest; when loaded without gate, describe.skipIf hides DB tests.
     expect(typeof enabled).toBe('boolean');
   });
 });
