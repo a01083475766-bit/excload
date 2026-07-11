@@ -1,17 +1,18 @@
-# 송장전송 — 테스트 DB migration / Prisma 검증 Runbook (D-6g-b)
+# 송장전송 — 테스트 DB migration / Prisma 검증 Runbook (D-6g)
 
-> **상태**: 안전장치·절차 문서 (2026-07-11) — **이번 단계에서 migrate 실행 안 함**  
-> **단계**: D-6g-b  
-> **목적**: 운영 DB 오접속을 차단한 뒤, **기존 smoke 테스트 DB**에만 송장전송 migration을 적용하고 Prisma repository를 검증하기 위한 preflight·절차  
+> **상태**: D-6g-e1 코드 준비 완료 (2026-07-11) — **e1에서 DB 접속·integration 실행 안 함**  
+> **단계**: D-6g-b → c → d → **e1** (다음 e2 실실행)  
+> **목적**: 운영 DB 오접속을 차단한 뒤, **기존 smoke 테스트 DB**에만 송장전송 migration·Prisma persist를 검증하기 위한 preflight·절차·integration wrapper  
 > **관련**  
 > - `scripts/check-shipment-transmission-test-db-env.mjs`  
+> - `scripts/run-shipment-transmission-db-integration.mjs`  
 > - `scripts/lib/shipment-transmission-test-db-guard.mjs`  
 > - `.env.smoke.local.example`  
 > - `prisma/migrations/20260710230000_add_shipment_transmission_attempts/`  
 > - [shipment-api-transmission-design.md](./shipment-api-transmission-design.md)
 
-**이 문서는 절차·경고만 다룹니다.**  
-D-6g-b에서 하지 않는 것: DB 접속, `prisma migrate deploy`, fixture/cleanup 실행, Vercel/Supabase 설정 변경, 커밋·push.
+**이 문서는 절차·경고를 다룹니다.**  
+D-6g-e1에서 하지 않는 것: 실 DB 접속, integration script 실행, `.env.smoke.local` 수정, 새 migration, 커밋·push.
 
 ---
 
@@ -159,18 +160,16 @@ npm run order-transmission:test-db:check
 
 ---
 
-## 8. 향후 cleanup 안전 원칙 (코드 미구현)
-
-아직 fixture/cleanup 스크립트는 만들지 않습니다. 이후 구현 시:
+## 8. cleanup 안전 원칙 (D-6g-e1 구현)
 
 | 원칙 | 내용 |
 |------|------|
-| 범위 | 이번 테스트가 생성한 `userId` 또는 고정 test prefix만 |
-| 금지 | 전체 `ShipmentMatch` / `OrderSyncOrder` 삭제, 테이블 `TRUNCATE` |
-| ID 목록 | 테스트 시작 시 생성 ID를 보관 후 그 목록만 삭제 |
-| 순서 | FK 관계 준수 (Attempt → Match → …) |
-| guard | cleanup 전 **동일 mutation preflight 재통과** |
-| 출력 | 삭제 **건수만**, 데이터 원문 금지 |
+| 범위 | 이번 run이 생성·추적한 ID만 (`ShipmentTransmissionItIds`) |
+| 금지 | prefix만으로 광범위 삭제, `deleteMany({})`, 테이블 `TRUNCATE` |
+| 순서 | Attempt → Match → UploadRow → UploadBatch → Order → OrderBatch → Account → User |
+| User | 삭제 전 `shipment-transmission-it-*@example.test` email prefix 확인 |
+| gate | `SHIPMENT_TRANSMISSION_IT_RUN=true` + `ALLOW_TEST_DB_MUTATION=true` + smoke markers |
+| 출력 | 삭제 **건수만**, 행 내용·URL·ref 금지 |
 
 ---
 
@@ -179,20 +178,68 @@ npm run order-transmission:test-db:check
 | 명령 | 역할 |
 |------|------|
 | `npm run order-transmission:test-db:check` | **검사 전용** preflight + migration.sql 정적 검사 (DB 접속·migrate **없음**) |
+| `npm run order-transmission:test-db:integration` | smoke env 강제 주입 + integration vitest만 (migrate **없음**) |
 | `node scripts/check-order-sync-realtest-env.mjs` | 주문조회 실연동 env (암호화 키 등) — **별도** |
 
-`order-transmission:test-db:check`는 이름에 `check`만 있습니다. **migrate/deploy/cleanup/fixture를 실행하지 않습니다.**
-
-migrate/fixture/cleanup 원클릭 script는 **의도적으로 추가하지 않음** (혼동·오적용 방지).
+`order-transmission:test-db:check`는 migrate/fixture를 실행하지 않습니다.  
+`order-transmission:test-db:integration`은 **전용 wrapper**로만 실행합니다. 일반 `npm test` / `vitest`에는 `*.integration.test.ts`가 **제외**됩니다.
 
 ---
 
-## 10. 다음 단계
+## 10. D-6g-e1 / D-6g-e2 — Prisma persist integration
+
+### D-6g-e1 (코드 준비만 — DB 미접속)
+
+- wrapper: `scripts/run-shipment-transmission-db-integration.mjs`
+- core: `scripts/lib/run-shipment-transmission-db-integration-core.mjs`
+- fixture/cleanup: `transmission/__tests__/integration/support/`
+- 시나리오 파일: `*.persist.integration.test.ts` (작성만, **실행 안 함**)
+- 일반 unit test에서 integration 제외 (`vitest.config.ts`)
+- 병렬 금지: `vitest.integration.config.ts` maxWorkers=1 + file lock
+- **이중 gate**: wrapper preflight + test 파일 `evaluateIntegrationMutationGate` (IT_RUN / mutation / smoke markers). config 직접 실행해도 gate 없으면 Prisma/fixture/cleanup 차단
+- **전용 wrapper 외 직접 실행 금지** (일반 `vitest` / `.env` fallback 경로 사용 금지)
+- fixture는 생성 직후 ID 추적 → 부분 실패 시에도 `finally` cleanup + `$disconnect`
+- stale lock은 자동 삭제하지 않음 (PID 생존 확인 후 수동 삭제 안내)
+
+### Prisma / runner `.env` fallback 위험
+
+Prisma CLI·일부 도구는 cwd의 `.env`를 읽을 수 있습니다.  
+integration wrapper는:
+
+1. 디스크의 `.env.smoke.local`만 파싱
+2. shell `DATABASE_URL` / `DIRECT_URL` 무시
+3. child에 smoke URL을 **강제 주입**
+4. `PrismaClient({ datasources: { db: { url } } })`로 명시 연결
+
+운영 `.env` fallback으로 integration을 돌리지 마세요.
+
+### D-6g-e2 시작 직전 (사용자)
+
+1. `.env.smoke.local`의 `EXCLOAD_ENV_PROFILE` / `TEST_DB_ENV_FILE` / DB URL 확인
+2. `ALLOW_TEST_DB_MUTATION=true` (로컬만)
+3. `npm run order-transmission:test-db:check` → PASS
+4. `npm run order-transmission:test-db:integration` 실행
+
+### D-6g-e2 종료 후 (사용자)
+
+1. cleanup 성공(건수) 확인
+2. `ALLOW_TEST_DB_MUTATION=false` 복구
+3. `git status` — secret·의도치 않은 변경 없음
+
+### 시나리오 K (TX rollback)
+
+실 DB에서 unique 충돌·존재하지 않는 Order update를 고의 유도하면 fixture가 불안정해질 수 있어 **integration에 억지 구현하지 않음**.  
+repository / prisma-persist **단위 테스트**로 충분하다고 본다.
+
+---
+
+## 11. 다음 단계
 
 | 단계 | 내용 |
 |------|------|
-| D-6g-b | 본 guard·runbook ← 현재 |
-| D-6g-c | 테스트 DB에만 `migrate deploy` (승인 후) |
-| D-6g-d | 실제 Prisma persist adapter |
-| D-6g-e | integration test + cleanup |
+| D-6g-b | guard·runbook |
+| D-6g-c | 테스트 DB `migrate deploy` (완료) |
+| D-6g-d | Prisma persist client (완료) |
+| D-6g-e1 | integration 코드 준비 (DB 미실행) ← 현재 |
+| D-6g-e2 | smoke DB에서 integration 실실행 |
 | D-6g-f | dry-run API |

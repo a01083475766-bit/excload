@@ -406,7 +406,26 @@ update 시 키를 넣지 않으면 해당 JSON 필드는 **미변경**.
 
 ### 실 DB integration test
 
-→ **D-6g-e** (smoke env 강제 주입 + mutation guard). 운영/테스트 schema는 적용됐으나 본 단계는 DB 미접속.
+→ **D-6g-e1** 코드 준비 / **D-6g-e2** 실실행. 아래 §17.
+
+---
+
+## 17. D-6g-e1 — smoke DB integration 준비 (DB 미접속)
+
+| 항목 | 내용 |
+|------|------|
+| 단계 | e1 = wrapper·fixture·cleanup·시나리오 **작성만**. e2에서만 실 DB 실행 |
+| wrapper | `.env.smoke.local` 직접 파싱 → preflight → child에 URL 강제 주입 |
+| 제외 | 일반 `vitest` / `npm test`에서 `*.integration.test.ts` 제외 |
+| 병렬 | integration config singleFork + `.shipment-transmission-it.lock` |
+| fixture | `shipment-transmission-it-*` / `TX-IT-*` prefix, ID 추적 cleanup |
+| Attempt | happy-path fixture에서 미리 만들지 않음 (repository 생성) |
+| K | TX rollback 고의 유도는 unit test로 충분 — integration 미구현 |
+| flag | e2 종료 후 `ALLOW_TEST_DB_MUTATION=false` 복구 |
+| 이중 gate | wrapper + test 파일 mutation gate (직접 vitest integration config 실행도 차단) |
+| Production | integration harness를 운영 DB에 절대 사용하지 않음 |
+
+`.env` fallback 위험: Prisma/runner가 프로젝트 `.env`를 읽을 수 있으므로 **전용 wrapper만** 사용.
 
 ---
 
@@ -428,3 +447,5 @@ update 시 키를 넣지 않으면 해당 JSON 필드는 **미변경**.
 | `prisma/schema.prisma` | Attempt·enum·lease |
 | `prisma/migrations/20260710230000_add_shipment_transmission_attempts/` | migration SQL (운영·smoke 적용됨) |
 | `transmission/__tests__/*` | 단위 테스트 |
+| `transmission/__tests__/integration/**` | smoke DB integration (e2에서만 실행) |
+| `scripts/run-shipment-transmission-db-integration.mjs` | integration 전용 wrapper |

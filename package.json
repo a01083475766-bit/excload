@@ -13,6 +13,7 @@
     "start": "next start",
     "db:migrate:deploy": "prisma migrate deploy",
     "order-transmission:test-db:check": "node scripts/check-shipment-transmission-test-db-env.mjs",
+    "order-transmission:test-db:integration": "node scripts/run-shipment-transmission-db-integration.mjs",
     "lint": "eslint",
     "test": "vitest"
   },
