@@ -118,4 +118,179 @@ describe('cleanup registry + harness (no DB)', () => {
     clearIdsAfterSuccessfulCleanup(ids, ['user']);
     expect(hasAnyTrackedIds(ids)).toBe(false);
   });
+
+  it('body finally success leaves registry empty (no afterEach delete)', async () => {
+    const registry = createCleanupRegistry();
+    const ids = createEmptyItIds('r4');
+    ids.userId = 'u4';
+    ids.userEmail = buildItEmail('r4');
+    const entry = registry.register('t4', ids);
+    entry.flags.fixtureCreated = true;
+
+    const bodyCleanup = vi.fn(async (tracked) => {
+      clearIdsAfterSuccessfulCleanup(tracked, ['user']);
+      return { ok: true, counts: [{ table: 'user', deleted: 1 }], summary: 'user:1', deletedTotal: 1 };
+    });
+    await runTrackedCleanup({
+      entry,
+      trackAttempts: async () => {},
+      cleanup: bodyCleanup,
+      disconnect: async () => {},
+    });
+    registry.markFullyCleaned('t4');
+
+    const afterEachCleanup = vi.fn();
+    const fallback = await cleanupPendingRegistryEntries({
+      registry,
+      createCleanupClient: () => ({
+        trackAttempts: async () => {},
+        cleanup: afterEachCleanup,
+        disconnect: async () => {},
+      }),
+    });
+    expect(bodyCleanup).toHaveBeenCalledTimes(1);
+    expect(afterEachCleanup).not.toHaveBeenCalled();
+    expect(fallback.cleanupPass).toBe(true);
+    expect(registry.hasPending()).toBe(false);
+  });
+
+  it('body throw still cleans via finally; afterEach sees empty registry', async () => {
+    const registry = createCleanupRegistry();
+    const ids = createEmptyItIds('r5');
+    ids.userId = 'u5';
+    ids.userEmail = buildItEmail('r5');
+    const entry = registry.register('t5', ids);
+    entry.flags.fixtureCreated = true;
+
+    let bodyError: unknown;
+    try {
+      throw new Error('scenario boom');
+    } catch (e) {
+      bodyError = e;
+    } finally {
+      await runTrackedCleanup({
+        entry,
+        trackAttempts: async () => {},
+        cleanup: async (tracked) => {
+          clearIdsAfterSuccessfulCleanup(tracked, ['user']);
+          return {
+            ok: true,
+            counts: [{ table: 'user', deleted: 1 }],
+            summary: 'user:1',
+            deletedTotal: 1,
+          };
+        },
+        disconnect: async () => {},
+      });
+      registry.markFullyCleaned('t5');
+    }
+    expect(String(bodyError)).toMatch(/scenario boom/);
+
+    const afterEachCleanup = vi.fn();
+    await cleanupPendingRegistryEntries({
+      registry,
+      createCleanupClient: () => ({
+        trackAttempts: async () => {},
+        cleanup: afterEachCleanup,
+        disconnect: async () => {},
+      }),
+    });
+    expect(afterEachCleanup).not.toHaveBeenCalled();
+    expect(registry.hasPending()).toBe(false);
+  });
+
+  it('body cleanup fail → afterEach retry → afterAll retry clears remaining', async () => {
+    const registry = createCleanupRegistry();
+    const ids = createEmptyItIds('r6');
+    ids.userId = 'u6';
+    ids.userEmail = buildItEmail('r6');
+    const entry = registry.register('t6', ids);
+    entry.flags.fixtureCreated = true;
+
+    // Body finally fails — IDs remain
+    const body = await runTrackedCleanup({
+      entry,
+      trackAttempts: async () => {},
+      cleanup: async () => ({
+        ok: false,
+        counts: [],
+        summary: '',
+        deletedTotal: 0,
+        errorCode: 'BODY_CLEANUP_FAIL',
+      }),
+      disconnect: async () => {},
+    });
+    expect(body.cleanupOk).toBe(false);
+    expect(registry.hasPending()).toBe(true);
+
+    // afterEach also fails
+    const afterEach = await cleanupPendingRegistryEntries({
+      registry,
+      createCleanupClient: () => ({
+        trackAttempts: async () => {},
+        cleanup: async () => ({
+          ok: false,
+          counts: [],
+          summary: '',
+          deletedTotal: 0,
+          errorCode: 'AFTEREACH_FAIL',
+        }),
+        disconnect: async () => {},
+      }),
+    });
+    expect(afterEach.cleanupPass).toBe(false);
+    expect(registry.hasPending()).toBe(true);
+
+    // afterAll succeeds
+    const afterAll = await cleanupPendingRegistryEntries({
+      registry,
+      createCleanupClient: () => ({
+        trackAttempts: async () => {},
+        cleanup: async (tracked) => {
+          clearIdsAfterSuccessfulCleanup(tracked, ['user']);
+          return {
+            ok: true,
+            counts: [{ table: 'user', deleted: 1 }],
+            summary: 'user:1',
+            deletedTotal: 1,
+          };
+        },
+        disconnect: async () => {},
+      }),
+    });
+    expect(afterAll.cleanupPass).toBe(true);
+    expect(registry.hasPending()).toBe(false);
+  });
+
+  it('cleanup fail leaves summary FAIL signals (pending + abort)', async () => {
+    const registry = createCleanupRegistry();
+    const ids = createEmptyItIds('r7');
+    ids.userId = 'u7';
+    ids.userEmail = buildItEmail('r7');
+    registry.register('t7', ids);
+
+    const result = await cleanupPendingRegistryEntries({
+      registry,
+      createCleanupClient: () => ({
+        trackAttempts: async () => {},
+        cleanup: async () => ({
+          ok: false,
+          counts: [],
+          summary: '',
+          deletedTotal: 0,
+          errorCode: 'CLEANUP_FAILED',
+        }),
+        disconnect: async () => {},
+      }),
+    });
+    expect(result.cleanupPass).toBe(false);
+    expect(registry.hasPending()).toBe(true);
+    expect(registry.getSuiteAbortReason()).toBeTruthy();
+    // Mimic afterAll summary gate: cleanupStatus FAIL when pending/abort
+    const cleanupStatus =
+      result.cleanupPass && !registry.hasPending() && !registry.getSuiteAbortReason()
+        ? 'PASS'
+        : 'FAIL';
+    expect(cleanupStatus).toBe('FAIL');
+  });
 });

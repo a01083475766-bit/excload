@@ -246,13 +246,17 @@ integration wrapper는:
 - 고립 테스트 데이터는 운영 DB에 영향 없음
 - 후속 orphan 탐지·cleanup은 별도 과제 가능
 
-#### D-6g-e2b
+#### D-6g-e2b / e2c
 
-1. `ALLOW_TEST_DB_MUTATION=true`
-2. preflight PASS
-3. `npm run order-transmission:test-db:integration` **한 번만**
-4. cleanup/disconnect marker + wrapper final PASS 확인
-5. `ALLOW_TEST_DB_MUTATION=false` 복구
+| 항목 | 내용 |
+|------|------|
+| e2b | 실 DB 1회 실행 시도 — **suite setup 실패**, 테스트 0건, fixture 없음 |
+| 원인 | `describe` 본문에서 `onTestFinished()` 호출 (Vitest 금지) |
+| e2c | `onTestFinished` 제거 → `afterEach`로 결과 집계, cleanup fallback 유지 |
+| 검증 | DB 없는 suite-load 단위 테스트 추가 |
+| 다음 | **D-6g-e2d**에서 smoke integration 1회 재실행 |
+
+test lifecycle cleanup 순서: 본문 `finally` → `afterEach` → `afterAll`.
 
 ### 시나리오 K (TX rollback)
 
@@ -270,6 +274,8 @@ repository / prisma-persist **단위 테스트**로 충분하다고 본다.
 | D-6g-d | Prisma persist client (완료) |
 | D-6g-e1 | integration 코드 준비 (DB 미실행) |
 | D-6g-e2 | 첫 실 DB 실행 — 6 PASS / 6 timeout |
-| D-6g-e2a | timeout·cleanup registry·wrapper 판정 보강 ← 현재 |
-| D-6g-e2b | smoke DB integration 재실행 (1회) |
+| D-6g-e2a | timeout·cleanup registry·wrapper 판정 보강 |
+| D-6g-e2b | 실 DB 재실행 — suite setup 오류로 FAIL |
+| D-6g-e2c | onTestFinished 수정 + suite-load 검증 ← 현재 |
+| D-6g-e2d | smoke DB integration 재실행 (1회) |
 | D-6g-f | dry-run API |

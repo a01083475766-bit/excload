@@ -1,13 +1,14 @@
 /**
- * Prisma persist — smoke DB integration scenarios (D-6g-e2a harness).
+ * Prisma persist — smoke DB integration scenarios (D-6g-e2c harness).
  *
  * Gated by SHIPMENT_TRANSMISSION_IT_RUN=true (wrapper only).
  * Excluded from default vitest via vitest.config.ts.
+ * Lifecycle: body finally → afterEach → afterAll (no describe-level onTestFinished).
  *
  * K (TX rollback): not forced here — covered by repository + prisma-persist unit tests.
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createPrismaShipmentTransmissionPersistClient } from '@/app/lib/order-integration/transmission/prisma-persist-client';
 import {
@@ -74,22 +75,24 @@ describe.skipIf(!enabled)('shipment transmission persist integration (smoke DB)'
   let testsFailed = 0;
   let testsTimedOut = 0;
 
-  onTestFinished(({ task }) => {
-    const state = task.result?.state;
+  function recordTestOutcome(context: unknown): void {
+    const task = (context as { task?: { result?: { state?: string; errors?: unknown[] } } })
+      .task;
+    const state = task?.result?.state;
     if (state === 'pass') {
       testsPassed += 1;
       return;
     }
     if (state === 'fail') {
       testsFailed += 1;
-      const msgs = (task.result?.errors ?? [])
+      const msgs = (task?.result?.errors ?? [])
         .map((e) => String((e as { message?: string }).message ?? e))
         .join(' ');
       if (/timed out|Test timed out/i.test(msgs)) {
         testsTimedOut += 1;
       }
     }
-  });
+  }
 
   function fingerprintFor(fx: ReadyTransmissionFixture): string {
     return buildShipmentTransmissionFingerprint({
@@ -161,17 +164,22 @@ describe.skipIf(!enabled)('shipment transmission persist integration (smoke DB)'
   }
 
   beforeAll(() => {
+    if (!enabled) return;
     expect(evaluateIntegrationMutationGate().ok).toBe(true);
   });
 
   beforeEach(() => {
+    if (!enabled) return;
     const abort = registry.getSuiteAbortReason();
     if (abort) {
       throw new Error(`suite aborted: ${abort}`);
     }
   });
 
-  afterEach(async () => {
+  afterEach(async (context) => {
+    if (!enabled) return;
+    recordTestOutcome(context);
+
     // Fallback if test timeout interrupted body finally mid-flight
     if (!registry.hasPending()) return;
     const fallback = await cleanupPendingRegistryEntries({
@@ -193,6 +201,9 @@ describe.skipIf(!enabled)('shipment transmission persist integration (smoke DB)'
   });
 
   afterAll(async () => {
+    // Suite may be collected while skipped — never write PASS summary or touch DB then
+    if (!enabled) return;
+
     const finalSweep = await cleanupPendingRegistryEntries({
       registry,
       createCleanupClient: () => {
