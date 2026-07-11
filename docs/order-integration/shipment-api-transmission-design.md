@@ -166,7 +166,7 @@ D-6b에서는 **migration 없음**. 기존 `transmissionErrorMessage`만 실패 
 - OrderSyncOrder.transmissionStatus 동기화
 - CarrierCodeMap 테이블
 - 배치 부분성공 enum
-- dry-run transmit 오케스트레이션
+- dry-run transmit 오케스트레이션 → **D-6g-f에서 구현**
 
 ---
 
@@ -429,6 +429,60 @@ update 시 키를 넣지 않으면 해당 JSON 필드는 **미변경**.
 
 ---
 
+## 18. D-6g-f — transmit dry-run API (read-only)
+
+### 경로·계약
+
+`POST /api/order/integration/shipments/uploads/[batchId]/transmit/dry-run`
+
+| 항목 | 내용 |
+|------|------|
+| 목적 | READY 배치의 Match를 **전송하지 않고** eligibility + 공통 candidate 미리보기 |
+| body | `{ matchIds?: string[]; retryFailed?: boolean }` (생략 시 배치 전체) |
+| `matchIds: []` | 0건 선택 (전체 조회 안 함) |
+| 최대 | matchIds 500 |
+| HTTP | 200 평가 완료 / 400 body / 401 / 404 batch / 409 batch≠READY / 500 정규화 |
+
+### 보장·비보장
+
+- **read-only**: Attempt·Match·Order 상태 변경 없음, Prisma write 없음
+- credential 복호화·provider adapter·외부 쇼핑몰 API **미사용**
+- dry-run PASS ≠ 실제 쇼핑몰 전송 성공 (provider 전용 payload·택배사 코드 검증은 이후 adapter)
+- empty body / `{}` / body 없음 → 배치 전체 평가; `{ matchIds: [] }` → 0건(조회 생략)
+- matchIds: 원본 길이 >500이면 즉시 400, trim 후 빈 문자열 400, trim 기준 중복은 첫 등장만
+
+### FAILED + retryFailed
+
+- `retryFailed=false` → `RETRY_NOT_REQUESTED` (ineligible)
+- `retryFailed=true` → eligibility 통과 가능, **`requiresRetryPreparation: true`**
+- dry-run은 FAILED→READY로 **바꾸지 않음**, Attempt 미생성
+- persisted executor는 READY만 실행하므로 UI는 `eligible=true`만으로 즉시 전송하면 안 됨
+- 실제 전송 전: 재시도 준비(READY 전환) + lease 예약 필요
+
+### integrationAccountId 응답 정책
+
+- **유지**: batch·candidate에 opaque `integrationAccountId` 반환
+- 이유: 기존 shipment detail/export가 동일 식별자를 이미 노출하며 UI scope에 사용
+- credential / ciphertext / provider token / Authorization **절대 미포함**
+- secret이 아닌 내부 계정 FK일 뿐
+
+### 평가
+
+- `evaluateShipmentTransmissionEligibility` 재사용 (`retryFailed`는 판정만, DB 미변경)
+- 정렬: `uploadRow.originalRowIndex` → `createdAt` → `id`
+- 선택 ID: 요청 순서 유지, 중복은 첫 번째만, 타 batch/타 user는 `MATCH_NOT_FOUND`로만 집계(존재 구분 없음)
+- summary: `eligibleCount + ineligibleCount = evaluatedCount`
+
+### 코드 위치
+
+| 파일 | 역할 |
+|------|------|
+| `transmission/parse-transmit-dry-run-body.ts` | body 검증 |
+| `transmission/dry-run.ts` | DB read + eligibility 오케스트레이션 |
+| `.../transmit/dry-run/route.ts` | HTTP 진입점 |
+
+---
+
 ## 13. 코드 위치
 
 | 파일 | 역할 |
@@ -444,6 +498,9 @@ update 시 키를 넣지 않으면 해당 JSON 필드는 **미변경**.
 | `transmission/prisma-persist-client.ts` | Prisma DI persist client |
 | `transmission/prisma-persist-mappers.ts` | select·JSON mapper |
 | `transmission/prisma-persist-error.ts` | Prisma 오류 정규화 |
+| `transmission/dry-run.ts` | dry-run 오케스트레이션 (read-only) |
+| `transmission/parse-transmit-dry-run-body.ts` | dry-run body 검증 |
+| `api/.../transmit/dry-run/route.ts` | dry-run HTTP |
 | `prisma/schema.prisma` | Attempt·enum·lease |
 | `prisma/migrations/20260710230000_add_shipment_transmission_attempts/` | migration SQL (운영·smoke 적용됨) |
 | `transmission/__tests__/*` | 단위 테스트 |

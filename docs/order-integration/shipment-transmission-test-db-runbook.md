@@ -276,6 +276,6 @@ repository / prisma-persist **단위 테스트**로 충분하다고 본다.
 | D-6g-e2 | 첫 실 DB 실행 — 6 PASS / 6 timeout |
 | D-6g-e2a | timeout·cleanup registry·wrapper 판정 보강 |
 | D-6g-e2b | 실 DB 재실행 — suite setup 오류로 FAIL |
-| D-6g-e2c | onTestFinished 수정 + suite-load 검증 ← 현재 |
-| D-6g-e2d | smoke DB integration 재실행 (1회) |
+| D-6g-e2c | onTestFinished 수정 + suite-load 검증 |
+| D-6g-e2d | smoke DB integration 재실행 PASS |
 | D-6g-f | dry-run API |
