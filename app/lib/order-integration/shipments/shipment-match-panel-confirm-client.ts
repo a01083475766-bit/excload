@@ -40,6 +40,23 @@ export function buildShipmentUploadMatchLinkUrl(batchId: string, matchId: string
   return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/matches/${encodeURIComponent(matchId)}/link`;
 }
 
+export function buildShipmentUploadMatchEditUrl(batchId: string, matchId: string): string {
+  return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/matches/${encodeURIComponent(matchId)}/edit`;
+}
+
+export function buildShipmentUploadTransmitDryRunUrl(batchId: string): string {
+  return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/transmit/dry-run`;
+}
+
+export function buildShipmentUploadTransmitUrl(batchId: string, mode: 'real' | 'mock' = 'real'): string {
+  const suffix = mode === 'mock' ? '/mock' : '';
+  return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/transmit${suffix}`;
+}
+
+export function buildShipmentUploadTransmitResultsUrl(batchId: string): string {
+  return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/transmit/results`;
+}
+
 export function buildShipmentUploadExportUrl(
   batchId: string,
   options: {
@@ -77,6 +94,14 @@ export type ShipmentUploadLinkableOrdersFetchResult =
 
 export type ShipmentUploadMatchLinkFetchResult =
   | { ok: true; body: LinkShipmentUploadMatchSuccessResponse }
+  | { ok: false; status: number; error: string };
+
+export type ShipmentUploadMatchEditFetchResult =
+  | { ok: true; body: ShipmentUploadBatchDetailResponse }
+  | { ok: false; status: number; error: string };
+
+export type ShipmentUploadTransmitFetchResult =
+  | { ok: true; body: unknown }
   | { ok: false; status: number; error: string };
 
 export type ShipmentUploadExportDownloadResult =
@@ -256,6 +281,55 @@ export async function postShipmentUploadMatchLink(
     };
   }
 
+  return { ok: true, body: json };
+}
+
+export async function postShipmentUploadMatchEdit(
+  batchId: string,
+  matchId: string,
+  body: { trackingNumber: string; carrierCode?: string | null; carrierName?: string | null },
+  fetchFn: typeof fetch = fetch,
+): Promise<ShipmentUploadMatchEditFetchResult> {
+  const response = await fetchFn(buildShipmentUploadMatchEditUrl(batchId, matchId), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = (await response.json().catch(() => null)) as
+    | ShipmentUploadBatchDetailResponse
+    | { error?: string }
+    | null;
+  if (!response.ok) {
+    const errorBody =
+      json && typeof json === 'object' && 'error' in json ? { error: json.error } : null;
+    return { ok: false, status: response.status, error: mapShipmentMatchFetchError(response.status, errorBody) };
+  }
+  if (!json || !('success' in json) || !json.success) {
+    return { ok: false, status: 500, error: '송장정보 수정 결과를 불러오지 못했습니다.' };
+  }
+  return { ok: true, body: json };
+}
+
+export async function postShipmentUploadTransmit(
+  batchId: string,
+  body: { matchIds: string[]; retryFailed?: boolean },
+  options: { dryRun?: boolean; mock?: boolean } = {},
+  fetchFn: typeof fetch = fetch,
+): Promise<ShipmentUploadTransmitFetchResult> {
+  const url = options.dryRun
+    ? buildShipmentUploadTransmitDryRunUrl(batchId)
+    : buildShipmentUploadTransmitUrl(batchId, options.mock ? 'mock' : 'real');
+  const response = await fetchFn(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = (await response.json().catch(() => null)) as { error?: string } | unknown;
+  if (!response.ok) {
+    const errorBody =
+      json && typeof json === 'object' && 'error' in json ? { error: json.error as string } : null;
+    return { ok: false, status: response.status, error: mapShipmentMatchFetchError(response.status, errorBody) };
+  }
   return { ok: true, body: json };
 }
 

@@ -163,6 +163,18 @@ export type OrderSyncPersistTransactionClient = {
     create: (args: { data: Record<string, unknown> }) => Promise<PersistedOrderSyncBatchLike>;
   };
   orderSyncOrder: {
+    findMany?: (args: {
+      where: {
+        userId: string;
+        provider: OrderIntegrationProvider;
+        integrationAccountId?: string | null;
+        mallOrderNo?: { in: string[] };
+      };
+      select: {
+        mallOrderNo: true;
+        mallLineItemIds: true;
+      };
+    }) => Promise<Array<{ mallOrderNo: string; mallLineItemIds: unknown }>>;
     create: (args: { data: Record<string, unknown> }) => Promise<PersistedOrderSyncOrderLike>;
   };
 };

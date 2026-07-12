@@ -483,6 +483,50 @@ update 시 키를 넣지 않으면 해당 JSON 필드는 **미변경**.
 
 ---
 
+## 19. D-6h-b — mock transmit service (route 전)
+
+### 예정 경로
+
+`POST /api/order/integration/shipments/uploads/[batchId]/transmit/mock` (D-6h-c에서 route 연결)
+
+### 운영 차단 (전부 충족 시에만 허용)
+
+| 변수 / 조건 | 기본·의미 |
+|-------------|-----------|
+| `ORDER_TRANSMISSION_MOCK_ENABLED` | 기본 false / 미설정. `true`만 허용 |
+| `VERCEL_ENV` / `NODE_ENV` / `EXCLOAD_ENV_PROFILE` | `production`이면 **무조건 차단** (override 없음) |
+| `ORDER_TRANSMISSION_MOCK_ALLOWED_USER_IDS` | 콤마 구분. **비어 있으면 전면 차단** |
+| `ORDER_TRANSMISSION_MOCK_BATCH_PREFIX` | 예: `shipment-transmission-it-`. 비어 있으면 차단. `originalFileName` prefix 일치만 허용 (`batchId` 문자열 미신뢰) |
+| credential | 계정에 access/secret/api **ciphertext 존재 마커**가 있으면 차단 (decrypt 금지). IT fixture는 cipher null + account id 허용 |
+
+### body
+
+- `{ matchIds: string[] }` 필수, 최소 1·최대 500
+- 전체 batch 자동 전송 금지
+- `mockBehavior`는 일반 body에 없음 (adapter DI로만 결정)
+
+### 실행 규칙
+
+- dry-run 결과 미신뢰 — 실행 직전 eligibility 재검사
+- **transmissionStatus === READY만** persisted executor 실행 (`NONE` 자동 READY 금지)
+- FAILED / UNKNOWN / SENT / SKIPPED / PROCESSING 제외
+- UNKNOWN·FAILED 자동 READY 금지
+- 한 Match 실패해도 다음 계속 (부분 성공)
+- mock UNKNOWN → Attempt/Match/Order UNKNOWN (`outcomeKind: 'unknown'`)
+- 응답은 상태 결과 중심 (tracking·mallOrderNo·token·fingerprint·accountId 미포함)
+- 일반 UI 미노출. mock 결과 ≠ 실제 쇼핑몰 전송
+
+### 코드 (D-6h-b)
+
+| 파일 | 역할 |
+|------|------|
+| `transmission/mock-transmit-guard.ts` | 환경·유저·테스트 batch·credential 가드 |
+| `transmission/parse-transmit-mock-body.ts` | matchIds body |
+| `transmission/mock-transmit-service.ts` | DI 오케스트레이션 + read repository 계약 |
+| `transmission/mock-adapter.ts` | `unknown` outcome 포함 |
+
+---
+
 ## 13. 코드 위치
 
 | 파일 | 역할 |
@@ -500,6 +544,9 @@ update 시 키를 넣지 않으면 해당 JSON 필드는 **미변경**.
 | `transmission/prisma-persist-error.ts` | Prisma 오류 정규화 |
 | `transmission/dry-run.ts` | dry-run 오케스트레이션 (read-only) |
 | `transmission/parse-transmit-dry-run-body.ts` | dry-run body 검증 |
+| `transmission/mock-transmit-guard.ts` | mock transmit 환경 가드 |
+| `transmission/parse-transmit-mock-body.ts` | mock transmit body |
+| `transmission/mock-transmit-service.ts` | mock transmit 오케스트레이션 |
 | `api/.../transmit/dry-run/route.ts` | dry-run HTTP |
 | `prisma/schema.prisma` | Attempt·enum·lease |
 | `prisma/migrations/20260710230000_add_shipment_transmission_attempts/` | migration SQL (운영·smoke 적용됨) |

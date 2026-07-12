@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type {
   ShipmentTransmissionAdapter,
   ShipmentTransmissionAdapterProvider,
@@ -9,7 +11,8 @@ import type {
 export type MockShipmentTransmissionOutcome =
   | 'success'
   | 'retryable_failure'
-  | 'non_retryable_failure';
+  | 'non_retryable_failure'
+  | 'unknown';
 
 export type MockShipmentTransmissionAdapterOptions = {
   provider: ShipmentTransmissionAdapterProvider;
@@ -17,9 +20,23 @@ export type MockShipmentTransmissionAdapterOptions = {
   defaultOutcome?: MockShipmentTransmissionOutcome;
   /** matchId별 결과 오버라이드 */
   byMatchId?: Readonly<Record<string, MockShipmentTransmissionOutcome>>;
-  /** 결정적 request id. 기본: mock-{provider}-{matchId} */
+  /**
+   * 결정적 request id.
+   * 기본: mock-{sha256(provider|matchId)[0..16]} — mall/tracking 원문 미포함
+   */
   requestIdFactory?: (candidate: ShipmentTransmissionCandidate) => string;
 };
+
+export function buildDeterministicMockProviderRequestId(
+  provider: ShipmentTransmissionAdapterProvider,
+  matchId: string,
+): string {
+  const digest = createHash('sha256')
+    .update(`mock|${String(provider)}|${matchId}`)
+    .digest('hex')
+    .slice(0, 16);
+  return `mock-${digest}`;
+}
 
 function buildSummary(
   outcome: MockShipmentTransmissionOutcome,
@@ -39,6 +56,14 @@ function buildSummary(
       providerStatusCode: 'TEMPORARY_ERROR',
       providerRequestId,
       message: 'mock retryable failure',
+    };
+  }
+  if (outcome === 'unknown') {
+    return {
+      httpStatus: 504,
+      providerStatusCode: 'UNKNOWN',
+      providerRequestId,
+      message: 'mock transmission result unknown',
     };
   }
   return {
@@ -64,6 +89,7 @@ function toAdapterResult(
       errorCode: null,
       errorMessage: null,
       retryable: false,
+      outcomeKind: 'success',
       responseSummary: buildSummary(outcome, providerRequestId),
     };
   }
@@ -77,6 +103,21 @@ function toAdapterResult(
       errorCode: 'MOCK_RETRYABLE_FAILURE',
       errorMessage: 'mock adapter retryable failure',
       retryable: true,
+      outcomeKind: 'failure',
+      responseSummary: buildSummary(outcome, providerRequestId),
+    };
+  }
+
+  if (outcome === 'unknown') {
+    return {
+      success: false,
+      provider,
+      matchId: candidate.matchId,
+      providerRequestId,
+      errorCode: 'MOCK_UNKNOWN_RESULT',
+      errorMessage: 'Mock transmission result is unknown.',
+      retryable: false,
+      outcomeKind: 'unknown',
       responseSummary: buildSummary(outcome, providerRequestId),
     };
   }
@@ -89,6 +130,7 @@ function toAdapterResult(
     errorCode: 'MOCK_NON_RETRYABLE_FAILURE',
     errorMessage: 'mock adapter non-retryable failure',
     retryable: false,
+    outcomeKind: 'failure',
     responseSummary: buildSummary(outcome, providerRequestId),
   };
 }
@@ -104,7 +146,7 @@ export function createMockShipmentTransmissionAdapter(
   const requestIdFactory =
     options.requestIdFactory ??
     ((candidate: ShipmentTransmissionCandidate) =>
-      `mock-${String(options.provider)}-${candidate.matchId}`);
+      buildDeterministicMockProviderRequestId(options.provider, candidate.matchId));
 
   return {
     provider: options.provider,

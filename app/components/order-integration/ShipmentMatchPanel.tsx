@@ -11,6 +11,7 @@ import {
 } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
 import {
   buildShipmentMatchPanelViewStateFromConfirmResponse,
+  buildShipmentMatchPanelViewStateFromDetailResponse,
   buildShipmentMatchPanelViewStateFromExcludeResponse,
   buildShipmentMatchPanelViewStateFromLinkResponse,
   buildShipmentMatchPanelViewStateFromUpload,
@@ -29,8 +30,10 @@ import {
   fetchShipmentUploadBatchDetail,
   fetchShipmentUploadLinkableOrders,
   postShipmentUploadMatchConfirm,
+  postShipmentUploadMatchEdit,
   postShipmentUploadMatchExclude,
   postShipmentUploadMatchLink,
+  postShipmentUploadTransmit,
 } from '@/app/lib/order-integration/shipments/shipment-match-panel-confirm-client';
 import type { ShipmentUploadPersistSuccessResponse } from '@/app/lib/order-integration/shipments/upload-and-persist-shipment-file';
 import {
@@ -47,6 +50,8 @@ import type { ShipmentMatchPanelDisplayRow } from '@/app/lib/order-integration/s
 
 const ACCEPTED_EXTENSIONS = '.csv,.xlsx,.xls';
 const TABLE_HEADERS = [
+  '선택',
+  '전송',
   '상태',
   '쇼핑몰',
   '쇼핑몰 주문번호',
@@ -62,6 +67,7 @@ const TABLE_HEADERS = [
   '연결',
   '확정',
   '제외',
+  '수정',
 ] as const;
 
 function formatOrderedAt(iso: string | null): string {
@@ -113,6 +119,13 @@ export default function ShipmentMatchPanel() {
   const [linkPanelError, setLinkPanelError] = useState<string | null>(null);
   const [isDownloadingExport, setIsDownloadingExport] = useState(false);
   const [exportDownloadError, setExportDownloadError] = useState<string | null>(null);
+  const [selectedTransmitMatchIds, setSelectedTransmitMatchIds] = useState<string[]>([]);
+  const [transmitMessage, setTransmitMessage] = useState<string | null>(null);
+  const [isTransmitting, setIsTransmitting] = useState(false);
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
+  const [editTrackingNumber, setEditTrackingNumber] = useState('');
+  const [editCarrierCode, setEditCarrierCode] = useState('');
+  const [editCarrierName, setEditCarrierName] = useState('');
 
   const inputClass =
     'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
@@ -140,6 +153,12 @@ export default function ShipmentMatchPanel() {
     [viewState],
   );
 
+  const toggleTransmitSelection = useCallback((matchId: string) => {
+    setSelectedTransmitMatchIds((current) =>
+      current.includes(matchId) ? current.filter((id) => id !== matchId) : [...current, matchId],
+    );
+  }, []);
+
   const assignSelectedFile = useCallback((file: File | null) => {
     setSelectedFile(file);
     setViewState(null);
@@ -147,6 +166,8 @@ export default function ShipmentMatchPanel() {
     setRowActionError(null);
     setActiveTab('all');
     setExportDownloadError(null);
+    setSelectedTransmitMatchIds([]);
+    setTransmitMessage(null);
   }, []);
 
   const handleFileSelection = useCallback(
@@ -410,6 +431,60 @@ export default function ShipmentMatchPanel() {
     }
   }, [isBatchReady, sessionStatus, viewState]);
 
+  const openEditPanel = useCallback((row: ShipmentMatchPanelDisplayRow) => {
+    if (!row.matchId) return;
+    setEditingMatchId(row.matchId);
+    setEditTrackingNumber(row.trackingNumberValue ?? '');
+    setEditCarrierCode(row.carrierCode ?? '');
+    setEditCarrierName(row.carrierName ?? '');
+    setRowActionError(null);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!viewState || !editingMatchId || sessionStatus !== 'authenticated') return;
+    const result = await postShipmentUploadMatchEdit(viewState.uploadBatchId, editingMatchId, {
+      trackingNumber: editTrackingNumber,
+      carrierCode: editCarrierCode || null,
+      carrierName: editCarrierName || null,
+    });
+    if (!result.ok) {
+      setRowActionError(result.error);
+      return;
+    }
+    setViewState(buildShipmentMatchPanelViewStateFromDetailResponse(result.body, viewState));
+    setEditingMatchId(null);
+  }, [editCarrierCode, editCarrierName, editTrackingNumber, editingMatchId, sessionStatus, viewState]);
+
+  const handleTransmit = useCallback(
+    async (mode: 'dry-run' | 'mock' | 'real') => {
+      if (!viewState || sessionStatus !== 'authenticated' || selectedTransmitMatchIds.length === 0) {
+        setTransmitMessage('전송할 행을 선택해주세요.');
+        return;
+      }
+      setIsTransmitting(true);
+      setTransmitMessage(null);
+      try {
+        const result = await postShipmentUploadTransmit(
+          viewState.uploadBatchId,
+          { matchIds: selectedTransmitMatchIds, retryFailed: true },
+          { dryRun: mode === 'dry-run', mock: mode === 'mock' },
+        );
+        if (!result.ok) {
+          setTransmitMessage(result.error);
+          return;
+        }
+        setTransmitMessage(`${mode} 처리 완료`);
+        const detail = await fetchShipmentUploadBatchDetail(viewState.uploadBatchId);
+        if (detail.ok) {
+          setViewState(buildShipmentMatchPanelViewStateFromDetailResponse(detail.body, viewState));
+        }
+      } finally {
+        setIsTransmitting(false);
+      }
+    },
+    [selectedTransmitMatchIds, sessionStatus, viewState],
+  );
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-10 sm:px-6">
       <Link
@@ -659,6 +734,40 @@ export default function ShipmentMatchPanel() {
             ))}
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+            <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+              선택 {selectedTransmitMatchIds.length}건
+            </span>
+            <button
+              type="button"
+              onClick={() => void handleTransmit('dry-run')}
+              disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+            >
+              Dry-run
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleTransmit('mock')}
+              disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Mock 전송
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleTransmit('real')}
+              disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-3 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              실전송
+            </button>
+            {isTransmitting ? <Loader2 className="h-4 w-4 animate-spin text-zinc-500" /> : null}
+            {transmitMessage ? (
+              <span className="text-xs text-zinc-600 dark:text-zinc-300">{transmitMessage}</span>
+            ) : null}
+          </div>
+
           <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
             <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
               <thead className="bg-zinc-50 dark:bg-zinc-900">
@@ -689,11 +798,33 @@ export default function ShipmentMatchPanel() {
                     return (
                       <tr key={`${row.shipmentRowIndex}-${row.matchStatus}-${index}`}>
                         <td className="whitespace-nowrap px-3 py-2">
+                          {row.matchId && row.hasLinkedOrder ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedTransmitMatchIds.includes(row.matchId)}
+                              onChange={() => toggleTransmitSelection(row.matchId!)}
+                              aria-label="전송 행 선택"
+                            />
+                          ) : (
+                            <span className="text-xs text-zinc-400">-</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2">
                           <span
                             className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusMeta.badgeClass}`}
                           >
                             {statusMeta.label}
                           </span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-700 dark:text-zinc-200">
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-semibold dark:bg-zinc-800">
+                            {row.transmissionStatus ?? '-'}
+                          </span>
+                          {row.transmissionErrorMessage ? (
+                            <span className="ml-1 text-red-600 dark:text-red-300">
+                              {row.transmissionErrorMessage}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-zinc-800 dark:text-zinc-200">
                           {row.providerLabel ?? '-'}
@@ -787,6 +918,19 @@ export default function ShipmentMatchPanel() {
                             <span className="text-xs text-zinc-400">-</span>
                           )}
                         </td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          {row.matchId && row.transmissionStatus !== 'SENT' ? (
+                            <button
+                              type="button"
+                              onClick={() => openEditPanel(row)}
+                              className="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                            >
+                              수정
+                            </button>
+                          ) : (
+                            <span className="text-xs text-zinc-400">-</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })
@@ -795,6 +939,65 @@ export default function ShipmentMatchPanel() {
             </table>
           </div>
         </section>
+      ) : null}
+
+      {editingMatchId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shipment-edit-panel-title"
+            className="w-full max-w-md rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <div className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+              <h3 id="shipment-edit-panel-title" className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                송장정보 수정
+              </h3>
+            </div>
+            <div className="space-y-3 px-4 py-4">
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                송장번호
+                <input
+                  value={editTrackingNumber}
+                  onChange={(event) => setEditTrackingNumber(event.target.value)}
+                  className={`${inputClass} mt-1`}
+                />
+              </label>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                택배사 코드
+                <input
+                  value={editCarrierCode}
+                  onChange={(event) => setEditCarrierCode(event.target.value)}
+                  className={`${inputClass} mt-1`}
+                />
+              </label>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                택배사명
+                <input
+                  value={editCarrierName}
+                  onChange={(event) => setEditCarrierName(event.target.value)}
+                  className={`${inputClass} mt-1`}
+                />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
+              <button
+                type="button"
+                onClick={() => setEditingMatchId(null)}
+                className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveEdit()}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {linkPanelMatchId ? (

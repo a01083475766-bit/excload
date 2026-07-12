@@ -28,8 +28,11 @@ export type ShipmentUploadBatchDetailRow = {
   receiverPhoneMasked: string | null;
   receiverAddressMasked: string | null;
   trackingNumberMasked: string | null;
+  trackingNumberValue: string | null;
   productSummary: string | null;
   carrierName: string | null;
+  carrierCode: string | null;
+  transmissionErrorMessage: string | null;
   matchReason: string | null;
   matchScore: number | null;
 };
@@ -74,6 +77,10 @@ type LoadedShipmentMatch = {
   algorithmMatchStatus: ShipmentAlgorithmMatchStatus;
   userConfirmationStatus: ShipmentUserConfirmationStatus;
   transmissionStatus: OrderSyncTransmissionStatus;
+  transmissionErrorMessage: string | null;
+  finalTrackingNumber: string | null;
+  finalCarrierCode: string | null;
+  finalCarrierName: string | null;
   matchScore: number;
   matchReason: string | null;
   provider: OrderIntegrationProvider | null;
@@ -85,6 +92,7 @@ type LoadedShipmentUploadRow = {
   originalRowIndex: number;
   trackingNumber: string;
   carrierName: string | null;
+  carrierCode: string | null;
   receiverName: string | null;
   receiverPhone: string | null;
   receiverAddress: string | null;
@@ -190,8 +198,11 @@ export function mapShipmentUploadBatchDetailRow(input: {
     receiverPhoneMasked: maskShipmentPhone(receiverPhone),
     receiverAddressMasked: maskShipmentAddress(receiverAddress),
     trackingNumberMasked: maskShipmentTrackingNumber(row.trackingNumber),
+    trackingNumberValue: null,
     productSummary: productSummary?.trim() || null,
-    carrierName: row.carrierName?.trim() || null,
+    carrierName: match?.finalCarrierName?.trim() || row.carrierName?.trim() || null,
+    carrierCode: match?.finalCarrierCode?.trim() || row.carrierCode?.trim() || null,
+    transmissionErrorMessage: match?.transmissionErrorMessage ?? null,
     matchReason: match?.matchReason ?? null,
     matchScore: match?.matchScore ?? null,
   };
@@ -248,6 +259,7 @@ export async function loadShipmentUploadBatchDetail(
       originalRowIndex: true,
       trackingNumber: true,
       carrierName: true,
+      carrierCode: true,
       receiverName: true,
       receiverPhone: true,
       receiverAddress: true,
@@ -260,6 +272,10 @@ export async function loadShipmentUploadBatchDetail(
           algorithmMatchStatus: true,
           userConfirmationStatus: true,
           transmissionStatus: true,
+          transmissionErrorMessage: true,
+          finalTrackingNumber: true,
+          finalCarrierCode: true,
+          finalCarrierName: true,
           matchScore: true,
           matchReason: true,
           provider: true,

@@ -143,6 +143,9 @@ export function sanitizeTransmissionErrorMessage(message: string | null | undefi
     .replace(/Bearer\s+\S+/gi, '[REDACTED]')
     .replace(/Authorization:\s*\S+/gi, '[REDACTED]')
     .replace(/(api[_-]?key|secret|password|token)\s*[:=]\s*\S+/gi, '$1=[REDACTED]')
+    .replace(/\b01[016789][-\s]?\d{3,4}[-\s]?\d{4}\b/g, '[REDACTED_PHONE]')
+    .replace(/\b\d{2,3}[-\s]?\d{3,4}[-\s]?\d{4}\b/g, '[REDACTED_PHONE]')
+    .replace(/\b\d{10,16}\b/g, '[REDACTED_NUMBER]')
     .replace(/\r?\n/g, ' ')
     .trim();
   if (!text) return null;

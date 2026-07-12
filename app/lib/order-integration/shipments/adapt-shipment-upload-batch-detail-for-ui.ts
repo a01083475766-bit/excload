@@ -26,6 +26,10 @@ export type ShipmentMatchPanelDisplayRow = ShipmentMatchDisplayRow & {
   matchId: string | null;
   userConfirmationStatus: ShipmentUserConfirmationStatus | null;
   hasLinkedOrder: boolean;
+  transmissionStatus: ShipmentUploadBatchDetailRow['transmissionStatus'];
+  transmissionErrorMessage: string | null;
+  trackingNumberValue: string | null;
+  carrierCode: string | null;
 };
 
 export type ShipmentMatchPanelViewState = {
@@ -70,8 +74,12 @@ export function adaptShipmentUploadBatchDetailRowForDisplay(
     productSummary: row.productSummary,
     carrierName: row.carrierName,
     trackingNumberMasked: row.trackingNumberMasked,
+    trackingNumberValue: row.trackingNumberValue,
+    carrierCode: row.carrierCode,
     matchId: row.matchId,
     userConfirmationStatus: row.userConfirmationStatus,
+    transmissionStatus: row.transmissionStatus,
+    transmissionErrorMessage: row.transmissionErrorMessage,
     hasLinkedOrder,
   };
 }
@@ -199,4 +207,14 @@ export function buildShipmentMatchPanelViewStateFromLinkResponse(
       parseWarningCount: previous.parse.warningCount,
     },
   );
+}
+
+export function buildShipmentMatchPanelViewStateFromDetailResponse(
+  response: ShipmentUploadBatchDetailResponse,
+  previous: ShipmentMatchPanelViewState,
+): ShipmentMatchPanelViewState {
+  return adaptShipmentUploadBatchDetailForUi(response, {
+    ordersLoadedCount: previous.ordersLoadedCount,
+    parseWarningCount: previous.parse.warningCount,
+  });
 }

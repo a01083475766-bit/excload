@@ -57,6 +57,19 @@ function mapSnapshotToOrderCreateData(input: {
   };
 }
 
+function normalizeLineIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item ?? '').trim()).filter(Boolean).sort();
+}
+
+function buildSnapshotDedupeKey(input: {
+  mallOrderNo: string;
+  mallLineItemIds?: unknown;
+}): string {
+  const lineIds = normalizeLineIds(input.mallLineItemIds);
+  return `${input.mallOrderNo.trim()}::${lineIds.join('|')}`;
+}
+
 /**
  * snapshot DTO 배열을 OrderSyncBatch / OrderSyncOrder로 저장합니다.
  *
@@ -69,14 +82,45 @@ export async function persistOrderSyncBatch(
   input: PersistOrderSyncBatchInput,
 ): Promise<PersistOrderSyncBatchResult> {
   const fetchedAt = toFetchedAt(input.fetchedAt);
-  const snapshots = input.snapshots;
-  const orderCount = snapshots.length;
+  const snapshots = [...input.snapshots];
 
   return client.$transaction(async (tx) => {
+    const mallOrderNos = [...new Set(snapshots.map((s) => s.mallOrderNo.trim()).filter(Boolean))];
+    const existingRows =
+      mallOrderNos.length > 0 && tx.orderSyncOrder.findMany
+        ? await tx.orderSyncOrder.findMany({
+            where: {
+              userId: input.userId,
+              provider: input.provider,
+              integrationAccountId: input.integrationAccountId ?? null,
+              mallOrderNo: { in: mallOrderNos },
+            },
+            select: { mallOrderNo: true, mallLineItemIds: true },
+          })
+        : [];
+    const existingKeys = new Set(
+      existingRows.map((row) =>
+        buildSnapshotDedupeKey({
+          mallOrderNo: row.mallOrderNo,
+          mallLineItemIds: row.mallLineItemIds,
+        }),
+      ),
+    );
+    const seenInThisBatch = new Set<string>();
+    const dedupedSnapshots = snapshots.filter((snapshot) => {
+      const key = buildSnapshotDedupeKey({
+        mallOrderNo: snapshot.mallOrderNo,
+        mallLineItemIds: snapshot.mallLineItemIds,
+      });
+      if (existingKeys.has(key) || seenInThisBatch.has(key)) return false;
+      seenInThisBatch.add(key);
+      return true;
+    });
+    const dedupedOrderCount = dedupedSnapshots.length;
     const dateKey = formatExcloadOrderNoDateKey(fetchedAt);
     const excloadOrderNos =
-      orderCount > 0
-        ? await reserveExcloadOrderNos(tx, { dateKey, count: orderCount })
+      dedupedOrderCount > 0
+        ? await reserveExcloadOrderNos(tx, { dateKey, count: dedupedOrderCount })
         : [];
 
     const batch = await tx.orderSyncBatch.create({
@@ -86,7 +130,7 @@ export async function persistOrderSyncBatch(
         integrationAccountId: input.integrationAccountId ?? null,
         sourceType: input.sourceType ?? 'API',
         fetchedAt,
-        orderCount,
+        orderCount: dedupedOrderCount,
         status: 'ACTIVE',
         memo: input.memo ?? null,
         errorMessage: null,
@@ -94,8 +138,8 @@ export async function persistOrderSyncBatch(
     });
 
     const orders = [];
-    for (let index = 0; index < snapshots.length; index++) {
-      const snapshot = snapshots[index]!;
+    for (let index = 0; index < dedupedSnapshots.length; index++) {
+      const snapshot = dedupedSnapshots[index]!;
       const order = await tx.orderSyncOrder.create({
         data: mapSnapshotToOrderCreateData({
           batchId: batch.id,

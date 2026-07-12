@@ -55,6 +55,31 @@ describe('createMockShipmentTransmissionAdapter', () => {
     expect(result.success).toBe(false);
     expect(result.retryable).toBe(false);
     expect(result.errorCode).toBe('MOCK_NON_RETRYABLE_FAILURE');
+    expect(result.outcomeKind).toBe('failure');
+  });
+
+  it('returns unknown with outcomeKind unknown', async () => {
+    const adapter = createMockShipmentTransmissionAdapter({
+      provider: 'COUPANG',
+      defaultOutcome: 'unknown',
+      requestIdFactory: () => 'req-unknown-1',
+    });
+    const result = await adapter.transmit(CANDIDATE);
+    expect(result.success).toBe(false);
+    expect(result.outcomeKind).toBe('unknown');
+    expect(result.retryable).toBe(false);
+    expect(result.errorCode).toBe('MOCK_UNKNOWN_RESULT');
+    expect(result.providerRequestId).toBe('req-unknown-1');
+    expect(result.responseSummary?.providerStatusCode).toBe('UNKNOWN');
+  });
+
+  it('default providerRequestId is deterministic and omits mall/tracking', async () => {
+    const adapter = createMockShipmentTransmissionAdapter({ provider: 'COUPANG' });
+    const a = await adapter.transmit(CANDIDATE);
+    const b = await adapter.transmit(CANDIDATE);
+    expect(a.providerRequestId).toBe(b.providerRequestId);
+    expect(a.providerRequestId).toMatch(/^mock-[a-f0-9]{16}$/);
+    expect(a.providerRequestId).not.toMatch(/MALL-1|012345678901/);
   });
 
   it('applies per-matchId outcomes deterministically', async () => {
