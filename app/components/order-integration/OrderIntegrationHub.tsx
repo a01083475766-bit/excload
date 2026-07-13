@@ -58,9 +58,7 @@ export default function OrderIntegrationHub() {
   const [busy, setBusy] = useState<'file' | 'text' | 'download' | null>(null);
   const [statusLabel, setStatusLabel] = useState<string | null>(null);
 
-  const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock({
-    title: '엑셀 잠금 해제',
-  });
+  const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock();
 
   const showNotice = (message: string) => {
     setHubError(null);
