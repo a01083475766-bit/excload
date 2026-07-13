@@ -9,6 +9,7 @@ export const TEMPLATE_HEADER_LOG_PAGES = [
   'order-convert',
   'logistics-convert',
   'invoice-file-convert',
+  'order-integration-hub',
 ] as const;
 
 export type TemplateHeaderLogPage = (typeof TEMPLATE_HEADER_LOG_PAGES)[number];

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import {
@@ -33,6 +33,13 @@ import {
   loadHubFixedHeaderValues,
   loadHubTemplateBridge,
 } from '@/app/lib/order-integration/order-integration-hub-convert';
+import { OrderIntegrationFixedInputModal } from '@/app/components/order-integration/OrderIntegrationFixedInputModal';
+import { OrderIntegrationTemplateModal } from '@/app/components/order-integration/OrderIntegrationTemplateModal';
+import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
+import {
+  extractNonEmptyHeaderNames,
+  loadCourierUploadTemplate,
+} from '@/app/lib/courier-upload-template-storage';
 
 /**
  * 쇼핑몰주문연동 허브 — 미연동 몰 파일·텍스트 변환 + 미리보기.
@@ -57,8 +64,21 @@ export default function OrderIntegrationHub() {
 
   const [busy, setBusy] = useState<'file' | 'text' | 'download' | null>(null);
   const [statusLabel, setStatusLabel] = useState<string | null>(null);
+  const [fixedInputOpen, setFixedInputOpen] = useState(false);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templateReuploadOpen, setTemplateReuploadOpen] = useState(false);
+  const [activeTemplateHeaderCount, setActiveTemplateHeaderCount] = useState(0);
 
   const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock();
+
+  const refreshActiveTemplateStatus = useCallback(() => {
+    const template = loadCourierUploadTemplate(userId);
+    setActiveTemplateHeaderCount(extractNonEmptyHeaderNames(template).length);
+  }, [userId]);
+
+  useEffect(() => {
+    refreshActiveTemplateStatus();
+  }, [refreshActiveTemplateStatus]);
 
   const showNotice = (message: string) => {
     setHubError(null);
@@ -597,8 +617,9 @@ export default function OrderIntegrationHub() {
 
         <section className="relative pb-4 pt-4">
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
-            <Link
-              href="/order-convert"
+            <button
+              type="button"
+              onClick={() => setTemplateModalOpen(true)}
               className="flex h-[120px] flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             >
               <div className="mb-2 flex items-center justify-center gap-3">
@@ -610,14 +631,20 @@ export default function OrderIntegrationHub() {
                 </h3>
               </div>
               <p className="mt-1 text-center text-xs text-gray-500">
-                택배주문변환과 양식을 공유합니다.
+                실제 택배사 업로드에 사용하는 엑셀 양식을 등록합니다.
                 <br />
-                등록·변경은 택배주문변환에서 진행해 주세요.
+                택배주문변환과 같은 양식을 공유합니다.
               </p>
-            </Link>
+              {activeTemplateHeaderCount > 0 ? (
+                <p className="mt-2 line-clamp-1 text-center text-[11px] text-green-700">
+                  선택된 양식이 있습니다 (컬럼 {activeTemplateHeaderCount}개)
+                </p>
+              ) : null}
+            </button>
 
-            <Link
-              href="/order-convert"
+            <button
+              type="button"
+              onClick={() => setFixedInputOpen(true)}
               className="flex h-[120px] flex-col justify-center rounded-xl border border-gray-300 bg-gray-200 p-5 transition-colors hover:bg-gray-100"
             >
               <div className="mb-2 flex items-center justify-center gap-3">
@@ -629,11 +656,11 @@ export default function OrderIntegrationHub() {
                 </h3>
               </div>
               <p className="mt-1 text-center text-xs text-gray-500">
-                보내는 사람 등 고정값은 택배주문변환과 공유됩니다.
+                보내는 사람 등 고정값을 설정합니다.
                 <br />
-                설정 후 이 화면 변환에 자동 반영됩니다.
+                택배주문변환과 같은 값을 공유합니다.
               </p>
-            </Link>
+            </button>
 
             <button
               type="button"
@@ -662,6 +689,51 @@ export default function OrderIntegrationHub() {
           </div>
         </section>
       </main>
+
+      <OrderIntegrationFixedInputModal
+        open={fixedInputOpen}
+        userId={userId}
+        previewRows={previewRows}
+        onClose={() => setFixedInputOpen(false)}
+        onSaved={(_fixed, nextPreviewRows) => {
+          setPreviewRows(nextPreviewRows);
+          showNotice('고정 입력 정보를 저장했습니다.');
+        }}
+      />
+
+      <OrderIntegrationTemplateModal
+        open={templateModalOpen}
+        userId={userId}
+        hasOrderWork={
+          previewRows.length > 0 || selectedFiles.length > 0 || textOrder.trim().length > 0
+        }
+        onClose={() => {
+          setTemplateModalOpen(false);
+          refreshActiveTemplateStatus();
+        }}
+        onApplied={({ bridgeFile, shouldClearPreview }) => {
+          refreshActiveTemplateStatus();
+          if (bridgeFile?.courierHeaders?.length) {
+            setCourierHeaders(bridgeFile.courierHeaders);
+          }
+          if (shouldClearPreview) {
+            setPreviewRows([]);
+            setSelectedRowIds(new Set());
+            setNewRowIds(new Set());
+            setSelectedFiles([]);
+            setTextOrder('');
+            setTemplateReuploadOpen(true);
+          } else {
+            showNotice('택배 업로드 양식을 적용했습니다.');
+          }
+        }}
+      />
+
+      <UploadTemplateChangeReuploadModal
+        open={templateReuploadOpen}
+        onClose={() => setTemplateReuploadOpen(false)}
+        bodyExtra="텍스트·이미지로 넣으신 주문이 있었다면, 해당 입력도 다시 진행해 주세요."
+      />
     </div>
   );
 }
