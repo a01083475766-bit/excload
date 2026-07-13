@@ -192,7 +192,9 @@ export default function OrderIntegrationFetchPanel() {
       <header className="mb-6 border-b border-gray-200 pb-5">
         <h1 className="text-xl font-semibold text-gray-900">주문조회</h1>
         <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          API 연동이 저장된 쇼핑몰만 표시됩니다. 몰을 고르고 최근 기간을 선택한 뒤 검색하세요.
+          연동이 완료된 쇼핑몰의 주문을 조회할 수 있습니다.
+          <br />
+          쇼핑몰과 조회 기간을 선택한 뒤 검색해 주세요.
         </p>
       </header>
 
@@ -213,12 +215,16 @@ export default function OrderIntegrationFetchPanel() {
       ) : null}
 
       {!loadingMalls && connectedMalls.length === 0 && !loadError ? (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          연동된 쇼핑몰이 없습니다.{' '}
-          <Link href="/order/integration/connect" className="font-medium text-blue-700 underline">
-            쇼핑몰 연동 설정
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
+          <p>아직 연동된 쇼핑몰이 없습니다.</p>
+          <p className="mt-1">먼저 쇼핑몰 연동 설정에서 API 정보를 등록해 주세요.</p>
+          <p className="mt-1">연동이 완료되면 이 화면에서 주문을 조회할 수 있습니다.</p>
+          <Link
+            href="/order/integration/connect"
+            className="mt-3 inline-block font-medium text-blue-700 underline underline-offset-2 hover:text-blue-800"
+          >
+            쇼핑몰 연동 설정으로 이동
           </Link>
-          에서 API를 등록·저장한 뒤 다시 와 주세요. 연동이 완료된 몰만 이 목록에 나타납니다.
         </div>
       ) : null}
 
