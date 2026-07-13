@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
 
 type ConnectedMall = {
@@ -184,10 +184,9 @@ export default function OrderIntegrationFetchPanel() {
     <div className="mx-auto max-w-5xl px-3 pb-12 pt-1.5 sm:px-5 lg:px-8">
       <Link
         href="/order/integration"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+        className="mb-3 inline-block text-sm text-gray-600 underline-offset-2 hover:text-gray-900 hover:underline"
       >
-        <ArrowLeft className="h-4 w-4" />
-        쇼핑몰주문연동으로
+        주문연동으로 돌아가기
       </Link>
 
       <header className="mb-6 border-b border-gray-200 pb-5">
