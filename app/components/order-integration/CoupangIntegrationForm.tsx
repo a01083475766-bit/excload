@@ -67,7 +67,7 @@ function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
   return 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100';
 }
 
-export function CoupangIntegrationForm() {
+export function CoupangIntegrationForm({ embedded = false }: { embedded?: boolean } = {}) {
   const outboundIp = getExcloadOutboundIp();
   const [loading, setLoading] = useState(true);
   const [savedAccount, setSavedAccount] = useState<CoupangAccountResponse | null>(null);
@@ -283,7 +283,8 @@ export function CoupangIntegrationForm() {
     : 'Secret Key 입력 (저장 후 전체 노출되지 않습니다)';
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
+    <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
+{!embedded ? (
       <Link
         href="/order/integration/connect"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -291,11 +292,20 @@ export function CoupangIntegrationForm() {
         <ArrowLeft className="h-4 w-4" />
         주문연동 목록
       </Link>
+      ) : null}
 
+{!embedded ? (
       <h1 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">쿠팡 연동</h1>
-      <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+      ) : (
+        <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">연동 정보 입력</h2>
+      )}
+      {!embedded ? (
+        <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
         쿠팡 Wing Open API 정보를 저장한 뒤 연결 테스트와 주문 수집을 진행할 수 있습니다.
       </p>
+      ) : (
+        <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
+      )}
 
       {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
@@ -320,6 +330,7 @@ export function CoupangIntegrationForm() {
         </p>
       ) : null}
 
+{!embedded ? (
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
         <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 정보 (판매자센터 등록용)</h2>
         <dl className="space-y-3">
@@ -332,7 +343,9 @@ export function CoupangIntegrationForm() {
           />
         </dl>
       </section>
+      ) : null}
 
+{!embedded ? (
       <CollapsibleGuide title="API 발급 방법 보기 (쿠팡)">
         <ol className="list-decimal space-y-2 pl-5">
           <li>쿠팡 Wing 판매자센터 → Open API 메뉴로 이동합니다.</li>
@@ -341,6 +354,7 @@ export function CoupangIntegrationForm() {
           <li>API 키 만료일을 함께 입력하면 갱신 알림에 활용할 수 있습니다.</li>
         </ol>
       </CollapsibleGuide>
+      ) : null}
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>

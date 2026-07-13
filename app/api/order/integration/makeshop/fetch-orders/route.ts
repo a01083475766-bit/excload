@@ -22,10 +22,13 @@ import {
   isOrderSyncSnapshotPersistEnabled,
   maybePersistOrderFetchResult,
 } from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
+import { readFetchOrderDays } from '@/app/lib/order-integration/parse-fetch-order-days';
 
-export async function POST() {
+export async function POST(request: Request) {
   const auth = await requireOrderIntegrationAdmin();
   if (isAdminAuthFailure(auth)) return auth.response;
+
+  const days = await readFetchOrderDays(request);
 
   if (!isIntegrationProxyConfigured()) {
     return NextResponse.json(
@@ -57,7 +60,7 @@ export async function POST() {
 
   try {
     const credentials = toMakeshopCredentials(account);
-    const orders = await fetchMakeshopOrders({ credentials, days: 7 });
+    const orders = await fetchMakeshopOrders({ credentials, days });
     const orderStandardFile = mapMakeshopOrdersToOrderStandardFile(orders);
     const previewRows = mapMakeshopOrdersToPreviewRows(orders);
 

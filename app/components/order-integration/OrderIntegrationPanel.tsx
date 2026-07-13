@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import {
   EXCLOAD_INTEGRATION_INFO,
   getExcloadOutboundIp,
   ORDER_INTEGRATION_MALLS,
   type OrderIntegrationMall,
+  type OrderIntegrationMallId,
 } from '@/app/lib/order-integration/malls';
 import {
   getNextApiDirectCandidates,
@@ -16,6 +17,17 @@ import {
   HUB_OR_EXCEL_PRIORITY_ROADMAP,
 } from '@/app/lib/order-integration/mall-integration-specs';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
+import { MallIntegrationForm } from '@/app/components/order-integration/MallIntegrationForm';
+import { MallSetupGuidePanel } from '@/app/components/order-integration/MallSetupGuidePanel';
+import { MALL_SETUP_GUIDES } from '@/app/lib/order-integration/mall-setup-guides';
+import { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/client';
+import { EXCLOAD_MAKESHOP_OUTBOUND_IP } from '@/app/lib/makeshop/api-spec';
+
+type AvailableMallId = Exclude<OrderIntegrationMallId, 'gmarket'>;
+
+function isAvailableMallId(id: string): id is AvailableMallId {
+  return ORDER_INTEGRATION_MALLS.some((m) => m.id === id && m.status === 'available');
+}
 
 function mallStatusLabel(mall: OrderIntegrationMall): string {
   if (mall.status !== 'available') return mall.preparingLabel ?? '준비중';
@@ -24,22 +36,72 @@ function mallStatusLabel(mall: OrderIntegrationMall): string {
   return '연동 가능';
 }
 
+function chipClass(selected: boolean): string {
+  if (selected) {
+    return 'border border-blue-600 bg-blue-600 text-white';
+  }
+  return 'border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50';
+}
+
+function ExcloadInfoList({
+  outboundIp,
+  extras = [],
+}: {
+  outboundIp: string;
+  extras?: { label: string; value: string }[];
+}) {
+  const rows = [
+    { label: '업체명', value: EXCLOAD_INTEGRATION_INFO.companyName },
+    { label: 'URL', value: EXCLOAD_INTEGRATION_INFO.url },
+    {
+      label: 'IP 주소 (outbound)',
+      value: outboundIp,
+      placeholder: 'NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 설정 필요',
+    },
+    ...extras,
+  ];
+
+  return (
+    <dl className="divide-y divide-zinc-100 border border-zinc-200 bg-white">
+      {rows.map((row) => (
+        <div key={row.label} className="px-3 py-2.5 sm:px-4">
+          <CopyableInfoRow
+            label={row.label}
+            value={row.value}
+            placeholder={'placeholder' in row ? row.placeholder : undefined}
+          />
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 /**
- * 쇼핑몰 연동 설정 — 목록·등록 안내.
- * 카드/컬러 배너 대신 목록·표 중심으로 실무형 UI.
+ * 쇼핑몰 연동 설정 — 상단 선택 후 무료도구식 2열 상세.
+ * API/DB 로직은 기존 MallIntegrationForm을 재사용합니다.
  */
 export default function OrderIntegrationPanel() {
   const outboundIp = getExcloadOutboundIp();
+  const [selectedMallId, setSelectedMallId] = useState<AvailableMallId | 'all'>('all');
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const availableMalls = ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'available');
-  const preparingMalls = ORDER_INTEGRATION_MALLS.filter((m) => m.status !== 'available');
+  const availableMalls = useMemo(
+    () => ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'available'),
+    []
+  );
+  const preparingMalls = useMemo(
+    () => ORDER_INTEGRATION_MALLS.filter((m) => m.status !== 'available'),
+    []
+  );
   const nextApiChannels = getNextApiDirectCandidates();
   const inquiryChannels = getInquiryApprovalDirectChannelsForUi();
   const priorityHubs = getPriorityHubChannels();
 
+  const selectedMall =
+    selectedMallId === 'all' ? null : availableMalls.find((m) => m.id === selectedMallId) ?? null;
+
   return (
-    <div className="mx-auto max-w-[720px] px-3 pb-12 pt-1.5 sm:px-5 lg:px-8">
+    <div className="mx-auto max-w-6xl px-3 pb-12 pt-1.5 sm:px-5 lg:px-8">
       <Link
         href="/order/integration"
         className="mb-3 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
@@ -48,11 +110,10 @@ export default function OrderIntegrationPanel() {
         쇼핑몰주문연동으로
       </Link>
 
-      <header className="mb-8 border-b border-gray-200 pb-5">
+      <header className="mb-6 border-b border-gray-200 pb-5">
         <h1 className="text-xl font-semibold text-gray-900">쇼핑몰 연동 설정</h1>
         <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          판매자센터에서 API 키를 발급한 뒤, 아래 엑클로드 정보를 등록하고 쇼핑몰을 선택해
-          연동합니다.
+          판매자센터에서 API 키를 발급한 뒤, 아래 엑클로드 정보를 등록하고 쇼핑몰을 선택해 연동합니다.
         </p>
         <p className="mt-3 text-sm text-gray-500">
           <Link
@@ -66,10 +127,9 @@ export default function OrderIntegrationPanel() {
         </p>
       </header>
 
-      {/* 1. 준비 안내 */}
-      <section className="mb-8">
+      <section className="mb-6">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">연동 순서</h2>
-        <ol className="space-y-2 text-sm leading-relaxed text-gray-700">
+        <ol className="space-y-2 text-sm leading-relaxed text-gray-700 sm:flex sm:flex-wrap sm:gap-x-8 sm:gap-y-2 sm:space-y-0">
           <li className="flex gap-3">
             <span className="w-5 shrink-0 font-medium text-gray-400">1</span>
             <span>판매자센터에서 API(또는 앱)를 발급합니다.</span>
@@ -85,26 +145,11 @@ export default function OrderIntegrationPanel() {
         </ol>
       </section>
 
-      {/* 2. 엑클로드 정보 */}
-      <section className="mb-8">
+      <section className="mb-6">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">
           판매자센터에 등록할 엑클로드 정보
         </h2>
-        <div className="divide-y divide-gray-100 border border-gray-200 bg-white px-4 py-1">
-          <div className="py-3">
-            <CopyableInfoRow label="업체명" value={EXCLOAD_INTEGRATION_INFO.companyName} />
-          </div>
-          <div className="py-3">
-            <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
-          </div>
-          <div className="py-3">
-            <CopyableInfoRow
-              label="IP 주소 (outbound)"
-              value={outboundIp}
-              placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 설정 필요"
-            />
-          </div>
-        </div>
+        <ExcloadInfoList outboundIp={outboundIp} />
         {!outboundIp ? (
           <p className="mt-2 text-xs text-amber-700">
             운영 고정 IP가 없으면 판매자센터 화이트리스트 등록이 불가할 수 있습니다.
@@ -112,44 +157,93 @@ export default function OrderIntegrationPanel() {
         ) : null}
       </section>
 
-      {/* 3. 쇼핑몰 목록 — 표형 */}
-      <section className="mb-8">
+      <section className="mb-6">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">쇼핑몰 선택</h2>
-        <div className="border border-gray-200 bg-white">
-          <ul className="divide-y divide-gray-100">
-            {availableMalls.map((mall) => (
-              <li key={mall.id}>
-                <Link
-                  href={`/order/integration/${mall.id}`}
-                  className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-gray-50"
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <button
+            type="button"
+            onClick={() => setSelectedMallId('all')}
+            className={`flex h-11 w-full items-center justify-center rounded-lg px-2 text-sm font-medium transition ${chipClass(selectedMallId === 'all')}`}
+          >
+            전체
+          </button>
+          {availableMalls.map((mall) => (
+            <button
+              key={mall.id}
+              type="button"
+              title={mall.badge === 'beta' ? `${mall.name} (베타)` : mall.name}
+              onClick={() => setSelectedMallId(mall.id as AvailableMallId)}
+              className={`flex h-11 w-full items-center justify-center gap-1 overflow-hidden rounded-lg px-2 text-sm font-medium transition ${chipClass(selectedMallId === mall.id)}`}
+            >
+              <span className="truncate">{mall.name}</span>
+              {mall.badge === 'beta' ? (
+                <span
+                  className={`shrink-0 text-[11px] ${selectedMallId === mall.id ? 'text-blue-100' : 'text-zinc-400'}`}
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="text-sm font-medium text-gray-900">{mall.name}</span>
-                      <span className="text-xs text-gray-500">{mallStatusLabel(mall)}</span>
-                    </div>
-                    <p className="mt-0.5 truncate text-xs text-gray-500">{mall.description}</p>
-                  </div>
-                  <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-blue-600">
-                    설정
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  베타
+                </span>
+              ) : null}
+            </button>
+          ))}
         </div>
+      </section>
 
-        {preparingMalls.length > 0 ? (
-          <div className="mt-3 border border-gray-100 bg-gray-50">
-            <p className="border-b border-gray-100 px-4 py-2 text-xs font-medium text-gray-500">
-              준비중
-            </p>
-            <ul className="divide-y divide-gray-100">
+      {selectedMall && isAvailableMallId(selectedMall.id) ? (
+        <section className="mb-8">
+          <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
+            <div className="space-y-5">
+              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+                <h3 className="text-lg font-bold text-zinc-950">
+                  {selectedMall.name} · 엑클로드 등록 정보
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  판매자센터(또는 개발자센터)에 아래 값을 등록한 뒤, 아래에서 쇼핑몰 발급 키를 입력합니다.
+                </p>
+                <div className="mt-5">
+                  <ExcloadInfoList
+                    outboundIp={outboundIp}
+                    extras={
+                      selectedMall.id === 'cafe24'
+                        ? [
+                            { label: 'Redirect URI', value: CAFE24_OAUTH_REDIRECT_URI },
+                            { label: 'Scope (1차)', value: CAFE24_OAUTH_SCOPES },
+                          ]
+                        : selectedMall.id === 'makeshop'
+                          ? [{ label: 'APP 접근 허용 IP', value: EXCLOAD_MAKESHOP_OUTBOUND_IP }]
+                          : []
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+                <MallIntegrationForm
+                  mallId={selectedMall.id}
+                  mallName={selectedMall.name}
+                  embedded
+                />
+              </div>
+            </div>
+
+            <div className="xl:sticky xl:top-24 xl:z-10 xl:self-start xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
+              <MallSetupGuidePanel
+                guide={MALL_SETUP_GUIDES[selectedMall.id]}
+                mallName={selectedMall.name}
+              />
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {preparingMalls.length > 0 ? (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">준비중</h2>
+          <div className="border border-zinc-100 bg-zinc-50">
+            <ul className="divide-y divide-zinc-100">
               {preparingMalls.map((mall) => (
                 <li
                   key={mall.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm text-gray-500"
+                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm text-zinc-500"
                 >
                   <span>{mall.name}</span>
                   <span className="text-xs">{mallStatusLabel(mall)}</span>
@@ -157,10 +251,9 @@ export default function OrderIntegrationPanel() {
               ))}
             </ul>
           </div>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
-      {/* 4. 부가 정보 — 기본 접힘 */}
       <section className="border-t border-gray-200 pt-4">
         <button
           type="button"

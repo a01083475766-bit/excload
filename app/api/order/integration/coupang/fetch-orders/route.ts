@@ -23,10 +23,13 @@ import {
   isOrderSyncSnapshotPersistEnabled,
   maybePersistOrderFetchResult,
 } from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
+import { readFetchOrderDays } from '@/app/lib/order-integration/parse-fetch-order-days';
 
-export async function POST() {
+export async function POST(request: Request) {
   const auth = await requireOrderIntegrationAdmin();
   if (isAdminAuthFailure(auth)) return auth.response;
+
+  const days = await readFetchOrderDays(request);
 
   const account = await getCoupangAccountForUser(auth.userId);
   if (!account) {
@@ -45,7 +48,7 @@ export async function POST() {
 
   try {
     const credentials = toCoupangCredentials(account);
-    const { orders, failedStatuses } = await fetchCoupangOrderSheets(credentials);
+    const { orders, failedStatuses } = await fetchCoupangOrderSheets({ ...credentials, days });
 
     if (!orders.length && failedStatuses.length > 0) {
       throw new Error('쿠팡 주문 조회에 실패했습니다.');

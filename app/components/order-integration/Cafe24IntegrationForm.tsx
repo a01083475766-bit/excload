@@ -63,7 +63,7 @@ function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
   return 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100';
 }
 
-export function Cafe24IntegrationForm() {
+export function Cafe24IntegrationForm({ embedded = false }: { embedded?: boolean } = {}) {
   const searchParams = useSearchParams();
   const outboundIp = getExcloadOutboundIp();
   const [loading, setLoading] = useState(true);
@@ -285,7 +285,8 @@ export function Cafe24IntegrationForm() {
     : 'Client Secret 입력 (저장 후 전체 노출되지 않습니다)';
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
+    <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
+{!embedded ? (
       <Link
         href="/order/integration/connect"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -293,17 +294,25 @@ export function Cafe24IntegrationForm() {
         <ArrowLeft className="h-4 w-4" />
         주문연동 목록
       </Link>
+      ) : null}
 
+{!embedded ? (
       <div className="mb-2 flex items-center gap-2">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">카페24 연동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
           베타
         </span>
       </div>
+      ) : (
+        <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">연동 정보 입력</h2>
+      )}
+{!embedded ? (
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
         카페24 OAuth 연동 후 연결 테스트와 주문 조회·수집을 진행할 수 있습니다. 발주확인·송장 전송·주문 상태
         변경은 포함하지 않습니다.
-      </p>
+      </p>      ) : (
+        <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
+      )}
 
       {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
@@ -338,6 +347,7 @@ export function Cafe24IntegrationForm() {
         </p>
       ) : null}
 
+{!embedded ? (
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
         <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">개발자센터 등록용</h2>
         <dl className="space-y-3">
@@ -351,7 +361,9 @@ export function Cafe24IntegrationForm() {
           />
         </dl>
       </section>
+      ) : null}
 
+{!embedded ? (
       <CollapsibleGuide title="API 발급 방법 보기 (카페24)">
         <ol className="list-decimal space-y-2 pl-5">
           <li>
@@ -372,6 +384,7 @@ export function Cafe24IntegrationForm() {
           <li>발급된 Client ID / Client Secret과 쇼핑몰 mallId를 아래에 입력합니다.</li>
         </ol>
       </CollapsibleGuide>
+      ) : null}
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>

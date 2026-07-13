@@ -59,7 +59,7 @@ function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
   return 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100';
 }
 
-export function CjonstyleIntegrationForm() {
+export function CjonstyleIntegrationForm({ embedded = false }: { embedded?: boolean } = {}) {
   const outboundIp = getExcloadOutboundIp() || '54.180.45.46';
   const [loading, setLoading] = useState(true);
   const [savedAccount, setSavedAccount] = useState<CjonstyleAccountResponse | null>(null);
@@ -262,7 +262,8 @@ export function CjonstyleIntegrationForm() {
   const defaultDeliveryCodes = CJONSTYLE_DEFAULT_DELIVERY_METHOD_CODES.join(',');
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
+    <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
+{!embedded ? (
       <Link
         href="/order/integration/connect"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -270,7 +271,9 @@ export function CjonstyleIntegrationForm() {
         <ArrowLeft className="h-4 w-4" />
         주문연동 목록
       </Link>
+      ) : null}
 
+{!embedded ? (
       <div className="mb-2 flex items-center gap-2">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">CJ온스타일 연동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
@@ -280,10 +283,16 @@ export function CjonstyleIntegrationForm() {
           restricted
         </span>
       </div>
+      ) : (
+        <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">연동 정보 입력</h2>
+      )}
+{!embedded ? (
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
         입점 협력사 전용 표준 API로 연결 테스트와 주문 조회·수집(배송타입별)을 진행할 수 있습니다. 발주확인·송장
         전송·상태 변경 POST API는 포함하지 않습니다.
-      </p>
+      </p>      ) : (
+        <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
+      )}
 
       {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
@@ -312,6 +321,7 @@ export function CjonstyleIntegrationForm() {
         </p>
       ) : null}
 
+{!embedded ? (
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
         <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 정보 (파트너 등록용)</h2>
         <dl className="space-y-3">
@@ -320,7 +330,9 @@ export function CjonstyleIntegrationForm() {
           <CopyableInfoRow label="IP 주소 (운영서버)" value={outboundIp} />
         </dl>
       </section>
+      ) : null}
 
+{!embedded ? (
       <CollapsibleGuide title="API 발급 방법 보기 (CJ온스타일)">
         <ol className="list-decimal space-y-2 pl-5">
           <li>
@@ -342,6 +354,7 @@ export function CjonstyleIntegrationForm() {
           <li>주문 API Path·Query 명칭은 파트너 Docs 확인 후 반영됩니다(현재 placeholder).</li>
         </ol>
       </CollapsibleGuide>
+      ) : null}
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>

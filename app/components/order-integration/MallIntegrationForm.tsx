@@ -16,51 +16,61 @@ import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
 type Props = {
   mallId: Extract<
     OrderIntegrationMallId,
-    'coupang' | 'eleven' | 'smartstore' | 'cafe24' | 'lotteon' | 'ssg' | 'cjonstyle' | 'shopby' | 'godomall' | 'makeshop'
+    | 'coupang'
+    | 'eleven'
+    | 'smartstore'
+    | 'cafe24'
+    | 'lotteon'
+    | 'ssg'
+    | 'cjonstyle'
+    | 'shopby'
+    | 'godomall'
+    | 'makeshop'
   >;
   mallName: string;
+  embedded?: boolean;
 };
 
-export function MallIntegrationForm({ mallId }: Props) {
+export function MallIntegrationForm({ mallId, embedded = false }: Props) {
   if (mallId === 'coupang') {
-    return <CoupangIntegrationForm />;
+    return <CoupangIntegrationForm embedded={embedded} />;
   }
 
   if (mallId === 'smartstore') {
-    return <SmartstoreIntegrationForm />;
+    return <SmartstoreIntegrationForm embedded={embedded} />;
   }
 
   if (mallId === 'cafe24') {
     return (
       <Suspense fallback={<p className="px-4 py-6 text-sm text-zinc-500">카페24 연동 화면 불러오는 중…</p>}>
-        <Cafe24IntegrationForm />
+        <Cafe24IntegrationForm embedded={embedded} />
       </Suspense>
     );
   }
 
   if (mallId === 'lotteon') {
-    return <LotteonIntegrationForm />;
+    return <LotteonIntegrationForm embedded={embedded} />;
   }
 
   if (mallId === 'ssg') {
-    return <SsgIntegrationForm />;
+    return <SsgIntegrationForm embedded={embedded} />;
   }
 
   if (mallId === 'cjonstyle') {
-    return <CjonstyleIntegrationForm />;
+    return <CjonstyleIntegrationForm embedded={embedded} />;
   }
 
   if (mallId === 'shopby') {
-    return <ShopbyIntegrationForm />;
+    return <ShopbyIntegrationForm embedded={embedded} />;
   }
 
   if (mallId === 'godomall') {
-    return <GodomallIntegrationForm />;
+    return <GodomallIntegrationForm embedded={embedded} />;
   }
 
   if (mallId === 'makeshop') {
-    return <MakeshopIntegrationForm />;
+    return <MakeshopIntegrationForm embedded={embedded} />;
   }
 
-  return <ElevenIntegrationForm />;
+  return <ElevenIntegrationForm embedded={embedded} />;
 }
