@@ -107,7 +107,7 @@ export function OrderIntegrationFixedInputModal({
 
   return (
     <WorkspaceBlockingModalOverlay open={open} aria-labelledby="hub-fixed-input-title">
-      <div className="flex h-[88vh] w-full max-w-[900px] flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-xl sm:h-[84vh] sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex h-[88vh] w-full max-w-[1482px] flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-xl sm:h-[84vh] sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mb-4 flex shrink-0 items-center justify-between">
           <h2
             id="hub-fixed-input-title"

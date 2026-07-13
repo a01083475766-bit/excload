@@ -7972,20 +7972,21 @@ export function LogisticsConvertClient({
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500">
                     {trialMode
-                      ? '설정된 고정 입력 값은 확인 시 미리보기·변환 결과에 반영됩니다. 엑셀 다운로드는 정식 서비스에서 이용할 수 있습니다.'
-                      : '설정된 고정 입력 값은 확인 시 미리보기에 반영되며, 다운로드 파일에도 동일하게 적용됩니다.'}
+                      ? '설정된 고정 입력 값은 저장하고 닫기 시 미리보기·변환 결과에 반영됩니다. 엑셀 다운로드는 정식 서비스에서 이용할 수 있습니다.'
+                      : '설정된 고정 입력 값은 저장하고 닫기 시 미리보기에 반영되며, 다운로드 파일에도 동일하게 적용됩니다.'}
                   </p>
                 </div>
               )}
             </div>
 
             {/* 모달 하단 버튼 */}
-            <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+            <div className="flex shrink-0 justify-end border-t border-zinc-200 p-6 dark:border-zinc-800">
               <button
+                type="button"
                 onClick={handleCloseSenderModal}
-                className={`${trialMode ? 'trial-modal-primary' : ''} w-full bg-emerald-600 hover:bg-emerald-700 text-white h-11 rounded-lg font-medium`}
+                className={`${trialMode ? 'trial-modal-primary' : ''} rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700`}
               >
-                확인
+                저장하고 닫기
               </button>
             </div>
           </div>

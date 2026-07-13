@@ -5119,19 +5119,20 @@ export default function OrderConvertPage() {
                       ))}
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                    설정된 고정 입력 값은 확인 시 미리보기에 반영되며, 다운로드 파일에도 동일하게 적용됩니다.
+                    설정된 고정 입력 값은 저장하고 닫기 시 미리보기에 반영되며, 다운로드 파일에도 동일하게 적용됩니다.
                   </p>
                 </div>
               )}
             </div>
 
             {/* 모달 하단 버튼 */}
-            <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+            <div className="flex shrink-0 justify-end border-t border-zinc-200 p-6 dark:border-zinc-800">
               <button
+                type="button"
                 onClick={handleCloseSenderModal}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-lg font-medium"
+                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                확인
+                저장하고 닫기
               </button>
             </div>
           </div>
