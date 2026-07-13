@@ -9,7 +9,6 @@ import type { PreviewRow } from '@/app/pipeline/merge/types';
 import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 import { fetchOrderPipelineStage2 } from '@/app/lib/fetch-order-pipeline-stage2';
 import { runTextToCleanInputAdapter } from '@/app/unified-input/adapters/TextToCleanInputAdapter';
-import { runUnifiedInputOrderPipelines } from '@/app/unified-input/adapters/runUnifiedInputOrderPipelines';
 import {
   alignRowsFromHeader,
   detectHeaderRowIndex,
@@ -28,6 +27,11 @@ import {
 import type { PreviewRowWithId } from '@/app/order-convert/OrderConvertPreviewTableRow';
 import type { OrderStandardFile, StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
+import {
+  HUB_SALES_CHANNEL_TEXT,
+  fillEmptySalesChannelRows,
+  salesChannelLabelFromFileName,
+} from '@/app/lib/order-integration/hub-sales-channel';
 
 export type HubConvertResult = {
   previewRows: PreviewRowWithId[];
@@ -92,6 +96,8 @@ export async function convertExcelBufferToHubPreview(input: {
   buffer: ArrayBuffer;
   templateBridgeFile: TemplateBridgeFile;
   fixedHeaderValues: Record<string, string>;
+  /** 판매처가 비어 있을 때 채울 파일명(확장자 포함 가능) */
+  sourceFileName?: string;
   onStage2ChunkProgress?: (completed: number, total: number) => void;
 }): Promise<HubConvertResult> {
   const rawData = readFirstSheetMatrixFromArrayBuffer(input.buffer);
@@ -110,9 +116,15 @@ export async function convertExcelBufferToHubPreview(input: {
     onChunkProgress: input.onStage2ChunkProgress,
   });
 
+  const salesChannel = salesChannelLabelFromFileName(input.sourceFileName ?? '');
+  const orderData: OrderStandardFile = {
+    ...orderStandardFile,
+    rows: fillEmptySalesChannelRows(orderStandardFile.rows, salesChannel),
+  };
+
   const stage3Result = await runMergePipeline({
     template: input.templateBridgeFile,
-    orderData: orderStandardFile,
+    orderData,
     fixedInput: input.fixedHeaderValues,
   });
 
@@ -130,6 +142,8 @@ export async function convertTextToHubPreview(input: {
   text: string;
   templateBridgeFile: TemplateBridgeFile;
   fixedHeaderValues: Record<string, string>;
+  /** 판매처가 비어 있을 때 채울 값 (기본: 텍스트주문, 이미지 OCR은 이미지주문) */
+  salesChannelFallback?: string;
   onStage2ChunkProgress?: (completed: number, total: number) => void;
 }): Promise<HubConvertResult> {
   const trimmed = input.text.trim();
@@ -143,25 +157,35 @@ export async function convertTextToHubPreview(input: {
     throw new Error('텍스트에서 주문 정보를 추출하지 못했습니다. 내용을 확인해 주세요.');
   }
 
-  const pipelineResult = await runUnifiedInputOrderPipelines({
-    cleanInputFile: {
+  const { orderStandardFile } = await fetchOrderPipelineStage2(
+    {
       ...cleanInputFile,
       headers: [...cleanInputFile.headers],
       rows: cleanInputFile.rows.map((row) => [...row]),
     },
-    templateBridgeFile: input.templateBridgeFile,
-    fixedHeaderValues: input.fixedHeaderValues,
-    fileSessionId: crypto.randomUUID(),
-    onStage2ChunkProgress: input.onStage2ChunkProgress,
+    crypto.randomUUID(),
+    { onChunkProgress: input.onStage2ChunkProgress },
+  );
+
+  const salesChannel = (input.salesChannelFallback ?? HUB_SALES_CHANNEL_TEXT).trim();
+  const orderData: OrderStandardFile = {
+    ...orderStandardFile,
+    rows: fillEmptySalesChannelRows(orderStandardFile.rows, salesChannel),
+  };
+
+  const stage3Result = await runMergePipeline({
+    template: input.templateBridgeFile,
+    orderData,
+    fixedInput: input.fixedHeaderValues,
   });
 
-  if (!pipelineResult.mergeResult?.previewRows?.length) {
+  if (!stage3Result?.previewRows?.length) {
     throw new Error('텍스트 주문 변환에 실패했습니다. 다시 시도해 주세요.');
   }
 
   return {
-    previewRows: toPreviewRowsWithIds(pipelineResult.mergeResult.previewRows),
-    courierHeaders: pipelineResult.mergeResult.courierHeaders,
+    previewRows: toPreviewRowsWithIds(stage3Result.previewRows),
+    courierHeaders: stage3Result.courierHeaders,
   };
 }
 

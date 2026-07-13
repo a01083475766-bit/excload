@@ -58,6 +58,7 @@ import {
 } from '@/app/lib/order-integration/order-integration-hub-convert';
 import { consumeHubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 import type { HubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
+import { HUB_SALES_CHANNEL_IMAGE } from '@/app/lib/order-integration/hub-sales-channel';
 import { OrderIntegrationFixedInputModal } from '@/app/components/order-integration/OrderIntegrationFixedInputModal';
 import { OrderIntegrationTemplateModal } from '@/app/components/order-integration/OrderIntegrationTemplateModal';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
@@ -345,6 +346,7 @@ export default function OrderIntegrationHub() {
             buffer,
             templateBridgeFile: bridge,
             fixedHeaderValues: fixed,
+            sourceFileName: file.name,
             onStage2ChunkProgress: (completed, total) => {
               if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
             },
@@ -365,6 +367,7 @@ export default function OrderIntegrationHub() {
             text: ocrText,
             templateBridgeFile: bridge,
             fixedHeaderValues: fixed,
+            salesChannelFallback: HUB_SALES_CHANNEL_IMAGE,
             onStage2ChunkProgress: (completed, total) => {
               if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
             },
