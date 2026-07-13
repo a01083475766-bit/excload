@@ -155,6 +155,10 @@ export function OrderIntegrationTemplateModal({
     const selected = recentFormats.find((format) => format.id === formatId);
     if (!selected) return;
     setTempSelectedFormatId(formatId);
+    if (!selected.bridgeFile) {
+      setErrorMessage('이 양식에 저장된 브릿지 정보가 없습니다. 파일을 다시 등록해 주세요.');
+      return;
+    }
     const { template, bridgeFile } = applyFormatAsActive(selected, userId);
     setActiveTemplate(template);
     if (!bridgeFile) {

@@ -174,10 +174,16 @@ export function applyFormatAsActive(
   userId: string | null,
 ): { template: CourierUploadTemplate; bridgeFile: TemplateBridgeFile | null } {
   const template = templateFromColumnOrder(format.columnOrder ?? []);
-  saveCourierUploadTemplate(template, userId);
   const bridgeFile = format.bridgeFile
     ? (JSON.parse(JSON.stringify(format.bridgeFile)) as TemplateBridgeFile)
     : null;
+
+  // 브릿지 없는 구·깨진 양식으로 호출 시 기존 활성 브릿지를 지우지 않음
+  if (!bridgeFile) {
+    return { template, bridgeFile: null };
+  }
+
+  saveCourierUploadTemplate(template, userId);
   saveActiveBridgeFile(bridgeFile, userId);
   return { template, bridgeFile };
 }

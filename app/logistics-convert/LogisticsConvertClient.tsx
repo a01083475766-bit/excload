@@ -1794,6 +1794,10 @@ export function LogisticsConvertClient({
     setErrorMessageTextImage(null);
     setCurrentFilePreviewData([]);
     setOrderStandardFile(null);
+    setFileProcessingStatus('idle');
+    setStage2ChunkLabel(null);
+    setShowScreenshotModal(false);
+    setShowTextProcessingModal(false);
     setIsPreviewResetModalOpen(false);
   }, [applyPreviewWorkspaceReset]);
 
@@ -5679,7 +5683,7 @@ export function LogisticsConvertClient({
         description={
           <>
             <p>첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.</p>
-            <p className="text-zinc-500">등록한 택배 양식·고정 입력은 그대로 둡니다.</p>
+            <p className="text-zinc-500">등록한 물류 양식·고정 입력은 그대로 둡니다.</p>
           </>
         }
         confirmLabel="초기화"
@@ -6303,7 +6307,7 @@ export function LogisticsConvertClient({
                 - courierHeaders 기준으로 전체 컬럼 구조 표시
               */}
               <div
-                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} flex flex-col ${
+                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} flex flex-col overflow-hidden ${
                   isPreviewExpanded
                     ? EXCLOAD_PREVIEW_HEIGHT_EXPANDED
                     : EXCLOAD_PREVIEW_HEIGHT_DEFAULT
@@ -7146,9 +7150,9 @@ export function LogisticsConvertClient({
                       <button
                         type="button"
                         onClick={handleCancelColumnCodeMappingModal}
-                        className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                        className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
                       >
-                        취소
+                        적용 되돌리기
                       </button>
                       <button
                         type="button"
@@ -7172,9 +7176,9 @@ export function LogisticsConvertClient({
                   <button
                     type="button"
                     onClick={handleCancelColumnCodeMappingModal}
-                    className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
                   >
-                    취소
+                    적용 되돌리기
                   </button>
                   <button
                     type="button"
@@ -8139,7 +8143,7 @@ export function LogisticsConvertClient({
                   return;
                 }
                 // 텍스트 입력 방지 (이미지만 허용)
-                if (e.key !== 'v' || !e.ctrlKey) {
+                if (e.key.toLowerCase() !== 'v' || !(e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
                 }
               }}

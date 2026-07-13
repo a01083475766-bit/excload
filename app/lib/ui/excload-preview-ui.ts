@@ -23,7 +23,7 @@ export const EXCLOAD_PREVIEW_HEADER_ACTION_SPACER =
   'hidden h-9 shrink-0 sm:block';
 
 export const EXCLOAD_PREVIEW_TABLE_SHELL =
-  'overflow-auto rounded-xl border border-gray-200 bg-white';
+  'rounded-xl border border-gray-200 bg-white';
 
 export const EXCLOAD_PREVIEW_EMPTY_SHELL =
   'flex h-[260px] items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-10 text-center';

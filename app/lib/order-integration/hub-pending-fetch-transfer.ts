@@ -14,16 +14,7 @@ export type HubPendingFetchTransfer = {
   mallSummaries: Array<{ mallId: string; name: string; count: number }>;
 };
 
-export function writeHubPendingFetchTransfer(payload: HubPendingFetchTransfer): void {
-  if (typeof window === 'undefined') return;
-  sessionStorage.setItem(HUB_PENDING_FETCH_STORAGE_KEY, JSON.stringify(payload));
-}
-
-export function consumeHubPendingFetchTransfer(): HubPendingFetchTransfer | null {
-  if (typeof window === 'undefined') return null;
-  const raw = sessionStorage.getItem(HUB_PENDING_FETCH_STORAGE_KEY);
-  if (!raw) return null;
-  sessionStorage.removeItem(HUB_PENDING_FETCH_STORAGE_KEY);
+function parsePendingFetch(raw: string): HubPendingFetchTransfer | null {
   try {
     const parsed = JSON.parse(raw) as HubPendingFetchTransfer;
     if (
@@ -38,4 +29,34 @@ export function consumeHubPendingFetchTransfer(): HubPendingFetchTransfer | null
   } catch {
     return null;
   }
+}
+
+export function writeHubPendingFetchTransfer(payload: HubPendingFetchTransfer): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(HUB_PENDING_FETCH_STORAGE_KEY, JSON.stringify(payload));
+}
+
+/** 읽기만 — 성공 적용 전까지 남겨 새로고침·재시도에 대비 */
+export function readHubPendingFetchTransfer(): HubPendingFetchTransfer | null {
+  if (typeof window === 'undefined') return null;
+  const raw = sessionStorage.getItem(HUB_PENDING_FETCH_STORAGE_KEY);
+  if (!raw) return null;
+  const parsed = parsePendingFetch(raw);
+  if (!parsed) {
+    sessionStorage.removeItem(HUB_PENDING_FETCH_STORAGE_KEY);
+    return null;
+  }
+  return parsed;
+}
+
+export function clearHubPendingFetchTransfer(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(HUB_PENDING_FETCH_STORAGE_KEY);
+}
+
+/** 성공 확정 시 등 즉시 비울 때. 허브 적용은 read → 성공 시 clear 권장 */
+export function consumeHubPendingFetchTransfer(): HubPendingFetchTransfer | null {
+  const parsed = readHubPendingFetchTransfer();
+  clearHubPendingFetchTransfer();
+  return parsed;
 }

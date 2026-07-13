@@ -3025,7 +3025,7 @@ export default function InvoiceFileConvertPage() {
                 - courierHeaders 기준으로 전체 컬럼 구조 표시
               */}
               <div
-                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} ${
+                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} overflow-hidden ${
                   isPreviewExpanded
                     ? EXCLOAD_PREVIEW_HEIGHT_EXPANDED
                     : EXCLOAD_PREVIEW_HEIGHT_DEFAULT
@@ -3034,7 +3034,7 @@ export default function InvoiceFileConvertPage() {
                 <div
                   ref={previewScrollContainerRef}
                   onScroll={handlePreviewScroll}
-                  className={`${isPreviewExpanded ? '' : 'h-full'} min-h-0 overflow-auto preview-scrollbar`}
+                  className={`${isPreviewExpanded ? '' : 'h-full'} min-h-0 overflow-auto preview-scrollbar preview-table-no-copy`}
                   onMouseEnter={() => {
                     previewHoverPausedRef.current = true;
                   }}

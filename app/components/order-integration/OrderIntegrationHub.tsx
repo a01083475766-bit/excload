@@ -56,9 +56,15 @@ import {
   loadHubFixedHeaderValues,
   loadHubTemplateBridge,
 } from '@/app/lib/order-integration/order-integration-hub-convert';
-import { consumeHubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
+import {
+  clearHubPendingFetchTransfer,
+  readHubPendingFetchTransfer,
+} from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 import type { HubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
-import { HUB_SALES_CHANNEL_IMAGE } from '@/app/lib/order-integration/hub-sales-channel';
+import {
+  HUB_SALES_CHANNEL_HEADER,
+  HUB_SALES_CHANNEL_IMAGE,
+} from '@/app/lib/order-integration/hub-sales-channel';
 import { OrderIntegrationFixedInputModal } from '@/app/components/order-integration/OrderIntegrationFixedInputModal';
 import { OrderIntegrationTemplateModal } from '@/app/components/order-integration/OrderIntegrationTemplateModal';
 import { OrderIntegrationScreenshotModal } from '@/app/components/order-integration/OrderIntegrationScreenshotModal';
@@ -275,7 +281,7 @@ export default function OrderIntegrationHub() {
   );
 
   const tryApplyPendingFetch = useCallback(async () => {
-    const fromStorage = consumeHubPendingFetchTransfer();
+    const fromStorage = readHubPendingFetchTransfer();
     if (fromStorage) {
       pendingFetchSessionCache = fromStorage;
       pendingFetchApplied = false;
@@ -301,6 +307,7 @@ export default function OrderIntegrationHub() {
       });
       pendingFetchApplied = true;
       pendingFetchSessionCache = null;
+      clearHubPendingFetchTransfer();
       appendPreview(result.previewRows, result.courierHeaders, bridge);
       const mallLabel =
         pending.mallSummaries.length > 0
@@ -364,14 +371,21 @@ export default function OrderIntegrationHub() {
     originalText: string,
     rows: PreviewRowWithId[],
     bridge: TemplateBridgeFile,
+    courierHeaders: string[],
   ) => {
+    const mappedForReview = courierHeaders.map((header) => {
+      if (header === HUB_SALES_CHANNEL_HEADER) return HUB_SALES_CHANNEL_HEADER;
+      const idx = bridge.courierHeaders.indexOf(header);
+      if (idx < 0) return header;
+      return bridge.mappedBaseHeaders[idx] ?? header;
+    });
     setTextConvertReviewModal({
       originalText,
       rows: buildTextConvertReviewRows(
         rows.map((r) => r.rowId),
         rows.map((r) => r.data),
-        bridge.courierHeaders,
-        bridge.mappedBaseHeaders,
+        courierHeaders,
+        mappedForReview,
       ),
     });
   };
@@ -469,7 +483,6 @@ export default function OrderIntegrationHub() {
       setStatusLabel(null);
 
       if (imageFiles.length > 0) {
-        setBusy(null);
         await runImageOcrToTextInput(imageFiles, 'imageFile');
         if (added > 0) {
           showNotice(
@@ -518,7 +531,10 @@ export default function OrderIntegrationHub() {
       }
 
       const merged = texts.join('\n\n');
-      setTextOrder(merged);
+      setTextOrder((prev) => {
+        const existing = prev.trim();
+        return existing ? `${existing}\n\n${merged}` : merged;
+      });
       nextTextSalesChannelRef.current = HUB_SALES_CHANNEL_IMAGE;
       setTextProcessingStage('completed');
       showNotice('텍스트 칸에 반영했습니다. 내용을 확인·수정한 뒤 「텍스트 주문 변환」을 눌러 주세요.');
@@ -530,8 +546,12 @@ export default function OrderIntegrationHub() {
   };
 
   const handleScreenshotImage = (blob: Blob) => {
+    if (busy) return;
     const file = new File([blob], 'screenshot.png', { type: 'image/png' });
-    void runImageOcrToTextInput([file], 'screenshot');
+    setBusy('file');
+    void runImageOcrToTextInput([file], 'screenshot').finally(() => {
+      setBusy(null);
+    });
   };
 
   const handleTextConvert = async () => {
@@ -557,7 +577,6 @@ export default function OrderIntegrationHub() {
       const trimmed = textOrder.trim();
       const salesChannelFallback =
         nextTextSalesChannelRef.current?.trim() || undefined;
-      nextTextSalesChannelRef.current = null;
       const result = await convertTextToHubPreview({
         text: trimmed,
         templateBridgeFile: bridge,
@@ -573,6 +592,7 @@ export default function OrderIntegrationHub() {
         throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
       }
       void fetchUser();
+      nextTextSalesChannelRef.current = null;
 
       appendPreview(result.previewRows, result.courierHeaders, bridge);
       setTextOrder('');
@@ -580,7 +600,7 @@ export default function OrderIntegrationHub() {
       showNotice(
         `텍스트 변환 완료 · 미리보기에 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
       );
-      openTextReview(trimmed, result.previewRows, bridge);
+      openTextReview(trimmed, result.previewRows, bridge, result.courierHeaders);
     } catch (error) {
       setStatusLabel(null);
       showError(error instanceof Error ? error.message : '텍스트 변환 중 오류가 발생했습니다.');
@@ -738,12 +758,23 @@ export default function OrderIntegrationHub() {
       const aoa = buildPreviewDownloadAoA(courierHeaders, sortedRows, userOverrides);
       const wb = createPreviewDownloadWorkbook(aoa);
       const fileName = buildPreviewDownloadFileName(new Date(), '엑클로드주문연동');
+      const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
       const pointsOk = await deductHubConvertPoints(1000, 'download');
       if (!pointsOk) {
         throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
       }
       void fetchUser();
-      XLSX.writeFile(wb, fileName);
+      const blob = new Blob([new Uint8Array(workbookBytes)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
       clearPreviewWorkspace(HUB_WORKSPACE_PAGE, userId);
       clearPreview({ silent: true });
       showNotice(`다운로드 완료 · ${fileName}`);

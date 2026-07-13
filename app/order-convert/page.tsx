@@ -4135,7 +4135,7 @@ export default function OrderConvertPage() {
               />
 
               <div
-                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} ${
+                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} overflow-hidden ${
                   isPreviewExpanded
                     ? EXCLOAD_PREVIEW_HEIGHT_EXPANDED
                     : EXCLOAD_PREVIEW_HEIGHT_DEFAULT
@@ -5241,7 +5241,7 @@ export default function OrderConvertPage() {
                   return;
                 }
                 // 텍스트 입력 방지 (이미지만 허용)
-                if (e.key !== 'v' || !e.ctrlKey) {
+                if (e.key.toLowerCase() !== 'v' || !(e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
                 }
               }}

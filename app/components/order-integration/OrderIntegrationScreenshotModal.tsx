@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { Upload, X } from 'lucide-react';
 
 type Props = {
@@ -55,7 +55,9 @@ export function OrderIntegrationScreenshotModal({ open, onClose, onImagePasted }
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'v' || !event.ctrlKey) {
+    const isPasteShortcut =
+      event.key.toLowerCase() === 'v' && (event.ctrlKey || event.metaKey);
+    if (!isPasteShortcut) {
       event.preventDefault();
     }
   };
