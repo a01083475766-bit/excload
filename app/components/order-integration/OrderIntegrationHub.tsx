@@ -22,6 +22,22 @@ import {
   type PreviewRowWithId,
 } from '@/app/order-convert/OrderConvertPreviewTableRow';
 import {
+  BundleShippingModal,
+  type BundleShippingApplyPayload,
+  type BundleShippingApplySummary,
+} from '@/app/order-convert/BundleShippingModal';
+import {
+  countBundleShippingDuplicateRows,
+  detectBundleShippingGroups,
+} from '@/app/order-convert/bundle-shipping-utils';
+import {
+  TextConvertResultReviewModal,
+  buildTextConvertReviewRows,
+  type TextConvertReviewRow,
+} from '@/app/components/TextConvertResultReviewModal';
+import { useWorkerSortedRows } from '@/app/hooks/useWorkerSortedRows';
+import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
+import {
   buildPreviewDownloadAoA,
   buildPreviewDownloadFileName,
   createPreviewDownloadWorkbook,
@@ -41,6 +57,10 @@ import {
   loadCourierUploadTemplate,
 } from '@/app/lib/courier-upload-template-storage';
 
+const PREVIEW_TOOLBAR_BTN =
+  'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
+const PREVIEW_BATCH_SIZE = 100;
+
 /**
  * 쇼핑몰주문연동 허브 — 미연동 몰 파일·텍스트 변환 + 미리보기.
  * 택배변환과 동일 파이프라인·양식 키(ORDER_CONVERT_KEYS)를 사용합니다.
@@ -51,6 +71,7 @@ export default function OrderIntegrationHub() {
   const userId = user?.userId ?? null;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewRowsRef = useRef<PreviewRowWithId[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [textOrder, setTextOrder] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -59,8 +80,19 @@ export default function OrderIntegrationHub() {
 
   const [previewRows, setPreviewRows] = useState<PreviewRowWithId[]>([]);
   const [courierHeaders, setCourierHeaders] = useState<string[]>([]);
+  const [templateBridgeFile, setTemplateBridgeFile] = useState<TemplateBridgeFile | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [newRowIds, setNewRowIds] = useState<Set<string>>(new Set());
+  const [userOverrides, setUserOverrides] = useState<Record<string, Record<string, string>>>({});
+  const [editingCell, setEditingCell] = useState<{ rowId: string; header: string } | null>(null);
+  const [activeCell, setActiveCell] = useState<{ rowId: string; header: string } | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  const [sortConfig, setSortConfig] = useState<{
+    header: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
+  const [renderedRowCount, setRenderedRowCount] = useState(PREVIEW_BATCH_SIZE);
 
   const [busy, setBusy] = useState<'file' | 'text' | 'download' | null>(null);
   const [statusLabel, setStatusLabel] = useState<string | null>(null);
@@ -68,17 +100,50 @@ export default function OrderIntegrationHub() {
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateReuploadOpen, setTemplateReuploadOpen] = useState(false);
   const [activeTemplateHeaderCount, setActiveTemplateHeaderCount] = useState(0);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isPreviewResetModalOpen, setIsPreviewResetModalOpen] = useState(false);
+
+  const [isBundleShippingModalOpen, setIsBundleShippingModalOpen] = useState(false);
+  const [dismissedBundleGroupKeys, setDismissedBundleGroupKeys] = useState<string[]>([]);
+  const [bundleShippingButtonAcked, setBundleShippingButtonAcked] = useState(false);
+  const [bundleApplyUndo, setBundleApplyUndo] = useState<{
+    snapshot: {
+      previewRows: PreviewRowWithId[];
+      userOverrides: Record<string, Record<string, string>>;
+      dismissedBundleGroupKeys: string[];
+    };
+    summary: BundleShippingApplySummary;
+  } | null>(null);
+
+  const [textConvertReviewModal, setTextConvertReviewModal] = useState<{
+    originalText: string;
+    rows: TextConvertReviewRow[];
+  } | null>(null);
 
   const { unlockExcelFile, excelUnlockUi } = useExcelFileUnlock();
+
+  previewRowsRef.current = previewRows;
 
   const refreshActiveTemplateStatus = useCallback(() => {
     const template = loadCourierUploadTemplate(userId);
     setActiveTemplateHeaderCount(extractNonEmptyHeaderNames(template).length);
   }, [userId]);
 
+  const refreshTemplateBridge = useCallback(() => {
+    try {
+      const bridge = loadHubTemplateBridge(userId);
+      setTemplateBridgeFile(bridge);
+      return bridge;
+    } catch {
+      setTemplateBridgeFile(null);
+      return null;
+    }
+  }, [userId]);
+
   useEffect(() => {
     refreshActiveTemplateStatus();
-  }, [refreshActiveTemplateStatus]);
+    refreshTemplateBridge();
+  }, [refreshActiveTemplateStatus, refreshTemplateBridge]);
 
   const showNotice = (message: string) => {
     setHubError(null);
@@ -105,14 +170,38 @@ export default function OrderIntegrationHub() {
     }, 3000);
   }, []);
 
+  const resetBundleShippingUi = useCallback(() => {
+    setIsBundleShippingModalOpen(false);
+    setDismissedBundleGroupKeys([]);
+    setBundleShippingButtonAcked(false);
+    setBundleApplyUndo(null);
+  }, []);
+
   const appendPreview = useCallback(
-    (rows: PreviewRowWithId[], headers: string[]) => {
+    (rows: PreviewRowWithId[], headers: string[], bridge?: TemplateBridgeFile | null) => {
       setCourierHeaders(headers);
+      if (bridge) setTemplateBridgeFile(bridge);
       setPreviewRows((prev) => [...rows, ...prev]);
       markNewRows(rows.map((row) => row.rowId));
     },
     [markNewRows],
   );
+
+  const openTextReview = (
+    originalText: string,
+    rows: PreviewRowWithId[],
+    bridge: TemplateBridgeFile,
+  ) => {
+    setTextConvertReviewModal({
+      originalText,
+      rows: buildTextConvertReviewRows(
+        rows.map((r) => r.rowId),
+        rows.map((r) => r.data),
+        bridge.courierHeaders,
+        bridge.mappedBaseHeaders,
+      ),
+    });
+  };
 
   const onFilesChosen = (files: FileList | File[]) => {
     const list = Array.from(files).filter((file) => {
@@ -157,8 +246,10 @@ export default function OrderIntegrationHub() {
 
     try {
       const bridge = loadHubTemplateBridge(userId);
+      setTemplateBridgeFile(bridge);
       const fixed = loadHubFixedHeaderValues(userId);
       let added = 0;
+      let lastTextReview: { text: string; rows: PreviewRowWithId[] } | null = null;
 
       for (const file of selectedFiles) {
         const name = file.name.toLowerCase();
@@ -188,7 +279,7 @@ export default function OrderIntegrationHub() {
               if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
             },
           });
-          appendPreview(result.previewRows, result.courierHeaders);
+          appendPreview(result.previewRows, result.courierHeaders, bridge);
           added += result.previewRows.length;
           continue;
         }
@@ -213,14 +304,18 @@ export default function OrderIntegrationHub() {
             throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
           }
           void fetchUser();
-          appendPreview(result.previewRows, result.courierHeaders);
+          appendPreview(result.previewRows, result.courierHeaders, bridge);
           added += result.previewRows.length;
+          lastTextReview = { text: ocrText, rows: result.previewRows };
         }
       }
 
       setSelectedFiles([]);
       setStatusLabel(null);
       showNotice(`변환 완료 · 미리보기에 ${added.toLocaleString()}건이 추가되었습니다.`);
+      if (lastTextReview) {
+        openTextReview(lastTextReview.text, lastTextReview.rows, bridge);
+      }
     } catch (error) {
       setStatusLabel(null);
       showError(error instanceof Error ? error.message : '파일 변환 중 오류가 발생했습니다.');
@@ -247,6 +342,7 @@ export default function OrderIntegrationHub() {
 
     try {
       const bridge = loadHubTemplateBridge(userId);
+      setTemplateBridgeFile(bridge);
       const fixed = loadHubFixedHeaderValues(userId);
       const trimmed = textOrder.trim();
       const result = await convertTextToHubPreview({
@@ -264,12 +360,13 @@ export default function OrderIntegrationHub() {
       }
       void fetchUser();
 
-      appendPreview(result.previewRows, result.courierHeaders);
+      appendPreview(result.previewRows, result.courierHeaders, bridge);
       setTextOrder('');
       setStatusLabel(null);
       showNotice(
         `텍스트 변환 완료 · 미리보기에 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
       );
+      openTextReview(trimmed, result.previewRows, bridge);
     } catch (error) {
       setStatusLabel(null);
       showError(error instanceof Error ? error.message : '텍스트 변환 중 오류가 발생했습니다.');
@@ -277,6 +374,142 @@ export default function OrderIntegrationHub() {
       setBusy(null);
     }
   };
+
+  const sortedRows = useWorkerSortedRows(previewRows, sortConfig, userOverrides);
+
+  useEffect(() => {
+    const totalRows = sortedRows.length;
+    setRenderedRowCount((prev) => {
+      if (totalRows === 0) return PREVIEW_BATCH_SIZE;
+      if (isPreviewExpanded) return totalRows;
+      if (prev >= PREVIEW_BATCH_SIZE) return Math.min(prev, totalRows);
+      return Math.min(PREVIEW_BATCH_SIZE, totalRows);
+    });
+  }, [previewRows.length, courierHeaders.length, isPreviewExpanded, sortedRows.length]);
+
+  const displayRows = useMemo(
+    () => (isPreviewExpanded ? sortedRows : sortedRows.slice(0, renderedRowCount)),
+    [isPreviewExpanded, sortedRows, renderedRowCount],
+  );
+  const hasMorePreviewRows = !isPreviewExpanded && sortedRows.length > renderedRowCount;
+
+  const bundleShippingDetection = useMemo(
+    () => detectBundleShippingGroups(previewRows, courierHeaders, templateBridgeFile, userOverrides),
+    [previewRows, courierHeaders, templateBridgeFile, userOverrides],
+  );
+
+  const activeBundleShippingGroups = useMemo(
+    () =>
+      bundleShippingDetection.groups.filter((g) => !dismissedBundleGroupKeys.includes(g.key)),
+    [bundleShippingDetection.groups, dismissedBundleGroupKeys],
+  );
+
+  const bundleShippingGroupCount = activeBundleShippingGroups.length;
+  const bundleShippingRowCount = countBundleShippingDuplicateRows(activeBundleShippingGroups);
+
+  const activeBundleGroupKeysSig = useMemo(
+    () =>
+      activeBundleShippingGroups
+        .map((g) => g.key)
+        .sort()
+        .join('\u0001'),
+    [activeBundleShippingGroups],
+  );
+
+  useEffect(() => {
+    if (bundleShippingGroupCount > 0) {
+      setBundleShippingButtonAcked(false);
+    }
+  }, [activeBundleGroupKeysSig, bundleShippingGroupCount]);
+
+  const clonePreviewRows = (rows: PreviewRowWithId[]) =>
+    rows.map((r) => ({ rowId: r.rowId, data: { ...r.data } }));
+
+  const handleBundleShippingApply = useCallback(
+    (payload: BundleShippingApplyPayload) => {
+      setBundleApplyUndo({
+        snapshot: {
+          previewRows: clonePreviewRows(previewRows),
+          userOverrides: structuredClone(userOverrides),
+          dismissedBundleGroupKeys: [...dismissedBundleGroupKeys],
+        },
+        summary: payload.summary,
+      });
+
+      const deletedSet = new Set(payload.deletedRowIds);
+      setPreviewRows((prev) => prev.filter((row) => !deletedSet.has(row.rowId)));
+      setUserOverrides((prev) => {
+        const next = { ...prev };
+        for (const id of payload.deletedRowIds) {
+          delete next[id];
+        }
+        for (const [rowId, cols] of Object.entries(payload.overrides)) {
+          if (deletedSet.has(rowId)) continue;
+          next[rowId] = { ...(next[rowId] ?? {}), ...cols };
+        }
+        return next;
+      });
+      setSelectedRowIds((prev) => {
+        const next = new Set(prev);
+        for (const id of deletedSet) next.delete(id);
+        return next;
+      });
+      if (payload.ignoredGroupKeys.length > 0) {
+        setDismissedBundleGroupKeys((prev) => {
+          const merged = new Set([...prev, ...payload.ignoredGroupKeys]);
+          return [...merged];
+        });
+      }
+      setBundleShippingButtonAcked(true);
+    },
+    [previewRows, userOverrides, dismissedBundleGroupKeys],
+  );
+
+  const handleUndoBundleShippingApply = useCallback(() => {
+    if (!bundleApplyUndo) return;
+    const { snapshot } = bundleApplyUndo;
+    setPreviewRows(snapshot.previewRows);
+    setUserOverrides(snapshot.userOverrides);
+    setDismissedBundleGroupKeys(snapshot.dismissedBundleGroupKeys);
+    setSelectedRowIds(new Set());
+    setBundleApplyUndo(null);
+    setBundleShippingButtonAcked(false);
+  }, [bundleApplyUndo]);
+
+  const commitCellEdit = useCallback((rowId: string, header: string, value: string) => {
+    setUserOverrides((prev) => {
+      const row = previewRowsRef.current.find((r) => r.rowId === rowId);
+      const base = String(row?.data[header] ?? '');
+      const currentOverride = prev[rowId]?.[header];
+      const effective = currentOverride !== undefined ? String(currentOverride) : base;
+      if (value === effective) return prev;
+      return {
+        ...prev,
+        [rowId]: {
+          ...(prev[rowId] ?? {}),
+          [header]: value,
+        },
+      };
+    });
+  }, []);
+
+  const handlePreviewCellClickStartEdit = useCallback(
+    (rowId: string, header: string, displayValue: string) => {
+      setEditingValue(displayValue);
+      setActiveCell({ rowId, header });
+      setEditingCell({ rowId, header });
+    },
+    [],
+  );
+
+  const handlePreviewEditingInputChange = useCallback((v: string) => {
+    setEditingValue(v);
+  }, []);
+
+  const handlePreviewFinishEditUi = useCallback(() => {
+    setEditingCell(null);
+    setActiveCell(null);
+  }, []);
 
   const handleDownload = async () => {
     if (busy || previewRows.length === 0 || courierHeaders.length === 0) return;
@@ -288,7 +521,7 @@ export default function OrderIntegrationHub() {
     setBusy('download');
     setHubError(null);
     try {
-      const aoa = buildPreviewDownloadAoA(courierHeaders, previewRows, {});
+      const aoa = buildPreviewDownloadAoA(courierHeaders, sortedRows, userOverrides);
       const wb = createPreviewDownloadWorkbook(aoa);
       const fileName = buildPreviewDownloadFileName(new Date(), '엑클로드주문연동');
       const pointsOk = await deductHubConvertPoints(1, 'download');
@@ -305,22 +538,39 @@ export default function OrderIntegrationHub() {
     }
   };
 
-  const clearPreview = () => {
+  const clearPreview = (options?: { keepHeaders?: boolean; silent?: boolean }) => {
     setPreviewRows([]);
-    setCourierHeaders([]);
+    if (!options?.keepHeaders) {
+      setCourierHeaders([]);
+    }
     setSelectedRowIds(new Set());
     setNewRowIds(new Set());
-    showNotice('미리보기를 비웠습니다.');
+    setUserOverrides({});
+    setEditingCell(null);
+    setActiveCell(null);
+    setSortConfig(null);
+    setIsPreviewExpanded(false);
+    setRenderedRowCount(PREVIEW_BATCH_SIZE);
+    resetBundleShippingUi();
+    setIsPreviewResetModalOpen(false);
+    if (!options?.silent) {
+      showNotice('미리보기를 비웠습니다.');
+    }
   };
 
   const deleteSelectedRows = () => {
     if (selectedRowIds.size === 0) return;
     setPreviewRows((prev) => prev.filter((row) => !selectedRowIds.has(row.rowId)));
+    setUserOverrides((prev) => {
+      const next = { ...prev };
+      for (const id of selectedRowIds) delete next[id];
+      return next;
+    });
     setSelectedRowIds(new Set());
+    setIsDeleteModalOpen(false);
   };
 
   const previewEmpty = previewRows.length === 0;
-  const displayHeaders = useMemo(() => courierHeaders, [courierHeaders]);
 
   return (
     <div className="bg-zinc-50 pb-4 pt-1.5 dark:bg-black">
@@ -503,8 +753,8 @@ export default function OrderIntegrationHub() {
         </section>
 
         <section className="relative pb-2 pt-1">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-semibold text-gray-900">
+          <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
+            <h3 className="col-start-1 row-start-1 self-center text-lg font-semibold text-gray-900">
               미리보기
               {!previewEmpty ? (
                 <span className="ml-2 text-sm font-normal text-gray-500">
@@ -512,34 +762,125 @@ export default function OrderIntegrationHub() {
                 </span>
               ) : null}
             </h3>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="col-start-2 row-start-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
               {!previewEmpty ? (
                 <>
                   <button
                     type="button"
-                    onClick={deleteSelectedRows}
-                    disabled={selectedRowIds.size === 0 || busy !== null}
-                    className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+                    className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
+                    onClick={() => setIsPreviewExpanded((prev) => !prev)}
                   >
-                    선택 삭제
+                    {isPreviewExpanded ? '닫기' : '펼치기'}
                   </button>
                   <button
                     type="button"
-                    onClick={clearPreview}
+                    className={`${PREVIEW_TOOLBAR_BTN} border-amber-500/80 bg-amber-50 text-amber-900 hover:bg-amber-100`}
+                    onClick={() => setIsPreviewResetModalOpen(true)}
                     disabled={busy !== null}
-                    className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
                   >
-                    전체 비우기
+                    미리보기 초기화
                   </button>
+                  {selectedRowIds.size > 0 ? (
+                    <button
+                      type="button"
+                      className={`${PREVIEW_TOOLBAR_BTN} border-red-600 bg-red-600 text-white hover:bg-red-700`}
+                      onClick={() => setIsDeleteModalOpen(true)}
+                      disabled={busy !== null}
+                    >
+                      선택 삭제
+                    </button>
+                  ) : null}
+                  {bundleShippingDetection.columns ? (
+                    bundleApplyUndo ? (
+                      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                        <div
+                          className={`${PREVIEW_TOOLBAR_BTN} whitespace-nowrap border-violet-400/70 bg-violet-50 font-normal text-violet-950`}
+                        >
+                          묶음 : 삭제{' '}
+                          <b className="font-medium text-red-600">
+                            {bundleApplyUndo.summary.deletedRowCount}
+                          </b>
+                          건 · 개별배송{' '}
+                          <b className="font-medium">
+                            {bundleApplyUndo.summary.individualGroupCount}
+                          </b>
+                          그룹 · 묶음결정{' '}
+                          <b className="font-medium">
+                            {bundleApplyUndo.summary.bundleDoneGroupCount}
+                          </b>
+                          그룹
+                        </div>
+                        <button
+                          type="button"
+                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
+                          onClick={handleUndoBundleShippingApply}
+                        >
+                          묶음배송 적용취소
+                        </button>
+                      </div>
+                    ) : bundleShippingGroupCount > 0 ? (
+                      <button
+                        type="button"
+                        className={`${PREVIEW_TOOLBAR_BTN} border-violet-500/80 bg-violet-50 text-violet-900 hover:bg-violet-100 ${
+                          !bundleShippingButtonAcked ? 'animate-pulse ring-2 ring-violet-400/80' : ''
+                        }`}
+                        onClick={() => {
+                          setBundleShippingButtonAcked(true);
+                          setIsBundleShippingModalOpen(true);
+                        }}
+                      >
+                        묶음배송가능건확인 ({bundleShippingGroupCount}그룹 ·{' '}
+                        {bundleShippingRowCount}건)
+                      </button>
+                    ) : null
+                  ) : null}
                 </>
               ) : null}
               <Link
                 href="/order/integration/shipments"
-                className="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                className={`${PREVIEW_TOOLBAR_BTN} border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50`}
               >
                 송장 매칭·전송
               </Link>
             </div>
+
+            {!previewEmpty ? (
+              <p className="col-start-2 row-start-2 min-w-0 text-sm text-gray-500">
+                ✔ 셀을 클릭하면 수정할 수 있습니다. ✔ 주소, 상품 등을 클릭하면 오름/내림차순
+                정렬됩니다. ✔ 체크박스로 선택 후 삭제할 수 있습니다.
+              </p>
+            ) : null}
+
+            {!previewEmpty && !isPreviewExpanded ? (
+              <div className="col-start-2 row-start-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-snug">
+                <span className="font-medium text-blue-600">
+                  총 {sortedRows.length.toLocaleString()}건 중{' '}
+                  {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
+                </span>
+                {hasMorePreviewRows ? (
+                  <>
+                    <button
+                      type="button"
+                      className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
+                      onClick={() =>
+                        setRenderedRowCount((prev) =>
+                          Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                        )
+                      }
+                    >
+                      추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
+                    </button>
+                    <button
+                      type="button"
+                      className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
+                      onClick={() => setRenderedRowCount(sortedRows.length)}
+                    >
+                      전체 보기
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {previewEmpty ? (
@@ -551,8 +892,12 @@ export default function OrderIntegrationHub() {
               </p>
             </div>
           ) : (
-            <div className="max-h-[420px] overflow-auto rounded-xl border border-gray-200 bg-white">
-              <table className="min-w-full border-collapse text-left text-xs">
+            <div
+              className={`overflow-auto rounded-xl border border-gray-200 bg-white ${
+                isPreviewExpanded ? 'max-h-[750px]' : 'max-h-[420px]'
+              }`}
+            >
+              <table className="min-w-max border-collapse text-left text-xs">
                 <thead className="sticky top-0 z-10 bg-zinc-100">
                   <tr>
                     <th className="w-10 border-b border-zinc-200 px-2 py-2">
@@ -572,28 +917,66 @@ export default function OrderIntegrationHub() {
                         aria-label="전체 선택"
                       />
                     </th>
-                    {displayHeaders.map((header) => (
+                    {courierHeaders.map((header) => (
                       <th
                         key={header}
-                        className="whitespace-nowrap border-b border-zinc-200 px-2 py-2 font-semibold text-zinc-700"
+                        className="cursor-pointer select-none whitespace-nowrap border-b border-zinc-200 px-2 py-2 font-semibold text-zinc-700"
+                        onClick={() => {
+                          setSortConfig((prev) => {
+                            if (!prev || prev.header !== header) {
+                              return { header, direction: 'asc' };
+                            }
+                            if (prev.direction === 'asc') {
+                              return { header, direction: 'desc' };
+                            }
+                            return null;
+                          });
+                        }}
                       >
-                        {header}
+                        <div className="flex items-center gap-1">
+                          <span
+                            className={
+                              sortConfig?.header === header
+                                ? sortConfig.direction === 'asc'
+                                  ? 'font-semibold text-blue-600'
+                                  : 'font-semibold text-red-600'
+                                : ''
+                            }
+                          >
+                            {header}
+                          </span>
+                          {sortConfig?.header === header ? (
+                            <span
+                              className={
+                                sortConfig.direction === 'asc'
+                                  ? 'text-xs text-blue-600'
+                                  : 'text-xs text-red-600'
+                              }
+                            >
+                              {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                            </span>
+                          ) : null}
+                        </div>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {previewRows.map((row) => (
+                  {displayRows.map((row) => (
                     <OrderConvertPreviewTableRow
                       key={row.rowId}
                       row={row}
-                      courierHeaders={displayHeaders}
-                      overridesForRow={undefined}
+                      courierHeaders={courierHeaders}
+                      overridesForRow={userOverrides[row.rowId]}
                       isSelected={selectedRowIds.has(row.rowId)}
                       isNewRow={newRowIds.has(row.rowId)}
-                      localEditingHeader={null}
-                      localEditingValue=""
-                      localActiveHeader={null}
+                      localEditingHeader={
+                        editingCell?.rowId === row.rowId ? editingCell.header : null
+                      }
+                      localEditingValue={editingCell?.rowId === row.rowId ? editingValue : ''}
+                      localActiveHeader={
+                        activeCell?.rowId === row.rowId ? activeCell.header : null
+                      }
                       onToggleSelect={(rowId, checked) => {
                         setSelectedRowIds((prev) => {
                           const next = new Set(prev);
@@ -602,10 +985,10 @@ export default function OrderIntegrationHub() {
                           return next;
                         });
                       }}
-                      onCellClickStartEdit={() => undefined}
-                      onEditingInputChange={() => undefined}
-                      onCommitEdit={() => undefined}
-                      onFinishEditUi={() => undefined}
+                      onCellClickStartEdit={handlePreviewCellClickStartEdit}
+                      onEditingInputChange={handlePreviewEditingInputChange}
+                      onCommitEdit={commitCellEdit}
+                      onFinishEditUi={handlePreviewFinishEditUi}
                       interactionEnabled
                     />
                   ))}
@@ -690,6 +1073,95 @@ export default function OrderIntegrationHub() {
         </section>
       </main>
 
+      <BundleShippingModal
+        open={isBundleShippingModalOpen}
+        groups={activeBundleShippingGroups}
+        courierHeaders={courierHeaders}
+        previewRows={previewRows}
+        userOverrides={userOverrides}
+        onClose={() => setIsBundleShippingModalOpen(false)}
+        onApply={handleBundleShippingApply}
+      />
+
+      {isDeleteModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-[400px] rounded-lg bg-white p-6 shadow-lg">
+            <h4 className="mb-3 text-lg font-semibold">
+              선택한 {selectedRowIds.size}개 항목을 삭제하시겠습니까?
+            </h4>
+            <p className="mb-6 text-sm text-gray-500">
+              선택한 항목을 삭제하고, 나머지 데이터만 유지합니다.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded border px-4 py-2 text-sm hover:bg-gray-100"
+                onClick={() => setIsDeleteModalOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                onClick={deleteSelectedRows}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isPreviewResetModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-[min(100%,400px)] rounded-lg border border-zinc-200 bg-white p-6 shadow-lg">
+            <h4 className="mb-3 text-lg font-semibold text-zinc-900">미리보기 초기화</h4>
+            <p className="mb-2 text-sm leading-relaxed text-gray-600">
+              첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.
+            </p>
+            <p className="mb-6 text-sm text-gray-500">
+              등록한 택배 양식·고정 입력은 그대로 둡니다.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded border px-4 py-2 text-sm hover:bg-gray-100"
+                onClick={() => setIsPreviewResetModalOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="rounded bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700"
+                onClick={() => {
+                  setSelectedFiles([]);
+                  setTextOrder('');
+                  clearPreview();
+                }}
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <TextConvertResultReviewModal
+        isOpen={textConvertReviewModal !== null}
+        originalText={textConvertReviewModal?.originalText ?? ''}
+        rows={textConvertReviewModal?.rows ?? []}
+        onConfirm={() => setTextConvertReviewModal(null)}
+        onApply={(overrides) => {
+          setUserOverrides((prev) => {
+            const next = { ...prev };
+            for (const [rowId, rowEdits] of Object.entries(overrides)) {
+              next[rowId] = { ...(next[rowId] ?? {}), ...rowEdits };
+            }
+            return next;
+          });
+        }}
+      />
+
       <OrderIntegrationFixedInputModal
         open={fixedInputOpen}
         userId={userId}
@@ -713,15 +1185,19 @@ export default function OrderIntegrationHub() {
         }}
         onApplied={({ bridgeFile, shouldClearPreview }) => {
           refreshActiveTemplateStatus();
-          if (bridgeFile?.courierHeaders?.length) {
-            setCourierHeaders(bridgeFile.courierHeaders);
+          if (bridgeFile) {
+            setTemplateBridgeFile(bridgeFile);
+            if (bridgeFile.courierHeaders?.length) {
+              setCourierHeaders(bridgeFile.courierHeaders);
+            }
           }
           if (shouldClearPreview) {
-            setPreviewRows([]);
-            setSelectedRowIds(new Set());
-            setNewRowIds(new Set());
             setSelectedFiles([]);
             setTextOrder('');
+            clearPreview({
+              keepHeaders: Boolean(bridgeFile?.courierHeaders?.length),
+              silent: true,
+            });
             setTemplateReuploadOpen(true);
           } else {
             showNotice('택배 업로드 양식을 적용했습니다.');
