@@ -29,6 +29,7 @@ import type { OrderStandardFile, StandardOrderRow } from '@/app/pipeline/order/o
 import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 import {
   HUB_SALES_CHANNEL_TEXT,
+  ensureHubSalesChannelPreviewColumn,
   fillEmptySalesChannelRows,
   salesChannelLabelFromFileName,
 } from '@/app/lib/order-integration/hub-sales-channel';
@@ -92,6 +93,24 @@ function toPreviewRowsWithIds(rows: PreviewRow[]): PreviewRowWithId[] {
   }));
 }
 
+function toHubConvertResult(
+  previewRows: PreviewRow[],
+  courierHeaders: string[],
+  template: TemplateBridgeFile,
+  standardRows: StandardOrderRow[],
+): HubConvertResult {
+  const ensured = ensureHubSalesChannelPreviewColumn({
+    previewRows,
+    courierHeaders,
+    mappedBaseHeaders: template.mappedBaseHeaders,
+    standardRows,
+  });
+  return {
+    previewRows: toPreviewRowsWithIds(ensured.previewRows),
+    courierHeaders: ensured.courierHeaders,
+  };
+}
+
 export async function convertExcelBufferToHubPreview(input: {
   buffer: ArrayBuffer;
   templateBridgeFile: TemplateBridgeFile;
@@ -132,10 +151,12 @@ export async function convertExcelBufferToHubPreview(input: {
     throw new Error('엑셀 주문 변환에 실패했습니다. 양식·데이터 구성을 확인해 주세요.');
   }
 
-  return {
-    previewRows: toPreviewRowsWithIds(stage3Result.previewRows),
-    courierHeaders: stage3Result.courierHeaders,
-  };
+  return toHubConvertResult(
+    stage3Result.previewRows,
+    stage3Result.courierHeaders,
+    input.templateBridgeFile,
+    orderData.rows,
+  );
 }
 
 export async function convertTextToHubPreview(input: {
@@ -183,10 +204,12 @@ export async function convertTextToHubPreview(input: {
     throw new Error('텍스트 주문 변환에 실패했습니다. 다시 시도해 주세요.');
   }
 
-  return {
-    previewRows: toPreviewRowsWithIds(stage3Result.previewRows),
-    courierHeaders: stage3Result.courierHeaders,
-  };
+  return toHubConvertResult(
+    stage3Result.previewRows,
+    stage3Result.courierHeaders,
+    input.templateBridgeFile,
+    orderData.rows,
+  );
 }
 
 /** 주문조회(API) orderStandardFile.rows → 택배 양식 미리보기 */
@@ -215,10 +238,12 @@ export async function convertOrderStandardRowsToHubPreview(input: {
     throw new Error('주문조회 결과를 택배 양식으로 변환하지 못했습니다. 등록 양식을 확인해 주세요.');
   }
 
-  return {
-    previewRows: toPreviewRowsWithIds(stage3Result.previewRows),
-    courierHeaders: stage3Result.courierHeaders,
-  };
+  return toHubConvertResult(
+    stage3Result.previewRows,
+    stage3Result.courierHeaders,
+    input.templateBridgeFile,
+    orderData.rows,
+  );
 }
 
 export async function deductHubConvertPoints(amount: number, type: 'text' | 'download'): Promise<boolean> {
