@@ -464,25 +464,27 @@ export function BundleShippingModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-black/40 p-3 sm:p-4">
-        <div className="flex h-[min(92dvh,900px)] max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-gray-300 bg-gray-200 shadow-lg">
-          <div className="flex shrink-0 items-start justify-between border-b border-gray-300 bg-white px-4 py-4 sm:px-6 sm:py-5">
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-x-hidden overflow-y-auto bg-black/40 p-2 sm:p-4">
+        <div className="my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-gray-300 bg-gray-200 shadow-lg sm:max-h-[min(90dvh,860px)]">
+          <div className="flex shrink-0 items-start justify-between border-b border-gray-300 bg-white px-3 py-3 sm:px-6 sm:py-4">
+            <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm sm:h-10 sm:w-10">
                 <PackageCheck className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-lg font-bold tracking-tight text-gray-900">묶음배송 가능건</h4>
-                  <span className="rounded-full border border-violet-500/80 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-900 ring-1 ring-violet-100">
+                  <h4 className="text-base font-bold tracking-tight text-gray-900 sm:text-lg">
+                    묶음배송 가능건
+                  </h4>
+                  <span className="rounded-full border border-violet-500/80 bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-900 ring-1 ring-violet-100 sm:px-3 sm:py-1">
                     후보 {groupDrafts.length}그룹 · {totalCandidateRows}건
                   </span>
                 </div>
-                <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                <p className="mt-1 hidden text-sm leading-relaxed text-gray-500 sm:block">
                   등록 양식 기준: 수령인 이름 · 연락처 · 배송지 주소로 묶음배송가능건으로
                   확인하였습니다.
                 </p>
-                <p className="mt-0.5 text-sm leading-relaxed text-gray-500">
+                <p className="mt-0.5 text-xs leading-relaxed text-gray-500 sm:text-sm">
                   각 주문건을 확인후 개별배송 또는 묶음배송을 정해 주세요. (자동으로 합치지
                   않습니다.)
                 </p>
@@ -498,12 +500,12 @@ export function BundleShippingModal({
             </button>
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[270px_1fr]">
-            <aside className="flex max-h-48 min-h-0 flex-col overflow-hidden border-b border-gray-300 bg-gray-50 md:max-h-none md:border-b-0 md:border-r">
-              <div className="shrink-0 border-b border-gray-200 px-4 py-3 text-xs font-bold text-gray-500">
+          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(200px,260px)_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
+            <aside className="flex max-h-[min(36dvh,13rem)] min-h-0 flex-col overflow-hidden border-b border-gray-300 bg-gray-50 md:h-full md:max-h-none md:border-b-0 md:border-r">
+              <div className="shrink-0 border-b border-gray-200 px-4 py-2.5 text-xs font-bold text-gray-500 sm:py-3">
                 후보 그룹
               </div>
-              <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3">
+              <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-2 sm:p-3">
                 {groupDrafts.map((g) => {
                   const meta = groups.find((x) => x.groupId === g.groupId);
                   const decision = groupDecisions[g.groupId] ?? 'undecided';
@@ -555,9 +557,9 @@ export function BundleShippingModal({
               </ul>
             </aside>
 
-            <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
+            <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white md:h-full">
               {activeGroupMeta ? (
-                <section className="shrink-0 border-b border-gray-200 p-4 md:px-5 md:pt-5 md:pb-4">
+                <section className="shrink-0 border-b border-gray-200 p-3 sm:p-4 md:px-5 md:pt-4 md:pb-3">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -696,17 +698,17 @@ export function BundleShippingModal({
                 </section>
               ) : null}
 
-              <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-4 md:px-5 md:pb-5">
+              <div className="min-h-[10rem] flex-1 overflow-auto overscroll-contain p-3 sm:min-h-[12rem] sm:p-4 md:px-5 md:pb-5">
                 {!activeDraft || activeDraft.rowIds.length === 0 ? (
                   <p className="py-8 text-center text-sm text-gray-400">이 그룹에 주문 행이 없습니다.</p>
                 ) : (
-                  <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-300 bg-white">
+                  <div className="flex h-full min-h-[10rem] flex-col overflow-hidden rounded-lg border border-gray-300 bg-white sm:min-h-[12rem]">
                     {activeGroupDeletedCount > 0 && (
                       <p className="shrink-0 border-b border-red-100 bg-red-50/50 px-3 py-1.5 text-xs text-red-700">
                         삭제 예정 행은 취소선으로 표시됩니다. 미리보기에 적용할 때 제외됩니다.
                       </p>
                     )}
-                    <div className="min-h-0 overflow-auto preview-scrollbar preview-table-no-copy">
+                    <div className="min-h-0 flex-1 overflow-auto preview-scrollbar preview-table-no-copy">
                     <table className="min-w-max border-collapse text-sm">
                       <thead className="sticky top-0 z-10 bg-gray-50">
                         <tr>
@@ -792,7 +794,7 @@ export function BundleShippingModal({
             </main>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-gray-300 bg-white px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex shrink-0 flex-col gap-2 border-t border-gray-300 bg-white px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-4">
             <p className="text-sm text-gray-500">
               삭제 예정 <b className="text-red-600">{deletedCount}건</b> · 수정 반영{' '}
               <b className="text-blue-600">{modifiedOverrideCount}건</b> · 개별배송{' '}
