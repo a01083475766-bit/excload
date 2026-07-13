@@ -6709,31 +6709,44 @@ export function LogisticsConvertClient({
       {/* 물류 전용: 미리보기 코드매핑 (헤더별 마스터 → 모달 확인 시 일괄 반영) */}
       {showColumnCodeMappingModal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
           onClick={handleCloseColumnCodeMappingModal}
+          role="presentation"
         >
           <div
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[920px] max-h-[90vh] flex flex-col p-6"
+            className="flex max-h-[90vh] w-full max-w-[920px] flex-col rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="column-code-mapping-title"
           >
-            <div className="flex items-center justify-between mb-4 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                코드매핑 설정
-              </h2>
+            <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-6 pb-4 pt-5 dark:border-zinc-800">
+              <div className="min-w-0 space-y-2">
+                <h2
+                  id="column-code-mapping-title"
+                  className="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
+                >
+                  코드매핑 설정
+                </h2>
+                <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                  원본값(왼쪽)과 변환값(오른쪽)을 입력하면 미리보기에 변환값으로 적용됩니다.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">선택된 헤더</span>
+                  <span className="inline-flex max-w-full items-center truncate rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    {columnMappingActiveHeader ?? '-'}
+                  </span>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={handleCloseColumnCodeMappingModal}
-                className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="rounded-lg p-1.5 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 aria-label="닫기"
               >
-                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                <X className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
               </button>
             </div>
-
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 leading-relaxed">
-              <strong>원본값(왼쪽)</strong>과 <strong>변환값(오른쪽)</strong>을 입력해, 미리보기에
-              변환값으로 적용합니다.
-            </p>
 
             <input
               ref={columnMappingModalFileRef}
@@ -6743,17 +6756,10 @@ export function LogisticsConvertClient({
               onChange={handleColumnMappingExcelFileChange}
             />
 
-            <div className="relative overflow-y-auto flex-1 min-h-0 pr-1">
-              <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
-                선택된 헤더:{' '}
-                <span className="font-semibold">
-                  {columnMappingActiveHeader ?? '-'}
-                </span>
-              </div>
-
+            <div className="relative min-h-0 flex-1 overflow-y-auto px-6 py-4">
               {columnCodeMappingModalView === 'excelGuide' ? (
-                <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40 p-4 sm:p-5">
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed mb-4">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 sm:p-5 dark:border-zinc-800 dark:bg-zinc-800/40">
+                  <p className="mb-4 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                     {columnCodeMappingEditorMode === 'product' ? (
                       <>
                         아래 예시처럼 <strong>상품명·옵션명·상품코드</strong> 열로
@@ -6768,28 +6774,28 @@ export function LogisticsConvertClient({
                     )}
                   </p>
 
-                  <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-900 mb-4">
+                  <div className="mb-4 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
                     <table className="w-full border-collapse text-sm">
-                      <thead className="bg-gray-50 dark:bg-zinc-800">
+                      <thead className="bg-zinc-50 dark:bg-zinc-800">
                         <tr>
                           {columnCodeMappingEditorMode === 'product' ? (
                             <>
-                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700">
+                              <th className="border-b border-zinc-200 p-2.5 text-left text-xs font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">
                                 상품명
                               </th>
-                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700">
+                              <th className="border-b border-zinc-200 p-2.5 text-left text-xs font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">
                                 옵션명
                               </th>
-                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700">
+                              <th className="border-b border-zinc-200 p-2.5 text-left text-xs font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">
                                 상품코드
                               </th>
                             </>
                           ) : (
                             <>
-                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700 w-1/2">
+                              <th className="w-1/2 border-b border-zinc-200 p-2.5 text-left text-xs font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">
                                 원본값
                               </th>
-                              <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-700 w-1/2">
+                              <th className="w-1/2 border-b border-zinc-200 p-2.5 text-left text-xs font-semibold text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">
                                 변환값
                               </th>
                             </>
@@ -6801,15 +6807,15 @@ export function LogisticsConvertClient({
                           ? MAPPING_EXCEL_PRODUCT_FRUIT_EXAMPLES.map((row) => (
                               <tr
                                 key={`${row.name}-${row.option}-${row.code}`}
-                                className="border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                                className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-800"
                               >
-                                <td className="p-2 text-xs text-zinc-800 dark:text-zinc-100">
+                                <td className="p-2.5 text-xs text-zinc-800 dark:text-zinc-100">
                                   {row.name}
                                 </td>
-                                <td className="p-2 text-xs text-zinc-600 dark:text-zinc-400">
+                                <td className="p-2.5 text-xs text-zinc-500 dark:text-zinc-400">
                                   {row.option || '—'}
                                 </td>
-                                <td className="p-2 text-xs text-zinc-800 dark:text-zinc-100">
+                                <td className="p-2.5 text-xs text-zinc-800 dark:text-zinc-100">
                                   {row.code}
                                 </td>
                               </tr>
@@ -6817,12 +6823,12 @@ export function LogisticsConvertClient({
                           : MAPPING_EXCEL_SIMPLE_FRUIT_EXAMPLES.map((row) => (
                               <tr
                                 key={row.original}
-                                className="border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                                className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-800"
                               >
-                                <td className="p-2 text-xs text-zinc-800 dark:text-zinc-100">
+                                <td className="p-2.5 text-xs text-zinc-800 dark:text-zinc-100">
                                   {row.original}
                                 </td>
-                                <td className="p-2 text-xs text-zinc-800 dark:text-zinc-100">
+                                <td className="p-2.5 text-xs text-zinc-800 dark:text-zinc-100">
                                   {row.converted}
                                 </td>
                               </tr>
@@ -6831,7 +6837,7 @@ export function LogisticsConvertClient({
                     </table>
                   </div>
 
-                  <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1 mb-5 list-disc pl-4 leading-relaxed">
+                  <ul className="mb-5 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
                     {columnCodeMappingEditorMode === 'product' ? (
                       <>
                         <li>첫 줄에 상품명·옵션명·상품코드(또는 코드) 헤더를 넣어 주세요.</li>
@@ -6852,18 +6858,18 @@ export function LogisticsConvertClient({
                     <li>헤더가 없어도 앞쪽 2~3열 순서로 읽을 수 있습니다.</li>
                   </ul>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2.5">
                     <button
                       type="button"
                       onClick={() => setColumnCodeMappingModalView('editor')}
-                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
+                      className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                     >
                       편집으로 돌아가기
                     </button>
                     <button
                       type="button"
                       onClick={() => columnMappingModalFileRef.current?.click()}
-                      className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 text-sm"
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                     >
                       파일 첨부하기
                     </button>
@@ -6871,24 +6877,24 @@ export function LogisticsConvertClient({
                 </div>
               ) : (
                 <>
-                  <div className="flex flex-wrap items-center justify-end gap-2 mb-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => setColumnCodeMappingModalView('excelGuide')}
-                      className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+                      className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
                     >
                       매핑 엑셀 추가
                     </button>
                   </div>
 
-                  <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+                  <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
                 <table className="w-full border-collapse text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-zinc-50 dark:bg-zinc-800/80">
                     <tr>
-                      <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-800 w-1/3">
+                      <th className="w-1/3 border-b border-zinc-200 p-2.5 text-left text-xs font-semibold text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
                         원본값
                       </th>
-                      <th className="p-2 text-left text-xs font-semibold border-b border-zinc-200 dark:border-zinc-800 w-2/3">
+                      <th className="w-2/3 border-b border-zinc-200 p-2.5 text-left text-xs font-semibold text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
                         변환값
                       </th>
                     </tr>
@@ -6901,16 +6907,12 @@ export function LogisticsConvertClient({
                       return (
                         <tr
                           key={r.id}
-                          className={`border-b border-zinc-100 dark:border-zinc-700 last:border-b-0 ${
-                            String(r.value ?? '').trim() === ''
-                              ? 'bg-amber-50'
-                              : ''
-                          }`}
+                          className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-800"
                         >
-                          <td className="p-2 align-top text-xs text-zinc-800 dark:text-zinc-100 max-w-[280px]">
+                          <td className="max-w-[280px] p-2 align-middle text-xs text-zinc-800 dark:text-zinc-100">
                             {canEditOriginal ? (
                               <input
-                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 text-xs bg-white dark:bg-zinc-900 outline-none"
+                                className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-600 dark:focus:ring-emerald-950"
                                 value={r.displayKey}
                                 placeholder={
                                   columnCodeMappingEditorMode === 'product'
@@ -6974,7 +6976,11 @@ export function LogisticsConvertClient({
                                       : '미리보기에서 가져온 값이 없습니다.\u000a변환값만 입력하거나 +행 추가로 원본을 입력하세요.'
                                     : undefined
                                 }
-                                className={`${trialMode ? 'ex-tooltip-target' : ''} min-h-[28px] px-2 py-1 rounded-md text-xs whitespace-normal break-words bg-zinc-50 dark:bg-zinc-800/60 text-zinc-800 dark:text-zinc-100`}
+                                className={`${trialMode ? 'ex-tooltip-target' : ''} min-h-[34px] rounded-lg px-2.5 py-1.5 text-xs whitespace-normal break-words ${
+                                  displayTrimmed !== ''
+                                    ? 'bg-zinc-50 text-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-100'
+                                    : 'bg-zinc-50/80 italic text-zinc-400 dark:bg-zinc-800/40 dark:text-zinc-500'
+                                }`}
                               >
                                 {displayTrimmed !== ''
                                   ? r.displayKey
@@ -6982,9 +6988,9 @@ export function LogisticsConvertClient({
                               </div>
                             )}
                           </td>
-                          <td className="p-2">
+                          <td className="p-2 align-middle">
                             <input
-                              className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 text-xs bg-white dark:bg-zinc-900 outline-none"
+                              className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-600 dark:focus:ring-emerald-950"
                               value={r.value}
                               onChange={(e) => {
                                 const nextVal = e.target.value;
@@ -7027,12 +7033,12 @@ export function LogisticsConvertClient({
                     })}
 
                     <tr>
-                      <td colSpan={2} className="p-2 bg-white dark:bg-zinc-900">
+                      <td colSpan={2} className="bg-zinc-50/50 p-2.5 dark:bg-zinc-900">
                         <div className="flex justify-end">
                           <button
                             type="button"
                             onClick={handleAddColumnCodeMappingEditorRow}
-                            className="text-xs px-3 py-1.5 rounded-md border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
                           >
                             + 행 추가
                           </button>
@@ -7044,29 +7050,32 @@ export function LogisticsConvertClient({
               </div>
 
               {columnCodeMappingDuplicatePopup && (
-                <div className="absolute inset-0 bg-black/20 flex items-center justify-center p-3 z-50">
-                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-lg w-full max-w-[520px]">
-                    <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-start justify-between gap-3">
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/25 p-3">
+                  <div className="w-full max-w-[520px] rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+                    <div className="flex items-start justify-between gap-3 border-b border-zinc-100 p-4 dark:border-zinc-800">
                       <div>
-                        <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                        <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                           원본값 중복 안내
                         </div>
-                        <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                        <div className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
                           원본값이 여러 번 정의되어 있습니다. 아래의 변환값으로 적용됩니다. 확인해주세요.
                         </div>
                       </div>
                       <button
                         type="button"
-                        className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        className="rounded-lg p-1 transition hover:bg-zinc-100 dark:hover:bg-zinc-800"
                         onClick={() => setColumnCodeMappingDuplicatePopup(null)}
                       >
-                        <X className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+                        <X className="h-4 w-4 text-zinc-500 dark:text-zinc-300" />
                       </button>
                     </div>
-                    <div className="p-4 max-h-[240px] overflow-auto">
+                    <div className="max-h-[240px] overflow-auto p-4">
                       <div className="space-y-2">
                         {columnCodeMappingDuplicatePopup.items.map((it) => (
-                          <div key={it.key} className="text-xs text-zinc-800 dark:text-zinc-100">
+                          <div
+                            key={it.key}
+                            className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs text-zinc-800 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-100"
+                          >
                             {it.displayKey}({it.count}건) → {it.lastValue || '-'}
                           </div>
                         ))}
@@ -7077,11 +7086,11 @@ export function LogisticsConvertClient({
                         )}
                       </div>
                     </div>
-                    <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+                    <div className="flex justify-end border-t border-zinc-100 p-4 dark:border-zinc-800">
                       <button
                         type="button"
                         onClick={() => setColumnCodeMappingDuplicatePopup(null)}
-                        className="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                       >
                         확인
                       </button>
@@ -7093,74 +7102,78 @@ export function LogisticsConvertClient({
               )}
             </div>
 
-            <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex-shrink-0">
+            <div className="flex flex-shrink-0 flex-col gap-2.5 border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">
               {columnCodeMappingModalView === 'editor' ? (
                 <>
                   {columnCodeMappingSavedMessage ? (
-                    <div className="text-xs text-center text-emerald-700 dark:text-emerald-300">
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-xs font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
                       {columnCodeMappingSavedMessage}
                     </div>
                   ) : null}
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSaveColumnCodeMappingForReuse}
-                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
-                    >
-                      변환값 저장
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleEnableColumnAutoApply}
-                      className="px-4 py-2.5 rounded-lg border border-emerald-600 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950/40 text-sm whitespace-nowrap"
-                    >
-                      다음부터 자동 적용
-                    </button>
-                    {isActiveHeaderAutoApplyEnabled ? (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={handleCancelColumnAutoApply}
-                        className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
+                        onClick={handleSaveColumnCodeMappingForReuse}
+                        className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                       >
-                        자동 적용 취소
+                        변환값 저장
                       </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={handleApplyColumnCodeMappingFromEditor}
-                      className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 text-sm whitespace-nowrap"
-                    >
-                      미리보기에 적용
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelColumnCodeMappingModal}
-                      className="px-4 py-2.5 rounded-lg border border-rose-300 text-rose-800 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 text-sm whitespace-nowrap"
-                    >
-                      취소
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCloseColumnCodeMappingModal}
-                      className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm whitespace-nowrap"
-                    >
-                      닫기
-                    </button>
+                      <button
+                        type="button"
+                        onClick={handleEnableColumnAutoApply}
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
+                      >
+                        다음부터 자동 적용
+                      </button>
+                      {isActiveHeaderAutoApplyEnabled ? (
+                        <button
+                          type="button"
+                          onClick={handleCancelColumnAutoApply}
+                          className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-500 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                        >
+                          자동 적용 취소
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCancelColumnCodeMappingModal}
+                        className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCloseColumnCodeMappingModal}
+                        className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                      >
+                        닫기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyColumnCodeMappingFromEditor}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                      >
+                        미리보기에 적용
+                      </button>
+                    </div>
                   </div>
                 </>
               ) : (
-                <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2.5">
                   <button
                     type="button"
                     onClick={handleCancelColumnCodeMappingModal}
-                    className="px-4 py-2.5 rounded-lg border border-rose-300 text-rose-800 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 text-sm"
+                    className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                   >
                     취소
                   </button>
                   <button
                     type="button"
                     onClick={handleCloseColumnCodeMappingModal}
-                    className="px-4 py-2.5 rounded-lg border border-zinc-300 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800 text-sm"
+                    className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                   >
                     닫기
                   </button>

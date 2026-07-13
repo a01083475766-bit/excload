@@ -831,8 +831,7 @@ export default function OrderIntegrationHub() {
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                     <h3 className="shrink-0 text-base font-semibold text-gray-900">파일선택</h3>
                     <p className="min-w-0 text-xs leading-relaxed text-gray-600">
-                      엑셀은 선택·드롭 시 바로 미리보기로 변환됩니다. 이미지는 텍스트 칸으로 옮겨
-                      확인 후 변환합니다
+                      주문엑셀·이미지 파일을 선택하거나 이 영역에 끌어다 놓아 주세요
                     </p>
                   </div>
                   <div
@@ -1087,7 +1086,7 @@ export default function OrderIntegrationHub() {
             </div>
           ) : (
             <div
-              className={`overflow-auto rounded-xl border border-gray-200 bg-white ${
+              className={`overflow-auto rounded-xl border border-gray-200 bg-white preview-scrollbar preview-table-no-copy ${
                 isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
               }`}
             >
