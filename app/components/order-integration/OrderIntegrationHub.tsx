@@ -12,6 +12,12 @@ import {
   CalendarDays,
   Coins,
   Loader2,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  Package,
+  Trash2,
+  Send,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
@@ -57,8 +63,8 @@ import {
   loadCourierUploadTemplate,
 } from '@/app/lib/courier-upload-template-storage';
 
-const PREVIEW_TOOLBAR_BTN =
-  'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
+const PREVIEW_TOOL_BTN =
+  'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40';
 const PREVIEW_BATCH_SIZE = 100;
 
 /**
@@ -753,135 +759,148 @@ export default function OrderIntegrationHub() {
         </section>
 
         <section className="relative pb-2 pt-1">
-          <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
-            <h3 className="col-start-1 row-start-1 self-center text-lg font-semibold text-gray-900">
-              미리보기
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+              <h3 className="text-lg font-semibold text-gray-900">미리보기</h3>
               {!previewEmpty ? (
-                <span className="ml-2 text-sm font-normal text-gray-500">
+                <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
                   {previewRows.length.toLocaleString()}건
                 </span>
               ) : null}
-            </h3>
-            <div className="col-start-2 row-start-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-              {!previewEmpty ? (
+            </div>
+            <Link
+              href="/order/integration/shipments"
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 self-start rounded-lg bg-blue-600 px-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:self-auto"
+            >
+              <Send className="h-3.5 w-3.5" aria-hidden />
+              송장 매칭·전송
+            </Link>
+          </div>
+
+          {!previewEmpty ? (
+            <div className="mb-2.5 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white px-2.5 py-2 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  className={PREVIEW_TOOL_BTN}
+                  onClick={() => setIsPreviewExpanded((prev) => !prev)}
+                >
+                  {isPreviewExpanded ? (
+                    <Minimize2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  ) : (
+                    <Maximize2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  )}
+                  {isPreviewExpanded ? '닫기' : '펼치기'}
+                </button>
+                <button
+                  type="button"
+                  className={PREVIEW_TOOL_BTN}
+                  onClick={() => setIsPreviewResetModalOpen(true)}
+                  disabled={busy !== null}
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  초기화
+                </button>
+                {selectedRowIds.size > 0 ? (
+                  <button
+                    type="button"
+                    className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-red-600 px-2.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                    disabled={busy !== null}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    선택 삭제 {selectedRowIds.size}
+                  </button>
+                ) : null}
+              </div>
+
+              {bundleShippingDetection.columns ? (
+                bundleApplyUndo ? (
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 sm:border-t-0 sm:pt-0">
+                    <p className="rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs leading-snug text-zinc-600">
+                      묶음 적용 · 삭제{' '}
+                      <span className="font-semibold text-red-600">
+                        {bundleApplyUndo.summary.deletedRowCount}
+                      </span>
+                      · 개별{' '}
+                      <span className="font-semibold text-zinc-800">
+                        {bundleApplyUndo.summary.individualGroupCount}
+                      </span>
+                      · 묶음{' '}
+                      <span className="font-semibold text-zinc-800">
+                        {bundleApplyUndo.summary.bundleDoneGroupCount}
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      className={`${PREVIEW_TOOL_BTN} border border-zinc-200 bg-white`}
+                      onClick={handleUndoBundleShippingApply}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                      적용 취소
+                    </button>
+                  </div>
+                ) : bundleShippingGroupCount > 0 ? (
+                  <button
+                    type="button"
+                    className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 self-start rounded-md border border-violet-200 bg-violet-50 px-2.5 text-xs font-semibold text-violet-900 transition hover:bg-violet-100 sm:self-auto ${
+                      !bundleShippingButtonAcked ? 'ring-2 ring-violet-300/70' : ''
+                    }`}
+                    onClick={() => {
+                      setBundleShippingButtonAcked(true);
+                      setIsBundleShippingModalOpen(true);
+                    }}
+                  >
+                    <Package className="h-3.5 w-3.5" aria-hidden />
+                    묶음배송 {bundleShippingGroupCount}그룹
+                    <span className="font-medium text-violet-700/80">
+                      · {bundleShippingRowCount}건
+                    </span>
+                  </button>
+                ) : null
+              ) : null}
+            </div>
+          ) : null}
+
+          {!previewEmpty ? (
+            <p className="mb-2 text-xs leading-relaxed text-zinc-500">
+              셀 클릭으로 수정 · 헤더 클릭으로 정렬 · 체크 후 선택 삭제
+            </p>
+          ) : null}
+
+          {!previewEmpty && !isPreviewExpanded ? (
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-snug text-zinc-500">
+              <span>
+                <span className="font-medium text-blue-700">
+                  {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}
+                </span>
+                {' / '}
+                {sortedRows.length.toLocaleString()}건 표시
+              </span>
+              {hasMorePreviewRows ? (
                 <>
                   <button
                     type="button"
-                    className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                    onClick={() => setIsPreviewExpanded((prev) => !prev)}
+                    className="rounded-md px-2 py-1 font-medium text-blue-700 transition hover:bg-blue-50"
+                    onClick={() =>
+                      setRenderedRowCount((prev) =>
+                        Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                      )
+                    }
                   >
-                    {isPreviewExpanded ? '닫기' : '펼치기'}
+                    +{PREVIEW_BATCH_SIZE}건 더보기
                   </button>
                   <button
                     type="button"
-                    className={`${PREVIEW_TOOLBAR_BTN} border-amber-500/80 bg-amber-50 text-amber-900 hover:bg-amber-100`}
-                    onClick={() => setIsPreviewResetModalOpen(true)}
-                    disabled={busy !== null}
+                    className="rounded-md px-2 py-1 font-medium text-zinc-600 transition hover:bg-zinc-100"
+                    onClick={() => setRenderedRowCount(sortedRows.length)}
                   >
-                    미리보기 초기화
+                    전체 보기
                   </button>
-                  {selectedRowIds.size > 0 ? (
-                    <button
-                      type="button"
-                      className={`${PREVIEW_TOOLBAR_BTN} border-red-600 bg-red-600 text-white hover:bg-red-700`}
-                      onClick={() => setIsDeleteModalOpen(true)}
-                      disabled={busy !== null}
-                    >
-                      선택 삭제
-                    </button>
-                  ) : null}
-                  {bundleShippingDetection.columns ? (
-                    bundleApplyUndo ? (
-                      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                        <div
-                          className={`${PREVIEW_TOOLBAR_BTN} whitespace-nowrap border-violet-400/70 bg-violet-50 font-normal text-violet-950`}
-                        >
-                          묶음 : 삭제{' '}
-                          <b className="font-medium text-red-600">
-                            {bundleApplyUndo.summary.deletedRowCount}
-                          </b>
-                          건 · 개별배송{' '}
-                          <b className="font-medium">
-                            {bundleApplyUndo.summary.individualGroupCount}
-                          </b>
-                          그룹 · 묶음결정{' '}
-                          <b className="font-medium">
-                            {bundleApplyUndo.summary.bundleDoneGroupCount}
-                          </b>
-                          그룹
-                        </div>
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                          onClick={handleUndoBundleShippingApply}
-                        >
-                          묶음배송 적용취소
-                        </button>
-                      </div>
-                    ) : bundleShippingGroupCount > 0 ? (
-                      <button
-                        type="button"
-                        className={`${PREVIEW_TOOLBAR_BTN} border-violet-500/80 bg-violet-50 text-violet-900 hover:bg-violet-100 ${
-                          !bundleShippingButtonAcked ? 'animate-pulse ring-2 ring-violet-400/80' : ''
-                        }`}
-                        onClick={() => {
-                          setBundleShippingButtonAcked(true);
-                          setIsBundleShippingModalOpen(true);
-                        }}
-                      >
-                        묶음배송가능건확인 ({bundleShippingGroupCount}그룹 ·{' '}
-                        {bundleShippingRowCount}건)
-                      </button>
-                    ) : null
-                  ) : null}
                 </>
               ) : null}
-              <Link
-                href="/order/integration/shipments"
-                className={`${PREVIEW_TOOLBAR_BTN} border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50`}
-              >
-                송장 매칭·전송
-              </Link>
             </div>
-
-            {!previewEmpty ? (
-              <p className="col-start-2 row-start-2 min-w-0 text-sm text-gray-500">
-                ✔ 셀을 클릭하면 수정할 수 있습니다. ✔ 주소, 상품 등을 클릭하면 오름/내림차순
-                정렬됩니다. ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-              </p>
-            ) : null}
-
-            {!previewEmpty && !isPreviewExpanded ? (
-              <div className="col-start-2 row-start-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-snug">
-                <span className="font-medium text-blue-600">
-                  총 {sortedRows.length.toLocaleString()}건 중{' '}
-                  {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                </span>
-                {hasMorePreviewRows ? (
-                  <>
-                    <button
-                      type="button"
-                      className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                      onClick={() =>
-                        setRenderedRowCount((prev) =>
-                          Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                        )
-                      }
-                    >
-                      추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                    </button>
-                    <button
-                      type="button"
-                      className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                      onClick={() => setRenderedRowCount(sortedRows.length)}
-                    >
-                      전체 보기
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+          ) : null}
 
           {previewEmpty ? (
             <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-10 text-center">
