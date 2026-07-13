@@ -158,20 +158,20 @@ export default function OrderIntegrationPanel() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 pb-10 sm:px-6">
       <Link
-        href="/order-convert"
+        href="/order/integration"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        택배주문변환으로 돌아가기
+        주문연동 허브로
       </Link>
 
       <div className="mb-6 flex items-center gap-2">
         <Link2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">주문연동</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">주문연동하기</h1>
       </div>
 
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        쇼핑몰 판매자센터에서 발급한 API 키를 등록하면 주문을 자동으로 수집할 수 있습니다.
+        쇼핑몰 판매자센터에서 발급한 API 키를 등록·테스트합니다.
         <strong className="font-semibold text-zinc-800 dark:text-zinc-200">
           {' '}
           메인 연동 방식은 쇼핑몰별 직접 API(direct)입니다.

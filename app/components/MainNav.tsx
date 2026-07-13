@@ -53,8 +53,8 @@ const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-3 sm:px-5 lg:px-8';
 
 const primaryLinkClass = `
   flex h-full shrink-0 items-center justify-center gap-2
-  min-w-[118px] max-w-[172px]
-  px-4 py-1.5
+  min-w-[118px] max-w-[200px]
+  px-3 py-1.5
   text-sm
   relative
   whitespace-nowrap
@@ -96,19 +96,15 @@ export default function MainNav() {
   };
   const orderIntegrationMenuItem: MenuItem = {
     href: '/order/integration',
-    label: '주문연동',
+    label: '쇼핑몰주문연동',
     icon: Link2,
   };
   const primaryMenuForUser = primaryMenuItems.filter(
     (item) => !hiddenNavHrefs.has(item.href) && (item.href !== '/history' || isLoggedIn),
   );
-  /** 1단: 택배주문변환 다음에 주문연동(관리자만) */
+  /** 1단: 주문연동(관리자만)을 택배주문변환 앞에 배치 */
   const displayPrimaryItems = (
-    isAdmin
-      ? primaryMenuForUser.flatMap((item) =>
-          item.href === '/order-convert' ? [item, orderIntegrationMenuItem] : [item],
-        )
-      : primaryMenuForUser
+    isAdmin ? [orderIntegrationMenuItem, ...primaryMenuForUser] : primaryMenuForUser
   ).filter((item) => !hiddenNavHrefs.has(item.href));
   /** 2단: 서비스소개 다음에 관리자·커머스리포트(관리자만), 이어서 랜딩 테스트 */
   const displaySecondaryItems = secondaryMenuItems

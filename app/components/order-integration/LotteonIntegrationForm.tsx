@@ -88,7 +88,7 @@ export function LotteonIntegrationForm() {
       const res = await fetch('/api/order/integration/lotteon');
       const data = (await res.json()) as { account?: LotteonAccountResponse | null; error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? '연동 정보를 불러오지 못했습니다.');
+        throw new Error(data.error ?? '?�동 ?�보�?불러?��? 못했?�니??');
       }
       const account = data.account ?? null;
       setSavedAccount(account);
@@ -102,7 +102,7 @@ export function LotteonIntegrationForm() {
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
+        text: error instanceof Error ? error.message : '?�동 ?�보�?불러?��? 못했?�니??',
       });
     } finally {
       setLoading(false);
@@ -125,7 +125,7 @@ export function LotteonIntegrationForm() {
           setTransportInfo({ mode: data.transport.mode, notes: data.notes });
         }
       } catch {
-        // transport 정보는 부가 안내용
+        // transport ?�보??부가 ?�내??
       }
     }
     void loadTransport();
@@ -152,18 +152,18 @@ export function LotteonIntegrationForm() {
         account?: LotteonAccountResponse;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�?�에 ?�패?�습?�다.');
 
       setSavedAccount(data.account ?? null);
       setApiKey('');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '롯데ON 연동 정보가 저장되었습니다.',
+        text: data.message ?? '�?��ON ?�동 ?�보가 ?�?�되?�습?�다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '저장에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�?�에 ?�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -176,16 +176,16 @@ export function LotteonIntegrationForm() {
     try {
       const res = await fetch('/api/order/integration/lotteon/test', { method: 'POST' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '연결 테스트에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�결 ?�스?�에 ?�패?�습?�다.');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '롯데ON API 연결이 정상 확인되었습니다.',
+        text: data.message ?? '�?��ON API ?�결???�상 ?�인?�었?�니??',
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�결 ?�스?�에 ?�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -205,19 +205,19 @@ export function LotteonIntegrationForm() {
         previewRows?: LotteonPreviewRow[];
         count?: number;
       };
-      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '주문 ?�집???�패?�습?�다.');
 
       setPreviewRows(data.previewRows ?? []);
       setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? `롯데ON 주문 ${data.count ?? 0}건을 불러왔습니다.`,
+        text: data.message ?? `�?��ON 주문 ${data.count ?? 0}건을 불러?�습?�다.`,
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
+        text: error instanceof Error ? error.message : '주문 ?�집???�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -225,14 +225,14 @@ export function LotteonIntegrationForm() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm('저장된 롯데ON 연동 정보를 삭제할까요?')) return;
+    if (!window.confirm('?�?�된 �?��ON ?�동 ?�보�???��?�까??')) return;
 
     setBusyAction('disconnect');
     setStatusMessage(null);
     try {
       const res = await fetch('/api/order/integration/lotteon', { method: 'DELETE' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '연동 해제에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�동 ?�제???�패?�습?�다.');
 
       setSavedAccount(null);
       setAccountName('');
@@ -244,12 +244,12 @@ export function LotteonIntegrationForm() {
       setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
-        text: data.message ?? '롯데ON 연동이 해제되었습니다.',
+        text: data.message ?? '�?��ON ?�동???�제?�었?�니??',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�동 ?�제???�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -257,43 +257,43 @@ export function LotteonIntegrationForm() {
   }
 
   const apiKeyPlaceholder = savedAccount?.hasApiKey
-    ? `저장됨: ${savedAccount.apiKeyMasked || '********'} (변경 시에만 입력)`
-    : 'OpenAPI 인증 KEY 입력 (Query Key 파라미터, 저장 후 전체 노출되지 않습니다)';
+    ? `?�?�됨: ${savedAccount.apiKeyMasked || '********'} (변�??�에�??�력)`
+    : 'OpenAPI ?�증 KEY ?�력 (Query Key ?�라미터, ?�?????�체 ?�출?��? ?�습?�다)';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
       <Link
-        href="/order/integration"
+        href="/order/integration/connect"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        주문연동 목록
+        주문?�동 목록
       </Link>
 
       <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">롯데ON 연동</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">�?��ON ?�동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베타
+          베�?
         </span>
       </div>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        API KEY + tr_no 저장 후 연결 테스트와 주문 조회·수집(출고지시·상품준비)을 진행할 수 있습니다. 발주확인·송장
-        전송·상태 변경은 포함하지 않습니다.
+        API KEY + tr_no ?�?????�결 ?�스?��? 주문 조회·?�집(출고지?�·상?��?�???진행?????�습?�다. 발주?�인·?�장
+        ?�송·?�태 변경�? ?�함?��? ?�습?�다.
       </p>
 
-      {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
+      {loading ? <p className="mb-4 text-sm text-zinc-500">?�동 ?�보 불러?�는 중�?/p> : null}
 
       {transportInfo ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API 호출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
+          API ?�출 경로:{' '}
+          <strong>{transportInfo.mode === 'proxy' ? '고정 IP ?�록?? : '?�록??미설??}</strong>
           {transportInfo.mode === 'proxy' ? (
             <span className="mt-1 block text-xs opacity-90">
-              롯데ON OpenAPI 관리에 엑클로드 고정 IP({outboundIp || '54.180.45.46'})를 등록하세요.
+              �?��ON OpenAPI 관리에 ?�클로드 고정 IP({outboundIp || '54.180.45.46'})�??�록?�세??
             </span>
           ) : (
             <span className="mt-1 block text-xs opacity-90">
-              롯데ON API는 Vercel 직접 호출을 지원하지 않습니다. INTEGRATION_PROXY_BASE_URL을 설정해 주세요.
+              �?��ON API??Vercel 직접 ?�출??지?�하지 ?�습?�다. INTEGRATION_PROXY_BASE_URL???�정??주세??
             </span>
           )}
         </p>
@@ -301,24 +301,24 @@ export function LotteonIntegrationForm() {
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 오류: {savedAccount.lastErrorMessage}
+          최근 ?�류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 정보 (판매자센터 등록용)</h2>
+        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">?�클로드 ?�보 (?�매?�센???�록??</h2>
         <dl className="space-y-3">
-          <CopyableInfoRow label="업체명" value={EXCLOAD_INTEGRATION_INFO.companyName} />
+          <CopyableInfoRow label="?�체�? value={EXCLOAD_INTEGRATION_INFO.companyName} />
           <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
           <CopyableInfoRow
             label="IP 주소"
             value={outboundIp}
-            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 환경변수 설정 필요"
+            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP ?�경변???�정 ?�요"
           />
         </dl>
       </section>
 
-      <CollapsibleGuide title="API 발급 방법 보기 (롯데ON)">
+      <CollapsibleGuide title="API 발급 방법 보기 (�?��ON)">
         <ol className="list-decimal space-y-2 pl-5">
           <li>
             <a
@@ -327,78 +327,78 @@ export function LotteonIntegrationForm() {
               rel="noopener noreferrer"
               className="text-blue-600 underline dark:text-blue-400"
             >
-              롯데ON 스토어센터
+              �?��ON ?�토?�센??
             </a>
-            에 로그인합니다.
+            ??로그?�합?�다.
           </li>
-          <li>판매자정보 → OpenAPI 관리에서 호스팅/셀러툴(엑클로드)과 직접입력을 선택합니다.</li>
+          <li>?�매?�정�???OpenAPI 관리에???�스???�?�툴(?�클로드)�?직접?�력???�택?�니??</li>
           <li>
-            서버 IP에 <strong>엑클로드 고정 IP</strong>를 세미콜론(;)으로 구분해 추가한 뒤 저장·키발급합니다.
+            ?�버 IP??<strong>?�클로드 고정 IP</strong>�??��?콜론(;)?�로 구분??추�??????�?�·키발급?�니??
           </li>
-          <li>판매자정보 → 기본정보관리에서 LO로 시작하는 거래처번호(tr_no)를 확인합니다.</li>
+          <li>?�매?�정�???기본?�보관리에??LO�??�작?�는 거래처번??tr_no)�??�인?�니??</li>
         </ol>
       </CollapsibleGuide>
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            접속별칭 (계정명)
+            ?�속별칭 (계정�?
           </label>
           <input
             id="accountName"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="예: 본사 롯데ON"
+            placeholder="?? 본사 �?��ON"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="sellerId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            판매자 ID
+            ?�매??ID
           </label>
           <input
             id="sellerId"
             type="text"
             value={sellerId}
             onChange={(e) => setSellerId(e.target.value)}
-            placeholder="스토어센터 판매자 ID"
+            placeholder="?�토?�센???�매??ID"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="trNo" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            거래처번호 (tr_no)
+            거래처번??(tr_no)
           </label>
           <input
             id="trNo"
             type="text"
             value={trNo}
             onChange={(e) => setTrNo(e.target.value)}
-            placeholder="예: LO12345678"
+            placeholder="?? LO12345678"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="shopId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Shop ID (선택)
+            Shop ID (?�택)
           </label>
           <input
             id="shopId"
             type="text"
             value={shopId}
             onChange={(e) => setShopId(e.target.value)}
-            placeholder="필요 시 Shop ID / lrtr_no"
+            placeholder="?�요 ??Shop ID / lrtr_no"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="apiKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            API 인증 KEY
+            API ?�증 KEY
           </label>
           <input
             id="apiKey"
@@ -425,7 +425,7 @@ export function LotteonIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            저장
+            ?�??
           </button>
           <button
             type="button"
@@ -434,7 +434,7 @@ export function LotteonIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            연결 테스트
+            ?�결 ?�스??
           </button>
           <button
             type="button"
@@ -443,7 +443,7 @@ export function LotteonIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
           >
             {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 수집
+            주문 ?�집
           </button>
           <button
             type="button"
@@ -452,7 +452,7 @@ export function LotteonIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            연동 해제
+            ?�동 ?�제
           </button>
         </div>
       </form>
@@ -460,7 +460,7 @@ export function LotteonIntegrationForm() {
       {fetchMeta ? (
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            수집 결과 미리보기 ({fetchMeta.count}건)
+            ?�집 결과 미리보기 ({fetchMeta.count}�?
           </h2>
           {previewRows.length ? (
             <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -488,7 +488,7 @@ export function LotteonIntegrationForm() {
               </table>
             </div>
           ) : (
-            <p className="text-sm text-zinc-500">최근 7일 이내 출고지시·상품준비 주문이 없습니다.</p>
+            <p className="text-sm text-zinc-500">최근 7???�내 출고지?�·상?��?�?주문???�습?�다.</p>
           )}
         </section>
       ) : null}

@@ -3779,9 +3779,11 @@ export default function OrderConvertPage() {
       <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
         {/* Hero 섹션 - 세로 흐름 구조 (주문변환 UI 껍데기) */}
         <section className="relative pt-1 pb-3">
-          <h1 className="mb-2 text-center text-lg font-semibold text-gray-900 sm:text-xl">
-            택배주문변환
-          </h1>
+          <div className="mb-2 flex min-h-[38px] w-full items-center justify-center">
+            <h1 className="text-center text-lg font-semibold text-gray-900 sm:text-xl">
+              택배주문변환
+            </h1>
+          </div>
           <p className="mb-3 text-center text-sm leading-relaxed text-gray-600 px-2">
             쇼핑몰 주문 엑셀을 택배사 업로드 양식에 맞게 정리하고 변환할 수 있습니다.
             엑셀·텍스트·이미지로 받은 주문을 택배 엑셀 변환으로 자동 처리합니다.

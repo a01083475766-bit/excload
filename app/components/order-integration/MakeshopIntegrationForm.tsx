@@ -88,7 +88,7 @@ export function MakeshopIntegrationForm() {
       const res = await fetch('/api/order/integration/makeshop');
       const data = (await res.json()) as { account?: MakeshopAccountResponse | null; error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? '연동 정보를 불러오지 못했습니다.');
+        throw new Error(data.error ?? '?�동 ?�보�?불러?��? 못했?�니??');
       }
       const account = data.account ?? null;
       setSavedAccount(account);
@@ -103,7 +103,7 @@ export function MakeshopIntegrationForm() {
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
+        text: error instanceof Error ? error.message : '?�동 ?�보�?불러?��? 못했?�니??',
       });
     } finally {
       setLoading(false);
@@ -131,7 +131,7 @@ export function MakeshopIntegrationForm() {
           });
         }
       } catch {
-        // transport 정보는 부가 안내용
+        // transport ?�보??부가 ?�내??
       }
     }
     void loadTransport();
@@ -159,7 +159,7 @@ export function MakeshopIntegrationForm() {
         account?: MakeshopAccountResponse;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�?�에 ?�패?�습?�다.');
 
       setSavedAccount(data.account ?? null);
       setClientIdOverride('');
@@ -167,12 +167,12 @@ export function MakeshopIntegrationForm() {
       setClearOAuthOverride(false);
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '메이크샵 연동 정보가 저장되었습니다.',
+        text: data.message ?? '메이?�샵 ?�동 ?�보가 ?�?�되?�습?�다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '저장에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�?�에 ?�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -185,16 +185,16 @@ export function MakeshopIntegrationForm() {
     try {
       const res = await fetch('/api/order/integration/makeshop/test', { method: 'POST' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '연결 테스트에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�결 ?�스?�에 ?�패?�습?�다.');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '메이크샵 APP API 연결이 정상 확인되었습니다.',
+        text: data.message ?? '메이?�샵 APP API ?�결???�상 ?�인?�었?�니??',
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�결 ?�스?�에 ?�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -214,19 +214,19 @@ export function MakeshopIntegrationForm() {
         previewRows?: MakeshopPreviewRow[];
         count?: number;
       };
-      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '주문 ?�집???�패?�습?�다.');
 
       setPreviewRows(data.previewRows ?? []);
       setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? `메이크샵 주문 ${data.count ?? 0}건을 불러왔습니다.`,
+        text: data.message ?? `메이?�샵 주문 ${data.count ?? 0}건을 불러?�습?�다.`,
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
+        text: error instanceof Error ? error.message : '주문 ?�집???�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -234,14 +234,14 @@ export function MakeshopIntegrationForm() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm('저장된 메이크샵 연동 정보를 삭제할까요?')) return;
+    if (!window.confirm('?�?�된 메이?�샵 ?�동 ?�보�???��?�까??')) return;
 
     setBusyAction('disconnect');
     setStatusMessage(null);
     try {
       const res = await fetch('/api/order/integration/makeshop', { method: 'DELETE' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '연동 해제에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�동 ?�제???�패?�습?�다.');
 
       setSavedAccount(null);
       setAccountName('');
@@ -253,12 +253,12 @@ export function MakeshopIntegrationForm() {
       setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
-        text: data.message ?? '메이크샵 연동이 해제되었습니다.',
+        text: data.message ?? '메이?�샵 ?�동???�제?�었?�니??',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�동 ?�제???�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -268,42 +268,42 @@ export function MakeshopIntegrationForm() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
       <Link
-        href="/order/integration"
+        href="/order/integration/connect"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        주문연동 목록
+        주문?�동 목록
       </Link>
 
       <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">메이크샵 연동</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">메이?�샵 ?�동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베타
+          베�?
         </span>
       </div>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        메이크샵 신규 APP API(connect.makeshop.co.kr)로 연결 테스트와 주문 2.0 조회·수집을 진행할 수 있습니다.
-        레거시 상점도메인 Open API·발주·송장·Webhook은 포함하지 않습니다.
+        메이?�샵 ?�규 APP API(connect.makeshop.co.kr)�??�결 ?�스?��? 주문 2.0 조회·?�집??진행?????�습?�다.
+        ?�거???�점?�메??Open API·발주·?�장·Webhook?� ?�함?��? ?�습?�다.
       </p>
 
-      {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
+      {loading ? <p className="mb-4 text-sm text-zinc-500">?�동 ?�보 불러?�는 중�?/p> : null}
 
       <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-        <strong>Client ID / Client Secret</strong>은 엑클로드 APP 공통 값으로 서버 env에 등록됩니다. 판매자는{' '}
-        <strong>shop_uid</strong>만 입력하면 됩니다.
+        <strong>Client ID / Client Secret</strong>?� ?�클로드 APP 공통 값으�??�버 env???�록?�니?? ?�매?�는{' '}
+        <strong>shop_uid</strong>�??�력?�면 ?�니??
         <span className="mt-1 block">
-          APP 접근 허용 IP <strong>{EXCLOAD_MAKESHOP_OUTBOUND_IP}</strong> 등록과 샵스토어 APP 설치가 필요합니다.
+          APP ?�근 ?�용 IP <strong>{EXCLOAD_MAKESHOP_OUTBOUND_IP}</strong> ?�록�??�스?�어 APP ?�치가 ?�요?�니??
         </span>
       </p>
 
       {transportInfo ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API 호출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
+          API ?�출 경로:{' '}
+          <strong>{transportInfo.mode === 'proxy' ? '고정 IP ?�록?? : '?�록??미설??}</strong>
           {transportInfo.oauthConfigured === false ? (
             <span className="mt-1 block text-xs font-semibold text-amber-800 dark:text-amber-200">
-              MAKESHOP_CLIENT_ID/MAKESHOP_CLIENT_SECRET이 아직 서버에 설정되지 않았습니다. 실연동 전 Vercel env 등록
-              또는 개발용 override가 필요합니다.
+              MAKESHOP_CLIENT_ID/MAKESHOP_CLIENT_SECRET???�직 ?�버???�정?��? ?�았?�니?? ?�연????Vercel env ?�록
+              ?�는 개발??override가 ?�요?�니??
             </span>
           ) : null}
           {transportInfo.notes ? <span className="mt-1 block text-xs opacity-90">{transportInfo.notes}</span> : null}
@@ -312,20 +312,20 @@ export function MakeshopIntegrationForm() {
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 오류: {savedAccount.lastErrorMessage}
+          최근 ?�류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 APP 등록용 정보</h2>
+        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">?�클로드 APP ?�록???�보</h2>
         <dl className="space-y-3">
-          <CopyableInfoRow label="업체명" value={EXCLOAD_INTEGRATION_INFO.companyName} />
+          <CopyableInfoRow label="?�체�? value={EXCLOAD_INTEGRATION_INFO.companyName} />
           <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
-          <CopyableInfoRow label="접근 허용 IP" value={EXCLOAD_MAKESHOP_OUTBOUND_IP} />
+          <CopyableInfoRow label="?�근 ?�용 IP" value={EXCLOAD_MAKESHOP_OUTBOUND_IP} />
         </dl>
       </section>
 
-      <CollapsibleGuide title="연동 준비 방법 보기 (메이크샵 APP API)">
+      <CollapsibleGuide title="?�동 준�?방법 보기 (메이?�샵 APP API)">
         <ol className="list-decimal space-y-2 pl-5">
           <li>
             <a
@@ -336,39 +336,39 @@ export function MakeshopIntegrationForm() {
             >
               developer.makeshop.co.kr
             </a>
-            · partner.makeshop.co.kr에서 APP 등록
+            · partner.makeshop.co.kr?�서 APP ?�록
           </li>
-          <li>개발 정보 → 접근 허용 IP에 {EXCLOAD_MAKESHOP_OUTBOUND_IP} 등록, 주문 Read scope 선택</li>
-          <li>MAKESHOP_CLIENT_ID / MAKESHOP_CLIENT_SECRET을 Vercel env에 등록</li>
-          <li>판매자 샵스토어에서 엑클로드 APP 설치 후 shop_uid 확인</li>
+          <li>개발 ?�보 ???�근 ?�용 IP??{EXCLOAD_MAKESHOP_OUTBOUND_IP} ?�록, 주문 Read scope ?�택</li>
+          <li>MAKESHOP_CLIENT_ID / MAKESHOP_CLIENT_SECRET??Vercel env???�록</li>
+          <li>?�매???�스?�어?�서 ?�클로드 APP ?�치 ??shop_uid ?�인</li>
         </ol>
       </CollapsibleGuide>
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            계정명
+            계정�?
           </label>
           <input
             id="accountName"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="예: 본사 메이크샵"
+            placeholder="?? 본사 메이?�샵"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="shopId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            shop_uid (상점 ID)
+            shop_uid (?�점 ID)
           </label>
           <input
             id="shopId"
             type="text"
             value={shopId}
             onChange={(e) => setShopId(e.target.value)}
-            placeholder="예: myshop"
+            placeholder="?? myshop"
             className={inputClass}
             required
           />
@@ -376,17 +376,17 @@ export function MakeshopIntegrationForm() {
 
         <div>
           <label htmlFor="mallDomain" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            쇼핑몰 도메인 (선택)
+            ?�핑�??�메??(?�택)
           </label>
           <input
             id="mallDomain"
             type="text"
             value={mallDomain}
             onChange={(e) => setMallDomain(e.target.value)}
-            placeholder="예: shop.example.com"
+            placeholder="?? shop.example.com"
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-zinc-500">계정 구분용입니다. API 호출 host는 connect.makeshop.co.kr입니다.</p>
+          <p className="mt-1 text-xs text-zinc-500">계정 구분?�입?�다. API ?�출 host??connect.makeshop.co.kr?�니??</p>
         </div>
 
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -395,14 +395,14 @@ export function MakeshopIntegrationForm() {
             onClick={() => setShowAdvanced((prev) => !prev)}
             className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300"
           >
-            개발·내부용 (OAuth override)
+            개발·?��???(OAuth override)
             {showAdvanced ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
           </button>
           {showAdvanced ? (
             <div className="space-y-3 border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
               <p className="text-xs text-zinc-500">
-                운영 환경에서는 Vercel env <code>MAKESHOP_CLIENT_ID</code>, <code>MAKESHOP_CLIENT_SECRET</code>을
-                사용합니다. 로컬·스테이징 테스트 시에만 override를 입력하세요.
+                ?�영 ?�경?�서??Vercel env <code>MAKESHOP_CLIENT_ID</code>, <code>MAKESHOP_CLIENT_SECRET</code>??
+                ?�용?�니?? 로컬·?�테?�징 ?�스???�에�?override�??�력?�세??
               </p>
               <input
                 id="clientIdOverride"
@@ -412,8 +412,8 @@ export function MakeshopIntegrationForm() {
                 autoComplete="new-password"
                 placeholder={
                   savedAccount?.hasClientIdOverride
-                    ? 'Client ID override 저장됨 (변경 시에만 입력)'
-                    : 'Client ID override (선택)'
+                    ? 'Client ID override ?�?�됨 (변�??�에�??�력)'
+                    : 'Client ID override (?�택)'
                 }
                 className={inputClass}
               />
@@ -425,8 +425,8 @@ export function MakeshopIntegrationForm() {
                 autoComplete="new-password"
                 placeholder={
                   savedAccount?.hasClientSecretOverride
-                    ? 'Client Secret override 저장됨 (변경 시에만 입력)'
-                    : 'Client Secret override (선택)'
+                    ? 'Client Secret override ?�?�됨 (변�??�에�??�력)'
+                    : 'Client Secret override (?�택)'
                 }
                 className={inputClass}
               />
@@ -437,7 +437,7 @@ export function MakeshopIntegrationForm() {
                     checked={clearOAuthOverride}
                     onChange={(e) => setClearOAuthOverride(e.target.checked)}
                   />
-                  저장된 OAuth override 삭제
+                  ?�?�된 OAuth override ??��
                 </label>
               ) : null}
             </div>
@@ -458,7 +458,7 @@ export function MakeshopIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            저장
+            ?�??
           </button>
           <button
             type="button"
@@ -467,7 +467,7 @@ export function MakeshopIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            연결 테스트
+            ?�결 ?�스??
           </button>
           <button
             type="button"
@@ -476,7 +476,7 @@ export function MakeshopIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
           >
             {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 수집
+            주문 ?�집
           </button>
           <button
             type="button"
@@ -485,7 +485,7 @@ export function MakeshopIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            연동 해제
+            ?�동 ?�제
           </button>
         </div>
       </form>
@@ -493,7 +493,7 @@ export function MakeshopIntegrationForm() {
       {fetchMeta ? (
         <section className="mt-8">
           <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">
-            수집 미리보기 ({fetchMeta.count}건)
+            ?�집 미리보기 ({fetchMeta.count}�?
           </h2>
           <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
             <table className="min-w-full text-left text-xs">

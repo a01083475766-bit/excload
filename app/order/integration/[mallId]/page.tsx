@@ -15,7 +15,10 @@ export default function OrderIntegrationMallPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">존재하지 않는 쇼핑몰입니다.</p>
-        <Link href="/order/integration" className="mt-4 inline-block text-sm font-medium text-blue-600">
+        <Link
+          href="/order/integration/connect"
+          className="mt-4 inline-block text-sm font-medium text-blue-600"
+        >
           주문연동 목록으로
         </Link>
       </div>
@@ -26,7 +29,7 @@ export default function OrderIntegrationMallPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
         <Link
-          href="/order/integration"
+          href="/order/integration/connect"
           className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -54,7 +57,7 @@ export default function OrderIntegrationMallPage() {
     mallId === 'makeshop'
   ) {
     return (
-      <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
+      <div className="min-h-screen bg-zinc-50 dark:bg-black">
         <MallIntegrationForm mallId={mallId} mallName={mall.name} />
       </div>
     );

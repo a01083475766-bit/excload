@@ -83,7 +83,7 @@ export function ShopbyIntegrationForm() {
       const res = await fetch('/api/order/integration/shopby');
       const data = (await res.json()) as { account?: ShopbyAccountResponse | null; error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? '연동 정보를 불러오지 못했습니다.');
+        throw new Error(data.error ?? '?�동 ?�보�?불러?��? 못했?�니??');
       }
       const account = data.account ?? null;
       setSavedAccount(account);
@@ -96,7 +96,7 @@ export function ShopbyIntegrationForm() {
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
+        text: error instanceof Error ? error.message : '?�동 ?�보�?불러?��? 못했?�니??',
       });
     } finally {
       setLoading(false);
@@ -119,7 +119,7 @@ export function ShopbyIntegrationForm() {
           setTransportInfo({ mode: data.transport.mode, notes: data.notes });
         }
       } catch {
-        // transport 정보는 부가 안내용
+        // transport ?�보??부가 ?�내??
       }
     }
     void loadTransport();
@@ -145,19 +145,19 @@ export function ShopbyIntegrationForm() {
         account?: ShopbyAccountResponse;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�?�에 ?�패?�습?�다.');
 
       setSavedAccount(data.account ?? null);
       setMallKey('');
       setSystemKey('');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '샵바이 연동 정보가 저장되었습니다.',
+        text: data.message ?? '?�바???�동 ?�보가 ?�?�되?�습?�다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '저장에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�?�에 ?�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -170,16 +170,16 @@ export function ShopbyIntegrationForm() {
     try {
       const res = await fetch('/api/order/integration/shopby/test', { method: 'POST' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '연결 테스트에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�결 ?�스?�에 ?�패?�습?�다.');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '샵바이 Server API 연결이 정상 확인되었습니다.',
+        text: data.message ?? '?�바??Server API ?�결???�상 ?�인?�었?�니??',
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�결 ?�스?�에 ?�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -199,19 +199,19 @@ export function ShopbyIntegrationForm() {
         previewRows?: ShopbyPreviewRow[];
         count?: number;
       };
-      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '주문 ?�집???�패?�습?�다.');
 
       setPreviewRows(data.previewRows ?? []);
       setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? `샵바이 주문 ${data.count ?? 0}건을 불러왔습니다.`,
+        text: data.message ?? `?�바??주문 ${data.count ?? 0}건을 불러?�습?�다.`,
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
+        text: error instanceof Error ? error.message : '주문 ?�집???�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -219,14 +219,14 @@ export function ShopbyIntegrationForm() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm('저장된 샵바이 연동 정보를 삭제할까요?')) return;
+    if (!window.confirm('?�?�된 ?�바???�동 ?�보�???��?�까??')) return;
 
     setBusyAction('disconnect');
     setStatusMessage(null);
     try {
       const res = await fetch('/api/order/integration/shopby', { method: 'DELETE' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '연동 해제에 실패했습니다.');
+      if (!res.ok) throw new Error(data.error ?? '?�동 ?�제???�패?�습?�다.');
 
       setSavedAccount(null);
       setAccountName('');
@@ -237,12 +237,12 @@ export function ShopbyIntegrationForm() {
       setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
-        text: data.message ?? '샵바이 연동이 해제되었습니다.',
+        text: data.message ?? '?�바???�동???�제?�었?�니??',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
+        text: error instanceof Error ? error.message : '?�동 ?�제???�패?�습?�다.',
       });
     } finally {
       setBusyAction(null);
@@ -250,67 +250,67 @@ export function ShopbyIntegrationForm() {
   }
 
   const mallKeyPlaceholder = savedAccount?.hasMallKey
-    ? `저장됨: ${savedAccount.mallKeyMasked || '********'} (변경 시에만 입력)`
-    : 'mallKey(외부 연동키) 입력 (저장 후 전체 노출되지 않습니다)';
+    ? `?�?�됨: ${savedAccount.mallKeyMasked || '********'} (변�??�에�??�력)`
+    : 'mallKey(?��? ?�동?? ?�력 (?�?????�체 ?�출?��? ?�습?�다)';
 
   const systemKeyPlaceholder = savedAccount?.hasSystemKey
-    ? `저장됨: ${savedAccount.systemKeyMasked || '********'} (변경 시에만 입력)`
-    : 'systemKey(워크스페이스 앱) 입력 (저장 후 전체 노출되지 않습니다)';
+    ? `?�?�됨: ${savedAccount.systemKeyMasked || '********'} (변�??�에�??�력)`
+    : 'systemKey(?�크?�페?�스 ?? ?�력 (?�?????�체 ?�출?��? ?�습?�다)';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
       <Link
-        href="/order/integration"
+        href="/order/integration/connect"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        주문연동 목록
+        주문?�동 목록
       </Link>
 
       <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">NHN커머스/샵바이 연동</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">NHN커머???�바???�동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베타
+          베�?
         </span>
       </div>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        샵바이 Server API(mallKey 방식)로 연결 테스트와 주문 조회·수집을 진행할 수 있습니다. 발주확인·송장 전송·상태
-        변경·Webhook은 포함하지 않습니다.
+        ?�바??Server API(mallKey 방식)�??�결 ?�스?��? 주문 조회·?�집??진행?????�습?�다. 발주?�인·?�장 ?�송·?�태
+        변경·Webhook?� ?�함?��? ?�습?�다.
       </p>
 
-      {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
+      {loading ? <p className="mb-4 text-sm text-zinc-500">?�동 ?�보 불러?�는 중�?/p> : null}
 
       <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-        <strong>NHN Server API 호출 IP 등록은 불필요</strong>합니다.
+        <strong>NHN Server API ?�출 IP ?�록?� 불필??/strong>?�니??
         <span className="mt-1 block">
-          엑클로드 구조상 <strong>고정 IP 프록시</strong>를 통해 <code className="text-xs">server-api.e-ncp.com</code>에
-          호출합니다.
+          ?�클로드 구조??<strong>고정 IP ?�록??/strong>�??�해 <code className="text-xs">server-api.e-ncp.com</code>??
+          ?�출?�니??
         </span>
       </p>
 
       {transportInfo ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API 호출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
+          API ?�출 경로:{' '}
+          <strong>{transportInfo.mode === 'proxy' ? '고정 IP ?�록?? : '?�록??미설??}</strong>
           {transportInfo.notes ? <span className="mt-1 block text-xs opacity-90">{transportInfo.notes}</span> : null}
         </p>
       ) : null}
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 오류: {savedAccount.lastErrorMessage}
+          최근 ?�류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 정보</h2>
+        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">?�클로드 ?�보</h2>
         <dl className="space-y-3">
-          <CopyableInfoRow label="업체명" value={EXCLOAD_INTEGRATION_INFO.companyName} />
+          <CopyableInfoRow label="?�체�? value={EXCLOAD_INTEGRATION_INFO.companyName} />
           <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
         </dl>
       </section>
 
-      <CollapsibleGuide title="API 키 발급 방법 보기 (샵바이)">
+      <CollapsibleGuide title="API ??발급 방법 보기 (?�바??">
         <ol className="list-decimal space-y-2 pl-5">
           <li>
             <a
@@ -319,12 +319,12 @@ export function ShopbyIntegrationForm() {
               rel="noopener noreferrer"
               className="text-blue-600 underline dark:text-blue-400"
             >
-              샵바이 Server API 호출 가이드
+              ?�바??Server API ?�출 가?�드
             </a>
-            를 참고합니다.
+            �?참고?�니??
           </li>
-          <li>워크스페이스 → 셀러어드민 → 앱(App) 등록 → systemKey 발급</li>
-          <li>서비스어드민 → 쇼핑몰 관리 → 개발연동정보 → 외부 연동키(mallKey) 확인</li>
+          <li>?�크?�페?�스 ???�?�어?��? ????App) ?�록 ??systemKey 발급</li>
+          <li>?�비?�어?��? ???�핑�?관�???개발?�동?�보 ???��? ?�동??mallKey) ?�인</li>
           <li>
             API 문서:{' '}
             <a
@@ -342,36 +342,36 @@ export function ShopbyIntegrationForm() {
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            접속별칭 (계정명)
+            ?�속별칭 (계정�?
           </label>
           <input
             id="accountName"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="예: 본사 샵바이몰"
+            placeholder="?? 본사 ?�바?�몰"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="mallDomain" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            쇼핑몰 도메인 또는 쇼핑몰명 (선택)
+            ?�핑�??�메???�는 ?�핑몰명 (?�택)
           </label>
           <input
             id="mallDomain"
             type="text"
             value={mallDomain}
             onChange={(e) => setMallDomain(e.target.value)}
-            placeholder="예: myshop.shopby.co.kr"
+            placeholder="?? myshop.shopby.co.kr"
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-zinc-500">계정 구분용입니다. API 호출에는 사용하지 않습니다.</p>
+          <p className="mt-1 text-xs text-zinc-500">계정 구분?�입?�다. API ?�출?�는 ?�용?��? ?�습?�다.</p>
         </div>
 
         <div>
           <label htmlFor="systemKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            systemKey (워크스페이스 앱)
+            systemKey (?�크?�페?�스 ??
           </label>
           <input
             id="systemKey"
@@ -386,7 +386,7 @@ export function ShopbyIntegrationForm() {
 
         <div>
           <label htmlFor="mallKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            mallKey (외부 연동키)
+            mallKey (?��? ?�동??
           </label>
           <input
             id="mallKey"
@@ -413,7 +413,7 @@ export function ShopbyIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            저장
+            ?�??
           </button>
           <button
             type="button"
@@ -422,7 +422,7 @@ export function ShopbyIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            연결 테스트
+            ?�결 ?�스??
           </button>
           <button
             type="button"
@@ -431,7 +431,7 @@ export function ShopbyIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
           >
             {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 수집
+            주문 ?�집
           </button>
           <button
             type="button"
@@ -440,7 +440,7 @@ export function ShopbyIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            연동 해제
+            ?�동 ?�제
           </button>
         </div>
       </form>
@@ -448,7 +448,7 @@ export function ShopbyIntegrationForm() {
       {fetchMeta ? (
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            수집 결과 미리보기 ({fetchMeta.count}건)
+            ?�집 결과 미리보기 ({fetchMeta.count}�?
           </h2>
           {previewRows.length ? (
             <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -479,7 +479,7 @@ export function ShopbyIntegrationForm() {
               </table>
             </div>
           ) : (
-            <p className="text-sm text-zinc-500">최근 7일 이내 조회 대상 주문이 없습니다.</p>
+            <p className="text-sm text-zinc-500">최근 7???�내 조회 ?�??주문???�습?�다.</p>
           )}
         </section>
       ) : null}

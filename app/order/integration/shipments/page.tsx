@@ -2,7 +2,7 @@ import ShipmentMatchPanel from '@/app/components/order-integration/ShipmentMatch
 
 export default function ShipmentMatchPage() {
   return (
-    <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
+    <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <ShipmentMatchPanel />
     </div>
   );
