@@ -970,7 +970,7 @@ export default function OrderIntegrationHub() {
           ) : null}
 
           {previewEmpty ? (
-            <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-10 text-center">
+            <div className="flex h-[420px] items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-10 text-center">
               <p className="max-w-md text-sm leading-relaxed text-gray-500">
                 파일·텍스트로 주문을 가져오면 변환 결과가 여기에 표시됩니다.
                 <br />
@@ -980,7 +980,7 @@ export default function OrderIntegrationHub() {
           ) : (
             <div
               className={`overflow-auto rounded-xl border border-gray-200 bg-white ${
-                isPreviewExpanded ? 'max-h-[750px]' : 'max-h-[420px]'
+                isPreviewExpanded ? 'h-[750px]' : 'h-[420px]'
               }`}
             >
               <table className="min-w-max border-collapse text-left text-xs">
