@@ -41,7 +41,7 @@ import {
 export default function OrderIntegrationHub() {
   const user = useUserStore((state) => state.user);
   const fetchUser = useUserStore((state) => state.fetchUser);
-  const userId = user?.id ?? null;
+  const userId = user?.userId ?? null;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
