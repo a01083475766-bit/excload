@@ -67,16 +67,31 @@ import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTempla
 import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
 import {
   extractNonEmptyHeaderNames,
+  isValidCourierTemplate,
   loadCourierUploadTemplate,
 } from '@/app/lib/courier-upload-template-storage';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearPreviewWorkspace } from '@/app/lib/preview-workspace-session';
 import {
+  EXCLOAD_PREVIEW_HEADER_ROW,
+  EXCLOAD_PREVIEW_HEADER_TITLE_GROUP,
   EXCLOAD_PREVIEW_TOOL_BTN,
 } from '@/app/lib/ui/excload-preview-ui';
+import { WorkspaceFormStatusBanner } from '@/app/components/WorkspaceFormStatusBanner';
+import { DefaultCjTemplateNotice } from '@/app/components/DefaultCjTemplateNotice';
+import { isActiveDefaultCjTemplate } from '@/app/lib/default-cj-courier-template';
 
 const PREVIEW_TOOL_BTN = EXCLOAD_PREVIEW_TOOL_BTN;
 const PREVIEW_BATCH_SIZE = 100;
+
+function hasDirectHeaderMappings(
+  bridgeFile: TemplateBridgeFile | null | undefined,
+): boolean {
+  return Boolean(
+    bridgeFile?.directHeaderMappings &&
+      Object.keys(bridgeFile.directHeaderMappings).length > 0,
+  );
+}
 
 /** Strict Mode 리마운트 대비: 소비한 주문조회 전달분 */
 let pendingFetchSessionCache: HubPendingFetchTransfer | null = null;
@@ -134,6 +149,12 @@ export default function OrderIntegrationHub() {
   const nextTextSalesChannelRef = useRef<string | null>(null);
   const ocrCancelledRef = useRef(false);
   const [activeTemplateHeaderCount, setActiveTemplateHeaderCount] = useState(0);
+  const [activeTemplateHeaderNames, setActiveTemplateHeaderNames] = useState<string[] | null>(
+    null,
+  );
+  const [fixedHeaderValues, setFixedHeaderValues] = useState<Record<string, string>>({});
+  const [isFormStatusChecking, setIsFormStatusChecking] = useState(true);
+  const [isUsingDefaultCjTemplate, setIsUsingDefaultCjTemplate] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isPreviewResetModalOpen, setIsPreviewResetModalOpen] = useState(false);
 
@@ -160,7 +181,35 @@ export default function OrderIntegrationHub() {
 
   const refreshActiveTemplateStatus = useCallback(() => {
     const template = loadCourierUploadTemplate(userId);
-    setActiveTemplateHeaderCount(extractNonEmptyHeaderNames(template).length);
+    let headerNames = extractNonEmptyHeaderNames(template);
+
+    let bridge: TemplateBridgeFile | null = null;
+    try {
+      bridge = loadHubTemplateBridge(userId);
+      setTemplateBridgeFile(bridge);
+    } catch {
+      setTemplateBridgeFile(null);
+    }
+
+    if (headerNames.length === 0 && bridge?.courierHeaders?.length) {
+      headerNames = bridge.courierHeaders.filter((header) => String(header ?? '').trim() !== '');
+    }
+
+    const namesOrNull = headerNames.length > 0 ? headerNames : null;
+    setActiveTemplateHeaderNames(namesOrNull);
+    setActiveTemplateHeaderCount(headerNames.length);
+    setFixedHeaderValues(loadHubFixedHeaderValues(userId));
+
+    const usingDefaultFromTemplate =
+      isValidCourierTemplate(template) && isActiveDefaultCjTemplate(template);
+    const usingDefaultFromBridge =
+      !template &&
+      namesOrNull !== null &&
+      isActiveDefaultCjTemplate({
+        headers: namesOrNull.map((name) => ({ name })),
+      });
+    setIsUsingDefaultCjTemplate(usingDefaultFromTemplate || usingDefaultFromBridge);
+    setIsFormStatusChecking(false);
   }, [userId]);
 
   const refreshTemplateBridge = useCallback(() => {
@@ -175,10 +224,14 @@ export default function OrderIntegrationHub() {
   }, [userId]);
 
   useEffect(() => {
+    setIsFormStatusChecking(true);
     refreshActiveTemplateStatus();
-    refreshTemplateBridge();
-  }, [refreshActiveTemplateStatus, refreshTemplateBridge]);
+  }, [refreshActiveTemplateStatus]);
 
+  const fixedHeaderOrder = useMemo(
+    () => activeTemplateHeaderNames ?? templateBridgeFile?.courierHeaders ?? [],
+    [activeTemplateHeaderNames, templateBridgeFile],
+  );
   const showNotice = (message: string) => {
     setHubError(null);
     setHubNotice(message);
@@ -933,8 +986,8 @@ export default function OrderIntegrationHub() {
         </section>
 
         <section className="relative pb-2 pt-1">
-          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <div className={EXCLOAD_PREVIEW_HEADER_ROW}>
+            <div className={EXCLOAD_PREVIEW_HEADER_TITLE_GROUP}>
               <h3 className="text-lg font-semibold text-gray-900">미리보기</h3>
               {!previewEmpty ? (
                 <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
@@ -1207,9 +1260,9 @@ export default function OrderIntegrationHub() {
                 </h3>
               </div>
               <p className="mt-1 text-center text-xs text-gray-500">
-                실제 택배사 업로드에 사용하는 엑셀 양식을 등록합니다.
+                실제 택배사 업로드에 사용하는 엑셀 양식을 등록해주세요.
                 <br />
-                택배주문변환과 같은 양식을 공유합니다.
+                등록하신 양식 그대로 자동 설정됩니다.
               </p>
               {activeTemplateHeaderCount > 0 ? (
                 <p className="mt-2 line-clamp-1 text-center text-[11px] text-green-700">
@@ -1232,9 +1285,9 @@ export default function OrderIntegrationHub() {
                 </h3>
               </div>
               <p className="mt-1 text-center text-xs text-gray-500">
-                보내는 사람 등 고정값을 설정합니다.
+                보내는 사람 정보 등 모든 주문에 공통으로 적용되는 값을
                 <br />
-                택배주문변환과 같은 값을 공유합니다.
+                미리 등록하여 매번 입력하는 번거로움을 줄일 수 있습니다.
               </p>
             </button>
 
@@ -1257,12 +1310,32 @@ export default function OrderIntegrationHub() {
                 </h3>
               </div>
               <p className="mt-1 text-center text-xs text-gray-500">
-                미리보기 기준으로 택배사 업로드용 엑셀을
+                변환이 완료된 주문데이터를 미리보기 기준으로
                 <br />
-                내려받습니다.
+                택배사 업로드용 파일로 내려받는 단계입니다.
               </p>
             </button>
           </div>
+
+          <WorkspaceFormStatusBanner
+            isChecking={isFormStatusChecking}
+            templateHeaderNames={activeTemplateHeaderNames}
+            fixedHeaderOrder={fixedHeaderOrder}
+            fixedHeaderValues={fixedHeaderValues}
+            variant="blue"
+            templateKindLabel={hasDirectHeaderMappings(templateBridgeFile) ? '사용자 지정' : undefined}
+            templateKindDescription={
+              hasDirectHeaderMappings(templateBridgeFile)
+                ? '사용자 지정양식 사용 중: 등록할 때 사용한 파일과 같은 헤더 구조에 맞춰 출력됩니다.'
+                : undefined
+            }
+          />
+          {isUsingDefaultCjTemplate && !isFormStatusChecking ? (
+            <DefaultCjTemplateNotice
+              variant="courier"
+              onRegisterCustom={() => setTemplateModalOpen(true)}
+            />
+          ) : null}
         </section>
       </main>
 
@@ -1339,8 +1412,9 @@ export default function OrderIntegrationHub() {
         userId={userId}
         previewRows={previewRows}
         onClose={() => setFixedInputOpen(false)}
-        onSaved={(_fixed, nextPreviewRows) => {
+        onSaved={(fixed, nextPreviewRows) => {
           setPreviewRows(nextPreviewRows);
+          setFixedHeaderValues(fixed);
           showNotice('고정 입력 정보를 저장했습니다.');
         }}
       />

@@ -7,7 +7,10 @@
 import { ArrowDown, Coins, Search, Truck, Upload } from 'lucide-react';
 import { Fragment } from 'react';
 
-import UserGuidePreviewToolbar, { UserGuidePreviewHints } from './UserGuidePreviewToolbar';
+import {
+  UserGuideFormStatusBanner,
+  UserGuidePreviewSection,
+} from './UserGuidePreviewToolbar';
 import { UserCustomFormatGuideBlock } from './UserCustomFormatGuideBlock';
 
 const LOGISTICS_WORKFLOW_STEPS = [
@@ -136,24 +139,12 @@ export function LogisticsUserGuideSection() {
         </div>
       </section>
 
-      <section className="relative py-3">
-        <div className="w-full rounded-xl border border-gray-300 bg-gray-200">
-          <div className="px-6 pb-4 pt-6">
-            <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
-              <h3 className="row-start-1 col-start-1 self-center text-lg font-semibold">미리보기</h3>
-              <UserGuidePreviewToolbar />
-              <UserGuidePreviewHints />
-            </div>
-          </div>
-          <div className="flex min-h-[192px] items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
-            <p>
-              주문을 가져오면 변환결과가 여기에 표시됩니다
-              <br />
-              파일 크기·주문 사용량·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-            </p>
-          </div>
-        </div>
-      </section>
+      <UserGuidePreviewSection
+        emptyLines={[
+          '주문을 가져오면 변환결과가 여기에 표시됩니다',
+          '파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.',
+        ]}
+      />
 
       <section className="relative pb-4 pt-4">
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
@@ -208,12 +199,17 @@ export function LogisticsUserGuideSection() {
               <h3 className="text-center text-sm font-semibold text-gray-900">물류센터 업로드 파일 다운로드</h3>
             </div>
             <p className="mt-1 text-center text-xs text-gray-500">
-              변환이 완료된 주문 데이터를
+              변환이 완료된 주문데이터를 미리보기 기준으로
               <br />
               물류센터 업로드용 파일로 내려받는 단계입니다.
             </p>
           </button>
         </div>
+
+        <UserGuideFormStatusBanner
+          variant="emerald"
+          sampleHeaders="주문번호 · 받는분성명 · 받는분전화번호 · 상품명 · 상품코드 · 수량 · 배송메시지"
+        />
       </section>
 
       <UserCustomFormatGuideBlock variant="logistics" />

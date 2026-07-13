@@ -40,6 +40,9 @@ import {
 import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
 import {
   EXCLOAD_PREVIEW_EMPTY_SHELL,
+  EXCLOAD_PREVIEW_HEADER_ACTION_SPACER,
+  EXCLOAD_PREVIEW_HEADER_ROW,
+  EXCLOAD_PREVIEW_HEADER_TITLE_GROUP,
   EXCLOAD_PREVIEW_HEIGHT_DEFAULT,
   EXCLOAD_PREVIEW_HEIGHT_EXPANDED,
   EXCLOAD_PREVIEW_TABLE_SHELL,
@@ -6098,13 +6101,16 @@ export function LogisticsConvertClient({
 
         {/* 변환된 파일 출력 영역 — 주문연동 허브와 동일 톤 */}
         <section className="relative pb-2 pt-1">
-          <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2.5">
-            <h3 className="text-lg font-semibold text-gray-900">미리보기</h3>
-            {previewRows.length > 0 && courierHeaders.length > 0 ? (
-              <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
-                {previewRows.length.toLocaleString()}건
-              </span>
-            ) : null}
+          <div className={EXCLOAD_PREVIEW_HEADER_ROW}>
+            <div className={EXCLOAD_PREVIEW_HEADER_TITLE_GROUP}>
+              <h3 className="text-lg font-semibold text-gray-900">미리보기</h3>
+              {previewRows.length > 0 && courierHeaders.length > 0 ? (
+                <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+                  {previewRows.length.toLocaleString()}건
+                </span>
+              ) : null}
+            </div>
+            <div className={EXCLOAD_PREVIEW_HEADER_ACTION_SPACER} aria-hidden />
           </div>
 
           {previewRows.length > 0 && courierHeaders.length > 0 ? (

@@ -16,7 +16,10 @@ import { Fragment } from 'react';
 import { InvoiceFileUserGuideSection } from './InvoiceFileUserGuideSection';
 import { LogisticsUserGuideSection } from './LogisticsUserGuideSection';
 import { UserCustomFormatGuideBlock } from './UserCustomFormatGuideBlock';
-import UserGuidePreviewToolbar, { UserGuidePreviewHints } from './UserGuidePreviewToolbar';
+import {
+  UserGuideFormStatusBanner,
+  UserGuidePreviewSection,
+} from './UserGuidePreviewToolbar';
 
 const USER_GUIDE_WORKFLOW_STEPS = [
   {
@@ -49,8 +52,8 @@ export default function UserGuidePage() {
           엑클로드(EXCLOAD) 사용가이드
         </h1>
         <p className="mb-4 text-center text-sm leading-relaxed text-gray-600 px-2">
-          택배주문변환, 물류주문변환, 송장파일변환 기능을 단계별로 안내합니다.
-          주문 엑셀 변환·택배 엑셀 변환·물류 주문 변환 흐름을 미리 살펴볼 수 있습니다.
+          택배주문변환, 물류주문변환, 송장파일변환 화면과 같은 구성으로 단계별로 안내합니다.
+          마우스를 올리면 각 기능 설명을 확인할 수 있습니다.
         </p>
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50/80 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
           각 위치에 마우스를 올리시면 기능 설명을 드리는 사용가이드입니다. 익숙하지 않은 용어 안내도 포함했습니다
@@ -152,25 +155,12 @@ export default function UserGuidePage() {
           </div>
         </section>
 
-        {/* 미리보기 영역 */}
-        <section className="relative py-3">
-          <div className="w-full rounded-xl border border-gray-300 bg-gray-200">
-            <div className="px-6 pb-4 pt-6">
-              <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
-                <h3 className="row-start-1 col-start-1 self-center text-lg font-semibold">미리보기</h3>
-                <UserGuidePreviewToolbar />
-                <UserGuidePreviewHints />
-              </div>
-            </div>
-            <div className="flex min-h-[192px] items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
-              <p>
-                주문을 가져오면 변환결과가 여기에 표시됩니다
-                <br />
-                파일 크기·주문 사용량·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-              </p>
-            </div>
-          </div>
-        </section>
+        <UserGuidePreviewSection
+          emptyLines={[
+            '주문을 가져오면 변환결과가 여기에 표시됩니다',
+            '파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.',
+          ]}
+        />
 
         {/* 하단 3카드 */}
         <section className="relative pb-4 pt-4">
@@ -226,12 +216,16 @@ export default function UserGuidePage() {
                 <h3 className="text-center text-sm font-semibold text-gray-900">택배 업로드 파일 다운로드</h3>
               </div>
               <p className="mt-1 text-center text-xs text-gray-500">
-                변환이 완료된 주문 데이터를
+                변환이 완료된 주문데이터를 미리보기 기준으로
                 <br />
                 택배사 업로드용 파일로 내려받는 단계입니다.
               </p>
             </button>
           </div>
+
+          <UserGuideFormStatusBanner
+            sampleHeaders="주문번호 · 보내는사람 · 받는사람 · 전화번호1 · 주소 · 상품명1 · 수량 · 배송메시지"
+          />
         </section>
 
         <UserCustomFormatGuideBlock variant="courier" />

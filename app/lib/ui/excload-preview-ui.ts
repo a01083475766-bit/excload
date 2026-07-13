@@ -8,6 +8,20 @@ export const EXCLOAD_PREVIEW_TOOL_BTN =
 export const EXCLOAD_PREVIEW_TOOLBAR_SHELL =
   'mb-2.5 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white px-2.5 py-2 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between';
 
+/**
+ * 미리보기 제목 행 — 주문연동 「송장 매칭·전송」(h-9) 자리까지 포함해
+ * 택배·물류·송장과 세로 여백을 동일하게 맞춤.
+ */
+export const EXCLOAD_PREVIEW_HEADER_ROW =
+  'mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between';
+
+export const EXCLOAD_PREVIEW_HEADER_TITLE_GROUP =
+  'flex min-w-0 flex-wrap items-center gap-2.5';
+
+/** 우측 액션 없을 때 주문연동 버튼과 동일 높이만 확보 (데스크톱) */
+export const EXCLOAD_PREVIEW_HEADER_ACTION_SPACER =
+  'hidden h-9 shrink-0 sm:block';
+
 export const EXCLOAD_PREVIEW_TABLE_SHELL =
   'overflow-auto rounded-xl border border-gray-200 bg-white';
 

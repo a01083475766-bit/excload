@@ -7,7 +7,10 @@
 import { ArrowDown, Coins, Search, Truck, Upload } from 'lucide-react';
 import { Fragment } from 'react';
 
-import UserGuidePreviewToolbar, { UserGuidePreviewHints } from './UserGuidePreviewToolbar';
+import {
+  UserGuideFormStatusBanner,
+  UserGuidePreviewSection,
+} from './UserGuidePreviewToolbar';
 
 const INVOICE_FILE_WORKFLOW_STEPS = [
   {
@@ -125,24 +128,13 @@ export function InvoiceFileUserGuideSection() {
         </div>
       </section>
 
-      <section className="relative py-3">
-        <div className="w-full rounded-xl border border-gray-300 bg-gray-200">
-          <div className="px-6 pb-4 pt-6">
-            <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
-              <h3 className="row-start-1 col-start-1 self-center text-lg font-semibold">미리보기</h3>
-              <UserGuidePreviewToolbar showBundleShipping={false} />
-              <UserGuidePreviewHints />
-            </div>
-          </div>
-          <div className="flex min-h-[192px] items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
-            <p>
-              주문파일과 송장번호파일을 가져오면 변환결과가 여기에 표시됩니다
-              <br />
-              파일 크기·주문 사용량·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-            </p>
-          </div>
-        </div>
-      </section>
+      <UserGuidePreviewSection
+        showBundleShipping={false}
+        emptyLines={[
+          '주문파일과 송장번호파일을 가져오면 변환결과가 여기에 표시됩니다',
+          '파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.',
+        ]}
+      />
 
       <section className="relative pb-4 pt-4">
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
@@ -203,6 +195,11 @@ export function InvoiceFileUserGuideSection() {
             </p>
           </button>
         </div>
+
+        <UserGuideFormStatusBanner
+          sampleHeaders="주문번호 · 송장번호 · 받는사람 · 전화번호 · 주소 · 상품명 · 수량"
+          sampleFixed="택배사 CJ대한통운 · 배송방법 일반"
+        />
       </section>
 
       <section className="relative pb-2 pt-2" aria-labelledby="user-guide-invoice-workflow-heading">
