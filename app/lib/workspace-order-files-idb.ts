@@ -167,7 +167,8 @@ export async function clearAllWorkspaceFilesInTab(): Promise<void> {
         if (
           s.startsWith('order-convert:') ||
           s.startsWith('invoice-file-convert:') ||
-          s.startsWith('logistics-convert:')
+          s.startsWith('logistics-convert:') ||
+          s.startsWith('order-integration:')
         ) {
           store.delete(k);
         }

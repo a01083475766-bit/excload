@@ -61,11 +61,14 @@ import type { HubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pe
 import { HUB_SALES_CHANNEL_IMAGE } from '@/app/lib/order-integration/hub-sales-channel';
 import { OrderIntegrationFixedInputModal } from '@/app/components/order-integration/OrderIntegrationFixedInputModal';
 import { OrderIntegrationTemplateModal } from '@/app/components/order-integration/OrderIntegrationTemplateModal';
+import { OrderIntegrationScreenshotModal } from '@/app/components/order-integration/OrderIntegrationScreenshotModal';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import {
   extractNonEmptyHeaderNames,
   loadCourierUploadTemplate,
 } from '@/app/lib/courier-upload-template-storage';
+import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
+import { clearPreviewWorkspace } from '@/app/lib/preview-workspace-session';
 
 const PREVIEW_TOOL_BTN =
   'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40';
@@ -74,6 +77,9 @@ const PREVIEW_BATCH_SIZE = 100;
 /** Strict Mode 리마운트 대비: 소비한 주문조회 전달분 */
 let pendingFetchSessionCache: HubPendingFetchTransfer | null = null;
 let pendingFetchApplied = false;
+let pendingFetchInFlight = false;
+
+const HUB_WORKSPACE_PAGE = 'order-integration' as const;
 
 /**
  * 쇼핑몰주문연동 허브 — 미연동 몰 파일·텍스트 변환 + 미리보기.
@@ -113,6 +119,7 @@ export default function OrderIntegrationHub() {
   const [fixedInputOpen, setFixedInputOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateReuploadOpen, setTemplateReuploadOpen] = useState(false);
+  const [screenshotModalOpen, setScreenshotModalOpen] = useState(false);
   const [activeTemplateHeaderCount, setActiveTemplateHeaderCount] = useState(0);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isPreviewResetModalOpen, setIsPreviewResetModalOpen] = useState(false);
@@ -201,8 +208,7 @@ export default function OrderIntegrationHub() {
     [markNewRows],
   );
 
-  // Strict Mode 리마운트·재방문 모두 대응: storage 소비 + 미적용 캐시
-  useEffect(() => {
+  const tryApplyPendingFetch = useCallback(async () => {
     const fromStorage = consumeHubPendingFetchTransfer();
     if (fromStorage) {
       pendingFetchSessionCache = fromStorage;
@@ -211,52 +217,82 @@ export default function OrderIntegrationHub() {
     const pending =
       fromStorage ??
       (!pendingFetchApplied && pendingFetchSessionCache ? pendingFetchSessionCache : null);
-    if (!pending || pendingFetchApplied) return;
+    if (!pending || pendingFetchApplied || pendingFetchInFlight) return;
 
-    let cancelled = false;
-    const run = async () => {
-      setBusy('fetch');
-      setStatusLabel('주문조회 결과를 미리보기에 담는 중…');
-      try {
-        const bridge = refreshTemplateBridge();
-        if (!bridge) {
-          throw new Error('택배 업로드 양식이 없습니다. 먼저 양식을 등록해 주세요.');
-        }
-        const fixedHeaderValues = loadHubFixedHeaderValues(userId);
-        const result = await convertOrderStandardRowsToHubPreview({
-          rows: pending.rows,
-          templateBridgeFile: bridge,
-          fixedHeaderValues,
-        });
-        if (cancelled) return;
-        pendingFetchApplied = true;
-        pendingFetchSessionCache = null;
-        appendPreview(result.previewRows, result.courierHeaders, bridge);
-        const mallLabel =
-          pending.mallSummaries.length > 0
-            ? pending.mallSummaries.map((m) => `${m.name} ${m.count}건`).join(', ')
-            : null;
-        showNotice(
-          mallLabel
-            ? `주문조회 → 미리보기 ${result.previewRows.length.toLocaleString()}건 추가 (${mallLabel})`
-            : `주문조회 → 미리보기 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
-        );
-      } catch (error) {
-        if (!cancelled) {
-          showError(error instanceof Error ? error.message : '주문조회 결과를 담지 못했습니다.');
-        }
-      } finally {
-        if (!cancelled) {
-          setBusy(null);
-          setStatusLabel(null);
-        }
+    pendingFetchInFlight = true;
+    setBusy('fetch');
+    setStatusLabel('주문조회 결과를 미리보기에 담는 중…');
+    try {
+      const bridge = refreshTemplateBridge();
+      if (!bridge) {
+        throw new Error('택배 업로드 양식이 없습니다. 먼저 양식을 등록해 주세요.');
       }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
+      const fixedHeaderValues = loadHubFixedHeaderValues(userId);
+      const result = await convertOrderStandardRowsToHubPreview({
+        rows: pending.rows,
+        templateBridgeFile: bridge,
+        fixedHeaderValues,
+      });
+      pendingFetchApplied = true;
+      pendingFetchSessionCache = null;
+      appendPreview(result.previewRows, result.courierHeaders, bridge);
+      const mallLabel =
+        pending.mallSummaries.length > 0
+          ? pending.mallSummaries.map((m) => `${m.name} ${m.count}건`).join(', ')
+          : null;
+      showNotice(
+        mallLabel
+          ? `주문조회 → 미리보기 ${result.previewRows.length.toLocaleString()}건 추가 (${mallLabel})`
+          : `주문조회 → 미리보기 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
+      );
+    } catch (error) {
+      showError(error instanceof Error ? error.message : '주문조회 결과를 담지 못했습니다.');
+    } finally {
+      pendingFetchInFlight = false;
+      setBusy(null);
+      setStatusLabel(null);
+    }
   }, [appendPreview, refreshTemplateBridge, userId]);
+
+  usePreviewWorkspaceSession({
+    pageKey: HUB_WORKSPACE_PAGE,
+    enabled: true,
+    storageUserId: userId,
+    previewRows,
+    userOverrides,
+    courierHeaders,
+    sortConfig,
+    setPreviewRows,
+    setUserOverrides,
+    setCourierHeaders,
+    setSortConfig,
+    fallbackCourierHeaders: templateBridgeFile?.courierHeaders ?? [],
+    getFallbackCourierHeaders: () => {
+      try {
+        return loadHubTemplateBridge(userId).courierHeaders;
+      } catch {
+        return templateBridgeFile?.courierHeaders ?? [];
+      }
+    },
+    selectedFileName: selectedFiles[0]?.name ?? null,
+    uploadedFileMeta: selectedFiles.map((file) => ({
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified,
+      type: file.type,
+    })),
+    textInput: textOrder,
+    inputSourceType: null,
+    sessionInputCounts: {},
+    setSelectedFileName: () => {},
+    setUploadedFileMeta: () => {},
+    setTextInput: setTextOrder,
+    setInputSourceType: () => {},
+    setSessionInputCounts: () => {},
+    onRestoreSettled: () => {
+      void tryApplyPendingFetch();
+    },
+  });
 
   const openTextReview = (
     originalText: string,
@@ -291,9 +327,18 @@ export default function OrderIntegrationHub() {
       showError('엑셀(.xlsx/.xls) 또는 이미지 파일만 선택할 수 있습니다.');
       return;
     }
-    setSelectedFiles((prev) => [...prev, ...list]);
+    if (!user) {
+      showError('로그인이 필요합니다.');
+      return;
+    }
+    if (busy) {
+      showError('다른 변환이 진행 중입니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+    setSelectedFiles(list);
     setHubError(null);
     setHubNotice(null);
+    void convertFiles(list);
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -304,12 +349,8 @@ export default function OrderIntegrationHub() {
     }
   };
 
-  const handleFileConvert = async () => {
-    if (busy || selectedFiles.length === 0) return;
-    if (!user) {
-      showError('로그인이 필요합니다.');
-      return;
-    }
+  const convertFiles = async (files: File[]) => {
+    if (files.length === 0) return;
 
     setBusy('file');
     setHubError(null);
@@ -322,7 +363,7 @@ export default function OrderIntegrationHub() {
       let added = 0;
       let lastTextReview: { text: string; rows: PreviewRowWithId[] } | null = null;
 
-      for (const file of selectedFiles) {
+      for (const file of files) {
         const name = file.name.toLowerCase();
         const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
         const isImage =
@@ -392,6 +433,52 @@ export default function OrderIntegrationHub() {
     } catch (error) {
       setStatusLabel(null);
       showError(error instanceof Error ? error.message : '파일 변환 중 오류가 발생했습니다.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleScreenshotImage = async (blob: Blob) => {
+    if (!user) {
+      throw new Error('로그인이 필요합니다.');
+    }
+    setBusy('file');
+    setHubError(null);
+    setHubNotice(null);
+    setStatusLabel('캡처 화면 인식 중…');
+    try {
+      const file = new File([blob], 'screenshot.png', { type: blob.type || 'image/png' });
+      const ocrText = await extractTextFromImage(file);
+      if (!ocrText.trim()) {
+        throw new Error('이미지에서 텍스트를 읽지 못했습니다.');
+      }
+      setStatusLabel('주문 텍스트 변환 중…');
+      const bridge = loadHubTemplateBridge(userId);
+      setTemplateBridgeFile(bridge);
+      const fixed = loadHubFixedHeaderValues(userId);
+      const result = await convertTextToHubPreview({
+        text: ocrText,
+        templateBridgeFile: bridge,
+        fixedHeaderValues: fixed,
+        salesChannelFallback: HUB_SALES_CHANNEL_IMAGE,
+        onStage2ChunkProgress: (completed, total) => {
+          if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
+        },
+      });
+      const pointsOk = await deductHubConvertPoints(Math.max(1, ocrText.trim().length), 'text');
+      if (!pointsOk) {
+        throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
+      }
+      void fetchUser();
+      appendPreview(result.previewRows, result.courierHeaders, bridge);
+      setStatusLabel(null);
+      showNotice(
+        `캡처 변환 완료 · 미리보기에 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
+      );
+      openTextReview(ocrText, result.previewRows, bridge);
+    } catch (error) {
+      setStatusLabel(null);
+      throw error;
     } finally {
       setBusy(null);
     }
@@ -603,6 +690,8 @@ export default function OrderIntegrationHub() {
       }
       void fetchUser();
       XLSX.writeFile(wb, fileName);
+      clearPreviewWorkspace(HUB_WORKSPACE_PAGE, userId);
+      clearPreview({ silent: true });
       showNotice(`다운로드 완료 · ${fileName}`);
     } catch (error) {
       showError(error instanceof Error ? error.message : '다운로드 중 오류가 발생했습니다.');
@@ -612,6 +701,7 @@ export default function OrderIntegrationHub() {
   };
 
   const clearPreview = (options?: { keepHeaders?: boolean; silent?: boolean }) => {
+    clearPreviewWorkspace(HUB_WORKSPACE_PAGE, userId);
     setPreviewRows([]);
     if (!options?.keepHeaders) {
       setCourierHeaders([]);
@@ -624,6 +714,8 @@ export default function OrderIntegrationHub() {
     setSortConfig(null);
     setIsPreviewExpanded(false);
     setRenderedRowCount(PREVIEW_BATCH_SIZE);
+    setSelectedFiles([]);
+    setTextOrder('');
     resetBundleShippingUi();
     setIsPreviewResetModalOpen(false);
     if (!options?.silent) {
@@ -729,7 +821,7 @@ export default function OrderIntegrationHub() {
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                     <h3 className="shrink-0 text-base font-semibold text-gray-900">파일선택</h3>
                     <p className="min-w-0 text-xs leading-relaxed text-gray-600">
-                      미연동 쇼핑몰 주문엑셀·이미지를 선택하거나 이 영역에 끌어다 놓아 주세요
+                      미연동 쇼핑몰 주문엑셀·이미지를 선택하거나 끌어다 놓으면 바로 미리보기로 변환됩니다
                     </p>
                   </div>
                   <div
@@ -782,12 +874,17 @@ export default function OrderIntegrationHub() {
                   />
                   <button
                     type="button"
-                    disabled={selectedFiles.length === 0 || busy !== null}
-                    onClick={() => void handleFileConvert()}
-                    className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={busy !== null}
+                    onClick={() => {
+                      if (!user) {
+                        showError('로그인이 필요합니다.');
+                        return;
+                      }
+                      setScreenshotModalOpen(true);
+                    }}
+                    className="mt-2.5 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {busy === 'file' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    파일 주문 변환
+                    캡처화면 주문변환 (스크린샷 주문 변환)
                   </button>
                 </div>
 
@@ -1231,6 +1328,12 @@ export default function OrderIntegrationHub() {
           </div>
         </div>
       ) : null}
+
+      <OrderIntegrationScreenshotModal
+        open={screenshotModalOpen}
+        onClose={() => setScreenshotModalOpen(false)}
+        onImagePasted={handleScreenshotImage}
+      />
 
       <TextConvertResultReviewModal
         isOpen={textConvertReviewModal !== null}
