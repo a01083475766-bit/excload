@@ -14,6 +14,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "order-transmission:test-db:check": "node scripts/check-shipment-transmission-test-db-env.mjs",
     "order-transmission:test-db:integration": "node scripts/run-shipment-transmission-db-integration.mjs",
+    "capture:hero-gif": "node scripts/capture-hero-gif.mjs",
     "lint": "eslint",
     "test": "vitest"
   },
@@ -56,6 +57,9 @@
     "@types/three": "^0.182.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.8",
+    "gifenc": "^1.0.3",
+    "pngjs": "^7.0.0",
+    "puppeteer": "^25.3.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.0"

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import {
+  isAdminAuthFailure,
+  requireOrderIntegrationAdmin,
+} from '@/app/lib/order-integration/admin-api-auth';
 
-import { authOptions } from '@/app/lib/auth';
 import { toSafeShipmentMatchLogMessage } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
 import { validateShipmentUploadBatchId } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import { createMockShipmentTransmissionAdapter } from '@/app/lib/order-integration/transmission/mock-adapter';
@@ -18,13 +20,6 @@ import {
 import type { ShipmentTransmissionPersistClient } from '@/app/lib/order-integration/transmission/repository';
 import { prisma } from '@/app/lib/prisma';
 
-async function resolveAuthenticatedUserId(): Promise<string | null> {
-  const session = await getServerSession(authOptions);
-  const email = session?.user?.email?.trim();
-  if (!email) return null;
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-  return user?.id ?? null;
-}
 
 async function readJson(request: Request): Promise<unknown> {
   const text = await request.text();
@@ -37,8 +32,9 @@ export async function POST(
   { params }: { params: Promise<{ batchId: string }> },
 ) {
   try {
-    const userId = await resolveAuthenticatedUserId();
-    if (!userId) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+    const auth = await requireOrderIntegrationAdmin();
+    if (isAdminAuthFailure(auth)) return auth.response;
+    const userId = auth.userId;
 
     const { batchId } = await params;
     const validatedBatchId = validateShipmentUploadBatchId(batchId);

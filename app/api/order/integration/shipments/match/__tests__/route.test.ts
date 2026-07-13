@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   userFindUnique: vi.fn(),
+  isAdminEmail: vi.fn(),
   matchUploadedShipmentFile: vi.fn(),
 }));
 
@@ -12,6 +13,10 @@ vi.mock('next-auth', () => ({
 
 vi.mock('@/app/lib/auth', () => ({
   authOptions: {},
+}));
+
+vi.mock('@/app/lib/admin-auth', () => ({
+  isAdminEmail: mocks.isAdminEmail,
 }));
 
 vi.mock('@/app/lib/prisma', () => ({
@@ -47,6 +52,7 @@ describe('POST /api/order/integration/shipments/match', () => {
     vi.clearAllMocks();
     mocks.getServerSession.mockResolvedValue({ user: { email: 'user@example.com' } });
     mocks.userFindUnique.mockResolvedValue({ id: 'user-a' });
+    mocks.isAdminEmail.mockReturnValue(true);
     mocks.matchUploadedShipmentFile.mockResolvedValue({
       success: true,
       body: {
@@ -81,6 +87,19 @@ describe('POST /api/order/integration/shipments/match', () => {
 
     expect(response.status).toBe(401);
     expect(json.error).toBe('로그인이 필요합니다.');
+  });
+
+  it('returns 403 when user is not admin', async () => {
+    mocks.isAdminEmail.mockReturnValueOnce(false);
+
+    const formData = new FormData();
+    formData.append('file', new File(['송장번호\n1'], 'shipments.csv', { type: 'text/csv' }));
+
+    const response = await POST(buildRequest(formData));
+    const json = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(json.error).toBe('관리자 권한이 필요합니다.');
   });
 
   it('returns 400 when file is missing', async () => {

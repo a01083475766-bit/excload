@@ -3797,15 +3797,6 @@ export default function OrderConvertPage() {
                 >
                   즐겨찾는 쇼핑몰
                 </button>
-                {session?.user?.isAdmin ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push('/order/integration')}
-                    className="flex h-[38px] w-full items-center justify-center rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 sm:w-[200px]"
-                  >
-                    주문연동조회
-                  </button>
-                ) : null}
               </div>
               <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
                 {user ? (

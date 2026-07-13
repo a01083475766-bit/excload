@@ -19,6 +19,7 @@ import {
   Wrench,
   Newspaper,
   FlaskConical,
+  Link2,
 } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 
@@ -93,14 +94,29 @@ export default function MainNav() {
     label: '랜딩페이지 테스트',
     icon: FlaskConical,
   };
+  const orderIntegrationMenuItem: MenuItem = {
+    href: '/order/integration',
+    label: '주문연동',
+    icon: Link2,
+  };
   const primaryMenuForUser = primaryMenuItems.filter(
     (item) => !hiddenNavHrefs.has(item.href) && (item.href !== '/history' || isLoggedIn),
   );
+  /** 1단: 택배주문변환 다음에 주문연동(관리자만) */
   const displayPrimaryItems = (
-    isAdmin ? [adminMenuItem, commerceReportMenuItem, ...primaryMenuForUser] : primaryMenuForUser
+    isAdmin
+      ? primaryMenuForUser.flatMap((item) =>
+          item.href === '/order-convert' ? [item, orderIntegrationMenuItem] : [item],
+        )
+      : primaryMenuForUser
   ).filter((item) => !hiddenNavHrefs.has(item.href));
+  /** 2단: 서비스소개 다음에 관리자·커머스리포트(관리자만), 이어서 랜딩 테스트 */
   const displaySecondaryItems = secondaryMenuItems
-    .flatMap((item) => (item.href === '/about' && isAdmin ? [item, landingTestMenuItem] : [item]))
+    .flatMap((item) => {
+      if (item.href !== '/about') return [item];
+      if (!isAdmin) return [item];
+      return [item, adminMenuItem, commerceReportMenuItem, landingTestMenuItem];
+    })
     .filter((item) => !hiddenNavHrefs.has(item.href));
 
   const isLogoActive = pathname === '/excload' || pathname === '/';
@@ -141,14 +157,7 @@ export default function MainNav() {
             const isActive =
               pathname === item.href ||
               (item.href === '/free-tools' && pathname?.startsWith('/free-tools/')) ||
-              (item.href === '/akman/commerce-report' && pathname?.startsWith('/admin/commerce-report')) ||
-              (item.href === '/akman' &&
-                pathname?.startsWith('/akman/') &&
-                !pathname?.startsWith('/akman/commerce-report') &&
-                !pathname?.startsWith('/admin/commerce-report')) ||
-              (item.href === '/akman' &&
-                pathname?.startsWith('/admin/') &&
-                !pathname?.startsWith('/admin/commerce-report'));
+              (item.href === '/order/integration' && pathname?.startsWith('/order/integration'));
 
             return (
               <Link
@@ -179,7 +188,16 @@ export default function MainNav() {
             const Icon = item.icon;
             const isActive =
               pathname === item.href ||
-              (item.href === '/free-tools' && pathname?.startsWith('/free-tools/'));
+              (item.href === '/free-tools' && pathname?.startsWith('/free-tools/')) ||
+              (item.href === '/akman/commerce-report' &&
+                (pathname?.startsWith('/akman/commerce-report') ||
+                  pathname?.startsWith('/admin/commerce-report'))) ||
+              (item.href === '/akman' &&
+                (pathname === '/akman' ||
+                  (pathname?.startsWith('/akman/') &&
+                    !pathname?.startsWith('/akman/commerce-report')) ||
+                  (pathname?.startsWith('/admin/') &&
+                    !pathname?.startsWith('/admin/commerce-report'))));
 
             return (
               <Link
