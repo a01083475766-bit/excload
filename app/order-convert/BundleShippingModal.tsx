@@ -464,9 +464,9 @@ export function BundleShippingModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-        <div className="flex max-h-[min(92vh,900px)] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-gray-300 bg-gray-200 shadow-lg">
-          <div className="flex items-start justify-between border-b border-gray-300 bg-white px-6 py-5">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-black/40 p-3 sm:p-4">
+        <div className="flex h-[min(92dvh,900px)] max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-gray-300 bg-gray-200 shadow-lg">
+          <div className="flex shrink-0 items-start justify-between border-b border-gray-300 bg-white px-4 py-4 sm:px-6 sm:py-5">
             <div className="flex min-w-0 flex-1 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
                 <PackageCheck className="h-5 w-5" aria-hidden />
@@ -498,12 +498,12 @@ export function BundleShippingModal({
             </button>
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[270px_1fr]">
-            <aside className="flex min-h-0 flex-col border-b border-gray-300 bg-gray-50 md:border-b-0 md:border-r">
-              <div className="border-b border-gray-200 px-4 py-3 text-xs font-bold text-gray-500">
+          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[270px_1fr]">
+            <aside className="flex max-h-48 min-h-0 flex-col overflow-hidden border-b border-gray-300 bg-gray-50 md:max-h-none md:border-b-0 md:border-r">
+              <div className="shrink-0 border-b border-gray-200 px-4 py-3 text-xs font-bold text-gray-500">
                 후보 그룹
               </div>
-              <ul className="max-h-44 space-y-2 overflow-y-auto p-3 md:max-h-none md:flex-1">
+              <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3">
                 {groupDrafts.map((g) => {
                   const meta = groups.find((x) => x.groupId === g.groupId);
                   const decision = groupDecisions[g.groupId] ?? 'undecided';
@@ -555,159 +555,158 @@ export function BundleShippingModal({
               </ul>
             </aside>
 
-            <main className="flex min-h-0 min-w-0 flex-col bg-white">
-              <div className="min-h-0 flex-1 overflow-auto p-4 md:p-5">
-                {activeGroupMeta && (
-                  <section className="mb-4 rounded-xl border border-gray-300 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="text-lg font-bold text-gray-900">
-                            {activeGroupMeta.displayName}
-                          </h2>
-                          <StatusPill decision={activeDecision} />
-                        </div>
-                        <p className="mt-1 text-sm text-gray-600">
-                          {activeGroupMeta.displayPhone} · {activeGroupMeta.displayAddress}
-                        </p>
+            <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-white">
+              {activeGroupMeta ? (
+                <section className="shrink-0 border-b border-gray-200 p-4 md:px-5 md:pt-5 md:pb-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-lg font-bold text-gray-900">
+                          {activeGroupMeta.displayName}
+                        </h2>
+                        <StatusPill decision={activeDecision} />
                       </div>
-                      <div
-                        className="flex h-10 shrink-0 items-center whitespace-nowrap rounded-xl bg-gray-50 px-4 text-sm text-gray-600 ring-1 ring-gray-200"
-                        aria-live="polite"
-                      >
-                        삭제 예정{' '}
-                        <b className="tabular-nums text-red-600">{activeGroupDeletedCount}건</b> ·
-                        수정 반영{' '}
-                        <b className="tabular-nums text-blue-600">{activeGroupEditCount}건</b>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      {activeDecision === 'undecided' && (
-                        <>
-                          <button type="button" className={BTN_SECONDARY} onClick={handleSetIndividual}>
-                            개별배송하기
-                          </button>
-                          <button type="button" className={BTN_VIOLET} onClick={handleStartBundleEdit}>
-                            <PackageCheck className="h-3.5 w-3.5" aria-hidden />
-                            묶음배송하기
-                          </button>
-                        </>
-                      )}
-
-                      {activeDecision === 'individual' && (
-                        <div className="flex w-full flex-wrap items-center gap-2">
-                          <p className="max-w-md rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-800">
-                            이 주문건들은 개별배송으로 유지합니다. 미리보기에 그대로 반영됩니다.
-                          </p>
-                          <button
-                            type="button"
-                            className={`${BTN_SECONDARY} shrink-0`}
-                            onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                            되돌리기
-                          </button>
-                        </div>
-                      )}
-
-                      {activeDecision === 'bundle_editing' && (
-                        <>
-                          {selectedRowIds.length > 0 && (
-                            <button
-                              type="button"
-                              className={BTN_RED}
-                              onClick={handleRequestDeleteSelected}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                              선택 삭제 ({selectedRowIds.length})
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            disabled={!canCompleteBundleEdit}
-                            className={BTN_GREEN}
-                            onClick={handleCompleteBundleEdit}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                            묶음배송결정
-                          </button>
-                          <button
-                            type="button"
-                            className={BTN_SECONDARY}
-                            onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                            되돌리기
-                          </button>
-                        </>
-                      )}
-
-                      {activeDecision === 'bundle_done' && (
-                        <div className="flex w-full flex-wrap items-center gap-2">
-                          <p className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900 sm:whitespace-nowrap">
-                            묶음배송이 결정되었습니다. 삭제예정 주문건은 제외하고 미리보기에 반영됩니다.
-                          </p>
-                          <button
-                            type="button"
-                            className={`${BTN_SECONDARY} shrink-0`}
-                            onClick={() =>
-                              activeGroupId &&
-                              setGroupDecisions((prev) => ({
-                                ...prev,
-                                [activeGroupId]: 'bundle_editing',
-                              }))
-                            }
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                            되돌리기
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {activeDecision === 'undecided' && (
-                      <p className="mt-3 text-xs text-gray-500">
-                        먼저 배송 방식을 선택해 주세요. 삭제·수정등 결정된 내용만 미리보기에
-                        반영됩니다.
+                      <p className="mt-1 text-sm text-gray-600">
+                        {activeGroupMeta.displayPhone} · {activeGroupMeta.displayAddress}
                       </p>
+                    </div>
+                    <div
+                      className="flex h-10 shrink-0 items-center whitespace-nowrap rounded-xl bg-gray-50 px-4 text-sm text-gray-600 ring-1 ring-gray-200"
+                      aria-live="polite"
+                    >
+                      삭제 예정{' '}
+                      <b className="tabular-nums text-red-600">{activeGroupDeletedCount}건</b> ·
+                      수정 반영{' '}
+                      <b className="tabular-nums text-blue-600">{activeGroupEditCount}건</b>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {activeDecision === 'undecided' && (
+                      <>
+                        <button type="button" className={BTN_SECONDARY} onClick={handleSetIndividual}>
+                          개별배송하기
+                        </button>
+                        <button type="button" className={BTN_VIOLET} onClick={handleStartBundleEdit}>
+                          <PackageCheck className="h-3.5 w-3.5" aria-hidden />
+                          묶음배송하기
+                        </button>
+                      </>
+                    )}
+
+                    {activeDecision === 'individual' && (
+                      <div className="flex w-full flex-wrap items-center gap-2">
+                        <p className="max-w-md rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                          이 주문건들은 개별배송으로 유지합니다. 미리보기에 그대로 반영됩니다.
+                        </p>
+                        <button
+                          type="button"
+                          className={`${BTN_SECONDARY} shrink-0`}
+                          onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                          되돌리기
+                        </button>
+                      </div>
                     )}
 
                     {activeDecision === 'bundle_editing' && (
-                      <p className="mt-3 text-xs leading-relaxed text-gray-500">
-                        {activeGroupRemainingCount === 0 ? (
-                          <>
-                            모든 주문건이 삭제 예정입니다. 묶음배송을 결정하려면 최소 1건은 유지해야
-                            합니다. 「되돌리기」 후 다시 정리해 주세요.
-                          </>
-                        ) : activeGroupDeletedCount === 0 ? (
-                          <>
-                            주문건 1건 이상 삭제·수정 후 「묶음배송결정」할 수 있습니다. 개별발송을
-                            원하시면 「되돌리기」 후 「개별배송하기」를 선택해 주세요.
-                          </>
-                        ) : (
-                          <>
-                            불필요한 행을 삭제한 뒤 남은 주문의 수량·상품을 확인·수정하고{' '}
-                            <span className="font-semibold text-violet-800">묶음배송결정</span>을
-                            눌러 주세요. 남은 주문만 미리보기·다운로드에 반영됩니다.
-                          </>
+                      <>
+                        {selectedRowIds.length > 0 && (
+                          <button
+                            type="button"
+                            className={BTN_RED}
+                            onClick={handleRequestDeleteSelected}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            선택 삭제 ({selectedRowIds.length})
+                          </button>
                         )}
-                      </p>
+                        <button
+                          type="button"
+                          disabled={!canCompleteBundleEdit}
+                          className={BTN_GREEN}
+                          onClick={handleCompleteBundleEdit}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                          묶음배송결정
+                        </button>
+                        <button
+                          type="button"
+                          className={BTN_SECONDARY}
+                          onClick={() => activeGroupId && resetGroupToOriginal(activeGroupId)}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                          되돌리기
+                        </button>
+                      </>
                     )}
-                  </section>
-                )}
 
-              <div className="min-h-0 flex-1 overflow-auto">
+                    {activeDecision === 'bundle_done' && (
+                      <div className="flex w-full flex-wrap items-center gap-2">
+                        <p className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900 sm:whitespace-nowrap">
+                          묶음배송이 결정되었습니다. 삭제예정 주문건은 제외하고 미리보기에 반영됩니다.
+                        </p>
+                        <button
+                          type="button"
+                          className={`${BTN_SECONDARY} shrink-0`}
+                          onClick={() =>
+                            activeGroupId &&
+                            setGroupDecisions((prev) => ({
+                              ...prev,
+                              [activeGroupId]: 'bundle_editing',
+                            }))
+                          }
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                          되돌리기
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {activeDecision === 'undecided' && (
+                    <p className="mt-3 text-xs text-gray-500">
+                      먼저 배송 방식을 선택해 주세요. 삭제·수정등 결정된 내용만 미리보기에
+                      반영됩니다.
+                    </p>
+                  )}
+
+                  {activeDecision === 'bundle_editing' && (
+                    <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                      {activeGroupRemainingCount === 0 ? (
+                        <>
+                          모든 주문건이 삭제 예정입니다. 묶음배송을 결정하려면 최소 1건은 유지해야
+                          합니다. 「되돌리기」 후 다시 정리해 주세요.
+                        </>
+                      ) : activeGroupDeletedCount === 0 ? (
+                        <>
+                          주문건 1건 이상 삭제·수정 후 「묶음배송결정」할 수 있습니다. 개별발송을
+                          원하시면 「되돌리기」 후 「개별배송하기」를 선택해 주세요.
+                        </>
+                      ) : (
+                        <>
+                          불필요한 행을 삭제한 뒤 남은 주문의 수량·상품을 확인·수정하고{' '}
+                          <span className="font-semibold text-violet-800">묶음배송결정</span>을
+                          눌러 주세요. 남은 주문만 미리보기·다운로드에 반영됩니다.
+                        </>
+                      )}
+                    </p>
+                  )}
+                </section>
+              ) : null}
+
+              <div className="min-h-0 flex-1 overflow-auto overscroll-contain p-4 md:px-5 md:pb-5">
                 {!activeDraft || activeDraft.rowIds.length === 0 ? (
                   <p className="py-8 text-center text-sm text-gray-400">이 그룹에 주문 행이 없습니다.</p>
                 ) : (
-                  <div className="flex flex-col overflow-hidden rounded-lg border border-gray-300 bg-white">
+                  <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-gray-300 bg-white">
                     {activeGroupDeletedCount > 0 && (
-                      <p className="border-b border-red-100 bg-red-50/50 px-3 py-1.5 text-xs text-red-700">
+                      <p className="shrink-0 border-b border-red-100 bg-red-50/50 px-3 py-1.5 text-xs text-red-700">
                         삭제 예정 행은 취소선으로 표시됩니다. 미리보기에 적용할 때 제외됩니다.
                       </p>
                     )}
-                    <div className="overflow-auto preview-scrollbar preview-table-no-copy">
+                    <div className="min-h-0 overflow-auto preview-scrollbar preview-table-no-copy">
                     <table className="min-w-max border-collapse text-sm">
                       <thead className="sticky top-0 z-10 bg-gray-50">
                         <tr>
@@ -790,11 +789,10 @@ export function BundleShippingModal({
                   </div>
                 )}
               </div>
-              </div>
             </main>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-300 bg-white px-6 py-4">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-gray-300 bg-white px-4 py-3 sm:px-6 sm:py-4">
             <p className="text-sm text-gray-500">
               삭제 예정 <b className="text-red-600">{deletedCount}건</b> · 수정 반영{' '}
               <b className="text-blue-600">{modifiedOverrideCount}건</b> · 개별배송{' '}
