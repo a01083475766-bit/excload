@@ -32,7 +32,7 @@ export function MallIntegrationForm({ mallId }: Props) {
 
   if (mallId === 'cafe24') {
     return (
-      <Suspense fallback={<p className="px-4 py-6 text-sm text-zinc-500">카페24 ?�동 ?�면 불러?�는 중�?/p>}>
+      <Suspense fallback={<p className="px-4 py-6 text-sm text-zinc-500">카페24 연동 화면 불러오는 중…</p>}>
         <Cafe24IntegrationForm />
       </Suspense>
     );

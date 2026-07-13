@@ -81,7 +81,7 @@ export function SsgIntegrationForm() {
       const res = await fetch('/api/order/integration/ssg');
       const data = (await res.json()) as { account?: SsgAccountResponse | null; error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? '?�동 ?�보�?불러?��? 못했?�니??');
+        throw new Error(data.error ?? '연동 정보를 불러오지 못했습니다.');
       }
       const account = data.account ?? null;
       setSavedAccount(account);
@@ -93,7 +93,7 @@ export function SsgIntegrationForm() {
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�보�?불러?��? 못했?�니??',
+        text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
       });
     } finally {
       setLoading(false);
@@ -116,7 +116,7 @@ export function SsgIntegrationForm() {
           setTransportInfo({ mode: data.transport.mode, notes: data.notes });
         }
       } catch {
-        // transport ?�보??부가 ?�내??
+        // transport 정보는 부가 안내용
       }
     }
     void loadTransport();
@@ -141,18 +141,18 @@ export function SsgIntegrationForm() {
         account?: SsgAccountResponse;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? '?�?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
 
       setSavedAccount(data.account ?? null);
       setApiKey('');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? 'SSG ?�동 ?�보가 ?�?�되?�습?�다.',
+        text: data.message ?? 'SSG 연동 정보가 저장되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '저장에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -165,16 +165,16 @@ export function SsgIntegrationForm() {
     try {
       const res = await fetch('/api/order/integration/ssg/test', { method: 'POST' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�결 ?�스?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연결 테스트에 실패했습니다.');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? 'SSG API ?�결???�상 ?�인?�었?�니??',
+        text: data.message ?? 'SSG API 연결이 정상 확인되었습니다.',
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�결 ?�스?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -194,19 +194,19 @@ export function SsgIntegrationForm() {
         previewRows?: SsgPreviewRow[];
         count?: number;
       };
-      if (!res.ok) throw new Error(data.error ?? '주문 ?�집???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
 
       setPreviewRows(data.previewRows ?? []);
       setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? `SSG 주문 ${data.count ?? 0}건을 불러?�습?�다.`,
+        text: data.message ?? `SSG 주문 ${data.count ?? 0}건을 불러왔습니다.`,
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '주문 ?�집???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -214,14 +214,14 @@ export function SsgIntegrationForm() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm('?�?�된 SSG ?�동 ?�보�???��?�까??')) return;
+    if (!window.confirm('저장된 SSG 연동 정보를 삭제할까요?')) return;
 
     setBusyAction('disconnect');
     setStatusMessage(null);
     try {
       const res = await fetch('/api/order/integration/ssg', { method: 'DELETE' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�동 ?�제???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연동 해제에 실패했습니다.');
 
       setSavedAccount(null);
       setAccountName('');
@@ -231,12 +231,12 @@ export function SsgIntegrationForm() {
       setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
-        text: data.message ?? 'SSG ?�동???�제?�었?�니??',
+        text: data.message ?? 'SSG 연동이 해제되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�제???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -244,8 +244,8 @@ export function SsgIntegrationForm() {
   }
 
   const apiKeyPlaceholder = savedAccount?.hasApiKey
-    ? `?�?�됨: ${savedAccount.apiKeyMasked || '********'} (변�??�에�??�력)`
-    : 'API ?�증???�력 (Authorization ?�더, ?�?????�체 ?�출?��? ?�습?�다)';
+    ? `저장됨: ${savedAccount.apiKeyMasked || '********'} (변경 시에만 입력)`
+    : 'API 인증키 입력 (Authorization 헤더, 저장 후 전체 노출되지 않습니다)';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
@@ -254,33 +254,33 @@ export function SsgIntegrationForm() {
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        주문?�동 목록
+        주문연동 목록
       </Link>
 
       <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">SSG.COM ?�동</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">SSG.COM 연동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베�?
+          베타
         </span>
       </div>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        API ?�증???�?????�결 ?�스?��? 주문 조회·?�집(배송지?�·출고�?????진행?????�습?�다. 발주?�인·?�장
-        ?�송·?�태 변경�? ?�함?��? ?�습?�다.
+        API 인증키 저장 후 연결 테스트와 주문 조회·수집(배송지시·출고대상)을 진행할 수 있습니다. 발주확인·송장
+        전송·상태 변경은 포함하지 않습니다.
       </p>
 
-      {loading ? <p className="mb-4 text-sm text-zinc-500">?�동 ?�보 불러?�는 중�?/p> : null}
+      {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
       {transportInfo ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API ?�출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP ?�록?? : '?�록??미설??}</strong>
+          API 호출 경로:{' '}
+          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
           {transportInfo.mode === 'proxy' ? (
             <span className="mt-1 block text-xs opacity-90">
-              SSG ?�트?�오?�스 API?�원?�보관리에 ?�클로드 고정 IP({outboundIp || '54.180.45.46'})�??�록?�세??
+              SSG 파트너오피스 API회원정보관리에 엑클로드 고정 IP({outboundIp || '54.180.45.46'})를 등록하세요.
             </span>
           ) : (
             <span className="mt-1 block text-xs opacity-90">
-              SSG API??Vercel 직접 ?�출??지?�하지 ?�습?�다. INTEGRATION_PROXY_BASE_URL???�정??주세??
+              SSG API는 Vercel 직접 호출을 지원하지 않습니다. INTEGRATION_PROXY_BASE_URL을 설정해 주세요.
             </span>
           )}
         </p>
@@ -288,19 +288,19 @@ export function SsgIntegrationForm() {
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 ?�류: {savedAccount.lastErrorMessage}
+          최근 오류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">?�클로드 ?�보 (?�매?�센???�록??</h2>
+        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 정보 (판매자센터 등록용)</h2>
         <dl className="space-y-3">
-          <CopyableInfoRow label="?�체�? value={EXCLOAD_INTEGRATION_INFO.companyName} />
+          <CopyableInfoRow label="업체명" value={EXCLOAD_INTEGRATION_INFO.companyName} />
           <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
           <CopyableInfoRow
             label="IP 주소"
             value={outboundIp}
-            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP ?�경변???�정 ?�요"
+            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 환경변수 설정 필요"
           />
         </dl>
       </section>
@@ -314,14 +314,14 @@ export function SsgIntegrationForm() {
               rel="noopener noreferrer"
               className="text-blue-600 underline dark:text-blue-400"
             >
-              SSG ?�트?�오?�스
+              SSG 파트너오피스
             </a>
-            ??로그?�합?�다.
+            에 로그인합니다.
           </li>
-          <li>API?�원?�보관리에???�영·?�스???�버 IP???�클로드 고정 IP�?각각 ?�록?�니??</li>
-          <li>?�메?�로 발송??API ?�증?��? ?�성?�한 ?? ?�력?�코??로그??ID)?� ?�께 ?�력?�니??</li>
+          <li>API회원정보관리에서 운영·테스트 서버 IP에 엑클로드 고정 IP를 각각 등록합니다.</li>
+          <li>이메일로 발송된 API 인증키를 활성화한 뒤, 협력사코드(로그인 ID)와 함께 입력합니다.</li>
           <li>
-            API 문서??' '}
+            API 문서는{' '}
             <a
               href="https://eapi.ssgadm.com/info/main.ssg"
               target="_blank"
@@ -330,7 +330,7 @@ export function SsgIntegrationForm() {
             >
               SSG Open API
             </a>
-            ?�서 ?�인?????�습?�다.
+            에서 확인할 수 있습니다.
           </li>
         </ol>
       </CollapsibleGuide>
@@ -338,35 +338,35 @@ export function SsgIntegrationForm() {
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            ?�속별칭 (계정�?
+            접속별칭 (계정명)
           </label>
           <input
             id="accountName"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="?? 본사 SSG"
+            placeholder="예: 본사 SSG"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="vendorCode" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            ?�력?�코??(로그??ID)
+            협력사코드 (로그인 ID)
           </label>
           <input
             id="vendorCode"
             type="text"
             value={vendorCode}
             onChange={(e) => setVendorCode(e.target.value)}
-            placeholder="?�트?�오?�스 로그??ID"
+            placeholder="파트너오피스 로그인 ID"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="apiKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            API ?�증??
+            API 인증키
           </label>
           <input
             id="apiKey"
@@ -393,7 +393,7 @@ export function SsgIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�??
+            저장
           </button>
           <button
             type="button"
@@ -402,7 +402,7 @@ export function SsgIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�결 ?�스??
+            연결 테스트
           </button>
           <button
             type="button"
@@ -411,7 +411,7 @@ export function SsgIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
           >
             {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 ?�집
+            주문 수집
           </button>
           <button
             type="button"
@@ -420,7 +420,7 @@ export function SsgIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�동 ?�제
+            연동 해제
           </button>
         </div>
       </form>
@@ -428,7 +428,7 @@ export function SsgIntegrationForm() {
       {fetchMeta ? (
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            ?�집 결과 미리보기 ({fetchMeta.count}�?
+            수집 결과 미리보기 ({fetchMeta.count}건)
           </h2>
           {previewRows.length ? (
             <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -456,7 +456,7 @@ export function SsgIntegrationForm() {
               </table>
             </div>
           ) : (
-            <p className="text-sm text-zinc-500">최근 7???�내 배송지?�·출고�???주문???�습?�다.</p>
+            <p className="text-sm text-zinc-500">최근 7일 이내 배송지시·출고대상 주문이 없습니다.</p>
           )}
         </section>
       ) : null}

@@ -98,7 +98,7 @@ export function CoupangIntegrationForm() {
       const res = await fetch('/api/order/integration/coupang');
       const data = (await res.json()) as { account?: CoupangAccountResponse | null; error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? '?�동 ?�보�?불러?��? 못했?�니??');
+        throw new Error(data.error ?? '연동 정보를 불러오지 못했습니다.');
       }
       const account = data.account ?? null;
       setSavedAccount(account);
@@ -112,7 +112,7 @@ export function CoupangIntegrationForm() {
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�보�?불러?��? 못했?�니??',
+        text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
       });
     } finally {
       setLoading(false);
@@ -135,7 +135,7 @@ export function CoupangIntegrationForm() {
           setTransportInfo({ mode: data.transport.mode, notes: data.notes });
         }
       } catch {
-        // transport ?�보??부가 ?�내??
+        // transport 정보는 부가 안내용
       }
     }
     void loadTransport();
@@ -162,19 +162,19 @@ export function CoupangIntegrationForm() {
         account?: CoupangAccountResponse;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? '?�?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
 
       setSavedAccount(data.account ?? null);
       setAccessKey('');
       setSecretKey('');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '쿠팡 ?�동 ?�보가 ?�?�되?�습?�다.',
+        text: data.message ?? '쿠팡 연동 정보가 저장되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '저장에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -187,16 +187,16 @@ export function CoupangIntegrationForm() {
     try {
       const res = await fetch('/api/order/integration/coupang/test', { method: 'POST' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�결 ?�스?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연결 테스트에 실패했습니다.');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '쿠팡 API ?�결???�상 ?�인?�었?�니??',
+        text: data.message ?? '쿠팡 API 연결이 정상 확인되었습니다.',
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�결 ?�스?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -219,7 +219,7 @@ export function CoupangIntegrationForm() {
         failedStatusCount?: number;
         debug?: unknown;
       };
-      if (!res.ok) throw new Error(data.error ?? '주문 ?�집???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
 
       setPreviewRows(data.previewRows ?? []);
       setFetchMeta({
@@ -229,13 +229,13 @@ export function CoupangIntegrationForm() {
       setDebugInfo(data.debug ?? null);
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? `쿠팡 주문 ${data.count ?? 0}건을 불러?�습?�다.`,
+        text: data.message ?? `쿠팡 주문 ${data.count ?? 0}건을 불러왔습니다.`,
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '주문 ?�집???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -243,14 +243,14 @@ export function CoupangIntegrationForm() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm('?�?�된 쿠팡 ?�동 ?�보�???��?�까??')) return;
+    if (!window.confirm('저장된 쿠팡 연동 정보를 삭제할까요?')) return;
 
     setBusyAction('disconnect');
     setStatusMessage(null);
     try {
       const res = await fetch('/api/order/integration/coupang', { method: 'DELETE' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�동 ?�제???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연동 해제에 실패했습니다.');
 
       setSavedAccount(null);
       setAccountName('');
@@ -263,12 +263,12 @@ export function CoupangIntegrationForm() {
       setDebugInfo(null);
       setStatusMessage({
         kind: 'info',
-        text: data.message ?? '쿠팡 ?�동???�제?�었?�니??',
+        text: data.message ?? '쿠팡 연동이 해제되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�제???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -276,11 +276,11 @@ export function CoupangIntegrationForm() {
   }
 
   const accessKeyPlaceholder = savedAccount?.hasAccessKey
-    ? `?�?�됨: ${savedAccount.accessKeyMasked || '****'}`
-    : 'Access Key ?�력';
+    ? `저장됨: ${savedAccount.accessKeyMasked || '****'}`
+    : 'Access Key 입력';
   const secretKeyPlaceholder = savedAccount?.hasSecretKey
-    ? `?�?�됨: ${savedAccount.secretKeyMasked || '********'} (변�??�에�??�력)`
-    : 'Secret Key ?�력 (?�?????�체 ?�출?��? ?�습?�다)';
+    ? `저장됨: ${savedAccount.secretKeyMasked || '********'} (변경 시에만 입력)`
+    : 'Secret Key 입력 (저장 후 전체 노출되지 않습니다)';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
@@ -289,26 +289,26 @@ export function CoupangIntegrationForm() {
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        주문?�동 목록
+        주문연동 목록
       </Link>
 
-      <h1 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">쿠팡 ?�동</h1>
+      <h1 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">쿠팡 연동</h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        쿠팡 Wing Open API ?�보�??�?�한 ???�결 ?�스?��? 주문 ?�집??진행?????�습?�다.
+        쿠팡 Wing Open API 정보를 저장한 뒤 연결 테스트와 주문 수집을 진행할 수 있습니다.
       </p>
 
-      {loading ? <p className="mb-4 text-sm text-zinc-500">?�동 ?�보 불러?�는 중�?/p> : null}
+      {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
       {transportInfo ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API ?�출 경로: <strong>{transportInfo.mode === 'proxy' ? '고정 IP ?�록?? : 'Vercel 직접 ?�출'}</strong>
+          API 호출 경로: <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : 'Vercel 직접 호출'}</strong>
           {transportInfo.mode === 'direct' ? (
             <span className="mt-1 block text-xs opacity-90">
-              고정 IP ?�보 ??관리자 ?�스???�용?�니?? ?�영 ??COUPANG_PROXY_BASE_URL ?�록?��? ?�정?�세??
+              고정 IP 확보 전 관리자 테스트 전용입니다. 운영 시 COUPANG_PROXY_BASE_URL 프록시를 설정하세요.
             </span>
           ) : (
             <span className="mt-1 block text-xs opacity-90">
-              쿠팡 WING?�는 ?�록???�버??고정 IP(NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP)�??�록?�세??
+              쿠팡 WING에는 프록시 서버의 고정 IP(NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP)를 등록하세요.
             </span>
           )}
         </p>
@@ -316,50 +316,50 @@ export function CoupangIntegrationForm() {
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 ?�류: {savedAccount.lastErrorMessage}
+          최근 오류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">?�클로드 ?�보 (?�매?�센???�록??</h2>
+        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 정보 (판매자센터 등록용)</h2>
         <dl className="space-y-3">
-          <CopyableInfoRow label="?�체�? value={EXCLOAD_INTEGRATION_INFO.companyName} />
+          <CopyableInfoRow label="업체명" value={EXCLOAD_INTEGRATION_INFO.companyName} />
           <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
           <CopyableInfoRow
             label="IP 주소"
             value={outboundIp}
-            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP ?�경변???�정 ?�요"
+            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 환경변수 설정 필요"
           />
         </dl>
       </section>
 
       <CollapsibleGuide title="API 발급 방법 보기 (쿠팡)">
         <ol className="list-decimal space-y-2 pl-5">
-          <li>쿠팡 Wing ?�매?�센????Open API 메뉴�??�동?�니??</li>
-          <li>?�체�?<strong>?�클로드</strong>, URL <strong>https://www.excload.com</strong>, IP???�클로드 고정 IP�??�록?�니??</li>
-          <li>Access Key, Secret Key�?발급받아 ?�래???�력?�니??</li>
-          <li>API ??만료?�을 ?�께 ?�력?�면 갱신 ?�림???�용?????�습?�다.</li>
+          <li>쿠팡 Wing 판매자센터 → Open API 메뉴로 이동합니다.</li>
+          <li>업체명 <strong>엑클로드</strong>, URL <strong>https://www.excload.com</strong>, IP에 엑클로드 고정 IP를 등록합니다.</li>
+          <li>Access Key, Secret Key를 발급받아 아래에 입력합니다.</li>
+          <li>API 키 만료일을 함께 입력하면 갱신 알림에 활용할 수 있습니다.</li>
         </ol>
       </CollapsibleGuide>
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            계정�?
+            계정명
           </label>
           <input
             id="accountName"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="?? 본사 쿠팡 계정"
+            placeholder="예: 본사 쿠팡 계정"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="vendorCode" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            쿠팡 ?�체코드
+            쿠팡 업체코드
           </label>
           <input
             id="vendorCode"
@@ -402,7 +402,7 @@ export function CoupangIntegrationForm() {
 
         <div>
           <label htmlFor="apiKeyExpiry" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            API ??만료??(갱신 ?�림??
+            API 키 만료일 (갱신 알림용)
           </label>
           <input
             id="apiKeyExpiry"
@@ -427,7 +427,7 @@ export function CoupangIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-900 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�??
+            저장
           </button>
           <button
             type="button"
@@ -436,7 +436,7 @@ export function CoupangIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�결 ?�스??
+            연결 테스트
           </button>
           <button
             type="button"
@@ -445,7 +445,7 @@ export function CoupangIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
           >
             {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 ?�집
+            주문 수집
           </button>
           <button
             type="button"
@@ -454,15 +454,15 @@ export function CoupangIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�동 ?�제
+            연동 해제
           </button>
         </div>
       </form>
 
       {fetchMeta ? (
         <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
-          ?�집 결과: {fetchMeta.count}�?
-          {fetchMeta.failedStatusCount > 0 ? ` · ?�태�?조회 ?�패 ${fetchMeta.failedStatusCount}�? : ''}
+          수집 결과: {fetchMeta.count}건
+          {fetchMeta.failedStatusCount > 0 ? ` · 상태별 조회 실패 ${fetchMeta.failedStatusCount}건` : ''}
         </p>
       ) : null}
 
@@ -494,7 +494,7 @@ export function CoupangIntegrationForm() {
             </tbody>
           </table>
           <p className="border-t border-zinc-200 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-            미리보기?�니?? ?�후 ?�배주문변??미리보기 ?�이?�라?�과 ?�결?????�습?�다.
+            미리보기입니다. 이후 택배주문변환 미리보기 파이프라인과 연결할 수 있습니다.
           </p>
         </section>
       ) : null}
@@ -506,7 +506,7 @@ export function CoupangIntegrationForm() {
             onClick={() => setShowDebug((prev) => !prev)}
             className="text-xs font-medium text-zinc-500 underline-offset-2 hover:underline dark:text-zinc-400"
           >
-            {showDebug ? '관리자 ?�버�??�보 ?�기�? : '관리자 ?�버�??�보 보기'}
+            {showDebug ? '관리자 디버그 정보 숨기기' : '관리자 디버그 정보 보기'}
           </button>
           {showDebug ? (
             <pre className="mt-2 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">

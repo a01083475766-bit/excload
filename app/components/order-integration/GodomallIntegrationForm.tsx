@@ -89,7 +89,7 @@ export function GodomallIntegrationForm() {
       const res = await fetch('/api/order/integration/godomall');
       const data = (await res.json()) as { account?: GodomallAccountResponse | null; error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? '?�동 ?�보�?불러?��? 못했?�니??');
+        throw new Error(data.error ?? '연동 정보를 불러오지 못했습니다.');
       }
       const account = data.account ?? null;
       setSavedAccount(account);
@@ -104,7 +104,7 @@ export function GodomallIntegrationForm() {
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�보�?불러?��? 못했?�니??',
+        text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
       });
     } finally {
       setLoading(false);
@@ -132,7 +132,7 @@ export function GodomallIntegrationForm() {
           });
         }
       } catch {
-        // transport ?�보??부가 ?�내??
+        // transport 정보는 부가 안내용
       }
     }
     void loadTransport();
@@ -160,7 +160,7 @@ export function GodomallIntegrationForm() {
         account?: GodomallAccountResponse;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? '?�?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
 
       setSavedAccount(data.account ?? null);
       setUserKey('');
@@ -168,12 +168,12 @@ export function GodomallIntegrationForm() {
       setClearPartnerKeyOverride(false);
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '고도�??�동 ?�보가 ?�?�되?�습?�다.',
+        text: data.message ?? '고도몰 연동 정보가 저장되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '저장에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -186,16 +186,16 @@ export function GodomallIntegrationForm() {
     try {
       const res = await fetch('/api/order/integration/godomall/test', { method: 'POST' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�결 ?�스?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연결 테스트에 실패했습니다.');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '고도�?Open API ?�결???�상 ?�인?�었?�니??',
+        text: data.message ?? '고도몰 Open API 연결이 정상 확인되었습니다.',
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�결 ?�스?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -215,19 +215,19 @@ export function GodomallIntegrationForm() {
         previewRows?: GodomallPreviewRow[];
         count?: number;
       };
-      if (!res.ok) throw new Error(data.error ?? '주문 ?�집???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
 
       setPreviewRows(data.previewRows ?? []);
       setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? `고도�?주문 ${data.count ?? 0}건을 불러?�습?�다.`,
+        text: data.message ?? `고도몰 주문 ${data.count ?? 0}건을 불러왔습니다.`,
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '주문 ?�집???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -235,14 +235,14 @@ export function GodomallIntegrationForm() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm('?�?�된 고도�??�동 ?�보�???��?�까??')) return;
+    if (!window.confirm('저장된 고도몰 연동 정보를 삭제할까요?')) return;
 
     setBusyAction('disconnect');
     setStatusMessage(null);
     try {
       const res = await fetch('/api/order/integration/godomall', { method: 'DELETE' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�동 ?�제???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연동 해제에 실패했습니다.');
 
       setSavedAccount(null);
       setAccountName('');
@@ -254,12 +254,12 @@ export function GodomallIntegrationForm() {
       setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
-        text: data.message ?? '고도�??�동???�제?�었?�니??',
+        text: data.message ?? '고도몰 연동이 해제되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�제???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -267,12 +267,12 @@ export function GodomallIntegrationForm() {
   }
 
   const userKeyPlaceholder = savedAccount?.hasUserKey
-    ? `?�?�됨: ${savedAccount.userKeyMasked || '********'} (변�??�에�??�력)`
-    : 'user key(?�용?�키) ?�력 (?�?????�체 ?�출?��? ?�습?�다)';
+    ? `저장됨: ${savedAccount.userKeyMasked || '********'} (변경 시에만 입력)`
+    : 'user key(사용자키) 입력 (저장 후 전체 노출되지 않습니다)';
 
   const partnerKeyOverridePlaceholder = savedAccount?.hasPartnerKeyOverride
-    ? '?�?�됨 (변�??�에�??�력)'
-    : '개발·?�스?�용 partner_key override (?�택)';
+    ? '저장됨 (변경 시에만 입력)'
+    : '개발·테스트용 partner_key override (선택)';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
@@ -281,38 +281,38 @@ export function GodomallIntegrationForm() {
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        주문?�동 목록
+        주문연동 목록
       </Link>
 
       <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">고도�??�동</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">고도몰 연동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베�?
+          베타
         </span>
       </div>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        NHN커머??고도�? Open API(Order_Search.php)�??�결 ?�스?��? 주문 조회·?�집??진행?????�습?�다. 발주?�인·?�장
-        ?�송·?�태 변경�? ?�함?��? ?�습?�다.
+        NHN커머스 고도몰5 Open API(Order_Search.php)로 연결 테스트와 주문 조회·수집을 진행할 수 있습니다. 발주확인·송장
+        전송·상태 변경은 포함하지 않습니다.
       </p>
 
-      {loading ? <p className="mb-4 text-sm text-zinc-500">?�동 ?�보 불러?�는 중�?/p> : null}
+      {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
       <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-        <strong>partner_key(?�휴?�키)</strong>???�클로드 공통 값으�??�버???�록?�니?? ?�매?�는{' '}
-        <strong>user key(?�용?�키)</strong>�??�력?�면 ?�니??
+        <strong>partner_key(제휴사키)</strong>는 엑클로드 공통 값으로 서버에 등록됩니다. 판매자는{' '}
+        <strong>user key(사용자키)</strong>만 입력하면 됩니다.
         <span className="mt-1 block">
-          NHN openhub ?�출 IP <strong>{EXCLOAD_GODOMALL_OUTBOUND_IP}</strong> ?�용?� NHN 1:1 문의가 ?�요?�니??
+          NHN openhub 호출 IP <strong>{EXCLOAD_GODOMALL_OUTBOUND_IP}</strong> 허용은 NHN 1:1 문의가 필요합니다.
         </span>
       </p>
 
       {transportInfo ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API ?�출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP ?�록?? : '?�록??미설??}</strong>
+          API 호출 경로:{' '}
+          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
           {transportInfo.partnerKeyConfigured === false ? (
             <span className="mt-1 block text-xs font-semibold text-amber-800 dark:text-amber-200">
-              GODOMALL_PARTNER_KEY가 ?�직 ?�버???�정?��? ?�았?�니?? ?�연????Vercel env ?�록 ?�는 개발??override가
-              ?�요?�니??
+              GODOMALL_PARTNER_KEY가 아직 서버에 설정되지 않았습니다. 실연동 전 Vercel env 등록 또는 개발용 override가
+              필요합니다.
             </span>
           ) : null}
           {transportInfo.notes ? <span className="mt-1 block text-xs opacity-90">{transportInfo.notes}</span> : null}
@@ -321,20 +321,20 @@ export function GodomallIntegrationForm() {
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 ?�류: {savedAccount.lastErrorMessage}
+          최근 오류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">?�클로드 ?�보 (?�휴???�록??</h2>
+        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 정보 (제휴사 등록용)</h2>
         <dl className="space-y-3">
-          <CopyableInfoRow label="?�체�? value={EXCLOAD_INTEGRATION_INFO.companyName} />
+          <CopyableInfoRow label="업체명" value={EXCLOAD_INTEGRATION_INFO.companyName} />
           <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
-          <CopyableInfoRow label="?�출 IP" value={EXCLOAD_GODOMALL_OUTBOUND_IP} />
+          <CopyableInfoRow label="호출 IP" value={EXCLOAD_GODOMALL_OUTBOUND_IP} />
         </dl>
       </section>
 
-      <CollapsibleGuide title="API ??발급 방법 보기 (고도�?">
+      <CollapsibleGuide title="API 키 발급 방법 보기 (고도몰)">
         <ol className="list-decimal space-y-2 pl-5">
           <li>
             <a
@@ -345,48 +345,48 @@ export function GodomallIntegrationForm() {
             >
               devcenter.godo.co.kr
             </a>
-            ?�서 ?�클로드 ?�휴??partner_key) ?�록
+            에서 엑클로드 제휴사(partner_key) 등록
           </li>
-          <li>?�핑�?관리자 ??Open API ???�용?�키(user key) ?�청·?�인</li>
-          <li>NHN 1:1 문의�?openhub ?�출 IP({EXCLOAD_GODOMALL_OUTBOUND_IP}) ?�용 ?�청</li>
-          <li>멀?�몰 ?�영 ??mallSno(?�점번호)가 ?�요?????�습?�다.</li>
+          <li>쇼핑몰 관리자 → Open API → 사용자키(user key) 신청·승인</li>
+          <li>NHN 1:1 문의로 openhub 호출 IP({EXCLOAD_GODOMALL_OUTBOUND_IP}) 허용 요청</li>
+          <li>멀티몰 운영 시 mallSno(상점번호)가 필요할 수 있습니다.</li>
         </ol>
       </CollapsibleGuide>
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            계정�?
+            계정명
           </label>
           <input
             id="accountName"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="?? 본사 고도�?
+            placeholder="예: 본사 고도몰"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="mallDomain" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            ?�핑�??�메??
+            쇼핑몰 도메인
           </label>
           <input
             id="mallDomain"
             type="text"
             value={mallDomain}
             onChange={(e) => setMallDomain(e.target.value)}
-            placeholder="?? shop.example.com"
+            placeholder="예: shop.example.com"
             className={inputClass}
             required
           />
-          <p className="mt-1 text-xs text-zinc-500">계정 구분?�입?�다. API XML?�는 partner_key?� user key�??�용?�니??</p>
+          <p className="mt-1 text-xs text-zinc-500">계정 구분용입니다. API XML에는 partner_key와 user key만 사용합니다.</p>
         </div>
 
         <div>
           <label htmlFor="userKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            user key (?�용?�키)
+            user key (사용자키)
           </label>
           <input
             id="userKey"
@@ -401,14 +401,14 @@ export function GodomallIntegrationForm() {
 
         <div>
           <label htmlFor="mallSno" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            mallSno (?�점번호, ?�택)
+            mallSno (상점번호, 선택)
           </label>
           <input
             id="mallSno"
             type="text"
             value={mallSno}
             onChange={(e) => setMallSno(e.target.value)}
-            placeholder="멀?�몰 ?�영 ???�력"
+            placeholder="멀티몰 운영 시 입력"
             className={inputClass}
           />
         </div>
@@ -419,14 +419,14 @@ export function GodomallIntegrationForm() {
             onClick={() => setShowAdvanced((prev) => !prev)}
             className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300"
           >
-            개발·?��???(partner_key override)
+            개발·내부용 (partner_key override)
             {showAdvanced ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
           </button>
           {showAdvanced ? (
             <div className="space-y-3 border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
               <p className="text-xs text-zinc-500">
-                ?�영 ?�경?�서??Vercel env <code>GODOMALL_PARTNER_KEY</code>�??�용?�니?? 로컬·?�테?�징 ?�스???�에�?
-                override�??�력?�세??
+                운영 환경에서는 Vercel env <code>GODOMALL_PARTNER_KEY</code>를 사용합니다. 로컬·스테이징 테스트 시에만
+                override를 입력하세요.
               </p>
               <input
                 id="partnerKeyOverride"
@@ -444,7 +444,7 @@ export function GodomallIntegrationForm() {
                     checked={clearPartnerKeyOverride}
                     onChange={(e) => setClearPartnerKeyOverride(e.target.checked)}
                   />
-                  ?�?�된 partner_key override ??��
+                  저장된 partner_key override 삭제
                 </label>
               ) : null}
             </div>
@@ -465,7 +465,7 @@ export function GodomallIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�??
+            저장
           </button>
           <button
             type="button"
@@ -474,7 +474,7 @@ export function GodomallIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�결 ?�스??
+            연결 테스트
           </button>
           <button
             type="button"
@@ -483,7 +483,7 @@ export function GodomallIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
           >
             {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 ?�집
+            주문 수집
           </button>
           <button
             type="button"
@@ -492,7 +492,7 @@ export function GodomallIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�동 ?�제
+            연동 해제
           </button>
         </div>
       </form>
@@ -500,7 +500,7 @@ export function GodomallIntegrationForm() {
       {fetchMeta ? (
         <section className="mt-8">
           <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">
-            ?�집 미리보기 ({fetchMeta.count}�?
+            수집 미리보기 ({fetchMeta.count}건)
           </h2>
           <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
             <table className="min-w-full text-left text-xs">

@@ -93,7 +93,7 @@ export function Cafe24IntegrationForm() {
       const res = await fetch('/api/order/integration/cafe24');
       const data = (await res.json()) as { account?: Cafe24AccountResponse | null; error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? '?�동 ?�보�?불러?��? 못했?�니??');
+        throw new Error(data.error ?? '연동 정보를 불러오지 못했습니다.');
       }
       const account = data.account ?? null;
       setSavedAccount(account);
@@ -105,7 +105,7 @@ export function Cafe24IntegrationForm() {
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�보�?불러?��? 못했?�니??',
+        text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
       });
     } finally {
       setLoading(false);
@@ -120,12 +120,12 @@ export function Cafe24IntegrationForm() {
     const oauth = searchParams?.get('oauth');
     const message = searchParams?.get('message');
     if (oauth === 'success') {
-      setStatusMessage({ kind: 'success', text: '카페24 OAuth ?�동???�료?�었?�니?? ?�결 ?�스?��? 진행??주세??' });
+      setStatusMessage({ kind: 'success', text: '카페24 OAuth 연동이 완료되었습니다. 연결 테스트를 진행해 주세요.' });
       void loadSavedAccount();
     } else if (oauth === 'error') {
       setStatusMessage({
         kind: 'error',
-        text: message ?? '카페24 OAuth ?�동???�패?�습?�다.',
+        text: message ?? '카페24 OAuth 연동에 실패했습니다.',
       });
     }
   }, [searchParams, loadSavedAccount]);
@@ -147,7 +147,7 @@ export function Cafe24IntegrationForm() {
           });
         }
       } catch {
-        // transport ?�보??부가 ?�내??
+        // transport 정보는 부가 안내용
       }
     }
     void loadTransport();
@@ -173,18 +173,18 @@ export function Cafe24IntegrationForm() {
         account?: Cafe24AccountResponse;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? '?�?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
 
       setSavedAccount(data.account ?? null);
       setClientSecret('');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '카페24 ?�동 ?�보가 ?�?�되?�습?�다.',
+        text: data.message ?? '카페24 연동 정보가 저장되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '저장에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -201,16 +201,16 @@ export function Cafe24IntegrationForm() {
     try {
       const res = await fetch('/api/order/integration/cafe24/test', { method: 'POST' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�결 ?�스?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연결 테스트에 실패했습니다.');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '카페24 API ?�결???�상 ?�인?�었?�니??',
+        text: data.message ?? '카페24 API 연결이 정상 확인되었습니다.',
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�결 ?�스?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -230,19 +230,19 @@ export function Cafe24IntegrationForm() {
         previewRows?: Cafe24PreviewRow[];
         count?: number;
       };
-      if (!res.ok) throw new Error(data.error ?? '주문 ?�집???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
 
       setPreviewRows(data.previewRows ?? []);
       setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? `카페24 주문 ${data.count ?? 0}건을 불러?�습?�다.`,
+        text: data.message ?? `카페24 주문 ${data.count ?? 0}건을 불러왔습니다.`,
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '주문 ?�집???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -250,14 +250,14 @@ export function Cafe24IntegrationForm() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm('?�?�된 카페24 ?�동 ?�보�???��?�까??')) return;
+    if (!window.confirm('저장된 카페24 연동 정보를 삭제할까요?')) return;
 
     setBusyAction('disconnect');
     setStatusMessage(null);
     try {
       const res = await fetch('/api/order/integration/cafe24', { method: 'DELETE' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�동 ?�제???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연동 해제에 실패했습니다.');
 
       setSavedAccount(null);
       setAccountName('');
@@ -268,12 +268,12 @@ export function Cafe24IntegrationForm() {
       setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
-        text: data.message ?? '카페24 ?�동???�제?�었?�니??',
+        text: data.message ?? '카페24 연동이 해제되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�제???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -281,8 +281,8 @@ export function Cafe24IntegrationForm() {
   }
 
   const clientSecretPlaceholder = savedAccount?.hasClientSecret
-    ? `?�?�됨: ${savedAccount.clientSecretMasked || '********'} (변�??�에�??�력)`
-    : 'Client Secret ?�력 (?�?????�체 ?�출?��? ?�습?�다)';
+    ? `저장됨: ${savedAccount.clientSecretMasked || '********'} (변경 시에만 입력)`
+    : 'Client Secret 입력 (저장 후 전체 노출되지 않습니다)';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
@@ -291,29 +291,29 @@ export function Cafe24IntegrationForm() {
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        주문?�동 목록
+        주문연동 목록
       </Link>
 
       <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">카페24 ?�동</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">카페24 연동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베�?
+          베타
         </span>
       </div>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        카페24 OAuth ?�동 ???�결 ?�스?��? 주문 조회·?�집??진행?????�습?�다. 발주?�인·?�장 ?�송·주문 ?�태
-        변경�? ?�함?��? ?�습?�다.
+        카페24 OAuth 연동 후 연결 테스트와 주문 조회·수집을 진행할 수 있습니다. 발주확인·송장 전송·주문 상태
+        변경은 포함하지 않습니다.
       </p>
 
-      {loading ? <p className="mb-4 text-sm text-zinc-500">?�동 ?�보 불러?�는 중�?/p> : null}
+      {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
       {transportInfo ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API ?�출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP ?�록?? : '?�록??미설??}</strong>
+          API 호출 경로:{' '}
+          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
           {transportInfo.suffixRules?.length ? (
             <span className="mt-1 block text-xs opacity-90">
-              ?�용 suffix: {transportInfo.suffixRules.map((s) => `*.${s}`).join(', ')} (Lightsail 1??반영 ?��?
+              허용 suffix: {transportInfo.suffixRules.map((s) => `*.${s}`).join(', ')} (Lightsail 1회 반영 대기)
             </span>
           ) : null}
         </p>
@@ -321,33 +321,33 @@ export function Cafe24IntegrationForm() {
 
       {savedAccount?.hasOAuthTokens ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('success')}`}>
-          OAuth ?�결??
+          OAuth 연결됨
           {savedAccount.tokenExpiresAt
             ? ` · access_token 만료: ${new Date(savedAccount.tokenExpiresAt).toLocaleString('ko-KR')}`
             : null}
         </p>
       ) : savedAccount ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          OAuth 미연�???계정 ?�?????�카??4 ?�동 ?�작?�을 ?�러 권한 ?�의�??�료??주세??
+          OAuth 미연결 — 계정 저장 후 「카페24 연동 시작」을 눌러 권한 동의를 완료해 주세요.
         </p>
       ) : null}
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 ?�류: {savedAccount.lastErrorMessage}
+          최근 오류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">개발?�센???�록??/h2>
+        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">개발자센터 등록용</h2>
         <dl className="space-y-3">
           <CopyableInfoRow label="Redirect URI" value={CAFE24_OAUTH_REDIRECT_URI} />
-          <CopyableInfoRow label="Scope (1�?" value="mall.read_order" />
+          <CopyableInfoRow label="Scope (1차)" value="mall.read_order" />
           <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
           <CopyableInfoRow
-            label="IP 주소 (?�요 ??"
+            label="IP 주소 (필요 시)"
             value={outboundIp}
-            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP ?�경변???�정 ?�요"
+            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 환경변수 설정 필요"
           />
         </dl>
       </section>
@@ -361,43 +361,43 @@ export function Cafe24IntegrationForm() {
               rel="noopener noreferrer"
               className="text-blue-600 underline dark:text-blue-400"
             >
-              카페24 개발?�센??
+              카페24 개발자센터
             </a>
-            ??App???�록?�니??
+            에 App을 등록합니다.
           </li>
           <li>
-            Redirect URI??<strong>{CAFE24_OAUTH_REDIRECT_URI}</strong> �??�록?�니??
+            Redirect URI에 <strong>{CAFE24_OAUTH_REDIRECT_URI}</strong> 를 등록합니다.
           </li>
-          <li>Scope??<strong>mall.read_order</strong> �??�함?�니??</li>
-          <li>발급??Client ID / Client Secret�??�핑�?mallId�??�래???�력?�니??</li>
+          <li>Scope에 <strong>mall.read_order</strong> 를 포함합니다.</li>
+          <li>발급된 Client ID / Client Secret과 쇼핑몰 mallId를 아래에 입력합니다.</li>
         </ol>
       </CollapsibleGuide>
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            계정�?
+            계정명
           </label>
           <input
             id="accountName"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="?? 본사 카페24"
+            placeholder="예: 본사 카페24"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="mallId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            mallId (?�핑�?ID)
+            mallId (쇼핑몰 ID)
           </label>
           <input
             id="mallId"
             type="text"
             value={mallId}
             onChange={(e) => setMallId(e.target.value)}
-            placeholder="?? yourmall"
+            placeholder="예: yourmall"
             className={inputClass}
           />
         </div>
@@ -411,7 +411,7 @@ export function Cafe24IntegrationForm() {
             type="text"
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            placeholder="개발?�센??App Client ID"
+            placeholder="개발자센터 App Client ID"
             className={inputClass}
           />
         </div>
@@ -445,7 +445,7 @@ export function Cafe24IntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�??
+            저장
           </button>
           <button
             type="button"
@@ -453,7 +453,7 @@ export function Cafe24IntegrationForm() {
             onClick={handleStartOAuth}
             className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-60"
           >
-            카페24 ?�동 ?�작
+            카페24 연동 시작
           </button>
           <button
             type="button"
@@ -462,7 +462,7 @@ export function Cafe24IntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�결 ?�스??
+            연결 테스트
           </button>
           <button
             type="button"
@@ -471,7 +471,7 @@ export function Cafe24IntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
           >
             {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 ?�집
+            주문 수집
           </button>
           <button
             type="button"
@@ -480,7 +480,7 @@ export function Cafe24IntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�동 ?�제
+            연동 해제
           </button>
         </div>
       </form>
@@ -488,7 +488,7 @@ export function Cafe24IntegrationForm() {
       {fetchMeta ? (
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            ?�집 결과 미리보기 ({fetchMeta.count}�?
+            수집 결과 미리보기 ({fetchMeta.count}건)
           </h2>
           {previewRows.length ? (
             <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -516,7 +516,7 @@ export function Cafe24IntegrationForm() {
               </table>
             </div>
           ) : (
-            <p className="text-sm text-zinc-500">최근 7???�내 ?�집 가?�한 주문???�습?�다.</p>
+            <p className="text-sm text-zinc-500">최근 7일 이내 수집 가능한 주문이 없습니다.</p>
           )}
         </section>
       ) : null}

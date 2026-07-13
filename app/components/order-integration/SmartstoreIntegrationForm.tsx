@@ -88,7 +88,7 @@ export function SmartstoreIntegrationForm() {
       const res = await fetch('/api/order/integration/smartstore');
       const data = (await res.json()) as { account?: SmartstoreAccountResponse | null; error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? '?�동 ?�보�?불러?��? 못했?�니??');
+        throw new Error(data.error ?? '연동 정보를 불러오지 못했습니다.');
       }
       const account = data.account ?? null;
       setSavedAccount(account);
@@ -100,7 +100,7 @@ export function SmartstoreIntegrationForm() {
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�보�?불러?��? 못했?�니??',
+        text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
       });
     } finally {
       setLoading(false);
@@ -123,7 +123,7 @@ export function SmartstoreIntegrationForm() {
           setTransportInfo({ mode: data.transport.mode, notes: data.notes });
         }
       } catch {
-        // transport ?�보??부가 ?�내??
+        // transport 정보는 부가 안내용
       }
     }
     void loadTransport();
@@ -149,18 +149,18 @@ export function SmartstoreIntegrationForm() {
         account?: SmartstoreAccountResponse;
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? '?�?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
 
       setSavedAccount(data.account ?? null);
       setClientSecret('');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '?�마?�스?�어 ?�동 ?�보가 ?�?�되?�습?�다.',
+        text: data.message ?? '스마트스토어 연동 정보가 저장되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '저장에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -173,16 +173,16 @@ export function SmartstoreIntegrationForm() {
     try {
       const res = await fetch('/api/order/integration/smartstore/test', { method: 'POST' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�결 ?�스?�에 ?�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연결 테스트에 실패했습니다.');
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? '?�마?�스?�어 API ?�결???�상 ?�인?�었?�니??',
+        text: data.message ?? '스마트스토어 API 연결이 정상 확인되었습니다.',
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�결 ?�스?�에 ?�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -202,19 +202,19 @@ export function SmartstoreIntegrationForm() {
         previewRows?: SmartstorePreviewRow[];
         count?: number;
       };
-      if (!res.ok) throw new Error(data.error ?? '주문 ?�집???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
 
       setPreviewRows(data.previewRows ?? []);
       setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
       setStatusMessage({
         kind: 'success',
-        text: data.message ?? `?�마?�스?�어 주문 ${data.count ?? 0}건을 불러?�습?�다.`,
+        text: data.message ?? `스마트스토어 주문 ${data.count ?? 0}건을 불러왔습니다.`,
       });
       await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '주문 ?�집???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -222,14 +222,14 @@ export function SmartstoreIntegrationForm() {
   }
 
   async function handleDisconnect() {
-    if (!window.confirm('?�?�된 ?�마?�스?�어 ?�동 ?�보�???��?�까??')) return;
+    if (!window.confirm('저장된 스마트스토어 연동 정보를 삭제할까요?')) return;
 
     setBusyAction('disconnect');
     setStatusMessage(null);
     try {
       const res = await fetch('/api/order/integration/smartstore', { method: 'DELETE' });
       const data = (await res.json()) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '?�동 ?�제???�패?�습?�다.');
+      if (!res.ok) throw new Error(data.error ?? '연동 해제에 실패했습니다.');
 
       setSavedAccount(null);
       setAccountName('');
@@ -239,12 +239,12 @@ export function SmartstoreIntegrationForm() {
       setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
-        text: data.message ?? '?�마?�스?�어 ?�동???�제?�었?�니??',
+        text: data.message ?? '스마트스토어 연동이 해제되었습니다.',
       });
     } catch (error) {
       setStatusMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : '?�동 ?�제???�패?�습?�다.',
+        text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -252,11 +252,11 @@ export function SmartstoreIntegrationForm() {
   }
 
   const clientIdPlaceholder = savedAccount?.hasClientId
-    ? `?�?�됨: ${savedAccount.clientIdMasked || '****'}`
-    : 'Client ID (?�플리�??�션 ID) ?�력';
+    ? `저장됨: ${savedAccount.clientIdMasked || '****'}`
+    : 'Client ID (애플리케이션 ID) 입력';
   const clientSecretPlaceholder = savedAccount?.hasClientSecret
-    ? `?�?�됨: ${savedAccount.clientSecretMasked || '********'} (변�??�에�??�력)`
-    : 'Client Secret ?�력 (?�?????�체 ?�출?��? ?�습?�다)';
+    ? `저장됨: ${savedAccount.clientSecretMasked || '********'} (변경 시에만 입력)`
+    : 'Client Secret 입력 (저장 후 전체 노출되지 않습니다)';
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6">
@@ -265,33 +265,33 @@ export function SmartstoreIntegrationForm() {
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        주문?�동 목록
+        주문연동 목록
       </Link>
 
       <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">?�마?�스?�어 ?�동</h1>
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">스마트스토어 연동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베�?
+          베타
         </span>
       </div>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        ?�이�?커머?�API(Smart Store Center) ?�플리�??�션 ?�보�??�?�한 ???�결 ?�스?��? 주문 조회·?�집??진행????
-        ?�습?�다. 발주?�인·?�장 ?�송 ???�태 변�?기능?� ?�함?��? ?�습?�다.
+        네이버 커머스API(Smart Store Center) 애플리케이션 정보를 저장한 뒤 연결 테스트와 주문 조회·수집을 진행할 수
+        있습니다. 발주확인·송장 전송 등 상태 변경 기능은 포함하지 않습니다.
       </p>
 
-      {loading ? <p className="mb-4 text-sm text-zinc-500">?�동 ?�보 불러?�는 중�?/p> : null}
+      {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
       {transportInfo ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API ?�출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP ?�록?? : '?�록??미설??}</strong>
+          API 호출 경로:{' '}
+          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
           {transportInfo.mode === 'proxy' ? (
             <span className="mt-1 block text-xs opacity-90">
-              커머?�API?�터 API ?�출 IP?�는 ?�클로드 고정 IP({outboundIp || '54.180.45.46'})�??�록?�세??
+              커머스API센터 API 호출 IP에는 엑클로드 고정 IP({outboundIp || '54.180.45.46'})를 등록하세요.
             </span>
           ) : (
             <span className="mt-1 block text-xs opacity-90">
-              ?�마?�스?�어 API??Vercel 직접 ?�출??지?�하지 ?�습?�다. INTEGRATION_PROXY_BASE_URL???�정??주세??
+              스마트스토어 API는 Vercel 직접 호출을 지원하지 않습니다. INTEGRATION_PROXY_BASE_URL을 설정해 주세요.
             </span>
           )}
         </p>
@@ -299,24 +299,24 @@ export function SmartstoreIntegrationForm() {
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 ?�류: {savedAccount.lastErrorMessage}
+          최근 오류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
       <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">?�클로드 ?�보 (커머?�API?�터 ?�록??</h2>
+        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">엑클로드 정보 (커머스API센터 등록용)</h2>
         <dl className="space-y-3">
-          <CopyableInfoRow label="?�체�? value={EXCLOAD_INTEGRATION_INFO.companyName} />
+          <CopyableInfoRow label="업체명" value={EXCLOAD_INTEGRATION_INFO.companyName} />
           <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
           <CopyableInfoRow
-            label="API ?�출 IP"
+            label="API 호출 IP"
             value={outboundIp}
-            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP ?�경변???�정 ?�요"
+            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 환경변수 설정 필요"
           />
         </dl>
       </section>
 
-      <CollapsibleGuide title="API 발급 방법 보기 (?�마?�스?�어 · 직접 ?�영)">
+      <CollapsibleGuide title="API 발급 방법 보기 (스마트스토어 · 직접 운영)">
         <ol className="list-decimal space-y-2 pl-5">
           <li>
             <a
@@ -325,17 +325,17 @@ export function SmartstoreIntegrationForm() {
               rel="noopener noreferrer"
               className="text-blue-600 underline dark:text-blue-400"
             >
-              ?�마?�스?�어?�터
+              스마트스토어센터
             </a>
-            ???�매??계정?�로 로그?�합?�다.
+            에 판매자 계정으로 로그인합니다.
           </li>
-          <li>?�이�?커머?�API?�터 ?????�토???�플리�??�션 ???�플리�??�션 ?�록</li>
+          <li>네이버 커머스API센터 → 내 스토어 애플리케이션 → 애플리케이션 등록</li>
           <li>
-            API ?�출 IP??<strong>?�클로드 고정 IP</strong>�??�록?�고, API 권한(주문 조회 ????추�??�니??
+            API 호출 IP에 <strong>엑클로드 고정 IP</strong>를 등록하고, API 권한(주문 조회 등)을 추가합니다.
           </li>
-          <li>발급???�플리�??�션 ID(Client ID)?� Client Secret???�래???�력?�니??</li>
+          <li>발급된 애플리케이션 ID(Client ID)와 Client Secret을 아래에 입력합니다.</li>
           <li>
-            ?�증 ?�형(type)?� <strong>SELF</strong> (직접 ?�영)�??�용?�니??
+            인증 유형(type)은 <strong>SELF</strong> (직접 운영)를 사용합니다.
           </li>
         </ol>
       </CollapsibleGuide>
@@ -343,21 +343,21 @@ export function SmartstoreIntegrationForm() {
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            계정�?
+            계정명
           </label>
           <input
             id="accountName"
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="?? 본사 ?�마?�스?�어"
+            placeholder="예: 본사 스마트스토어"
             className={inputClass}
           />
         </div>
 
         <div>
           <label htmlFor="clientId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Client ID (?�플리�??�션 ID)
+            Client ID (애플리케이션 ID)
           </label>
           <input
             id="clientId"
@@ -371,7 +371,7 @@ export function SmartstoreIntegrationForm() {
 
         <div>
           <label htmlFor="clientSecret" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Client Secret (?�플리�??�션 ?�크�?
+            Client Secret (애플리케이션 시크릿)
           </label>
           <input
             id="clientSecret"
@@ -389,7 +389,7 @@ export function SmartstoreIntegrationForm() {
             type
           </label>
           <input id="authType" type="text" value={authType} readOnly className={`${inputClass} bg-zinc-50 dark:bg-zinc-800`} />
-          <p className="mt-1 text-xs text-zinc-500">직접 ?�영(SELF) 방식 ???�매??본인 ?�토???�플리�??�션 ?�동</p>
+          <p className="mt-1 text-xs text-zinc-500">직접 운영(SELF) 방식 — 판매자 본인 스토어 애플리케이션 연동</p>
         </div>
 
         {statusMessage ? (
@@ -406,7 +406,7 @@ export function SmartstoreIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�??
+            저장
           </button>
           <button
             type="button"
@@ -415,7 +415,7 @@ export function SmartstoreIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�결 ?�스??
+            연결 테스트
           </button>
           <button
             type="button"
@@ -424,7 +424,7 @@ export function SmartstoreIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
           >
             {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 ?�집
+            주문 수집
           </button>
           <button
             type="button"
@@ -433,7 +433,7 @@ export function SmartstoreIntegrationForm() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            ?�동 ?�제
+            연동 해제
           </button>
         </div>
       </form>
@@ -441,7 +441,7 @@ export function SmartstoreIntegrationForm() {
       {previewRows.length > 0 ? (
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            ?�집 미리보기 {fetchMeta ? `(${fetchMeta.count}�?` : ''}
+            수집 미리보기 {fetchMeta ? `(${fetchMeta.count}건)` : ''}
           </h2>
           <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
             <table className="min-w-full text-left text-xs">
@@ -456,7 +456,7 @@ export function SmartstoreIntegrationForm() {
               </thead>
               <tbody>
                 {previewRows.map((row, index) => (
-                  <tr key={`${row['?�품주문번호']}-${index}`} className="border-t border-zinc-200 dark:border-zinc-700">
+                  <tr key={`${row['상품주문번호']}-${index}`} className="border-t border-zinc-200 dark:border-zinc-700">
                     {SMARTSTORE_PREVIEW_HEADERS.map((header) => (
                       <td key={header} className="whitespace-nowrap px-3 py-2 text-zinc-700 dark:text-zinc-300">
                         {row[header]}
