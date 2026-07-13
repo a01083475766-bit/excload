@@ -30,3 +30,23 @@ export const EXCLOAD_PREVIEW_EMPTY_SHELL =
 
 export const EXCLOAD_PREVIEW_HEIGHT_DEFAULT = 'h-[260px]';
 export const EXCLOAD_PREVIEW_HEIGHT_EXPANDED = 'max-h-[750px] h-auto';
+
+/** 안내·오류·확인 모달 — 코드매핑/허브와 동일 톤 (과한 그라데이션·둥근 장식 지양) */
+export const EXCLOAD_MODAL_OVERLAY =
+  'fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4';
+
+export const EXCLOAD_MODAL_PANEL =
+  'w-full rounded-xl border border-zinc-200 bg-white shadow-xl';
+
+export const EXCLOAD_MODAL_TITLE = 'text-lg font-semibold text-zinc-900';
+
+export const EXCLOAD_MODAL_BODY = 'text-sm leading-relaxed text-zinc-600';
+
+export const EXCLOAD_MODAL_BTN_PRIMARY =
+  'rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50';
+
+export const EXCLOAD_MODAL_BTN_SECONDARY =
+  'rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50';
+
+export const EXCLOAD_MODAL_BTN_PRIMARY_EMERALD =
+  'rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50';

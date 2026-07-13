@@ -149,20 +149,20 @@ export function TextConvertResultReviewModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/35 flex items-center justify-center z-[10000] p-4"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="text-convert-review-title"
     >
       <div
-        className="bg-white rounded-lg shadow-lg w-full max-w-[920px] max-h-[90vh] flex flex-col"
+        className="flex max-h-[90vh] w-full max-w-[920px] flex-col rounded-xl border border-zinc-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 pb-4 flex-shrink-0">
-          <h3 id="text-convert-review-title" className="text-lg font-semibold text-gray-900 mb-1">
+        <div className="flex-shrink-0 border-b border-zinc-100 px-6 pb-4 pt-5">
+          <h3 id="text-convert-review-title" className="mb-1.5 text-lg font-semibold text-zinc-900">
             변환 결과 확인
           </h3>
-          <p className="text-sm text-gray-600 leading-relaxed">
+          <p className="text-sm leading-relaxed text-zinc-600">
             총 {totalOrders}건이 미리보기에 추가되었습니다.
             <br />
             아래 표는 붙여넣은 내용에서 추출·정리된 항목입니다. 미리보기에는 업로드 양식 전체가
@@ -170,41 +170,41 @@ export function TextConvertResultReviewModal({
           </p>
         </div>
 
-        <div className="px-6 pb-4 flex-1 min-h-0 overflow-hidden flex flex-col gap-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-6 py-4">
           <div className="flex-shrink-0">
-            <p className="text-xs font-medium text-gray-500 mb-1.5">붙여넣은 원문</p>
-            <div className="max-h-[140px] overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+            <p className="mb-1.5 text-xs font-medium text-zinc-500">붙여넣은 원문</p>
+            <div className="max-h-[140px] overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap text-zinc-800">
               {originalText.trim() || '(원문 없음)'}
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col">
-            <p className="text-xs font-medium text-gray-500 mb-1.5 flex-shrink-0">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <p className="mb-1.5 flex-shrink-0 text-xs font-medium text-zinc-500">
               정리된 주문 ({totalOrders}건)
             </p>
             {tableHeaders.length === 0 ? (
-              <div className="rounded-lg border border-gray-200 px-3 py-4 text-sm text-gray-500">
+              <div className="rounded-xl border border-zinc-200 px-3 py-4 text-sm text-zinc-500">
                 추출된 항목이 없습니다.
               </div>
             ) : (
               <div
-                className="max-h-[320px] overflow-auto rounded-lg border border-gray-300 preview-scrollbar preview-table-no-copy"
+                className="max-h-[320px] overflow-auto rounded-xl border border-zinc-200 preview-scrollbar preview-table-no-copy"
                 onCopy={(e) => {
                   const t = e.target;
                   if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
                   e.preventDefault();
                 }}
               >
-                <table className="min-w-max w-full text-sm border-collapse">
-                  <thead className="sticky top-0 z-10 bg-gray-100">
+                <table className="min-w-max w-full border-collapse text-sm">
+                  <thead className="sticky top-0 z-10 bg-zinc-100">
                     <tr>
-                      <th className="sticky left-0 z-20 min-w-[44px] border border-gray-300 bg-gray-100 px-2 py-2 text-center text-xs font-semibold text-gray-700 whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
+                      <th className="sticky left-0 z-20 min-w-[44px] border-b border-zinc-200 bg-zinc-100 px-2 py-2 text-center text-xs font-semibold whitespace-nowrap text-zinc-700 shadow-[1px_0_0_0_rgba(228,228,231,1)]">
                         No.
                       </th>
                       {tableHeaders.map((header) => (
                         <th
                           key={header}
-                          className="border border-gray-300 px-2 py-2 text-left text-xs font-semibold text-gray-700 whitespace-nowrap"
+                          className="border-b border-zinc-200 px-2 py-2 text-left text-xs font-semibold whitespace-nowrap text-zinc-700"
                         >
                           {header}
                         </th>
@@ -213,8 +213,8 @@ export function TextConvertResultReviewModal({
                   </thead>
                   <tbody>
                     {displayRows.map((row, orderIndex) => (
-                      <tr key={row.rowId} className="bg-white hover:bg-gray-50/80">
-                        <td className="sticky left-0 z-[1] border border-gray-300 bg-white px-2 py-1.5 text-center text-xs text-gray-600 whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
+                      <tr key={row.rowId} className="border-b border-zinc-100 bg-white last:border-b-0 hover:bg-zinc-50/80">
+                        <td className="sticky left-0 z-[1] bg-white px-2 py-1.5 text-center text-xs whitespace-nowrap text-zinc-600 shadow-[1px_0_0_0_rgba(228,228,231,1)]">
                           {orderIndex + 1}
                         </td>
                         {tableHeaders.map((header) => {
@@ -224,7 +224,7 @@ export function TextConvertResultReviewModal({
                           return (
                             <td
                               key={`${row.rowId}-${header}`}
-                              className="border border-gray-300 px-2 py-1.5 whitespace-nowrap text-gray-900"
+                              className="px-2 py-1.5 whitespace-nowrap text-zinc-900"
                               title={!editable && value ? value : undefined}
                             >
                               {editable ? (
@@ -234,7 +234,7 @@ export function TextConvertResultReviewModal({
                                   onChange={(e) =>
                                     handleFieldChange(row.rowId, header, e.target.value)
                                   }
-                                  className="min-w-[120px] w-full rounded border border-gray-300 px-1.5 py-1 text-sm whitespace-nowrap select-text focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className="min-w-[120px] w-full rounded-lg border border-zinc-200 px-1.5 py-1 text-sm whitespace-nowrap select-text outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
                                 />
                               ) : value ? (
                                 value
@@ -253,9 +253,9 @@ export function TextConvertResultReviewModal({
           </div>
         </div>
 
-        <div className="p-6 pt-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex-shrink-0 border-t border-zinc-100 px-6 py-4">
           <div
-            className="mb-3 flex h-6 items-center justify-center gap-1.5 text-xs text-gray-500"
+            className="mb-3 flex h-6 items-center justify-center gap-1.5 text-xs text-zinc-500"
             aria-live="polite"
           >
             {pointsPending ? (
@@ -271,7 +271,7 @@ export function TextConvertResultReviewModal({
                 type="button"
                 onClick={handleCancelEdit}
                 disabled={pointsPending}
-                className="flex-1 h-10 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-10 flex-1 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 취소
               </button>
@@ -279,7 +279,7 @@ export function TextConvertResultReviewModal({
                 type="button"
                 onClick={handleApplyToPreview}
                 disabled={pointsPending}
-                className="flex-1 h-10 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-10 flex-1 rounded-lg bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 미리보기에 적용
               </button>
@@ -290,7 +290,7 @@ export function TextConvertResultReviewModal({
                 type="button"
                 onClick={handleStartEdit}
                 disabled={pointsPending}
-                className="flex-1 h-10 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-10 flex-1 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 수정하기
               </button>
@@ -298,7 +298,7 @@ export function TextConvertResultReviewModal({
                 type="button"
                 onClick={onConfirm}
                 disabled={pointsPending}
-                className="flex-1 h-10 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-10 flex-1 rounded-lg bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 확인
               </button>

@@ -48,7 +48,7 @@ export function WorkspaceBlockingModalOverlay({
 
   const overlay = (
     <div
-      className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 ${themeWrapperClassName} ${overlayClassName}`}
+      className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-black/45 p-4 ${themeWrapperClassName} ${overlayClassName}`}
       role="presentation"
       onClick={closeOnBackdropClick ? onBackdropClick : undefined}
     >

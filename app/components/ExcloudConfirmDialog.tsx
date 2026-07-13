@@ -1,6 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import {
+  EXCLOAD_MODAL_BODY,
+  EXCLOAD_MODAL_BTN_PRIMARY,
+  EXCLOAD_MODAL_BTN_SECONDARY,
+  EXCLOAD_MODAL_OVERLAY,
+  EXCLOAD_MODAL_PANEL,
+  EXCLOAD_MODAL_TITLE,
+} from '@/app/lib/ui/excload-preview-ui';
 
 type Variant = 'default' | 'danger' | 'warning';
 
@@ -18,13 +26,15 @@ type Props = {
 };
 
 const confirmClass: Record<Variant, string> = {
-  default: 'rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700',
-  danger: 'rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700',
-  warning: 'rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700',
+  default: EXCLOAD_MODAL_BTN_PRIMARY,
+  danger:
+    'rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700',
+  warning:
+    'rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700',
 };
 
 /**
- * 주문연동 허브 톤 — 확인/취소 안내 모달 공통.
+ * 주문연동 허브 톤 — 확인/취소·안내 모달 공통.
  */
 export function ExcloudConfirmDialog({
   open,
@@ -40,33 +50,27 @@ export function ExcloudConfirmDialog({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
-      onClick={onCancel}
-      role="presentation"
-    >
+    <div className={EXCLOAD_MODAL_OVERLAY} onClick={onCancel} role="presentation">
       <div
-        className="w-full max-w-[400px] rounded-xl border border-zinc-200 bg-white p-6 shadow-xl"
+        className={`${EXCLOAD_MODAL_PANEL} max-w-[400px]`}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="excload-confirm-title"
       >
-        <h4 id="excload-confirm-title" className="mb-3 text-lg font-semibold text-zinc-900">
-          {title}
-        </h4>
-        {description ? (
-          <div className="mb-6 space-y-2 text-sm leading-relaxed text-zinc-600">{description}</div>
-        ) : (
-          <div className="mb-6" />
-        )}
-        <div className="flex justify-end gap-2.5">
+        <div className="border-b border-zinc-100 px-6 pb-4 pt-5">
+          <h4 id="excload-confirm-title" className={EXCLOAD_MODAL_TITLE}>
+            {title}
+          </h4>
+        </div>
+        <div className="px-6 py-5">
+          {description ? (
+            <div className={`space-y-2 ${EXCLOAD_MODAL_BODY}`}>{description}</div>
+          ) : null}
+        </div>
+        <div className="flex justify-end gap-2.5 border-t border-zinc-100 px-6 py-4">
           {!confirmOnly ? (
-            <button
-              type="button"
-              className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-              onClick={onCancel}
-            >
+            <button type="button" className={EXCLOAD_MODAL_BTN_SECONDARY} onClick={onCancel}>
               {cancelLabel}
             </button>
           ) : null}

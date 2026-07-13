@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { Upload, X } from 'lucide-react';
+import {
+  EXCLOAD_MODAL_BTN_SECONDARY,
+  EXCLOAD_MODAL_OVERLAY,
+  EXCLOAD_MODAL_PANEL,
+  EXCLOAD_MODAL_TITLE,
+} from '@/app/lib/ui/excload-preview-ui';
 
 type Props = {
   open: boolean;
@@ -12,7 +18,6 @@ type Props = {
 
 /**
  * 택배변환과 동일 — 캡처 화면 붙여넣기 모달.
- * 붙여넣기만 받고, OCR·텍스트 반영은 부모에서 처리합니다.
  */
 export function OrderIntegrationScreenshotModal({ open, onClose, onImagePasted }: Props) {
   const pasteAreaRef = useRef<HTMLDivElement | null>(null);
@@ -65,56 +70,48 @@ export function OrderIntegrationScreenshotModal({ open, onClose, onImagePasted }
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
+    <div className={`${EXCLOAD_MODAL_OVERLAY} z-[9999]`} onClick={onClose}>
       <div
-        className="w-full max-w-[600px] rounded-lg bg-white p-6 shadow-lg"
+        className={`${EXCLOAD_MODAL_PANEL} max-w-[600px]`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-gray-900">스크린샷 주문변환</h3>
+        <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-6 pb-4 pt-5">
+          <div className="min-w-0 space-y-1.5">
+            <h3 className={EXCLOAD_MODAL_TITLE}>스크린샷 주문변환</h3>
+            <p className="text-sm leading-relaxed text-zinc-600">
+              주문 화면을 캡처한 뒤 Ctrl + V(또는 Cmd + V)·우클릭 붙여넣기로 넣으세요.
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 transition-colors hover:bg-gray-100"
+            className="rounded-lg p-1.5 transition-colors hover:bg-zinc-100"
             aria-label="닫기"
           >
-            <X className="h-5 w-5 text-gray-600" />
+            <X className="h-5 w-5 text-zinc-500" />
           </button>
         </div>
 
-        <div className="mb-6 space-y-1 text-sm leading-relaxed text-gray-700">
-          <p>주문 화면을 먼저 캡처하세요.</p>
-          <p>PrintScreen 또는 캡처 도구를 사용한 뒤</p>
-          <p>Ctrl + V 또는 마우스 우클릭 → 붙여넣기 하세요.</p>
-        </div>
-
-        <div
-          ref={pasteAreaRef}
-          tabIndex={0}
-          contentEditable
-          suppressContentEditableWarning
-          onPaste={handlePaste}
-          onInput={handleInput}
-          onKeyDown={handleKeyDown}
-          className="mb-4 min-h-[300px] w-full cursor-pointer rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-6 transition-colors hover:border-blue-400"
-          style={{ outline: 'none', userSelect: 'none' }}
-        >
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <Upload className="mb-4 h-12 w-12 text-gray-400" />
-            <p className="mb-2 text-sm font-medium text-gray-700">이미지를 붙여넣으세요</p>
-            <p className="text-xs text-gray-500">Ctrl + V 또는 우클릭 → 붙여넣기</p>
+        <div className="px-6 py-5">
+          <div
+            ref={pasteAreaRef}
+            tabIndex={0}
+            contentEditable
+            suppressContentEditableWarning
+            onPaste={handlePaste}
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            className="flex min-h-[280px] w-full cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition-colors hover:border-zinc-400"
+            style={{ outline: 'none', userSelect: 'none' }}
+          >
+            <Upload className="mb-3 h-9 w-9 text-zinc-400" />
+            <p className="mb-1 text-sm font-medium text-zinc-800">이미지를 붙여넣으세요</p>
+            <p className="text-xs text-zinc-500">Ctrl + V / Cmd + V 또는 우클릭 → 붙여넣기</p>
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-gray-300 px-4 py-2 text-sm transition-colors hover:bg-gray-50"
-          >
+        <div className="flex justify-end border-t border-zinc-100 px-6 py-4">
+          <button type="button" onClick={onClose} className={EXCLOAD_MODAL_BTN_SECONDARY}>
             취소
           </button>
         </div>

@@ -1101,8 +1101,8 @@ export default function OrderIntegrationHub() {
                 ) : bundleShippingGroupCount > 0 ? (
                   <button
                     type="button"
-                    className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 self-start rounded-md border border-violet-200 bg-violet-50 px-2.5 text-xs font-semibold text-violet-900 transition hover:bg-violet-100 sm:self-auto ${
-                      !bundleShippingButtonAcked ? 'ring-2 ring-violet-300/70' : ''
+                    className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 self-start rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 sm:self-auto ${
+                      !bundleShippingButtonAcked ? 'ring-1 ring-zinc-300' : ''
                     }`}
                     onClick={() => {
                       setBundleShippingButtonAcked(true);
@@ -1111,7 +1111,7 @@ export default function OrderIntegrationHub() {
                   >
                     <Package className="h-3.5 w-3.5" aria-hidden />
                     묶음배송 {bundleShippingGroupCount}그룹
-                    <span className="font-medium text-violet-700/80">
+                    <span className="font-medium text-zinc-500">
                       · {bundleShippingRowCount}건
                     </span>
                   </button>

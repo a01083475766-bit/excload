@@ -16,6 +16,8 @@ import { useSession } from 'next-auth/react';
 import { Truck, Search, ArrowDown, X, Check, Upload, Loader2, Maximize2, Minimize2, RotateCcw, Trash2, Coins } from 'lucide-react';
 import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
 import {
+  EXCLOAD_MODAL_OVERLAY,
+  EXCLOAD_MODAL_PANEL,
   EXCLOAD_PREVIEW_EMPTY_SHELL,
   EXCLOAD_PREVIEW_HEADER_ACTION_SPACER,
   EXCLOAD_PREVIEW_HEADER_ROW,
@@ -3992,34 +3994,26 @@ export default function InvoiceFileConvertPage() {
       </WorkspaceBlockingModalOverlay>
 
       {/* 다운로드 상태 모달 */}
-      {downloadStatus !== "idle" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-[400px] p-6 text-center">
-
-            {downloadStatus === "processing" && (
+      {downloadStatus !== 'idle' && (
+        <div className={EXCLOAD_MODAL_OVERLAY}>
+          <div className={`${EXCLOAD_MODAL_PANEL} max-w-[400px] p-8 text-center`}>
+            {downloadStatus === 'processing' && (
               <>
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700 mx-auto mb-4" />
-                <p className="font-semibold">파일 생성 중입니다...</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  잠시만 기다려주세요.
-                </p>
+                <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-zinc-500" />
+                <p className="font-semibold text-zinc-900">파일 생성 중입니다...</p>
+                <p className="mt-2 text-sm text-zinc-500">잠시만 기다려주세요.</p>
               </>
             )}
 
-            {downloadStatus === "done" && (
+            {downloadStatus === 'done' && (
               <>
-                <p className="text-lg font-semibold mb-3">
-                  다운로드 완료
-                </p>
-                <p className="text-sm text-gray-700 mb-2">
-                  {downloadModalFileName}
-                </p>
-                <p className="text-xs text-gray-500">
+                <p className="mb-3 text-lg font-semibold text-zinc-900">다운로드 완료</p>
+                <p className="mb-2 text-sm text-zinc-700">{downloadModalFileName}</p>
+                <p className="text-xs text-zinc-500">
                   파일은 다운로드 폴더에서 확인하실 수 있습니다.
                 </p>
               </>
             )}
-
           </div>
         </div>
       )}

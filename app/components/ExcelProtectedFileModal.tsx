@@ -2,6 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ProtectedFileKind } from '@/app/lib/excel/protected-file-types';
+import {
+  EXCLOAD_MODAL_BODY,
+  EXCLOAD_MODAL_BTN_PRIMARY,
+  EXCLOAD_MODAL_BTN_SECONDARY,
+  EXCLOAD_MODAL_OVERLAY,
+  EXCLOAD_MODAL_PANEL,
+  EXCLOAD_MODAL_TITLE,
+} from '@/app/lib/ui/excload-preview-ui';
 
 export type ExcelProtectedFileModalMode = 'password' | 'unsupported';
 
@@ -29,43 +37,44 @@ export function ExcelProtectedFileModal(props: ExcelProtectedFileModalProps) {
   if (props.mode === 'unsupported') {
     return (
       <div
-        className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4"
+        className={`${EXCLOAD_MODAL_OVERLAY} z-[10000]`}
         role="presentation"
         onClick={props.onClose}
       >
         <div
-          className="w-full max-w-[440px] rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-700"
+          className={`${EXCLOAD_MODAL_PANEL} max-w-[440px]`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="excel-protected-unsupported-title"
           onClick={(e) => e.stopPropagation()}
         >
-          <h3
-            id="excel-protected-unsupported-title"
-            className="mb-3 text-lg font-semibold text-gray-900 dark:text-zinc-100"
-          >
-            열 수 없는 파일 형식입니다
-          </h3>
-          <p className="mb-2 text-sm leading-relaxed text-gray-600 dark:text-zinc-400">
-            <span className="font-medium text-gray-800 dark:text-zinc-200">{props.fileName}</span>
-          </p>
-          <p className="mb-6 text-sm leading-relaxed text-gray-600 dark:text-zinc-400">
-            {props.message}
-          </p>
-          <ul className="mb-6 list-disc space-y-1.5 pl-5 text-sm text-gray-600 dark:text-zinc-400">
-            <li>
-              Excel에서 <span className="font-medium">다른 이름으로 저장</span> → 일반 .xlsx
-            </li>
-            <li>회사 보안·DRM·전용 뷰어 파일은 Excel에서 일반 파일로 저장한 뒤 업로드</li>
-            <li>ZIP은 압축을 푼 뒤 엑셀만 올려 주세요</li>
-          </ul>
-          <button
-            type="button"
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-            onClick={props.onClose}
-          >
-            확인
-          </button>
+          <div className="border-b border-zinc-100 px-6 pb-4 pt-5">
+            <h3 id="excel-protected-unsupported-title" className={EXCLOAD_MODAL_TITLE}>
+              열 수 없는 파일 형식입니다
+            </h3>
+          </div>
+          <div className={`space-y-3 px-6 py-5 ${EXCLOAD_MODAL_BODY}`}>
+            <p>
+              <span className="font-medium text-zinc-800">{props.fileName}</span>
+            </p>
+            <p>{props.message}</p>
+            <ul className="list-disc space-y-1.5 pl-5">
+              <li>
+                Excel에서 <span className="font-medium">다른 이름으로 저장</span> → 일반 .xlsx
+              </li>
+              <li>회사 보안·DRM·전용 뷰어 파일은 Excel에서 일반 파일로 저장한 뒤 업로드</li>
+              <li>ZIP은 압축을 푼 뒤 엑셀만 올려 주세요</li>
+            </ul>
+          </div>
+          <div className="border-t border-zinc-100 px-6 py-4">
+            <button
+              type="button"
+              className={`${EXCLOAD_MODAL_BTN_PRIMARY} w-full`}
+              onClick={props.onClose}
+            >
+              확인
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -93,96 +102,98 @@ function PasswordModalContent({
   const kindLabel = kind === 'zip' ? 'ZIP 압축 파일' : '엑셀 파일';
 
   return (
-    <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4"
-      role="presentation"
-    >
+    <div className={`${EXCLOAD_MODAL_OVERLAY} z-[10000]`} role="presentation">
       <div
-        className="w-full max-w-[440px] rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-700"
+        className={`${EXCLOAD_MODAL_PANEL} max-w-[440px]`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="excel-protected-password-title"
       >
-        <h3
-          id="excel-protected-password-title"
-          className="mb-2 text-lg font-semibold text-gray-900 dark:text-zinc-100"
-        >
-          {kindLabel} 비밀번호가 필요합니다
-        </h3>
-        <p className="mb-1 text-sm text-gray-600 dark:text-zinc-400">
-          <span className="font-medium text-gray-800 dark:text-zinc-200">{fileName}</span>
-        </p>
-        <p className="mb-4 text-sm leading-relaxed text-gray-600 dark:text-zinc-400">
-          쇼핑몰·ERP에서 안내한 비밀번호를 입력해 주세요. 비밀번호는 파일을 여는 데만 사용하며
-          저장하지 않습니다.
-        </p>
-
-        {wrongPassword && (
-          <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-            비밀번호가 올바르지 않습니다. 다시 입력해 주세요.
+        <div className="border-b border-zinc-100 px-6 pb-4 pt-5">
+          <h3 id="excel-protected-password-title" className={EXCLOAD_MODAL_TITLE}>
+            {kindLabel} 비밀번호가 필요합니다
+          </h3>
+        </div>
+        <div className={`space-y-3 px-6 py-5 ${EXCLOAD_MODAL_BODY}`}>
+          <p>
+            <span className="font-medium text-zinc-800">{fileName}</span>
           </p>
-        )}
-
-        {attemptCount >= 3 && (
-          <p className="mb-3 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
-            계속 실패하면 Excel에서 비밀번호를 해제한 뒤 일반 엑셀(.xlsx)로 저장하여 다시 올려
-            주세요.
+          <p>
+            쇼핑몰·ERP에서 안내한 비밀번호를 입력해 주세요. 비밀번호는 파일을 여는 데만 사용하며
+            저장하지 않습니다.
           </p>
-        )}
 
-        <form
-          className="mb-4 block"
-          autoComplete="off"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (password.trim() && !isSubmitting) {
-              onSubmit(password);
-            }
-          }}
-        >
-          <label htmlFor="excload-excel-file-unlock-password" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-            비밀번호
-          </label>
-          <input
-            ref={inputRef}
-            id="excload-excel-file-unlock-password"
-            name="excload-excel-file-unlock"
-            type="password"
-            autoComplete="new-password"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            data-form-type="other"
-            data-lpignore="true"
-            data-1p-ignore="true"
-            data-bwignore="true"
-            aria-describedby="excload-excel-file-password-hint"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isSubmitting}
-          />
-          <span id="excload-excel-file-password-hint" className="sr-only">
-            엑셀·ZIP 파일 열기용 비밀번호이며, 로그인 비밀번호가 아닙니다.
-          </span>
-        </form>
+          {wrongPassword && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              비밀번호가 올바르지 않습니다. 다시 입력해 주세요.
+            </p>
+          )}
 
-        <div className="flex gap-2">
+          {attemptCount >= 3 && (
+            <p className="text-xs leading-relaxed text-zinc-500">
+              계속 실패하면 Excel에서 비밀번호를 해제한 뒤 일반 엑셀(.xlsx)로 저장하여 다시 올려
+              주세요.
+            </p>
+          )}
+
+          <form
+            className="block"
+            autoComplete="off"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (password.trim() && !isSubmitting) {
+                onSubmit(password);
+              }
+            }}
+          >
+            <label
+              htmlFor="excload-excel-file-unlock-password"
+              className="mb-1.5 block text-sm font-medium text-zinc-700"
+            >
+              비밀번호
+            </label>
+            <input
+              ref={inputRef}
+              id="excload-excel-file-unlock-password"
+              name="excload-excel-file-unlock"
+              type="password"
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-form-type="other"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-bwignore="true"
+              aria-describedby="excload-excel-file-password-hint"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm outline-none transition focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <span id="excload-excel-file-password-hint" className="sr-only">
+              엑셀·ZIP 파일 열기용 비밀번호이며, 로그인 비밀번호가 아닙니다.
+            </span>
+          </form>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-zinc-100 px-6 py-4">
           <button
             type="button"
-            className="flex-1 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className={EXCLOAD_MODAL_BTN_SECONDARY}
             onClick={onUploadCancel}
             disabled={isSubmitting}
           >
-            업로드 취소
+            취소
           </button>
           <button
             type="button"
-            className="flex-1 rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:bg-blue-300"
-            onClick={() => onSubmit(password)}
+            className={EXCLOAD_MODAL_BTN_PRIMARY}
             disabled={!password.trim() || isSubmitting}
+            onClick={() => {
+              if (password.trim() && !isSubmitting) onSubmit(password);
+            }}
           >
-            {isSubmitting ? '확인 중…' : '확인'}
+            {isSubmitting ? '여는 중…' : '열기'}
           </button>
         </div>
       </div>

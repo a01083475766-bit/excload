@@ -39,6 +39,12 @@ import {
 } from 'lucide-react';
 import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
 import {
+  EXCLOAD_MODAL_BODY,
+  EXCLOAD_MODAL_BTN_PRIMARY,
+  EXCLOAD_MODAL_BTN_PRIMARY_EMERALD,
+  EXCLOAD_MODAL_BTN_SECONDARY,
+  EXCLOAD_MODAL_OVERLAY,
+  EXCLOAD_MODAL_PANEL,
   EXCLOAD_PREVIEW_EMPTY_SHELL,
   EXCLOAD_PREVIEW_HEADER_ACTION_SPACER,
   EXCLOAD_PREVIEW_HEADER_ROW,
@@ -5695,27 +5701,29 @@ export function LogisticsConvertClient({
       {/* 체험판: 다운로드 안내 — 미리보기 취지와 정식 서비스(엑셀) 구분 */}
       {showTrialDownloadModal && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
           onClick={() => setShowTrialDownloadModal(false)}
           role="presentation"
         >
           <div
-            className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl max-w-lg w-full p-6 border border-zinc-200 dark:border-zinc-700"
+            className="w-full max-w-lg rounded-xl border border-zinc-200 bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-labelledby="trial-download-modal-title"
             aria-describedby="trial-download-modal-desc"
           >
-            <h2
-              id="trial-download-modal-title"
-              className="text-xl font-bold text-zinc-950 dark:text-zinc-100 leading-snug"
-            >
-              주문 정리가 잘 되었나요?
-            </h2>
+            <div className="border-b border-zinc-100 px-6 pb-4 pt-5">
+              <h2
+                id="trial-download-modal-title"
+                className="text-lg font-semibold leading-snug text-zinc-900"
+              >
+                주문 정리가 잘 되었나요?
+              </h2>
+            </div>
 
             <div
               id="trial-download-modal-desc"
-              className="mt-5 space-y-3 text-base text-zinc-800 dark:text-zinc-300 leading-relaxed"
+              className="space-y-3 px-6 py-5 text-sm leading-relaxed text-zinc-600"
             >
               <p>
                 확인한 주문 내용을 엑셀로 저장하려면
@@ -5724,17 +5732,17 @@ export function LogisticsConvertClient({
               </p>
             </div>
 
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 px-6 py-4 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                className="w-full sm:w-auto px-4 py-2.5 text-base rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                className="rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
                 다시 확인하기
               </button>
               <Link
                 href="/auth?mode=login"
-                className="w-full sm:w-auto px-4 py-2.5 text-base rounded-lg border border-blue-200 bg-blue-50 text-center font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-700/70 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/40"
+                className="rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-emerald-700"
                 onClick={() => setShowTrialDownloadModal(false)}
               >
                 무료 가입 후 다운로드
@@ -7585,65 +7593,54 @@ export function LogisticsConvertClient({
 
       {/* 더미 없음 안내 모달 */}
       {isEmptyDataModalOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={handleCloseEmptyDataModal}
-        >
-          <div 
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[600px] flex flex-col p-6"
+        <div className={EXCLOAD_MODAL_OVERLAY} onClick={handleCloseEmptyDataModal}>
+          <div
+            className={`${EXCLOAD_MODAL_PANEL} flex max-h-[90vh] w-full max-w-[600px] flex-col`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* 모달 헤더 */}
-            <div className="flex items-center justify-between mb-6 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+            <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-6 pb-4 pt-5">
+              <h2 className="text-lg font-semibold text-zinc-900">
                 이 파일로는 정보를 어디에 넣어야 할지 알기 어려워요
               </h2>
               <button
+                type="button"
                 onClick={handleCloseEmptyDataModal}
-                className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="rounded-lg p-1.5 transition-colors hover:bg-zinc-100"
               >
-                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                <X className="h-5 w-5 text-zinc-500" />
               </button>
             </div>
 
-            {/* 모달 내용 */}
-            <div className="flex-1 overflow-y-auto mb-6">
-              {/* 안내 텍스트 */}
-              <div className="mb-4">
-                <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed mb-4">
-                  아래 예시처럼 연락처·주소·상품 등등 입력되거나 모든 항목을 채울 필요는 없지만
-                  <br />
-                  꼭 입력이 필요한곳은 위치 확인이 가능하도록 표시된 상태로 저장한 뒤 다시 업로드해 주세요.
-                  <br />
-                  <br />
-                  {trialMode
-                    ? '💡 최근에 쓰시던 주문 업로드 엑셀이 있으면 그대로 올려 주셔도 됩니다. 양식 등록 용도이며 고객 정보는 저장·사용되지 않습니다'
-                    : '💡 최근에 실제 주문이 들어온 물류센터 업로드 엑셀 파일이 있다면 그 파일을 그대로 올려주셔도 됩니다. 양식 등록 용도이며 고객 정보는 저장·사용되지 않습니다'}
-                </p>
-              </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <p className={`${EXCLOAD_MODAL_BODY} mb-4`}>
+                아래 예시처럼 연락처·주소·상품 등등 입력되거나 모든 항목을 채울 필요는 없지만
+                <br />
+                꼭 입력이 필요한곳은 위치 확인이 가능하도록 표시된 상태로 저장한 뒤 다시 업로드해 주세요.
+                <br />
+                <br />
+                {trialMode
+                  ? '최근에 쓰시던 주문 업로드 엑셀이 있으면 그대로 올려 주셔도 됩니다. 양식 등록 용도이며 고객 정보는 저장·사용되지 않습니다'
+                  : '최근에 실제 주문이 들어온 물류센터 업로드 엑셀 파일이 있다면 그 파일을 그대로 올려주셔도 됩니다. 양식 등록 용도이며 고객 정보는 저장·사용되지 않습니다'}
+              </p>
 
-              {/* 엑셀 템플릿 예시 이미지 */}
               <div className="mb-4">
-                <img 
-                  src="/excel-template-example.jpg" 
+                <img
+                  src="/excel-template-example.jpg"
                   alt="엑셀 템플릿 예시"
-                  className="w-full border rounded-md"
+                  className="w-full rounded-lg border border-zinc-200"
                 />
               </div>
 
-              {/* 안내 문구 */}
-              <div className="mb-4 text-center">
-                <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                  ⬆ 위 예시처럼 주문 정보가 들어갈 위치에  입력 → 저장 → 다시 업로드
-                </p>
-              </div>
+              <p className="text-center text-sm text-zinc-600">
+                위 예시처럼 주문 정보가 들어갈 위치에 입력 → 저장 → 다시 업로드
+              </p>
             </div>
 
-            {/* 모달 하단 버튼 */}
-            <div className="flex gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+            <div className="flex justify-end border-t border-zinc-100 px-6 py-4">
               <button
+                type="button"
                 onClick={handleCloseEmptyDataModal}
-                className="flex-1 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-900 dark:text-zinc-100 h-11 rounded-lg font-medium transition-colors"
+                className={EXCLOAD_MODAL_BTN_SECONDARY}
               >
                 닫기
               </button>
@@ -7711,30 +7708,26 @@ export function LogisticsConvertClient({
 
       {/* 업로드 양식 없음 안내 모달 */}
       {isNoTemplateModalOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={handleCloseNoTemplateModal}
-        >
+        <div className={EXCLOAD_MODAL_OVERLAY} onClick={handleCloseNoTemplateModal}>
           <div
-            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-[600px] flex flex-col p-6"
+            className={`${EXCLOAD_MODAL_PANEL} flex w-full max-w-[560px] flex-col`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* 모달 헤더 */}
-            <div className="flex items-center justify-between mb-6 flex-shrink-0">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+            <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-6 pb-4 pt-5">
+              <h2 className="text-lg font-semibold text-zinc-900">
                 {trialMode ? '업로드 엑셀 양식 등록 필요' : '물류센터 업로드 양식 등록 필요'}
               </h2>
               <button
+                type="button"
                 onClick={handleCloseNoTemplateModal}
-                className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="rounded-lg p-1.5 transition-colors hover:bg-zinc-100"
               >
-                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                <X className="h-5 w-5 text-zinc-500" />
               </button>
             </div>
 
-            {/* 모달 내용 */}
-            <div className="flex-1 overflow-y-auto mb-6">
-              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed mb-4">
+            <div className="px-6 py-5">
+              <p className={EXCLOAD_MODAL_BODY}>
                 {noTemplateModalType === 'fixed-input'
                   ? trialMode
                     ? '업로드 엑셀 양식을 먼저 등록해야 고정 입력 설정이 가능합니다.'
@@ -7745,17 +7738,20 @@ export function LogisticsConvertClient({
               </p>
             </div>
 
-            {/* 모달 하단 버튼 */}
-            <div className="flex gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+            <div className="flex justify-end gap-2 border-t border-zinc-100 px-6 py-4">
               <button
+                type="button"
                 onClick={handleCloseNoTemplateModal}
-                className="flex-1 px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className={EXCLOAD_MODAL_BTN_SECONDARY}
               >
                 닫기
               </button>
               <button
+                type="button"
                 onClick={handleOpenCourierTemplateFromNoTemplateModal}
-                className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-sm text-white font-medium"
+                className={
+                  landingEmbed ? EXCLOAD_MODAL_BTN_PRIMARY : EXCLOAD_MODAL_BTN_PRIMARY_EMERALD
+                }
               >
                 {trialMode ? '업로드 엑셀 양식 등록하기' : '물류센터 업로드 양식 등록하기'}
               </button>
@@ -8095,132 +8091,112 @@ export function LogisticsConvertClient({
 
       {/* 스크린샷 물류 주문 변환 모달 */}
       {showScreenshotModal && (
-        <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 p-4"
           onClick={handleScreenshotModalClose}
         >
-          <div 
-            className="w-full max-w-[600px] rounded-xl border border-zinc-200 bg-white p-6 shadow-xl"
+          <div
+            className="w-full max-w-[600px] rounded-xl border border-zinc-200 bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">
-                {trialMode ? '스크린샷으로 주문 변환' : '스크린샷 물류 주문 변환'}
-              </h3>
+            <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-6 pb-4 pt-5">
+              <div className="min-w-0 space-y-1.5">
+                <h3 className="text-lg font-semibold text-zinc-900">
+                  {trialMode ? '스크린샷으로 주문 변환' : '스크린샷 물류 주문 변환'}
+                </h3>
+                <p className="text-sm leading-relaxed text-zinc-600">
+                  주문 화면을 캡처한 뒤 Ctrl + V(또는 Cmd + V)·우클릭 붙여넣기로 넣으세요.
+                </p>
+              </div>
               <button
+                type="button"
                 onClick={handleScreenshotModalClose}
-                className="rounded-lg p-1 transition-colors hover:bg-gray-100"
+                className="rounded-lg p-1.5 transition-colors hover:bg-zinc-100"
               >
-                <X className="h-5 w-5 text-gray-600" />
+                <X className="h-5 w-5 text-zinc-500" />
               </button>
             </div>
 
-            {/* 안내 문구 */}
-            <div className="mb-6">
-              <p className="mb-2 text-sm leading-relaxed text-gray-700">
-                주문 화면을 먼저 캡처하세요.
-              </p>
-              <p className="text-sm leading-relaxed text-gray-700">
-                PrintScreen 또는 캡처 도구를 사용한 뒤
-              </p>
-              <p className="text-sm leading-relaxed text-gray-700">
-                Ctrl + V 또는 마우스 우클릭 → 붙여넣기 하세요.
-              </p>
-            </div>
-
-            {/* 붙여넣기 영역 */}
-            <div
-              ref={screenshotPasteAreaRef}
-              tabIndex={0}
-              contentEditable={screenshotStage === 'idle' ? "true" : "false"}
-              suppressContentEditableWarning={true}
-              onPaste={handlePaste}
-              onInput={handleInput}
-              onKeyDown={(e) => {
-                // idle이 아니면 모든 키 입력 방지
-                if (screenshotStage !== 'idle') {
-                  e.preventDefault();
-                  return;
-                }
-                // 텍스트 입력 방지 (이미지만 허용)
-                if (e.key.toLowerCase() !== 'v' || !(e.ctrlKey || e.metaKey)) {
-                  e.preventDefault();
-                }
-              }}
-              className={`mb-4 min-h-[300px] w-full cursor-pointer rounded-lg border-2 border-dashed p-6 transition-colors ${
-                screenshotStage === 'processing'
-                  ? landingEmbed
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-emerald-500 bg-emerald-50'
-                  : landingEmbed
-                    ? 'border-gray-300 bg-gray-50 hover:border-blue-400'
-                    : 'border-gray-300 bg-gray-50 hover:border-emerald-400'
-              }`}
-              style={{ outline: 'none', userSelect: 'none' }}
-            >
-              {screenshotStage === 'idle' ? (
-                <div className="flex h-full flex-col items-center justify-center text-center">
-                  <Upload className="mb-4 h-12 w-12 text-gray-400" />
-                  <p className="mb-2 text-sm font-medium text-gray-700">
-                    이미지를 붙여넣으세요
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Ctrl + V 또는 우클릭 → 붙여넣기
-                  </p>
-                </div>
-              ) : screenshotImagePreview ? (
-                <div className="relative flex h-full flex-col items-center justify-center">
-                  <img
-                    src={screenshotImagePreview}
-                    alt="붙여넣은 이미지"
-                    className="mb-4 max-h-[400px] max-w-full rounded-lg shadow-md"
-                  />
-                  {screenshotStage === 'processing' ? (
-                    <div
-                      className={`flex items-center gap-2 ${
-                        landingEmbed ? 'text-blue-600' : 'text-emerald-600'
-                      }`}
-                    >
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      <span className="text-sm font-medium">주문 데이터를 정리중입니다...</span>
-                    </div>
-                  ) : screenshotStage === 'completed' ? (
-                    <div className="flex flex-col items-center gap-2 mt-2">
-                      <div className="flex items-center gap-2 text-green-600">
-                        <Check className="w-5 h-5" />
-                        <span className="text-sm font-medium">스크린샷을 확인하였습니다</span>
-                      </div>
-                      <p className="text-xs text-gray-600">
-                        주문정보를 처리하기 위해 텍스트로 변환하고 있습니다
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        텍스트 완성이 되면 오른쪽{' '}
-                        <span className="font-semibold text-emerald-600">
-                          {trialMode ? '텍스트로 주문 변환' : '텍스트 물류 주문 변환'}
-                        </span>{' '}
-                        버튼을 눌러주세요
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-
-            {/* 에러 메시지 */}
-            {errorMessageTextImage && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{errorMessageTextImage}</p>
-              </div>
-            )}
-
-            {/* 하단 버튼 */}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={handleScreenshotModalClose}
-                className={`px-4 py-2 text-sm border border-gray-300 rounded transition-colors ${
+            <div className="px-6 py-5">
+              <div
+                ref={screenshotPasteAreaRef}
+                tabIndex={0}
+                contentEditable={screenshotStage === 'idle' ? 'true' : 'false'}
+                suppressContentEditableWarning={true}
+                onPaste={handlePaste}
+                onInput={handleInput}
+                onKeyDown={(e) => {
+                  if (screenshotStage !== 'idle') {
+                    e.preventDefault();
+                    return;
+                  }
+                  if (e.key.toLowerCase() !== 'v' || !(e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                  }
+                }}
+                className={`mb-4 flex min-h-[280px] w-full cursor-pointer flex-col rounded-xl border border-dashed p-6 transition-colors ${
                   screenshotStage === 'processing'
-                    ? 'hover:bg-red-50 border-red-300 text-red-600'
-                    : 'hover:bg-gray-100'
+                    ? 'border-zinc-400 bg-zinc-50'
+                    : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400'
+                }`}
+                style={{ outline: 'none', userSelect: 'none' }}
+              >
+                {screenshotStage === 'idle' ? (
+                  <div className="flex h-full flex-col items-center justify-center text-center">
+                    <Upload className="mb-3 h-9 w-9 text-zinc-400" />
+                    <p className="mb-1 text-sm font-medium text-zinc-800">
+                      이미지를 붙여넣으세요
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      Ctrl + V / Cmd + V 또는 우클릭 → 붙여넣기
+                    </p>
+                  </div>
+                ) : screenshotImagePreview ? (
+                  <div className="relative flex h-full flex-col items-center justify-center">
+                    <img
+                      src={screenshotImagePreview}
+                      alt="붙여넣은 이미지"
+                      className="mb-4 max-h-[400px] max-w-full rounded-lg border border-zinc-200"
+                    />
+                    {screenshotStage === 'processing' ? (
+                      <div className="flex items-center gap-2 text-zinc-600">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm font-medium">주문 데이터를 정리중입니다...</span>
+                      </div>
+                    ) : screenshotStage === 'completed' ? (
+                      <div className="mt-2 flex flex-col items-center gap-2">
+                        <p className="text-sm font-medium text-zinc-800">스크린샷을 확인하였습니다</p>
+                        <p className="text-xs text-zinc-500">
+                          주문정보를 처리하기 위해 텍스트로 변환하고 있습니다
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          텍스트 완성이 되면 오른쪽{' '}
+                          <span className="font-semibold text-zinc-800">
+                            {trialMode ? '텍스트로 주문 변환' : '텍스트 물류 주문 변환'}
+                          </span>{' '}
+                          버튼을 눌러주세요
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              {errorMessageTextImage && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
+                  <p className="text-sm text-red-600">{errorMessageTextImage}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end border-t border-zinc-100 px-6 py-4">
+              <button
+                type="button"
+                onClick={handleScreenshotModalClose}
+                className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
+                  screenshotStage === 'processing'
+                    ? 'border-red-200 bg-white text-red-700 hover:bg-red-50'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
                 }`}
               >
                 {screenshotStage === 'processing' ? '처리 중단' : '취소'}
@@ -8232,37 +8208,40 @@ export function LogisticsConvertClient({
 
       {/* 텍스트 정리 중 모달 */}
       {showTextProcessingModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
-        >
-          <div 
-            className="bg-white rounded-lg shadow-lg w-full max-w-[500px] p-6"
-          >
-            <div className="flex flex-col items-center justify-center text-center">
+        <div className={EXCLOAD_MODAL_OVERLAY.replace('z-[60]', 'z-[9999]')}>
+          <div className={`${EXCLOAD_MODAL_PANEL} max-w-[420px]`}>
+            <div className="border-b border-zinc-100 px-6 pb-4 pt-5">
+              <h3 className="text-lg font-semibold text-zinc-900">
+                {screenshotStage === 'processing' ? '텍스트 정리 중' : '텍스트 정리 완료'}
+              </h3>
+            </div>
+            <div className="px-6 py-6 text-center">
               {screenshotStage === 'processing' ? (
                 <>
-                  <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
-                  <p className="text-lg font-semibold text-gray-900 mb-2">
-                    {textProcessingSource === 'screenshot' 
-                      ? '스크린샷에서 텍스트를 정리중입니다'
-                      : '이미지 파일에서 텍스트를 정리중입니다'}
+                  <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-zinc-500" />
+                  <p className="mb-2 text-sm font-medium text-zinc-800">
+                    {textProcessingSource === 'screenshot'
+                      ? '스크린샷에서 텍스트를 읽고 있습니다'
+                      : '이미지에서 텍스트를 읽고 있습니다'}
                   </p>
-                  <p className="text-sm text-gray-600">
-                    텍스트정리가 완료되면 텍스트변환버튼을 눌러 주문목록으로 추가하세요
+                  <p className="text-sm leading-relaxed text-zinc-500">
+                    완료되면 텍스트 칸을 확인한 뒤 변환 버튼을 눌러 주세요.
                   </p>
                 </>
               ) : screenshotStage === 'completed' ? (
                 <>
-                  <Check className="w-12 h-12 text-green-500 mb-4" />
-                  <p className="text-lg font-semibold text-gray-900 mb-2">
-                    텍스트로 변환이 완료되었습니다
+                  <p className="mb-2 text-sm font-medium text-zinc-800">
+                    텍스트 칸에 반영되었습니다
                   </p>
-                  <p className="text-sm text-gray-600 mb-4">
-                    텍스트 변환하기 버튼을 눌러주세요
+                  <p className="mb-5 text-sm leading-relaxed text-zinc-500">
+                    내용을 확인한 뒤 텍스트 변환 버튼을 눌러 주세요.
                   </p>
                   <button
+                    type="button"
                     onClick={() => setShowTextProcessingModal(false)}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                    className={
+                      landingEmbed ? EXCLOAD_MODAL_BTN_PRIMARY : EXCLOAD_MODAL_BTN_PRIMARY_EMERALD
+                    }
                   >
                     확인
                   </button>
@@ -8291,34 +8270,26 @@ export function LogisticsConvertClient({
       )}
 
       {/* 다운로드 상태 모달 */}
-      {downloadStatus !== "idle" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-[400px] p-6 text-center">
-
-            {downloadStatus === "processing" && (
+      {downloadStatus !== 'idle' && (
+        <div className={EXCLOAD_MODAL_OVERLAY}>
+          <div className={`${EXCLOAD_MODAL_PANEL} max-w-[400px] p-8 text-center`}>
+            {downloadStatus === 'processing' && (
               <>
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700 mx-auto mb-4" />
-                <p className="font-semibold">파일 생성 중입니다...</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  잠시만 기다려주세요.
-                </p>
+                <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-zinc-500" />
+                <p className="font-semibold text-zinc-900">파일 생성 중입니다...</p>
+                <p className="mt-2 text-sm text-zinc-500">잠시만 기다려주세요.</p>
               </>
             )}
 
-            {downloadStatus === "done" && (
+            {downloadStatus === 'done' && (
               <>
-                <p className="text-lg font-semibold mb-3">
-                  다운로드 완료
-                </p>
-                <p className="text-sm text-gray-700 mb-2">
-                  {downloadModalFileName}
-                </p>
-                <p className="text-xs text-gray-500">
+                <p className="mb-3 text-lg font-semibold text-zinc-900">다운로드 완료</p>
+                <p className="mb-2 text-sm text-zinc-700">{downloadModalFileName}</p>
+                <p className="text-xs text-zinc-500">
                   파일은 다운로드 폴더에서 확인하실 수 있습니다.
                 </p>
               </>
             )}
-
           </div>
         </div>
       )}

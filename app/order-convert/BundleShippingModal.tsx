@@ -52,10 +52,10 @@ const DECISION_LABEL: Record<BundleGroupDecision, string> = {
 };
 
 const DECISION_PILL_CLASS: Record<BundleGroupDecision, string> = {
-  undecided: 'border-amber-200 bg-amber-50 text-amber-800',
-  individual: 'border-gray-200 bg-gray-100 text-gray-700',
-  bundle_editing: 'border-violet-200 bg-violet-50 text-violet-800',
-  bundle_done: 'border-green-200 bg-green-50 text-green-800',
+  undecided: 'border-zinc-200 bg-zinc-100 text-zinc-700',
+  individual: 'border-zinc-200 bg-zinc-50 text-zinc-600',
+  bundle_editing: 'border-blue-200 bg-blue-50 text-blue-800',
+  bundle_done: 'border-emerald-200 bg-emerald-50 text-emerald-800',
 };
 
 function StatusPill({ decision }: { decision: BundleGroupDecision }) {
@@ -71,18 +71,18 @@ function StatusPill({ decision }: { decision: BundleGroupDecision }) {
 /** order-convert 미리보기 영역과 동일한 버튼·모달 톤 */
 const BTN_SECONDARY =
   'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100';
-const BTN_VIOLET =
-  'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-violet-500/80 bg-violet-50 px-3 text-sm font-medium text-violet-900 transition hover:bg-violet-100';
+const BTN_ACCENT =
+  'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-900 transition hover:bg-blue-100';
 const BTN_GREEN =
-  'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-4 text-sm font-medium text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300';
+  'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300';
 const BTN_RED =
   'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-medium text-white transition hover:bg-red-700';
 const BTN_BLUE =
-  'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700';
+  'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700';
 const SUB_MODAL_OVERLAY =
-  'fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4';
+  'fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4';
 const SUB_MODAL_PANEL =
-  'w-full max-w-md rounded-lg border border-gray-300 bg-white p-6 shadow-lg';
+  'w-full max-w-md rounded-xl border border-zinc-200 bg-white p-6 shadow-xl';
 
 function cloneOverridesForRows(
   rowIds: string[],
@@ -464,19 +464,19 @@ export function BundleShippingModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-x-hidden overflow-y-auto bg-black/40 p-2 sm:p-4">
-        <div className="my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-gray-300 bg-gray-200 shadow-lg sm:max-h-[min(90dvh,860px)]">
-          <div className="flex shrink-0 items-start justify-between border-b border-gray-300 bg-white px-3 py-3 sm:px-6 sm:py-4">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-x-hidden overflow-y-auto bg-black/45 p-2 sm:p-4">
+        <div className="my-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 shadow-xl sm:max-h-[min(90dvh,860px)]">
+          <div className="flex shrink-0 items-start justify-between border-b border-zinc-200 bg-white px-3 py-3 sm:px-6 sm:py-4">
             <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm sm:h-10 sm:w-10">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-white sm:h-10 sm:w-10">
                 <PackageCheck className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-base font-bold tracking-tight text-gray-900 sm:text-lg">
+                  <h4 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
                     묶음배송 가능건
                   </h4>
-                  <span className="rounded-full border border-violet-500/80 bg-violet-50 px-2.5 py-0.5 text-xs font-bold text-violet-900 ring-1 ring-violet-100 sm:px-3 sm:py-1">
+                  <span className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-0.5 text-xs font-semibold text-zinc-700 sm:px-3 sm:py-1">
                     후보 {groupDrafts.length}그룹 · {totalCandidateRows}건
                   </span>
                 </div>
@@ -523,8 +523,8 @@ export function BundleShippingModal({
                         type="button"
                         className={`w-full rounded-xl border p-3 text-left text-sm transition ${
                           isActive
-                            ? 'border-violet-300 bg-white shadow-sm ring-2 ring-violet-100'
-                            : 'border-transparent bg-transparent hover:border-gray-200 hover:bg-white'
+                            ? 'border-zinc-300 bg-white shadow-sm ring-1 ring-zinc-200'
+                            : 'border-transparent bg-transparent hover:border-zinc-200 hover:bg-white'
                         }`}
                         onClick={() => handleRequestSwitchGroup(g.groupId)}
                       >
@@ -589,7 +589,7 @@ export function BundleShippingModal({
                         <button type="button" className={BTN_SECONDARY} onClick={handleSetIndividual}>
                           개별배송하기
                         </button>
-                        <button type="button" className={BTN_VIOLET} onClick={handleStartBundleEdit}>
+                        <button type="button" className={BTN_ACCENT} onClick={handleStartBundleEdit}>
                           <PackageCheck className="h-3.5 w-3.5" aria-hidden />
                           묶음배송하기
                         </button>
@@ -689,7 +689,7 @@ export function BundleShippingModal({
                       ) : (
                         <>
                           불필요한 행을 삭제한 뒤 남은 주문의 수량·상품을 확인·수정하고{' '}
-                          <span className="font-semibold text-violet-800">묶음배송결정</span>을
+                          <span className="font-semibold text-zinc-800">묶음배송결정</span>을
                           눌러 주세요. 남은 주문만 미리보기·다운로드에 반영됩니다.
                         </>
                       )}
@@ -800,24 +800,24 @@ export function BundleShippingModal({
               <b className="text-blue-600">{modifiedOverrideCount}건</b> · 개별배송{' '}
               <b className="text-gray-800">{individualGroupCount}그룹</b>
               {!allGroupsDecided && (
-                <span className="text-amber-700"> · 모든 그룹 결정 후 적용 가능</span>
+                <span className="text-zinc-600"> · 모든 그룹 결정 후 적용 가능</span>
               )}
             </p>
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
               {showFooterProgress && (
-                <p className="text-sm font-medium text-violet-950">
-                  결정 완료 <b className="text-violet-800">{decidedCount}</b> / {groupDrafts.length}
+                <p className="text-sm font-medium text-zinc-700">
+                  결정 완료 <b className="text-zinc-900">{decidedCount}</b> / {groupDrafts.length}
                   {undecidedCount > 0 && (
                     <>
                       {' '}
-                      · 미결정 <b className="text-amber-800">{undecidedCount}</b>
+                      · 미결정 <b className="text-zinc-800">{undecidedCount}</b>
                     </>
                   )}
                   {bundleEditingGroupIds.length > 0 && (
                     <>
                       {' '}
                       · 묶음결정 필요{' '}
-                      <b className="text-violet-800">{bundleEditingGroupIds.length}</b>
+                      <b className="text-blue-800">{bundleEditingGroupIds.length}</b>
                     </>
                   )}
                 </p>
@@ -865,11 +865,11 @@ export function BundleShippingModal({
           <div className={SUB_MODAL_PANEL}>
             <h5 className="text-lg font-semibold text-gray-900">묶음배송결정이 필요합니다</h5>
             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-              이 그룹은 아직 <strong className="text-violet-900">묶음배송결정</strong>이 완료되지
+              이 그룹은 아직 <strong className="text-zinc-900">묶음배송결정</strong>이 완료되지
               않았습니다. 다른 그룹으로 이동하기 전에 처리 방식을 선택해 주세요.
             </p>
             {!canCompleteBundleEdit && (
-              <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+              <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs leading-relaxed text-zinc-700">
                 묶음배송결정을 하려면 주문건 1건 이상 삭제 후 최소 1건은 남겨 두어야 합니다.
               </p>
             )}
@@ -912,24 +912,24 @@ export function BundleShippingModal({
             <p className="mt-3 text-sm leading-relaxed text-gray-600">
               아직 반영하지 않은 정리 내용이 있습니다. 나가면 미리보기는 변경되지 않습니다.
             </p>
-            <p className="mt-3 rounded-lg border border-violet-500/50 bg-violet-50 px-3 py-2.5 text-sm font-semibold leading-relaxed text-violet-950">
+            <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm font-semibold leading-relaxed text-zinc-800">
               후보 그룹 {groupDrafts.length}개 중 결정 완료 {decidedCount}개
               {undecidedCount > 0 && (
-                <span className="text-amber-800"> · 미결정 {undecidedCount}개</span>
+                <span className="text-zinc-600"> · 미결정 {undecidedCount}개</span>
               )}
               {bundleEditingGroupIds.length > 0 && (
-                <span className="text-violet-800">
+                <span className="text-blue-800">
                   {' '}
                   · 묶음배송결정 필요 {bundleEditingGroupIds.length}개
                 </span>
               )}
             </p>
             {bundleEditingGroupIds.length > 0 && (
-              <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">
+              <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm leading-relaxed text-zinc-700">
                 묶음배송결정이 없는 그룹이 <strong>{bundleEditingGroupIds.length}개</strong>
                 있습니다.
                 {bundleEditingPendingLabels.length > 0 && (
-                  <span className="mt-1 block text-xs text-amber-800">
+                  <span className="mt-1 block text-xs text-zinc-500">
                     ({bundleEditingPendingLabels.join(', ')})
                   </span>
                 )}

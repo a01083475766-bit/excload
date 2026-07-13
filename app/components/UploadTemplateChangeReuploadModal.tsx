@@ -1,5 +1,13 @@
 'use client';
 
+import {
+  EXCLOAD_MODAL_BODY,
+  EXCLOAD_MODAL_BTN_PRIMARY,
+  EXCLOAD_MODAL_OVERLAY,
+  EXCLOAD_MODAL_PANEL,
+  EXCLOAD_MODAL_TITLE,
+} from '@/app/lib/ui/excload-preview-ui';
+
 interface UploadTemplateChangeReuploadModalProps {
   open: boolean;
   onClose: () => void;
@@ -21,24 +29,19 @@ export function UploadTemplateChangeReuploadModal({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
-      onClick={onClose}
-      role="presentation"
-    >
+    <div className={EXCLOAD_MODAL_OVERLAY} onClick={onClose} role="presentation">
       <div
-        className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-6 shadow-xl"
+        className={`${EXCLOAD_MODAL_PANEL} max-w-md`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="upload-template-change-title"
       >
-        <h2
-          id="upload-template-change-title"
-          className="mb-3 text-lg font-semibold text-zinc-900"
-        >
-          업로드 양식이 변경되었습니다
-        </h2>
-        <p className="mb-6 text-sm leading-relaxed text-zinc-600">
+        <div className="border-b border-zinc-100 px-6 pb-4 pt-5">
+          <h2 id="upload-template-change-title" className={EXCLOAD_MODAL_TITLE}>
+            업로드 양식이 변경되었습니다
+          </h2>
+        </div>
+        <p className={`px-6 py-5 ${EXCLOAD_MODAL_BODY}`}>
           {message}
           {bodyExtra ? (
             <>
@@ -47,13 +50,11 @@ export function UploadTemplateChangeReuploadModal({
             </>
           ) : null}
         </p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="h-11 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-        >
-          확인
-        </button>
+        <div className="border-t border-zinc-100 px-6 py-4">
+          <button type="button" onClick={onClose} className={`${EXCLOAD_MODAL_BTN_PRIMARY} w-full`}>
+            확인
+          </button>
+        </div>
       </div>
     </div>
   );
