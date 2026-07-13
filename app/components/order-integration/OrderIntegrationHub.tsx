@@ -64,15 +64,18 @@ import { OrderIntegrationTemplateModal } from '@/app/components/order-integratio
 import { OrderIntegrationScreenshotModal } from '@/app/components/order-integration/OrderIntegrationScreenshotModal';
 import { OrderIntegrationTextProcessingModal } from '@/app/components/order-integration/OrderIntegrationTextProcessingModal';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
+import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
 import {
   extractNonEmptyHeaderNames,
   loadCourierUploadTemplate,
 } from '@/app/lib/courier-upload-template-storage';
 import { usePreviewWorkspaceSession } from '@/app/hooks/usePreviewWorkspaceSession';
 import { clearPreviewWorkspace } from '@/app/lib/preview-workspace-session';
+import {
+  EXCLOAD_PREVIEW_TOOL_BTN,
+} from '@/app/lib/ui/excload-preview-ui';
 
-const PREVIEW_TOOL_BTN =
-  'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40';
+const PREVIEW_TOOL_BTN = EXCLOAD_PREVIEW_TOOL_BTN;
 const PREVIEW_BATCH_SIZE = 100;
 
 /** Strict Mode 리마운트 대비: 소비한 주문조회 전달분 */
@@ -762,17 +765,51 @@ export default function OrderIntegrationHub() {
           </p>
 
           <div className="flex flex-col gap-2 lg:gap-3">
-            <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-              <div className="flex w-full shrink-0 flex-col justify-center gap-2 sm:h-[38px] sm:w-auto sm:flex-row sm:items-center sm:justify-start">
-                <Link
-                  href="/order/integration/fetch"
-                  className="flex h-[38px] w-full items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
-                >
-                  <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
-                  주문조회 하기
-                </Link>
+            <div className="flex w-full flex-col items-stretch gap-2 sm:h-[38px] sm:flex-row sm:items-center sm:gap-2">
+              <Link
+                href="/order/integration/fetch"
+                className="flex h-[38px] w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-700 sm:w-[200px]"
+              >
+                <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+                주문조회 하기
+              </Link>
+
+              {/* 좌 200 + 우 200 기준, sm+에서 가운데 ~200–800px — 안내를 이 슬롯에 두어 세로 출렁임 방지 */}
+              <div
+                className={`flex min-w-0 items-center overflow-hidden sm:h-[38px] sm:flex-1 ${
+                  statusLabel || hubError || hubNotice
+                    ? 'min-h-[38px] flex-1'
+                    : 'max-sm:hidden'
+                }`}
+              >
+                {statusLabel ? (
+                  <div
+                    className="flex h-[38px] w-full min-w-0 items-center gap-1.5 truncate rounded-lg border border-blue-200 bg-blue-50 px-2.5 text-xs text-blue-900 sm:text-sm"
+                    title={statusLabel}
+                  >
+                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                    <span className="min-w-0 truncate">{statusLabel}</span>
+                  </div>
+                ) : hubError ? (
+                  <div
+                    className="flex h-[38px] w-full min-w-0 items-center truncate rounded-lg border border-red-200 bg-red-50 px-2.5 text-xs text-red-800 sm:text-sm"
+                    role="alert"
+                    title={hubError}
+                  >
+                    <span className="min-w-0 truncate">{hubError}</span>
+                  </div>
+                ) : hubNotice ? (
+                  <div
+                    className="flex h-[38px] w-full min-w-0 items-center truncate rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs text-emerald-900 sm:text-sm"
+                    role="status"
+                    title={hubNotice}
+                  >
+                    <span className="min-w-0 truncate">{hubNotice}</span>
+                  </div>
+                ) : null}
               </div>
-              <div className="flex w-full shrink-0 justify-center sm:h-[38px] sm:w-[200px] sm:justify-end">
+
+              <div className="flex h-[38px] w-full shrink-0 justify-center sm:w-[200px] sm:justify-end">
                 {user ? (
                   <div className="flex h-[38px] w-full min-w-0 items-center justify-end gap-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-sky-600 px-3 text-white shadow-md sm:w-[200px]">
                     <Coins className="h-4 w-4 shrink-0" />
@@ -787,31 +824,6 @@ export default function OrderIntegrationHub() {
                 ) : null}
               </div>
             </div>
-
-            {statusLabel ? (
-              <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {statusLabel}
-              </div>
-            ) : null}
-
-            {hubNotice ? (
-              <div
-                className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-                role="status"
-              >
-                {hubNotice}
-              </div>
-            ) : null}
-
-            {hubError ? (
-              <div
-                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-                role="alert"
-              >
-                {hubError}
-              </div>
-            ) : null}
 
             <div className="w-full rounded-xl border-2 border-blue-500 bg-white p-5">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
@@ -1265,68 +1277,34 @@ export default function OrderIntegrationHub() {
         onApply={handleBundleShippingApply}
       />
 
-      {isDeleteModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-[400px] rounded-lg bg-white p-6 shadow-lg">
-            <h4 className="mb-3 text-lg font-semibold">
-              선택한 {selectedRowIds.size}개 항목을 삭제하시겠습니까?
-            </h4>
-            <p className="mb-6 text-sm text-gray-500">
-              선택한 항목을 삭제하고, 나머지 데이터만 유지합니다.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                className="rounded border px-4 py-2 text-sm hover:bg-gray-100"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
-                onClick={deleteSelectedRows}
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ExcloudConfirmDialog
+        open={isDeleteModalOpen}
+        title={`선택한 ${selectedRowIds.size}개 항목을 삭제하시겠습니까?`}
+        description="선택한 항목을 삭제하고, 나머지 데이터만 유지합니다."
+        confirmLabel="삭제"
+        variant="danger"
+        onCancel={() => setIsDeleteModalOpen(false)}
+        onConfirm={deleteSelectedRows}
+      />
 
-      {isPreviewResetModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-[min(100%,400px)] rounded-lg border border-zinc-200 bg-white p-6 shadow-lg">
-            <h4 className="mb-3 text-lg font-semibold text-zinc-900">미리보기 초기화</h4>
-            <p className="mb-2 text-sm leading-relaxed text-gray-600">
-              첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.
-            </p>
-            <p className="mb-6 text-sm text-gray-500">
-              등록한 택배 양식·고정 입력은 그대로 둡니다.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                className="rounded border px-4 py-2 text-sm hover:bg-gray-100"
-                onClick={() => setIsPreviewResetModalOpen(false)}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="rounded bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700"
-                onClick={() => {
-                  setSelectedFiles([]);
-                  setTextOrder('');
-                  clearPreview();
-                }}
-              >
-                초기화
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ExcloudConfirmDialog
+        open={isPreviewResetModalOpen}
+        title="미리보기 초기화"
+        description={
+          <>
+            <p>첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.</p>
+            <p className="text-zinc-500">등록한 택배 양식·고정 입력은 그대로 둡니다.</p>
+          </>
+        }
+        confirmLabel="초기화"
+        variant="warning"
+        onCancel={() => setIsPreviewResetModalOpen(false)}
+        onConfirm={() => {
+          setSelectedFiles([]);
+          setTextOrder('');
+          clearPreview();
+        }}
+      />
 
       <OrderIntegrationScreenshotModal
         open={screenshotModalOpen}

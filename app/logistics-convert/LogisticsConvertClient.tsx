@@ -20,7 +20,32 @@ import {
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, ArrowRightLeft } from 'lucide-react';
+import {
+  Truck,
+  Search,
+  ArrowDown,
+  Image,
+  X,
+  Check,
+  Upload,
+  Loader2,
+  ArrowRightLeft,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  Trash2,
+  Package,
+  Coins,
+} from 'lucide-react';
+import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
+import {
+  EXCLOAD_PREVIEW_EMPTY_SHELL,
+  EXCLOAD_PREVIEW_HEIGHT_DEFAULT,
+  EXCLOAD_PREVIEW_HEIGHT_EXPANDED,
+  EXCLOAD_PREVIEW_TABLE_SHELL,
+  EXCLOAD_PREVIEW_TOOL_BTN,
+  EXCLOAD_PREVIEW_TOOLBAR_SHELL,
+} from '@/app/lib/ui/excload-preview-ui';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import {
   buildTemplateHeaderLogPayload,
@@ -107,7 +132,6 @@ import {
   loadWorkspaceFiles,
   putWorkspaceFiles,
 } from '@/app/lib/workspace-order-files-idb';
-import { Coins } from 'lucide-react';
 import {
   NormalizeQualityNoticeModal,
   isLikelyClientNetworkError,
@@ -186,10 +210,6 @@ import {
   countBundleShippingDuplicateRows,
   detectBundleShippingGroups,
 } from '@/app/order-convert/bundle-shipping-utils';
-
-/** 미리보기 상단·보조 액션 버튼 공통 틀 (택배주문변환과 동일) */
-const PREVIEW_TOOLBAR_BTN =
-  'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
 
 /** 상품코드 매핑 실패 시 안내 배너용 */
 type ProductCodeMappingNotice = {
@@ -5634,78 +5654,36 @@ export function LogisticsConvertClient({
         onApply={handleBundleShippingApply}
       />
 
-      {/* 삭제 확인 모달 */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-[400px] p-6">
-            <h4 className="text-lg font-semibold mb-3">
-              선택한 {selectedRows.length}개 항목을 삭제하시겠습니까?
-            </h4>
+      <ExcloudConfirmDialog
+        open={isDeleteModalOpen}
+        title={`선택한 ${selectedRows.length}개 항목을 삭제하시겠습니까?`}
+        description="선택한 항목을 삭제하고, 나머지 데이터만 유지합니다."
+        confirmLabel="삭제"
+        variant="danger"
+        onCancel={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          const deleted = selectedRows;
+          setPreviewRows((prev) => prev.filter((row) => !deleted.includes(row.rowId)));
+          setOrderStandardRowsByRowId((prev) => pruneOrderSnapshotsForRowIds(prev, deleted));
+          setSelectedRows([]);
+          setIsDeleteModalOpen(false);
+        }}
+      />
 
-            <p className="text-sm text-gray-500 mb-6">
-              선택한 항목을 삭제하고, 나머지 데이터만 유지합니다.
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                className="px-4 py-2 text-sm border rounded hover:bg-gray-100"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                취소
-              </button>
-
-              <button
-                className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                onClick={() => {
-                  const deleted = selectedRows;
-                  setPreviewRows((prev) =>
-                    prev.filter((row) => !deleted.includes(row.rowId)),
-                  );
-                  setOrderStandardRowsByRowId((prev) =>
-                    pruneOrderSnapshotsForRowIds(prev, deleted),
-                  );
-                  setSelectedRows([]);
-                  setIsDeleteModalOpen(false);
-                }}
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isPreviewResetModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg w-[min(100%,400px)] p-6 border border-zinc-200 dark:border-zinc-700">
-            <h4 className="text-lg font-semibold mb-3 text-zinc-900 dark:text-zinc-100">
-              미리보기 초기화
-            </h4>
-            <p className="text-sm text-gray-600 dark:text-zinc-400 mb-2 leading-relaxed">
-              첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">
-              등록한 택배 양식·고정 입력은 그대로 둡니다.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                className="rounded border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setIsPreviewResetModalOpen(false)}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
-                onClick={applyFullPreviewWorkspaceReset}
-              >
-                초기화
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExcloudConfirmDialog
+        open={isPreviewResetModalOpen}
+        title="미리보기 초기화"
+        description={
+          <>
+            <p>첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.</p>
+            <p className="text-zinc-500">등록한 택배 양식·고정 입력은 그대로 둡니다.</p>
+          </>
+        }
+        confirmLabel="초기화"
+        variant="warning"
+        onCancel={() => setIsPreviewResetModalOpen(false)}
+        onConfirm={applyFullPreviewWorkspaceReset}
+      />
 
       {/* 체험판: 다운로드 안내 — 미리보기 취지와 정식 서비스(엑셀) 구분 */}
       {showTrialDownloadModal && (
@@ -5844,7 +5822,11 @@ export function LogisticsConvertClient({
                           : '텍스트 변환만 입력 글자 수만큼 차감됩니다. 엑셀·파일 변환은 체험에서 별도 제한이 없습니다.'
                         : undefined
                     }
-                    className={`${trialMode ? 'ex-tooltip-target' : ''} trial-usage-badge flex h-[38px] w-full min-w-0 items-center justify-end rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-3 text-white shadow-md shadow-emerald-600/30 sm:w-[200px]`}
+                    className={`${trialMode ? 'ex-tooltip-target' : ''} trial-usage-badge flex h-[38px] w-full min-w-0 items-center justify-end rounded-lg px-3 text-white shadow-md sm:w-[200px] ${
+                      landingEmbed
+                        ? 'bg-gradient-to-r from-blue-500 to-sky-600 shadow-blue-600/30'
+                        : 'bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-emerald-600/30'
+                    }`}
                   >
                     <div className="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-hidden">
                       <Coins className="h-4 w-4 shrink-0" />
@@ -5989,16 +5971,18 @@ export function LogisticsConvertClient({
                         ? '주문정보가 있는 화면스크린샷 / 이미지파일을 첨부하거나 붙여넣으면\u000a미리보기에 구분하여 주문정리를 할수있습니다.'
                         : undefined
                     }
-                    className={`w-full mt-2.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors ${
-                      trialMode ? 'ex-tooltip-target' : ''
-                    }`}
+                    className={`mt-2.5 w-full rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors ${
+                      landingEmbed
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-emerald-600 hover:bg-emerald-700'
+                    } ${trialMode ? 'ex-tooltip-target' : ''}`}
                     onClick={() => {
                       if (!ensureLoggedInForOrderInput()) return;
                       setShowScreenshotModal(true);
                     }}
                   >
-                    {trialMode
-                      ? '캡처·스크린샷으로 주문 변환'
+                    {landingEmbed || trialMode
+                      ? '캡처화면 주문변환 (스크린샷 주문 변환)'
                       : '캡처화면 물류 주문 변환 (스크린샷 물류 주문 변환)'}
                   </button>
                 </div>
@@ -6054,9 +6038,11 @@ export function LogisticsConvertClient({
                           ? '입력한 텍스트를 주문 표 형태로 변환합니다.'
                           : undefined
                       }
-                      className={`w-full px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                        trialMode ? 'ex-tooltip-target' : ''
-                      }`}
+                      className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors ${
+                        landingEmbed
+                          ? 'bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300'
+                          : 'bg-emerald-600 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300'
+                      } ${trialMode ? 'ex-tooltip-target' : ''}`}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -6110,221 +6096,236 @@ export function LogisticsConvertClient({
           </div>
         </section>
 
-        {/* 변환된 파일 출력 영역 레이아웃 */}
-        <section className="relative py-3">
-          <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
-            <div className="px-6 pt-6 pb-4">
-              {/* 미리보기: 그리드로 제목(1열) / 버튼·건수안내·편집안내(2열, 펼치기 시작점 정렬) — 체험·정식 동일 */}
-              <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 items-start">
-                <h3 className="row-start-1 col-start-1 self-center text-lg font-semibold">미리보기</h3>
+        {/* 변환된 파일 출력 영역 — 주문연동 허브와 동일 톤 */}
+        <section className="relative pb-2 pt-1">
+          <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2.5">
+            <h3 className="text-lg font-semibold text-gray-900">미리보기</h3>
+            {previewRows.length > 0 && courierHeaders.length > 0 ? (
+              <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+                {previewRows.length.toLocaleString()}건
+              </span>
+            ) : null}
+          </div>
 
-                <div className="row-start-1 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                  {previewRows.length > 0 && courierHeaders.length > 0 && (
+          {previewRows.length > 0 && courierHeaders.length > 0 ? (
+            <div className={EXCLOAD_PREVIEW_TOOLBAR_SHELL}>
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  data-ex-tooltip={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
+                  className={`${trialMode ? 'ex-tooltip-target' : ''} ${EXCLOAD_PREVIEW_TOOL_BTN}`}
+                  onClick={() => setIsPreviewExpanded((prev) => !prev)}
+                >
+                  {isPreviewExpanded ? (
+                    <Minimize2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  ) : (
+                    <Maximize2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  )}
+                  {isPreviewExpanded ? '닫기' : '펼치기'}
+                </button>
+                <button
+                  type="button"
+                  data-ex-tooltip={
+                    trialMode
+                      ? '첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.'
+                      : undefined
+                  }
+                  className={`${trialMode ? 'ex-tooltip-target' : ''} ${EXCLOAD_PREVIEW_TOOL_BTN}`}
+                  onClick={() => setIsPreviewResetModalOpen(true)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  초기화
+                </button>
+                {selectedRows.length > 0 ? (
+                  <button
+                    type="button"
+                    data-ex-tooltip={
+                      trialMode ? '삭제가 필요한경우 선택하여 삭제 할수 있습니다' : undefined
+                    }
+                    className={`${
+                      trialMode ? 'ex-tooltip-target' : ''
+                    } inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-red-600 px-2.5 text-xs font-semibold text-white transition hover:bg-red-700`}
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    선택 삭제 {selectedRows.length}
+                  </button>
+                ) : null}
+              </div>
+
+              {bundleShippingDetection.columns ? (
+                bundleApplyUndo ? (
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 sm:border-t-0 sm:pt-0">
+                    <p className="rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs leading-snug text-zinc-600">
+                      묶음 적용 · 삭제{' '}
+                      <span className="font-semibold text-red-600">
+                        {bundleApplyUndo.summary.deletedRowCount}
+                      </span>
+                      · 개별{' '}
+                      <span className="font-semibold text-zinc-800">
+                        {bundleApplyUndo.summary.individualGroupCount}
+                      </span>
+                      · 묶음{' '}
+                      <span className="font-semibold text-zinc-800">
+                        {bundleApplyUndo.summary.bundleDoneGroupCount}
+                      </span>
+                    </p>
                     <button
                       type="button"
-                      data-ex-tooltip={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
-                      className={`${trialMode ? 'ex-tooltip-target' : ''} ${PREVIEW_TOOLBAR_BTN} w-20 border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                      onClick={() => setIsPreviewExpanded(prev => !prev)}
+                      className={`${EXCLOAD_PREVIEW_TOOL_BTN} border border-zinc-200 bg-white`}
+                      onClick={handleUndoBundleShippingApply}
                     >
-                      {isPreviewExpanded ? '닫기' : '펼치기'}
+                      <RotateCcw className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                      적용 취소
                     </button>
-                  )}
-
-                  {previewRows.length > 0 && courierHeaders.length > 0 && (
-                    <button
-                      type="button"
-                      data-ex-tooltip={
-                        trialMode
-                          ? '첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.'
-                          : undefined
-                      }
-                      className={`${trialMode ? 'ex-tooltip-target' : ''} ${PREVIEW_TOOLBAR_BTN} border-amber-500/80 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
-                      onClick={() => setIsPreviewResetModalOpen(true)}
-                    >
-                      미리보기 초기화
-                    </button>
-                  )}
-
-                  {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
-                    <button
-                      type="button"
-                      className={`${trialMode ? 'ex-tooltip-target' : ''} ${PREVIEW_TOOLBAR_BTN} border-red-600 bg-red-600 text-white hover:bg-red-700`}
-                      data-ex-tooltip={trialMode ? '삭제가 필요한경우 선택하여 삭제 할수 있습니다' : undefined}
-                      onClick={() => {
-                        setIsDeleteModalOpen(true);
-                      }}
-                    >
-                      선택 삭제
-                    </button>
-                  )}
-
-                  {previewRows.length > 0 &&
-                    courierHeaders.length > 0 &&
-                    bundleShippingDetection.columns &&
-                    (bundleApplyUndo ? (
-                      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                        <div
-                          className={`${PREVIEW_TOOLBAR_BTN} whitespace-nowrap border-violet-400/70 bg-violet-50 font-normal text-violet-950`}
-                        >
-                          묶음 : 삭제{' '}
-                          <b className="font-medium text-red-600">
-                            {bundleApplyUndo.summary.deletedRowCount}
-                          </b>
-                          건 · 개별배송{' '}
-                          <b className="font-medium">{bundleApplyUndo.summary.individualGroupCount}</b>
-                          그룹 · 묶음결정{' '}
-                          <b className="font-medium">{bundleApplyUndo.summary.bundleDoneGroupCount}</b>그룹
-                        </div>
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                          onClick={handleUndoBundleShippingApply}
-                        >
-                          묶음배송 적용취소
-                        </button>
-                      </div>
-                    ) : (
-                      bundleShippingGroupCount > 0 && (
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} border-violet-500/80 bg-violet-50 text-violet-900 hover:bg-violet-100 ${
-                            !bundleShippingButtonAcked
-                              ? 'animate-pulse ring-2 ring-violet-400/80'
-                              : ''
-                          }`}
-                          onClick={() => {
-                            setBundleShippingButtonAcked(true);
-                            setIsBundleShippingModalOpen(true);
-                          }}
-                        >
-                          묶음배송가능건확인 ({bundleShippingGroupCount}그룹 ·{' '}
-                          {bundleShippingRowCount}건)
-                        </button>
-                      )
-                    ))}
-                </div>
-
-                {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <p className="row-start-2 col-start-2 min-w-0 text-sm text-gray-500">
-                    ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
-                    ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
-                    ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                  </p>
-                )}
-
-                {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                  <div className="row-start-3 col-start-2 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-snug sm:leading-tight">
-                    <span className="text-black sm:whitespace-normal">
-                      주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                    </span>
-                    <span className="font-medium text-blue-600 sm:whitespace-nowrap">
-                      총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                    </span>
-                    {hasMorePreviewRows && (
-                      <>
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} h-7 border-gray-300 bg-white px-2.5 text-xs text-gray-800 hover:bg-gray-100`}
-                          onClick={() =>
-                            setRenderedRowCount((prev) =>
-                              Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                            )
-                          }
-                        >
-                          추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                        </button>
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} h-7 border-gray-300 bg-white px-2.5 text-xs text-gray-800 hover:bg-gray-100`}
-                          onClick={() => setRenderedRowCount(sortedRows.length)}
-                        >
-                          전체 보기
-                        </button>
-                      </>
-                    )}
                   </div>
-                )}
-              </div>
-            </div>
-            {previewSessionEnabled &&
-            isPreviewSessionRestoring &&
-            (previewRows.length === 0 || courierHeaders.length === 0) ? (
-              <div className="min-h-[192px] flex flex-col items-center justify-center gap-2 px-4 text-center text-sm text-gray-500">
-                <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
-                <p>이전 작업 내용을 불러오는 중입니다…</p>
-              </div>
-            ) : previewRows.length === 0 || courierHeaders.length === 0 ? (
-              <div className="min-h-[192px] flex items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
-                <p>
-                  주문을 가져오면 변환결과가 여기에 표시됩니다
-                  <br />
-                  파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                </p>
-              </div>
-            ) : (
-              <>
-                <UnknownHeadersWarningBanner
-                  unknownHeaders={unknownHeadersWarning}
-                  unknownHeaderSamples={unknownHeaderSamples}
-                  expanded={unknownHeadersExpanded}
-                  onExpandedChange={setUnknownHeadersExpanded}
-                  variant="logistics"
-                  trialMode={trialMode}
-                  onDirectMapping={handleOpenDirectMappingModal}
-                />
-
-                {/* 상품코드 매핑 실패 시: 코드·바코드 열 비움 안내 */}
-                {productCodeMappingNotice && (
-                  <div className="bg-rose-50 border border-rose-300 p-4 rounded-lg text-sm text-rose-900 mx-6 mb-4">
-                    <p className="font-semibold mb-2">
-                      ⚠ 상품코드 매핑: {productCodeMappingNotice.failCount}건이 매핑되지 않았습니다.
-                    </p>
-                    <p className="mb-2 leading-relaxed">
-                      「<strong>코드매핑 설정</strong>」 적용 후,{' '}
-                      {trialMode ? '등록한 업로드 양식의' : '물류 템플릿의'}{' '}
-                      <span className="font-semibold text-rose-800">
-                        「{productCodeMappingNotice.targetHeader}」
-                      </span>{' '}
-                      열에서 매핑되지 않은 행은 <span className="font-semibold">상품명을 그대로 두었습니다</span>
-                      (코드로 바꾸지 못함).
-                    </p>
-                    <p className="text-xs text-rose-800">
-                      매핑 성공 {productCodeMappingNotice.successCount}건 · 실패{' '}
-                      {productCodeMappingNotice.failCount}건 — 매핑 파일에 해당 상품명·옵션 조합이 있는지
-                      확인해 주세요.
-                    </p>
-                  </div>
-                )}
-
-                {/* 
-                  미리보기 렌더링 데이터 소스: previewRows / courierHeaders
-                  - courierHeaders 기준으로 전체 컬럼 구조 표시
-                */}
-                <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
-                  isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
-                }`}>
-                  <div className="px-3 py-2 border-b bg-gray-50 flex-shrink-0 flex items-center gap-2">
-                    <p className="text-xs text-purple-700">
-                      <span className="font-medium">헤더 체크박스</span>를 선택하면 원하는 값을 설정할 수 있습니다.{' '}
-                      {trialMode
-                        ? '체험판에서는 미리보기로만 확인할 수 있습니다.'
-                        : '미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.'}
-                    </p>
-                  </div>
-                  <div
-                  ref={previewScrollContainerRef}
-                  onScroll={handlePreviewScroll}
-                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar ${trialMode ? '' : 'preview-scrollbar-emerald'} preview-table-no-copy`}
-                    onCopy={(e) => {
-                      const t = e.target;
-                      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
-                      e.preventDefault();
+                ) : bundleShippingGroupCount > 0 ? (
+                  <button
+                    type="button"
+                    className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 self-start rounded-md border border-violet-200 bg-violet-50 px-2.5 text-xs font-semibold text-violet-900 transition hover:bg-violet-100 sm:self-auto ${
+                      !bundleShippingButtonAcked ? 'ring-2 ring-violet-300/70' : ''
+                    }`}
+                    onClick={() => {
+                      setBundleShippingButtonAcked(true);
+                      setIsBundleShippingModalOpen(true);
                     }}
                   >
-                    <table className="min-w-max text-sm border border-gray-300 border-collapse">
-                      <thead className="bg-gray-50 sticky top-0 z-20">
-                        <tr>
-                          <th className="sticky left-0 z-30 border border-gray-300 bg-gray-50 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
+                    <Package className="h-3.5 w-3.5" aria-hidden />
+                    묶음배송 {bundleShippingGroupCount}그룹
+                    <span className="font-medium text-violet-700/80">
+                      · {bundleShippingRowCount}건
+                    </span>
+                  </button>
+                ) : null
+              ) : null}
+            </div>
+          ) : null}
+
+          {previewRows.length > 0 && courierHeaders.length > 0 ? (
+            <p className="mb-2 text-xs leading-relaxed text-zinc-500">
+              셀 클릭으로 수정 · 헤더 클릭으로 정렬 · 헤더 체크로 코드매핑 · 체크 후 선택 삭제
+            </p>
+          ) : null}
+
+          {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded ? (
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-snug text-zinc-500">
+              <span>
+                <span className="font-medium text-blue-700">
+                  {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}
+                </span>
+                {' / '}
+                {sortedRows.length.toLocaleString()}건 표시
+              </span>
+              {hasMorePreviewRows ? (
+                <>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 font-medium text-blue-700 transition hover:bg-blue-50"
+                    onClick={() =>
+                      setRenderedRowCount((prev) =>
+                        Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                      )
+                    }
+                  >
+                    +{PREVIEW_BATCH_SIZE}건 더보기
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 font-medium text-zinc-600 transition hover:bg-zinc-100"
+                    onClick={() => setRenderedRowCount(sortedRows.length)}
+                  >
+                    전체 보기
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {previewSessionEnabled &&
+          isPreviewSessionRestoring &&
+          (previewRows.length === 0 || courierHeaders.length === 0) ? (
+            <div className={`${EXCLOAD_PREVIEW_EMPTY_SHELL} flex-col gap-2 text-sm text-gray-500`}>
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <p>이전 작업 내용을 불러오는 중입니다…</p>
+            </div>
+          ) : previewRows.length === 0 || courierHeaders.length === 0 ? (
+            <div className={EXCLOAD_PREVIEW_EMPTY_SHELL}>
+              <p className="max-w-md text-sm leading-relaxed text-gray-500">
+                주문을 가져오면 변환결과가 여기에 표시됩니다
+                <br />
+                파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+              </p>
+            </div>
+          ) : (
+            <>
+              <UnknownHeadersWarningBanner
+                unknownHeaders={unknownHeadersWarning}
+                unknownHeaderSamples={unknownHeaderSamples}
+                expanded={unknownHeadersExpanded}
+                onExpandedChange={setUnknownHeadersExpanded}
+                variant="logistics"
+                trialMode={trialMode}
+                onDirectMapping={handleOpenDirectMappingModal}
+              />
+
+              {/* 상품코드 매핑 실패 시: 코드·바코드 열 비움 안내 */}
+              {productCodeMappingNotice && (
+                <div className="mb-4 rounded-lg border border-rose-300 bg-rose-50 p-4 text-sm text-rose-900">
+                  <p className="mb-2 font-semibold">
+                    ⚠ 상품코드 매핑: {productCodeMappingNotice.failCount}건이 매핑되지 않았습니다.
+                  </p>
+                  <p className="mb-2 leading-relaxed">
+                    「<strong>코드매핑 설정</strong>」 적용 후,{' '}
+                    {trialMode ? '등록한 업로드 양식의' : '물류 템플릿의'}{' '}
+                    <span className="font-semibold text-rose-800">
+                      「{productCodeMappingNotice.targetHeader}」
+                    </span>{' '}
+                    열에서 매핑되지 않은 행은{' '}
+                    <span className="font-semibold">상품명을 그대로 두었습니다</span>
+                    (코드로 바꾸지 못함).
+                  </p>
+                  <p className="text-xs text-rose-800">
+                    매핑 성공 {productCodeMappingNotice.successCount}건 · 실패{' '}
+                    {productCodeMappingNotice.failCount}건 — 매핑 파일에 해당 상품명·옵션 조합이 있는지
+                    확인해 주세요.
+                  </p>
+                </div>
+              )}
+
+              {/*
+                미리보기 렌더링 데이터 소스: previewRows / courierHeaders
+                - courierHeaders 기준으로 전체 컬럼 구조 표시
+              */}
+              <div
+                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} flex flex-col ${
+                  isPreviewExpanded
+                    ? EXCLOAD_PREVIEW_HEIGHT_EXPANDED
+                    : EXCLOAD_PREVIEW_HEIGHT_DEFAULT
+                }`}
+              >
+                <div className="flex flex-shrink-0 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2">
+                  <p className="text-xs text-zinc-600">
+                    <span className="font-medium text-zinc-800">헤더 체크박스</span>를 선택하면
+                    원하는 값을 설정할 수 있습니다.{' '}
+                    {trialMode
+                      ? '체험판에서는 미리보기로만 확인할 수 있습니다.'
+                      : '미리보기에서 적용된 형식 그대로 업로드 파일이 생성됩니다.'}
+                  </p>
+                </div>
+                <div
+                  ref={previewScrollContainerRef}
+                  onScroll={handlePreviewScroll}
+                  className={`${isPreviewExpanded ? '' : 'flex-1'} min-h-0 overflow-auto preview-scrollbar preview-table-no-copy`}
+                  onCopy={(e) => {
+                    const t = e.target;
+                    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
+                    e.preventDefault();
+                  }}
+                >
+                  <table className="min-w-max border-collapse text-left text-xs">
+                    <thead className="sticky top-0 z-20 bg-zinc-100">
+                      <tr>
+                        <th className="sticky left-0 z-30 border-b border-zinc-200 bg-zinc-100 px-2 py-2 text-left font-semibold shadow-[1px_0_0_0_rgba(228,228,231,1)] sm:whitespace-nowrap">
                             <input
                               type="checkbox"
                               data-ex-tooltip={
@@ -6345,7 +6346,7 @@ export function LogisticsConvertClient({
                           {courierHeaders.map((header) => (
                             <th
                               key={header}
-                              className="border border-gray-300 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap"
+                              className="whitespace-nowrap border-b border-zinc-200 px-2 py-2 text-left font-semibold text-zinc-700"
                             >
                               <div className="flex flex-col gap-0.5">
                                 <div className="flex items-center gap-1">
@@ -6377,7 +6378,7 @@ export function LogisticsConvertClient({
                                         ? '클릭하면 오름차순/내림차순으로 정렬됩니다.'
                                         : undefined
                                     }
-                                    className={`${trialMode ? 'ex-tooltip-target' : ''} m-0 inline-flex min-w-0 items-center gap-1 border-0 bg-transparent p-0 cursor-pointer select-none text-left font-semibold`}
+                                    className={`${trialMode ? 'ex-tooltip-target' : ''} m-0 inline-flex min-w-0 cursor-pointer select-none items-center gap-1 border-0 bg-transparent p-0 text-left font-semibold`}
                                     onClick={() => {
                                       setSortConfig((prev) => {
                                         if (!prev || prev.header !== header) {
@@ -6394,8 +6395,8 @@ export function LogisticsConvertClient({
                                       className={
                                         sortConfig?.header === header
                                           ? sortConfig.direction === 'asc'
-                                            ? 'text-emerald-600 font-semibold'
-                                            : 'text-red-600 font-semibold'
+                                            ? 'font-semibold text-blue-600'
+                                            : 'font-semibold text-red-600'
                                           : ''
                                       }
                                     >
@@ -6406,8 +6407,8 @@ export function LogisticsConvertClient({
                                       <span
                                         className={
                                           sortConfig.direction === 'asc'
-                                            ? 'text-emerald-600 text-xs'
-                                            : 'text-red-600 text-xs'
+                                            ? 'text-xs text-blue-600'
+                                            : 'text-xs text-red-600'
                                         }
                                       >
                                         {sortConfig.direction === 'asc' ? '▲' : '▼'}
@@ -6545,7 +6546,6 @@ export function LogisticsConvertClient({
                 </div>
               </>
             )}
-          </div>
         </section>
 
         {/* 기능 설명 섹션 레이아웃 */}
@@ -8073,34 +8073,34 @@ export function LogisticsConvertClient({
       {/* 스크린샷 물류 주문 변환 모달 */}
       {showScreenshotModal && (
         <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
           onClick={handleScreenshotModalClose}
         >
           <div 
-            className="bg-white rounded-lg shadow-lg w-full max-w-[600px] p-6"
+            className="w-full max-w-[600px] rounded-xl border border-zinc-200 bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6 flex items-center justify-between">
               <h3 className="text-xl font-semibold text-gray-900">
                 {trialMode ? '스크린샷으로 주문 변환' : '스크린샷 물류 주문 변환'}
               </h3>
               <button
                 onClick={handleScreenshotModalClose}
-                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                className="rounded-lg p-1 transition-colors hover:bg-gray-100"
               >
-                <X className="w-5 h-5 text-gray-600" />
+                <X className="h-5 w-5 text-gray-600" />
               </button>
             </div>
 
             {/* 안내 문구 */}
             <div className="mb-6">
-              <p className="text-sm text-gray-700 leading-relaxed mb-2">
+              <p className="mb-2 text-sm leading-relaxed text-gray-700">
                 주문 화면을 먼저 캡처하세요.
               </p>
-              <p className="text-sm text-gray-700 leading-relaxed">
+              <p className="text-sm leading-relaxed text-gray-700">
                 PrintScreen 또는 캡처 도구를 사용한 뒤
               </p>
-              <p className="text-sm text-gray-700 leading-relaxed">
+              <p className="text-sm leading-relaxed text-gray-700">
                 Ctrl + V 또는 마우스 우클릭 → 붙여넣기 하세요.
               </p>
             </div>
@@ -8124,17 +8124,21 @@ export function LogisticsConvertClient({
                   e.preventDefault();
                 }
               }}
-              className={`w-full min-h-[300px] border-2 border-dashed rounded-lg p-6 mb-4 transition-colors ${
+              className={`mb-4 min-h-[300px] w-full cursor-pointer rounded-lg border-2 border-dashed p-6 transition-colors ${
                 screenshotStage === 'processing'
-                  ? 'border-emerald-500 bg-emerald-50'
-                  : 'border-gray-300 bg-gray-50 hover:border-emerald-400 cursor-pointer'
+                  ? landingEmbed
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-emerald-500 bg-emerald-50'
+                  : landingEmbed
+                    ? 'border-gray-300 bg-gray-50 hover:border-blue-400'
+                    : 'border-gray-300 bg-gray-50 hover:border-emerald-400'
               }`}
               style={{ outline: 'none', userSelect: 'none' }}
             >
               {screenshotStage === 'idle' ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <Upload className="w-12 h-12 text-gray-400 mb-4" />
-                  <p className="text-sm font-medium text-gray-700 mb-2">
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <Upload className="mb-4 h-12 w-12 text-gray-400" />
+                  <p className="mb-2 text-sm font-medium text-gray-700">
                     이미지를 붙여넣으세요
                   </p>
                   <p className="text-xs text-gray-500">
@@ -8142,15 +8146,19 @@ export function LogisticsConvertClient({
                   </p>
                 </div>
               ) : screenshotImagePreview ? (
-                <div className="flex flex-col items-center justify-center h-full relative">
+                <div className="relative flex h-full flex-col items-center justify-center">
                   <img
                     src={screenshotImagePreview}
                     alt="붙여넣은 이미지"
-                    className="max-w-full max-h-[400px] rounded-lg shadow-md mb-4"
+                    className="mb-4 max-h-[400px] max-w-full rounded-lg shadow-md"
                   />
                   {screenshotStage === 'processing' ? (
-                    <div className="flex items-center gap-2 text-emerald-600">
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                    <div
+                      className={`flex items-center gap-2 ${
+                        landingEmbed ? 'text-blue-600' : 'text-emerald-600'
+                      }`}
+                    >
+                      <Loader2 className="h-5 w-5 animate-spin" />
                       <span className="text-sm font-medium">주문 데이터를 정리중입니다...</span>
                     </div>
                   ) : screenshotStage === 'completed' ? (

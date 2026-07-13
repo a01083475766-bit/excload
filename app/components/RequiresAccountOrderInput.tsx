@@ -19,12 +19,12 @@ export function RequiresAccountOrderModal({ open, onClose }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/35 p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 p-4"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-[440px] rounded-lg bg-white px-6 py-7 text-center shadow-lg dark:bg-zinc-900 dark:ring-1 dark:ring-zinc-700"
+        className="w-full max-w-[440px] rounded-xl border border-zinc-200 bg-white px-6 py-7 text-center shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -32,7 +32,7 @@ export function RequiresAccountOrderModal({ open, onClose }: ModalProps) {
       >
         <p
           id="requires-account-order-title"
-          className="mb-6 text-[15px] font-medium leading-relaxed text-gray-700 dark:text-zinc-200"
+          className="mb-6 text-[15px] font-medium leading-relaxed text-zinc-700"
         >
           {REQUIRES_ACCOUNT_ORDER_REASON}
         </p>
@@ -46,14 +46,14 @@ export function RequiresAccountOrderModal({ open, onClose }: ModalProps) {
           </Link>
           <Link
             href="/auth/login"
-            className={`${actionBtnBase} border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800`}
+            className={`${actionBtnBase} border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50`}
             onClick={onClose}
           >
             회원가입
           </Link>
           <button
             type="button"
-            className={`${actionBtnBase} border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800`}
+            className={`${actionBtnBase} border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50`}
             onClick={onClose}
           >
             닫기

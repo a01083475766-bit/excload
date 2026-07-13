@@ -22,35 +22,35 @@ export function UploadTemplateChangeReuploadModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl w-full max-w-md p-6"
+        className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-labelledby="upload-template-change-title"
       >
         <h2
           id="upload-template-change-title"
-          className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3"
+          className="mb-3 text-lg font-semibold text-zinc-900"
         >
           업로드 양식이 변경되었습니다
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed mb-6">
+        <p className="mb-6 text-sm leading-relaxed text-zinc-600">
           {message}
           {bodyExtra ? (
             <>
               <br />
-              <span className="text-zinc-500 dark:text-zinc-500">{bodyExtra}</span>
+              <span className="text-zinc-500">{bodyExtra}</span>
             </>
           ) : null}
         </p>
         <button
           type="button"
           onClick={onClose}
-          className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
+          className="h-11 w-full rounded-lg bg-blue-600 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
         >
           확인
         </button>

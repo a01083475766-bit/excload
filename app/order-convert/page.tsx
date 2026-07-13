@@ -10,7 +10,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2 } from 'lucide-react';
+import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, Maximize2, Minimize2, RotateCcw, Trash2, Package } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import {
   buildTemplateHeaderLogPayload,
@@ -155,10 +155,18 @@ import { DirectMappingSampleFileModal } from '@/app/components/DirectMappingSamp
 import { DirectMappingEditorModal } from '@/app/components/DirectMappingEditorModal';
 import { DirectMappingConfirmModal } from '@/app/components/DirectMappingConfirmModal';
 import { UnknownHeadersWarningBanner } from '@/app/components/UnknownHeadersWarningBanner';
+import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
+import {
+  EXCLOAD_PREVIEW_EMPTY_SHELL,
+  EXCLOAD_PREVIEW_HEIGHT_DEFAULT,
+  EXCLOAD_PREVIEW_HEIGHT_EXPANDED,
+  EXCLOAD_PREVIEW_TABLE_SHELL,
+  EXCLOAD_PREVIEW_TOOL_BTN,
+  EXCLOAD_PREVIEW_TOOLBAR_SHELL,
+} from '@/app/lib/ui/excload-preview-ui';
 
-/** 미리보기 상단·보조 액션 버튼 공통 틀 (색상·배경만 개별 지정) */
-const PREVIEW_TOOLBAR_BTN =
-  'inline-flex h-9 flex-shrink-0 items-center justify-center rounded-lg border px-3 text-sm font-medium leading-none transition';
+/** @deprecated 허브 정렬 — EXCLOAD_PREVIEW_TOOL_BTN 사용 */
+const PREVIEW_TOOLBAR_BTN = EXCLOAD_PREVIEW_TOOL_BTN;
 const DEFAULT_CJ_INTRO_SUPPRESS_KEY = ORDER_DEFAULT_CJ_INTRO_SUPPRESS_KEY;
 
 interface CourierUploadHeader {
@@ -3703,77 +3711,36 @@ export default function OrderConvertPage() {
         onApply={handleBundleShippingApply}
       />
 
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-[400px] p-6">
-            <h4 className="text-lg font-semibold mb-3">
-              선택한 {selectedRows.length}개 항목을 삭제하시겠습니까?
-            </h4>
+      <ExcloudConfirmDialog
+        open={isDeleteModalOpen}
+        title={`선택한 ${selectedRows.length}개 항목을 삭제하시겠습니까?`}
+        description="선택한 항목을 삭제하고, 나머지 데이터만 유지합니다."
+        confirmLabel="삭제"
+        variant="danger"
+        onCancel={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          const deleted = selectedRows;
+          setPreviewRows((prev) => prev.filter((row) => !deleted.includes(row.rowId)));
+          setOrderStandardRowsByRowId((prev) => pruneOrderSnapshotsForRowIds(prev, deleted));
+          setSelectedRows([]);
+          setIsDeleteModalOpen(false);
+        }}
+      />
 
-            <p className="text-sm text-gray-500 mb-6">
-              선택한 항목을 삭제하고, 나머지 데이터만 유지합니다.
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                className="px-4 py-2 text-sm border rounded hover:bg-gray-100"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                취소
-              </button>
-
-              <button
-                className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                onClick={() => {
-                  const deleted = selectedRows;
-                  setPreviewRows((prev) =>
-                    prev.filter((row) => !deleted.includes(row.rowId)),
-                  );
-                  setOrderStandardRowsByRowId((prev) =>
-                    pruneOrderSnapshotsForRowIds(prev, deleted),
-                  );
-                  setSelectedRows([]);
-                  setIsDeleteModalOpen(false);
-                }}
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isPreviewResetModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg w-[min(100%,400px)] p-6 border border-zinc-200 dark:border-zinc-700">
-            <h4 className="text-lg font-semibold mb-3 text-zinc-900 dark:text-zinc-100">
-              미리보기 초기화
-            </h4>
-            <p className="text-sm text-gray-600 dark:text-zinc-400 mb-2 leading-relaxed">
-              첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">
-              등록한 택배 양식·고정 입력은 그대로 둡니다.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                className="rounded border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setIsPreviewResetModalOpen(false)}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700"
-                onClick={applyFullPreviewWorkspaceReset}
-              >
-                초기화
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExcloudConfirmDialog
+        open={isPreviewResetModalOpen}
+        title="미리보기 초기화"
+        description={
+          <>
+            <p>첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.</p>
+            <p className="text-zinc-500">등록한 택배 양식·고정 입력은 그대로 둡니다.</p>
+          </>
+        }
+        confirmLabel="초기화"
+        variant="warning"
+        onCancel={() => setIsPreviewResetModalOpen(false)}
+        onConfirm={applyFullPreviewWorkspaceReset}
+      />
 
       <div className="pt-1.5 pb-4 bg-zinc-50 dark:bg-black">
       <main className="max-w-[1200px] mx-auto px-3 sm:px-5 lg:px-8">
@@ -4001,239 +3968,244 @@ export default function OrderConvertPage() {
           </div>
         </section>
 
-        {/* 변환된 파일 출력 영역 레이아웃 */}
-        <section className="relative py-3">
-          <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
-            <div className="px-6 pt-6 pb-4">
-              {/* 미리보기: 그리드로 제목(1열) / 버튼·건수안내·편집안내(2열, 펼치기 시작점 정렬) */}
-              <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 items-start">
-                <h3 className="row-start-1 col-start-1 self-center text-lg font-semibold">미리보기</h3>
+        {/* 변환된 파일 출력 영역 — 주문연동 허브와 동일 톤 */}
+        <section className="relative pb-2 pt-1">
+          <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2.5">
+            <h3 className="text-lg font-semibold text-gray-900">미리보기</h3>
+            {previewRows.length > 0 && courierHeaders.length > 0 ? (
+              <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+                {previewRows.length.toLocaleString()}건
+              </span>
+            ) : null}
+          </div>
 
-                <div className="row-start-1 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                  {previewRows.length > 0 && courierHeaders.length > 0 && (
+          {previewRows.length > 0 && courierHeaders.length > 0 ? (
+            <div className={EXCLOAD_PREVIEW_TOOLBAR_SHELL}>
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  className={EXCLOAD_PREVIEW_TOOL_BTN}
+                  onClick={() => setIsPreviewExpanded((prev) => !prev)}
+                >
+                  {isPreviewExpanded ? (
+                    <Minimize2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  ) : (
+                    <Maximize2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  )}
+                  {isPreviewExpanded ? '닫기' : '펼치기'}
+                </button>
+                <button
+                  type="button"
+                  className={EXCLOAD_PREVIEW_TOOL_BTN}
+                  onClick={() => setIsPreviewResetModalOpen(true)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  초기화
+                </button>
+                {selectedRows.length > 0 ? (
+                  <button
+                    type="button"
+                    className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-red-600 px-2.5 text-xs font-semibold text-white transition hover:bg-red-700"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    선택 삭제 {selectedRows.length}
+                  </button>
+                ) : null}
+              </div>
+
+              {bundleShippingDetection.columns ? (
+                bundleApplyUndo ? (
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 sm:border-t-0 sm:pt-0">
+                    <p className="rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs leading-snug text-zinc-600">
+                      묶음 적용 · 삭제{' '}
+                      <span className="font-semibold text-red-600">
+                        {bundleApplyUndo.summary.deletedRowCount}
+                      </span>
+                      · 개별{' '}
+                      <span className="font-semibold text-zinc-800">
+                        {bundleApplyUndo.summary.individualGroupCount}
+                      </span>
+                      · 묶음{' '}
+                      <span className="font-semibold text-zinc-800">
+                        {bundleApplyUndo.summary.bundleDoneGroupCount}
+                      </span>
+                    </p>
                     <button
                       type="button"
-                      className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                      onClick={() => setIsPreviewExpanded(prev => !prev)}
+                      className={`${EXCLOAD_PREVIEW_TOOL_BTN} border border-zinc-200 bg-white`}
+                      onClick={handleUndoBundleShippingApply}
                     >
-                      {isPreviewExpanded ? '닫기' : '펼치기'}
+                      <RotateCcw className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                      적용 취소
                     </button>
-                  )}
-
-                  {previewRows.length > 0 && courierHeaders.length > 0 && (
-                    <button
-                      type="button"
-                      className={`${PREVIEW_TOOLBAR_BTN} border-amber-500/80 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
-                      onClick={() => setIsPreviewResetModalOpen(true)}
-                    >
-                      미리보기 초기화
-                    </button>
-                  )}
-
-                  {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
-                    <button
-                      type="button"
-                      className={`${PREVIEW_TOOLBAR_BTN} border-red-600 bg-red-600 text-white hover:bg-red-700`}
-                      onClick={() => {
-                        setIsDeleteModalOpen(true);
-                      }}
-                    >
-                      선택 삭제
-                    </button>
-                  )}
-
-                  {previewRows.length > 0 &&
-                    courierHeaders.length > 0 &&
-                    bundleShippingDetection.columns &&
-                    (bundleApplyUndo ? (
-                      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                        <div
-                          className={`${PREVIEW_TOOLBAR_BTN} whitespace-nowrap border-violet-400/70 bg-violet-50 font-normal text-violet-950`}
-                        >
-                          묶음 : 삭제{' '}
-                          <b className="font-medium text-red-600">
-                            {bundleApplyUndo.summary.deletedRowCount}
-                          </b>
-                          건 · 개별배송{' '}
-                          <b className="font-medium">{bundleApplyUndo.summary.individualGroupCount}</b>
-                          그룹 · 묶음결정{' '}
-                          <b className="font-medium">{bundleApplyUndo.summary.bundleDoneGroupCount}</b>그룹
-                        </div>
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                          onClick={handleUndoBundleShippingApply}
-                        >
-                          묶음배송 적용취소
-                        </button>
-                      </div>
-                    ) : (
-                      bundleShippingGroupCount > 0 && (
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} border-violet-500/80 bg-violet-50 text-violet-900 hover:bg-violet-100 ${
-                            !bundleShippingButtonAcked
-                              ? 'animate-pulse ring-2 ring-violet-400/80'
-                              : ''
-                          }`}
-                          onClick={() => {
-                            setBundleShippingButtonAcked(true);
-                            setIsBundleShippingModalOpen(true);
-                          }}
-                        >
-                          묶음배송가능건확인 ({bundleShippingGroupCount}그룹 ·{' '}
-                          {bundleShippingRowCount}건)
-                        </button>
-                      )
-                    ))}
-                </div>
-
-                {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <p className="row-start-2 col-start-2 min-w-0 text-sm text-gray-500">
-                    ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
-                    ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
-                    ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                  </p>
-                )}
-
-                {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                  <div className="row-start-3 col-start-2 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-snug sm:leading-tight">
-                    <span className="text-black sm:whitespace-normal">
-                      주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                    </span>
-                    <span className="font-medium text-blue-600 sm:whitespace-nowrap">
-                      총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                    </span>
-                    {hasMorePreviewRows && (
-                      <>
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                          onClick={() =>
-                            setRenderedRowCount((prev) =>
-                              Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                            )
-                          }
-                        >
-                          추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                        </button>
-                        <button
-                          type="button"
-                          className={`${PREVIEW_TOOLBAR_BTN} border-gray-300 bg-white text-gray-800 hover:bg-gray-100`}
-                          onClick={() => setRenderedRowCount(sortedRows.length)}
-                        >
-                          전체 보기
-                        </button>
-                      </>
-                    )}
                   </div>
-                )}
-              </div>
-            </div>
-            {previewSessionEnabled &&
-            isPreviewSessionRestoring &&
-            (previewRows.length === 0 || courierHeaders.length === 0) ? (
-              <div className="min-h-[192px] flex flex-col items-center justify-center gap-2 px-4 text-center text-sm text-gray-500">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                <p>이전 작업 내용을 불러오는 중입니다…</p>
-              </div>
-            ) : previewRows.length === 0 || courierHeaders.length === 0 ? (
-              <div className="min-h-[192px] flex items-center justify-center px-4 text-center text-sm leading-relaxed text-gray-400">
-                <p>
-                  주문을 가져오면 변환결과가 여기에 표시됩니다
-                  <br />
-                  파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                </p>
-              </div>
-            ) : (
-              <>
-                <UnknownHeadersWarningBanner
-                  unknownHeaders={unknownHeadersWarning}
-                  unknownHeaderSamples={unknownHeaderSamples}
-                  expanded={unknownHeadersExpanded}
-                  onExpandedChange={setUnknownHeadersExpanded}
-                  variant="courier"
-                  onDirectMapping={handleOpenDirectMappingModal}
-                />
-
-                {/* 
-                  미리보기 렌더링 데이터 소스: previewRows / courierHeaders
-                  - courierHeaders 기준으로 전체 컬럼 구조 표시
-                */}
-                <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
-                  isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
-                }`}>
-                  <div
-                    ref={previewScrollContainerRef}
-                    onScroll={handlePreviewScroll}
-                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar preview-table-no-copy`}
-                    onCopy={(e) => {
-                      const t = e.target;
-                      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
-                      e.preventDefault();
+                ) : bundleShippingGroupCount > 0 ? (
+                  <button
+                    type="button"
+                    className={`inline-flex h-8 shrink-0 items-center justify-center gap-1.5 self-start rounded-md border border-violet-200 bg-violet-50 px-2.5 text-xs font-semibold text-violet-900 transition hover:bg-violet-100 sm:self-auto ${
+                      !bundleShippingButtonAcked ? 'ring-2 ring-violet-300/70' : ''
+                    }`}
+                    onClick={() => {
+                      setBundleShippingButtonAcked(true);
+                      setIsBundleShippingModalOpen(true);
                     }}
                   >
-                    <table className="min-w-max text-sm border border-gray-300 border-collapse">
-                      <thead className="bg-gray-50 sticky top-0 z-20">
-                        <tr>
-                          <th className="sticky left-0 z-30 border border-gray-300 bg-gray-50 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap shadow-[1px_0_0_0_rgba(209,213,219,1)]">
-                            <input
-                              type="checkbox"
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedRows(previewRows.map(row => row.rowId));
-                                } else {
-                                  setSelectedRows([]);
+                    <Package className="h-3.5 w-3.5" aria-hidden />
+                    묶음배송 {bundleShippingGroupCount}그룹
+                    <span className="font-medium text-violet-700/80">
+                      · {bundleShippingRowCount}건
+                    </span>
+                  </button>
+                ) : null
+              ) : null}
+            </div>
+          ) : null}
+
+          {previewRows.length > 0 && courierHeaders.length > 0 ? (
+            <p className="mb-2 text-xs leading-relaxed text-zinc-500">
+              셀 클릭으로 수정 · 헤더 클릭으로 정렬 · 체크 후 선택 삭제
+            </p>
+          ) : null}
+
+          {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded ? (
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-snug text-zinc-500">
+              <span>
+                <span className="font-medium text-blue-700">
+                  {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}
+                </span>
+                {' / '}
+                {sortedRows.length.toLocaleString()}건 표시
+              </span>
+              {hasMorePreviewRows ? (
+                <>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 font-medium text-blue-700 transition hover:bg-blue-50"
+                    onClick={() =>
+                      setRenderedRowCount((prev) =>
+                        Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                      )
+                    }
+                  >
+                    +{PREVIEW_BATCH_SIZE}건 더보기
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 font-medium text-zinc-600 transition hover:bg-zinc-100"
+                    onClick={() => setRenderedRowCount(sortedRows.length)}
+                  >
+                    전체 보기
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {previewSessionEnabled &&
+          isPreviewSessionRestoring &&
+          (previewRows.length === 0 || courierHeaders.length === 0) ? (
+            <div className={`${EXCLOAD_PREVIEW_EMPTY_SHELL} flex-col gap-2 text-sm text-gray-500`}>
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <p>이전 작업 내용을 불러오는 중입니다…</p>
+            </div>
+          ) : previewRows.length === 0 || courierHeaders.length === 0 ? (
+            <div className={EXCLOAD_PREVIEW_EMPTY_SHELL}>
+              <p className="max-w-md text-sm leading-relaxed text-gray-500">
+                주문을 가져오면 변환결과가 여기에 표시됩니다
+                <br />
+                파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+              </p>
+            </div>
+          ) : (
+            <>
+              <UnknownHeadersWarningBanner
+                unknownHeaders={unknownHeadersWarning}
+                unknownHeaderSamples={unknownHeaderSamples}
+                expanded={unknownHeadersExpanded}
+                onExpandedChange={setUnknownHeadersExpanded}
+                variant="courier"
+                onDirectMapping={handleOpenDirectMappingModal}
+              />
+
+              <div
+                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} ${
+                  isPreviewExpanded
+                    ? EXCLOAD_PREVIEW_HEIGHT_EXPANDED
+                    : EXCLOAD_PREVIEW_HEIGHT_DEFAULT
+                }`}
+              >
+                <div
+                  ref={previewScrollContainerRef}
+                  onScroll={handlePreviewScroll}
+                  className={`${isPreviewExpanded ? '' : 'h-full'} overflow-auto min-h-0 preview-scrollbar preview-table-no-copy`}
+                  onCopy={(e) => {
+                    const t = e.target;
+                    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
+                    e.preventDefault();
+                  }}
+                >
+                  <table className="min-w-max border-collapse text-left text-xs">
+                    <thead className="sticky top-0 z-20 bg-zinc-100">
+                      <tr>
+                        <th className="sticky left-0 z-30 border-b border-zinc-200 bg-zinc-100 px-2 py-2 text-left font-semibold shadow-[1px_0_0_0_rgba(228,228,231,1)] sm:whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRows(previewRows.map((row) => row.rowId));
+                              } else {
+                                setSelectedRows([]);
+                              }
+                            }}
+                          />
+                        </th>
+                        {courierHeaders.map((header) => (
+                          <th
+                            key={header}
+                            className="cursor-pointer select-none whitespace-nowrap border-b border-zinc-200 px-2 py-2 text-left font-semibold text-zinc-700"
+                            onClick={() => {
+                              setSortConfig((prev) => {
+                                if (!prev || prev.header !== header) {
+                                  return { header, direction: 'asc' };
                                 }
-                              }}
-                            />
-                          </th>
-                          {courierHeaders.map((header) => (
-                            <th
-                              key={header}
-                              className="border border-gray-300 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap cursor-pointer select-none"
-                              onClick={() => {
-                                setSortConfig(prev => {
-                                  if (!prev || prev.header !== header) {
-                                    return { header, direction: 'asc' };
-                                  }
-                                  if (prev.direction === 'asc') {
-                                    return { header, direction: 'desc' };
-                                  }
-                                  return null;
-                                });
-                              }}
-                            >
-                              <div className="flex items-center gap-1">
+                                if (prev.direction === 'asc') {
+                                  return { header, direction: 'desc' };
+                                }
+                                return null;
+                              });
+                            }}
+                          >
+                            <div className="flex items-center gap-1">
+                              <span
+                                className={
+                                  sortConfig?.header === header
+                                    ? sortConfig.direction === 'asc'
+                                      ? 'font-semibold text-blue-600'
+                                      : 'font-semibold text-red-600'
+                                    : ''
+                                }
+                              >
+                                {header}
+                              </span>
+
+                              {sortConfig?.header === header && (
                                 <span
                                   className={
-                                    sortConfig?.header === header
-                                      ? sortConfig.direction === 'asc'
-                                        ? 'text-blue-600 font-semibold'
-                                        : 'text-red-600 font-semibold'
-                                      : ''
+                                    sortConfig.direction === 'asc'
+                                      ? 'text-xs text-blue-600'
+                                      : 'text-xs text-red-600'
                                   }
                                 >
-                                  {header}
+                                  {sortConfig.direction === 'asc' ? '▲' : '▼'}
                                 </span>
-
-                                {sortConfig?.header === header && (
-                                  <span
-                                    className={
-                                      sortConfig.direction === 'asc'
-                                        ? 'text-blue-600 text-xs'
-                                        : 'text-red-600 text-xs'
-                                    }
-                                  >
-                                    {sortConfig.direction === 'asc' ? '▲' : '▼'}
-                                  </span>
-                                )}
-                              </div>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
+                              )}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
                         {virtualTopSpacerHeight > 0 && (
                           <tr aria-hidden="true">
                             <td
@@ -4280,7 +4252,6 @@ export default function OrderConvertPage() {
                 </div>
               </>
             )}
-          </div>
         </section>
 
         {/* 기능 설명 섹션 레이아웃 */}

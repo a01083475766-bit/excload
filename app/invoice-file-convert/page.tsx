@@ -13,7 +13,16 @@
 import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Truck, Search, ArrowDown, X, Check, Upload, Loader2 } from 'lucide-react';
+import { Truck, Search, ArrowDown, X, Check, Upload, Loader2, Maximize2, Minimize2, RotateCcw, Trash2, Coins } from 'lucide-react';
+import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
+import {
+  EXCLOAD_PREVIEW_EMPTY_SHELL,
+  EXCLOAD_PREVIEW_HEIGHT_DEFAULT,
+  EXCLOAD_PREVIEW_HEIGHT_EXPANDED,
+  EXCLOAD_PREVIEW_TABLE_SHELL,
+  EXCLOAD_PREVIEW_TOOL_BTN,
+  EXCLOAD_PREVIEW_TOOLBAR_SHELL,
+} from '@/app/lib/ui/excload-preview-ui';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
 import {
   buildTemplateHeaderLogPayload,
@@ -86,7 +95,6 @@ import {
   loadWorkspaceFiles,
   putWorkspaceFiles,
 } from '@/app/lib/workspace-order-files-idb';
-import { Coins } from 'lucide-react';
 import { RequiresAccountOrderModal } from '@/app/components/RequiresAccountOrderInput';
 import { UnknownHeadersWarningBanner } from '@/app/components/UnknownHeadersWarningBanner';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
@@ -2585,78 +2593,36 @@ export default function InvoiceFileConvertPage() {
         onClose={() => setRequiresAccountModalOpen(false)}
       />
 
-      {/* 삭제 확인 모달 */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-[400px] p-6">
-            <h4 className="text-lg font-semibold mb-3">
-              선택한 {selectedRows.length}개 항목을 삭제하시겠습니까?
-            </h4>
+      <ExcloudConfirmDialog
+        open={isDeleteModalOpen}
+        title={`선택한 ${selectedRows.length}개 항목을 삭제하시겠습니까?`}
+        description="선택한 항목을 삭제하고, 나머지 데이터만 유지합니다."
+        confirmLabel="삭제"
+        variant="danger"
+        onCancel={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          const deleted = selectedRows;
+          setPreviewRows((prev) => prev.filter((row) => !deleted.includes(row.rowId)));
+          setOrderStandardRowsByRowId((prev) => pruneOrderSnapshotsForRowIds(prev, deleted));
+          setSelectedRows([]);
+          setIsDeleteModalOpen(false);
+        }}
+      />
 
-            <p className="text-sm text-gray-500 mb-6">
-              선택한 항목을 삭제하고, 나머지 데이터만 유지합니다.
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                className="px-4 py-2 text-sm border rounded hover:bg-gray-100"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                취소
-              </button>
-
-              <button
-                className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                onClick={() => {
-                  const deleted = selectedRows;
-                  setPreviewRows((prev) =>
-                    prev.filter((row) => !deleted.includes(row.rowId)),
-                  );
-                  setOrderStandardRowsByRowId((prev) =>
-                    pruneOrderSnapshotsForRowIds(prev, deleted),
-                  );
-                  setSelectedRows([]);
-                  setIsDeleteModalOpen(false);
-                }}
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isPreviewResetModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-lg w-[min(100%,400px)] p-6 border border-zinc-200 dark:border-zinc-700">
-            <h4 className="text-lg font-semibold mb-3 text-zinc-900 dark:text-zinc-100">
-              미리보기 초기화
-            </h4>
-            <p className="text-sm text-gray-600 dark:text-zinc-400 mb-2 leading-relaxed">
-              첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">
-              등록한 쇼핑몰 송장 양식·고정 입력은 그대로 둡니다.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                className="rounded border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setIsPreviewResetModalOpen(false)}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                className="rounded bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700"
-                onClick={applyInvoicePreviewWorkspaceReset}
-              >
-                초기화
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExcloudConfirmDialog
+        open={isPreviewResetModalOpen}
+        title="미리보기 초기화"
+        description={
+          <>
+            <p>첨부·주문 정보와 미리보기를 비우고 처음 화면 상태로 되돌립니다.</p>
+            <p className="text-zinc-500">등록한 쇼핑몰 송장 양식·고정 입력은 그대로 둡니다.</p>
+          </>
+        }
+        confirmLabel="초기화"
+        variant="warning"
+        onCancel={() => setIsPreviewResetModalOpen(false)}
+        onConfirm={applyInvoicePreviewWorkspaceReset}
+      />
 
       {showTrialDownloadModal && (
         <div
@@ -2929,307 +2895,318 @@ export default function InvoiceFileConvertPage() {
           </div>
         </section>
 
-        {/* 변환된 파일 출력 영역 레이아웃 */}
-        <section className="relative py-3">
-          <div className="w-full bg-gray-200 border border-gray-300 rounded-xl">
-            <div className="px-6 pt-6 pb-4">
-              {/* 미리보기: 그리드로 제목(1열) / 버튼·건수안내·편집안내(2열, 펼치기 시작점 정렬) */}
-              <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 items-start">
-                <h3 className="row-start-1 col-start-1 self-center text-lg font-semibold">미리보기</h3>
+        {/* 변환된 파일 출력 영역 — 주문연동 허브와 동일 톤 */}
+        <section className="relative pb-2 pt-1">
+          <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2.5">
+            <h3 className="text-lg font-semibold text-gray-900">미리보기</h3>
+            {previewRows.length > 0 && courierHeaders.length > 0 ? (
+              <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-zinc-600">
+                {previewRows.length.toLocaleString()}건
+              </span>
+            ) : null}
+          </div>
 
-                <div className="row-start-1 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                  {previewRows.length > 0 && courierHeaders.length > 0 && (
-                    <button
-                      data-ex-tooltip={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
-                      className={`${trialMode ? 'ex-tooltip-target ' : ''}inline-flex h-9 w-20 flex-shrink-0 items-center justify-center rounded border text-sm transition`}
-                      onClick={() => setIsPreviewExpanded(prev => !prev)}
-                    >
-                      {isPreviewExpanded ? '닫기' : '펼치기'}
-                    </button>
+          {previewRows.length > 0 && courierHeaders.length > 0 ? (
+            <div className={EXCLOAD_PREVIEW_TOOLBAR_SHELL}>
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  data-ex-tooltip={trialMode ? '미리보기 영역을 펼치거나 접습니다.' : undefined}
+                  className={`${trialMode ? 'ex-tooltip-target' : ''} ${EXCLOAD_PREVIEW_TOOL_BTN}`}
+                  onClick={() => setIsPreviewExpanded((prev) => !prev)}
+                >
+                  {isPreviewExpanded ? (
+                    <Minimize2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  ) : (
+                    <Maximize2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
                   )}
-
-                  {previewRows.length > 0 && courierHeaders.length > 0 && (
-                    <button
-                      type="button"
-                      data-ex-tooltip={trialMode ? '주문 파일·송장 파일과 미리보기만 비우고 처음 상태로 되돌립니다.' : undefined}
-                      className={`${trialMode ? 'ex-tooltip-target ' : ''}inline-flex h-9 flex-shrink-0 items-center justify-center rounded border border-amber-500/80 bg-amber-50 px-3 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70`}
-                      onClick={() => setIsPreviewResetModalOpen(true)}
-                    >
-                      미리보기 초기화
-                    </button>
-                  )}
-
-                  <div className="flex w-20 flex-shrink-0 justify-start">
-                    {previewRows.length > 0 && courierHeaders.length > 0 && selectedRows.length > 0 && (
-                      <button
-                        className="inline-flex h-9 w-20 items-center justify-center rounded-md bg-red-600 text-sm font-medium text-white hover:bg-red-700"
-                        onClick={() => {
-                          setIsDeleteModalOpen(true);
-                        }}
-                      >
-                        선택 삭제
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {previewRows.length > 0 && courierHeaders.length > 0 && (
-                  <p className="row-start-2 col-start-2 min-w-0 text-sm text-gray-500">
-                    ✔ 셀을 클릭하면 수정할 수 있습니다.{' '}
-                    ✔ 주소, 상품 등을 클릭하면 오름/내림차순 정렬됩니다.{' '}
-                    ✔ 체크박스로 선택 후 삭제할 수 있습니다.
-                  </p>
-                )}
-
-                {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded && (
-                  <div className="row-start-3 col-start-2 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-snug sm:leading-tight">
-                    <span className="text-black sm:whitespace-normal">
-                      주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                    </span>
-                    <span className="font-medium text-blue-600 sm:whitespace-nowrap">
-                      총 {sortedRows.length.toLocaleString()}건 중 {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}건 표시 중
-                    </span>
-                    {hasMorePreviewRows && (
-                      <>
-                        <button
-                          className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
-                          type="button"
-                          onClick={() =>
-                            setRenderedRowCount((prev) =>
-                              Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
-                            )
-                          }
-                        >
-                          추가 조회 (다음 {PREVIEW_BATCH_SIZE}건)
-                        </button>
-                        <button
-                          className="h-7 flex-shrink-0 rounded border px-2.5 text-xs hover:bg-gray-100"
-                          type="button"
-                          onClick={() => setRenderedRowCount(sortedRows.length)}
-                        >
-                          전체 보기
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
+                  {isPreviewExpanded ? '닫기' : '펼치기'}
+                </button>
+                <button
+                  type="button"
+                  data-ex-tooltip={
+                    trialMode
+                      ? '주문 파일·송장 파일과 미리보기만 비우고 처음 상태로 되돌립니다.'
+                      : undefined
+                  }
+                  className={`${trialMode ? 'ex-tooltip-target' : ''} ${EXCLOAD_PREVIEW_TOOL_BTN}`}
+                  onClick={() => setIsPreviewResetModalOpen(true)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
+                  초기화
+                </button>
+                {selectedRows.length > 0 ? (
+                  <button
+                    type="button"
+                    className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-red-600 px-2.5 text-xs font-semibold text-white transition hover:bg-red-700"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    선택 삭제 {selectedRows.length}
+                  </button>
+                ) : null}
               </div>
             </div>
-            {previewSessionEnabled &&
-            isPreviewSessionRestoring &&
-            (!previewReady || previewRows.length === 0 || courierHeaders.length === 0) ? (
-              <div className="min-h-[192px] flex flex-col items-center justify-center gap-2 px-4 text-center text-sm text-gray-500">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                <p>이전 작업 내용을 불러오는 중입니다…</p>
-              </div>
-            ) : !previewReady || previewRows.length === 0 || courierHeaders.length === 0 ? (
-              <div className="min-h-[192px] flex items-center justify-center text-gray-400 px-4 text-center text-sm leading-relaxed">
-                <>
-                  주문파일과 송장번호파일을 가져오면 변환결과가 여기에 표시됩니다
-                  <br />
-                  파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
-                </>
-              </div>
-            ) : (
-              <>
-                <UnknownHeadersWarningBanner
-                  unknownHeaders={unknownHeadersWarning}
-                  unknownHeaderSamples={unknownHeaderSamples}
-                  expanded={unknownHeadersExpanded}
-                  onExpandedChange={setUnknownHeadersExpanded}
-                  variant="invoice"
-                />
+          ) : null}
 
-                {/* 
-                  미리보기 렌더링 데이터 소스: previewRows / courierHeaders
-                  - courierHeaders 기준으로 전체 컬럼 구조 표시
-                */}
-                <div className={`border rounded-lg bg-white flex flex-col overflow-hidden mx-6 mb-6 ${
-                  isPreviewExpanded ? 'max-h-[750px] h-auto' : 'h-[260px]'
-                }`}>
-                  <div
-                    ref={previewScrollContainerRef}
-                    onScroll={handlePreviewScroll}
-                    className={`${isPreviewExpanded ? '' : 'flex-1'} overflow-auto min-h-0 preview-scrollbar`}
-                    onMouseEnter={() => {
-                      previewHoverPausedRef.current = true;
-                    }}
-                    onMouseLeave={() => {
-                      previewHoverPausedRef.current = false;
-                    }}
+          {previewRows.length > 0 && courierHeaders.length > 0 ? (
+            <p className="mb-2 text-xs leading-relaxed text-zinc-500">
+              셀 클릭으로 수정 · 헤더 클릭으로 정렬 · 체크 후 선택 삭제
+            </p>
+          ) : null}
+
+          {previewRows.length > 0 && courierHeaders.length > 0 && !isPreviewExpanded ? (
+            <div className="mb-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-snug text-zinc-500">
+              <span>
+                <span className="font-medium text-blue-700">
+                  {Math.min(renderedRowCount, sortedRows.length).toLocaleString()}
+                </span>
+                {' / '}
+                {sortedRows.length.toLocaleString()}건 표시
+              </span>
+              {hasMorePreviewRows ? (
+                <>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 font-medium text-blue-700 transition hover:bg-blue-50"
+                    onClick={() =>
+                      setRenderedRowCount((prev) =>
+                        Math.min(prev + PREVIEW_BATCH_SIZE, sortedRows.length),
+                      )
+                    }
                   >
-                    <table className="min-w-max text-sm border border-gray-300 border-collapse">
-                      <thead className="bg-gray-50 sticky top-0 z-20">
-                        <tr>
-                          <th className="border border-gray-300 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap">
+                    +{PREVIEW_BATCH_SIZE}건 더보기
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 font-medium text-zinc-600 transition hover:bg-zinc-100"
+                    onClick={() => setRenderedRowCount(sortedRows.length)}
+                  >
+                    전체 보기
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {previewSessionEnabled &&
+          isPreviewSessionRestoring &&
+          (!previewReady || previewRows.length === 0 || courierHeaders.length === 0) ? (
+            <div className={`${EXCLOAD_PREVIEW_EMPTY_SHELL} flex-col gap-2 text-sm text-gray-500`}>
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <p>이전 작업 내용을 불러오는 중입니다…</p>
+            </div>
+          ) : !previewReady || previewRows.length === 0 || courierHeaders.length === 0 ? (
+            <div className={EXCLOAD_PREVIEW_EMPTY_SHELL}>
+              <p className="max-w-md text-sm leading-relaxed text-gray-500">
+                주문파일과 송장번호파일을 가져오면 변환결과가 여기에 표시됩니다
+                <br />
+                파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.
+              </p>
+            </div>
+          ) : (
+            <>
+              <UnknownHeadersWarningBanner
+                unknownHeaders={unknownHeadersWarning}
+                unknownHeaderSamples={unknownHeaderSamples}
+                expanded={unknownHeadersExpanded}
+                onExpandedChange={setUnknownHeadersExpanded}
+                variant="invoice"
+              />
+
+              {/*
+                미리보기 렌더링 데이터 소스: previewRows / courierHeaders
+                - courierHeaders 기준으로 전체 컬럼 구조 표시
+              */}
+              <div
+                className={`${EXCLOAD_PREVIEW_TABLE_SHELL} ${
+                  isPreviewExpanded
+                    ? EXCLOAD_PREVIEW_HEIGHT_EXPANDED
+                    : EXCLOAD_PREVIEW_HEIGHT_DEFAULT
+                }`}
+              >
+                <div
+                  ref={previewScrollContainerRef}
+                  onScroll={handlePreviewScroll}
+                  className={`${isPreviewExpanded ? '' : 'h-full'} min-h-0 overflow-auto preview-scrollbar`}
+                  onMouseEnter={() => {
+                    previewHoverPausedRef.current = true;
+                  }}
+                  onMouseLeave={() => {
+                    previewHoverPausedRef.current = false;
+                  }}
+                >
+                  <table className="min-w-max border-collapse text-left text-xs">
+                    <thead className="sticky top-0 z-20 bg-zinc-100">
+                      <tr>
+                        <th className="border-b border-zinc-200 bg-zinc-100 px-2 py-2 text-left font-semibold sm:whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedRows(previewRows.map((row) => row.rowId));
+                              } else {
+                                setSelectedRows([]);
+                              }
+                            }}
+                          />
+                        </th>
+                        {courierHeaders.map((header) => (
+                          <th
+                            key={header}
+                            className="cursor-pointer select-none whitespace-nowrap border-b border-zinc-200 px-2 py-2 text-left font-semibold text-zinc-700"
+                            onClick={() => {
+                              setSortConfig((prev) => {
+                                if (!prev || prev.header !== header) {
+                                  return { header, direction: 'asc' };
+                                }
+                                if (prev.direction === 'asc') {
+                                  return { header, direction: 'desc' };
+                                }
+                                return null;
+                              });
+                            }}
+                          >
+                            <div className="flex items-center gap-1">
+                              <span
+                                className={
+                                  sortConfig?.header === header
+                                    ? sortConfig.direction === 'asc'
+                                      ? 'font-semibold text-blue-600'
+                                      : 'font-semibold text-red-600'
+                                    : ''
+                                }
+                              >
+                                {header}
+                              </span>
+
+                              {sortConfig?.header === header && (
+                                <span
+                                  className={
+                                    sortConfig.direction === 'asc'
+                                      ? 'text-xs text-blue-600'
+                                      : 'text-xs text-red-600'
+                                  }
+                                >
+                                  {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                                </span>
+                              )}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {virtualTopSpacerHeight > 0 && (
+                        <tr aria-hidden="true">
+                          <td
+                            colSpan={courierHeaders.length + 1}
+                            style={{ height: `${virtualTopSpacerHeight}px`, padding: 0, border: 0 }}
+                          />
+                        </tr>
+                      )}
+                      {virtualRows.map((row) => {
+                        const isNewRow = newRows.has(row.rowId);
+                        return (
+                        <tr
+                          key={row.rowId}
+                          className={`transition-colors
+                            ${
+                              selectedRows.includes(row.rowId)
+                                ? "bg-blue-100"
+                                : isNewRow
+                                ? "bg-green-100 animate-pulse"
+                                : "hover:bg-gray-50"
+                            }
+                          `}
+                        >
+                          <td className="border-b border-zinc-100 px-2 py-1 sm:whitespace-nowrap">
                             <input
                               type="checkbox"
+                              checked={selectedRows.includes(row.rowId)}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedRows(previewRows.map(row => row.rowId));
+                                  setSelectedRows((prev) => [...prev, row.rowId]);
                                 } else {
-                                  setSelectedRows([]);
+                                  setSelectedRows((prev) =>
+                                    prev.filter((id) => id !== row.rowId),
+                                  );
                                 }
                               }}
                             />
-                          </th>
-                          {courierHeaders.map((header) => (
-                            <th
-                              key={header}
-                              className="border border-gray-300 px-2 py-1 text-left font-semibold border-b sm:whitespace-nowrap cursor-pointer select-none"
-                              onClick={() => {
-                                setSortConfig(prev => {
-                                  if (!prev || prev.header !== header) {
-                                    return { header, direction: 'asc' };
-                                  }
-                                  if (prev.direction === 'asc') {
-                                    return { header, direction: 'desc' };
-                                  }
-                                  return null;
-                                });
-                              }}
-                            >
-                              <div className="flex items-center gap-1">
-                                <span
-                                  className={
-                                    sortConfig?.header === header
-                                      ? sortConfig.direction === 'asc'
-                                        ? 'text-blue-600 font-semibold'
-                                        : 'text-red-600 font-semibold'
-                                      : ''
-                                  }
-                                >
-                                  {header}
-                                </span>
+                          </td>
+                          {courierHeaders.map((header) => {
+                            const cellValue = row.data[header] ?? '';
+                            const overrideValue = userOverrides[row.rowId]?.[header];
+                            const displayValue = overrideValue ?? cellValue;
 
-                                {sortConfig?.header === header && (
-                                  <span
-                                    className={
-                                      sortConfig.direction === 'asc'
-                                        ? 'text-blue-600 text-xs'
-                                        : 'text-red-600 text-xs'
-                                    }
-                                  >
-                                    {sortConfig.direction === 'asc' ? '▲' : '▼'}
-                                  </span>
-                                )}
-                              </div>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {virtualTopSpacerHeight > 0 && (
-                          <tr aria-hidden="true">
-                            <td
-                              colSpan={courierHeaders.length + 1}
-                              style={{ height: `${virtualTopSpacerHeight}px`, padding: 0, border: 0 }}
-                            />
-                          </tr>
-                        )}
-                        {virtualRows.map((row) => {
-                          const isNewRow = newRows.has(row.rowId);
-                          return (
-                          <tr
-                            key={row.rowId}
-                            className={`transition-colors
-                              ${
-                                selectedRows.includes(row.rowId)
-                                  ? "bg-blue-100"
-                                  : isNewRow
-                                  ? "bg-green-100 animate-pulse"
-                                  : "hover:bg-gray-50"
-                              }
-                            `}
-                          >
-                            <td className="border border-gray-300 px-2 py-1 border-b sm:whitespace-nowrap">
-                              <input
-                                type="checkbox"
-                                checked={selectedRows.includes(row.rowId)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedRows(prev => [...prev, row.rowId]);
-                                  } else {
-                                    setSelectedRows(prev =>
-                                      prev.filter(id => id !== row.rowId)
-                                    );
-                                  }
-                                }}
-                              />
-                            </td>
-                            {courierHeaders.map((header) => {
-                              const cellValue = row.data[header] ?? '';
-                              const overrideValue = userOverrides[row.rowId]?.[header];
-                              const displayValue = overrideValue ?? cellValue;
-                              
-                              // 전화번호 필드인지 확인 (헤더 이름에 "전화" 포함)
-                              const isPhoneField = header.includes('전화') || header.includes('phone');
+                            // 전화번호 필드인지 확인 (헤더 이름에 "전화" 포함)
+                            const isPhoneField = header.includes('전화') || header.includes('phone');
 
-                              if (editingCell?.rowId === row.rowId && editingCell?.header === header) {
-                                return (
-                                  <td key={header} className="border border-gray-300 px-2 py-1 border-b sm:whitespace-nowrap bg-yellow-100">
-                                    <input
-                                      autoFocus
-                                      className="w-full h-full border-0 p-0 bg-transparent outline-none text-sm"
-                                      style={{ minHeight: '1.25rem' }}
-                                      value={editingValue}
-                                      onChange={(e) => setEditingValue(e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          commitCellEdit(row.rowId, header, editingValue);
-                                          setEditingCell(null);
-                                          setActiveCell(null);
-                                        } else if (e.key === 'Escape') {
-                                          setEditingCell(null);
-                                          setActiveCell(null);
-                                        }
-                                      }}
-                                      onBlur={() => {
+                            if (editingCell?.rowId === row.rowId && editingCell?.header === header) {
+                              return (
+                                <td key={header} className="border-b border-zinc-100 bg-yellow-100 px-2 py-1 sm:whitespace-nowrap">
+                                  <input
+                                    autoFocus
+                                    className="h-full w-full border-0 bg-transparent p-0 text-xs outline-none"
+                                    style={{ minHeight: '1.25rem' }}
+                                    value={editingValue}
+                                    onChange={(e) => setEditingValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
                                         commitCellEdit(row.rowId, header, editingValue);
                                         setEditingCell(null);
                                         setActiveCell(null);
-                                      }}
-                                    />
-                                  </td>
-                                );
-                              }
-
-                              const isActiveCell = activeCell?.rowId === row.rowId && activeCell?.header === header;
-                              
-                              return (
-                                <td
-                                  key={header}
-                                  className={`border border-gray-300 px-2 py-1 border-b sm:whitespace-nowrap cursor-pointer ${
-                                    isActiveCell ? 'bg-yellow-100' : ''
-                                  }`}
-                                  onClick={() => {
-                                    setEditingValue(displayValue);
-                                    setActiveCell({ rowId: row.rowId, header });
-                                    setEditingCell({ rowId: row.rowId, header });
-                                  }}
-                                >
-                                  {isPhoneField ? formatPhoneDisplay(displayValue) : displayValue}
+                                      } else if (e.key === 'Escape') {
+                                        setEditingCell(null);
+                                        setActiveCell(null);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      commitCellEdit(row.rowId, header, editingValue);
+                                      setEditingCell(null);
+                                      setActiveCell(null);
+                                    }}
+                                  />
                                 </td>
                               );
-                            })}
-                          </tr>
-                          );
-                        })}
-                        {virtualBottomSpacerHeight > 0 && (
-                          <tr aria-hidden="true">
-                            <td
-                              colSpan={courierHeaders.length + 1}
-                              style={{ height: `${virtualBottomSpacerHeight}px`, padding: 0, border: 0 }}
-                            />
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                            }
+
+                            const isActiveCell = activeCell?.rowId === row.rowId && activeCell?.header === header;
+
+                            return (
+                              <td
+                                key={header}
+                                className={`cursor-pointer border-b border-zinc-100 px-2 py-1 sm:whitespace-nowrap ${
+                                  isActiveCell ? 'bg-yellow-100' : ''
+                                }`}
+                                onClick={() => {
+                                  setEditingValue(displayValue);
+                                  setActiveCell({ rowId: row.rowId, header });
+                                  setEditingCell({ rowId: row.rowId, header });
+                                }}
+                              >
+                                {isPhoneField ? formatPhoneDisplay(displayValue) : displayValue}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        );
+                      })}
+                      {virtualBottomSpacerHeight > 0 && (
+                        <tr aria-hidden="true">
+                          <td
+                            colSpan={courierHeaders.length + 1}
+                            style={{ height: `${virtualBottomSpacerHeight}px`, padding: 0, border: 0 }}
+                          />
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </section>
 
         {/* 기능 설명 섹션 레이아웃 */}
