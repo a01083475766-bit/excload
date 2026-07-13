@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CalendarDays } from 'lucide-react';
-import { ORDER_INTEGRATION_MALLS } from '@/app/lib/order-integration/malls';
+import { ORDER_INTEGRATION_MALLS, type OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
 
 /**
  * 주문조회 골격 — 날짜·몰 선택 UI.
@@ -11,7 +11,9 @@ import { ORDER_INTEGRATION_MALLS } from '@/app/lib/order-integration/malls';
  */
 export default function OrderIntegrationFetchPanel() {
   const availableMalls = ORDER_INTEGRATION_MALLS.filter((mall) => mall.status === 'available');
-  const [mallId, setMallId] = useState(availableMalls[0]?.id ?? '');
+  const [mallId, setMallId] = useState<OrderIntegrationMallId>(
+    availableMalls[0]?.id ?? 'coupang',
+  );
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export default function OrderIntegrationFetchPanel() {
           </span>
           <select
             value={mallId}
-            onChange={(event) => setMallId(event.target.value)}
+            onChange={(event) => setMallId(event.target.value as OrderIntegrationMallId)}
             className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
           >
             {availableMalls.map((mall) => (
