@@ -62,6 +62,7 @@ import { HUB_SALES_CHANNEL_IMAGE } from '@/app/lib/order-integration/hub-sales-c
 import { OrderIntegrationFixedInputModal } from '@/app/components/order-integration/OrderIntegrationFixedInputModal';
 import { OrderIntegrationTemplateModal } from '@/app/components/order-integration/OrderIntegrationTemplateModal';
 import { OrderIntegrationScreenshotModal } from '@/app/components/order-integration/OrderIntegrationScreenshotModal';
+import { OrderIntegrationTextProcessingModal } from '@/app/components/order-integration/OrderIntegrationTextProcessingModal';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
 import {
   extractNonEmptyHeaderNames,
@@ -120,6 +121,15 @@ export default function OrderIntegrationHub() {
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateReuploadOpen, setTemplateReuploadOpen] = useState(false);
   const [screenshotModalOpen, setScreenshotModalOpen] = useState(false);
+  const [textProcessingOpen, setTextProcessingOpen] = useState(false);
+  const [textProcessingStage, setTextProcessingStage] = useState<'processing' | 'completed'>(
+    'processing',
+  );
+  const [textProcessingSource, setTextProcessingSource] = useState<'screenshot' | 'imageFile'>(
+    'screenshot',
+  );
+  const nextTextSalesChannelRef = useRef<string | null>(null);
+  const ocrCancelledRef = useRef(false);
   const [activeTemplateHeaderCount, setActiveTemplateHeaderCount] = useState(0);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isPreviewResetModalOpen, setIsPreviewResetModalOpen] = useState(false);
@@ -361,75 +371,59 @@ export default function OrderIntegrationHub() {
       setTemplateBridgeFile(bridge);
       const fixed = loadHubFixedHeaderValues(userId);
       let added = 0;
-      let lastTextReview: { text: string; rows: PreviewRowWithId[] } | null = null;
-
-      for (const file of files) {
+      const imageFiles = files.filter((file) => {
         const name = file.name.toLowerCase();
-        const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
-        const isImage =
+        return (
           name.endsWith('.jpg') ||
           name.endsWith('.jpeg') ||
           name.endsWith('.png') ||
           name.endsWith('.gif') ||
           name.endsWith('.webp') ||
-          file.type.startsWith('image/');
+          file.type.startsWith('image/')
+        );
+      });
+      const excelFiles = files.filter((file) => {
+        const name = file.name.toLowerCase();
+        return name.endsWith('.xlsx') || name.endsWith('.xls');
+      });
 
-        if (isExcel) {
-          setStatusLabel(`${file.name} 엑셀 변환 중…`);
-          let buffer: ArrayBuffer;
-          try {
-            buffer = await unlockExcelFile(file);
-          } catch (error) {
-            if (error instanceof ExcelUnlockCancelledError) continue;
-            throw error;
-          }
-          const result = await convertExcelBufferToHubPreview({
-            buffer,
-            templateBridgeFile: bridge,
-            fixedHeaderValues: fixed,
-            sourceFileName: file.name,
-            onStage2ChunkProgress: (completed, total) => {
-              if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
-            },
-          });
-          appendPreview(result.previewRows, result.courierHeaders, bridge);
-          added += result.previewRows.length;
-          continue;
+      for (const file of excelFiles) {
+        setStatusLabel(`${file.name} 엑셀 변환 중…`);
+        let buffer: ArrayBuffer;
+        try {
+          buffer = await unlockExcelFile(file);
+        } catch (error) {
+          if (error instanceof ExcelUnlockCancelledError) continue;
+          throw error;
         }
-
-        if (isImage) {
-          setStatusLabel(`${file.name} 이미지 인식 중…`);
-          const ocrText = await extractTextFromImage(file);
-          if (!ocrText.trim()) {
-            throw new Error(`${file.name}: 이미지에서 텍스트를 읽지 못했습니다.`);
-          }
-          setStatusLabel('주문 텍스트 변환 중…');
-          const result = await convertTextToHubPreview({
-            text: ocrText,
-            templateBridgeFile: bridge,
-            fixedHeaderValues: fixed,
-            salesChannelFallback: HUB_SALES_CHANNEL_IMAGE,
-            onStage2ChunkProgress: (completed, total) => {
-              if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
-            },
-          });
-          const pointsOk = await deductHubConvertPoints(Math.max(1, ocrText.trim().length), 'text');
-          if (!pointsOk) {
-            throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
-          }
-          void fetchUser();
-          appendPreview(result.previewRows, result.courierHeaders, bridge);
-          added += result.previewRows.length;
-          lastTextReview = { text: ocrText, rows: result.previewRows };
-        }
+        const result = await convertExcelBufferToHubPreview({
+          buffer,
+          templateBridgeFile: bridge,
+          fixedHeaderValues: fixed,
+          sourceFileName: file.name,
+          onStage2ChunkProgress: (completed, total) => {
+            if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
+          },
+        });
+        appendPreview(result.previewRows, result.courierHeaders, bridge);
+        added += result.previewRows.length;
       }
 
       setSelectedFiles([]);
       setStatusLabel(null);
-      showNotice(`변환 완료 · 미리보기에 ${added.toLocaleString()}건이 추가되었습니다.`);
-      if (lastTextReview) {
-        openTextReview(lastTextReview.text, lastTextReview.rows, bridge);
+
+      if (imageFiles.length > 0) {
+        setBusy(null);
+        await runImageOcrToTextInput(imageFiles, 'imageFile');
+        if (added > 0) {
+          showNotice(
+            `엑셀 ${added.toLocaleString()}건 미리보기 반영 · 이미지는 텍스트 칸에 넣었습니다. 확인 후 「텍스트 주문 변환」을 눌러 주세요.`,
+          );
+        }
+        return;
       }
+
+      showNotice(`변환 완료 · 미리보기에 ${added.toLocaleString()}건이 추가되었습니다.`);
     } catch (error) {
       setStatusLabel(null);
       showError(error instanceof Error ? error.message : '파일 변환 중 오류가 발생했습니다.');
@@ -438,50 +432,50 @@ export default function OrderIntegrationHub() {
     }
   };
 
-  const handleScreenshotImage = async (blob: Blob) => {
+  const runImageOcrToTextInput = async (
+    files: File[],
+    source: 'screenshot' | 'imageFile',
+  ) => {
     if (!user) {
-      throw new Error('로그인이 필요합니다.');
+      showError('로그인이 필요합니다.');
+      return;
     }
-    setBusy('file');
+    ocrCancelledRef.current = false;
+    setTextProcessingSource(source);
+    setTextProcessingStage('processing');
+    setTextProcessingOpen(true);
     setHubError(null);
-    setHubNotice(null);
-    setStatusLabel('캡처 화면 인식 중…');
+
     try {
-      const file = new File([blob], 'screenshot.png', { type: blob.type || 'image/png' });
-      const ocrText = await extractTextFromImage(file);
-      if (!ocrText.trim()) {
-        throw new Error('이미지에서 텍스트를 읽지 못했습니다.');
+      const texts: string[] = [];
+      for (const file of files) {
+        if (ocrCancelledRef.current) return;
+        const ocrText = await extractTextFromImage(file);
+        if (ocrText.trim()) texts.push(ocrText.trim());
       }
-      setStatusLabel('주문 텍스트 변환 중…');
-      const bridge = loadHubTemplateBridge(userId);
-      setTemplateBridgeFile(bridge);
-      const fixed = loadHubFixedHeaderValues(userId);
-      const result = await convertTextToHubPreview({
-        text: ocrText,
-        templateBridgeFile: bridge,
-        fixedHeaderValues: fixed,
-        salesChannelFallback: HUB_SALES_CHANNEL_IMAGE,
-        onStage2ChunkProgress: (completed, total) => {
-          if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
-        },
-      });
-      const pointsOk = await deductHubConvertPoints(Math.max(1, ocrText.trim().length), 'text');
-      if (!pointsOk) {
-        throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
+      if (ocrCancelledRef.current) return;
+
+      if (texts.length === 0) {
+        setTextProcessingOpen(false);
+        showError('이미지에서 텍스트를 읽지 못했습니다.');
+        return;
       }
-      void fetchUser();
-      appendPreview(result.previewRows, result.courierHeaders, bridge);
-      setStatusLabel(null);
-      showNotice(
-        `캡처 변환 완료 · 미리보기에 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
-      );
-      openTextReview(ocrText, result.previewRows, bridge);
+
+      const merged = texts.join('\n\n');
+      setTextOrder(merged);
+      nextTextSalesChannelRef.current = HUB_SALES_CHANNEL_IMAGE;
+      setTextProcessingStage('completed');
+      showNotice('텍스트 칸에 반영했습니다. 내용을 확인·수정한 뒤 「텍스트 주문 변환」을 눌러 주세요.');
     } catch (error) {
-      setStatusLabel(null);
-      throw error;
-    } finally {
-      setBusy(null);
+      if (ocrCancelledRef.current) return;
+      setTextProcessingOpen(false);
+      showError(error instanceof Error ? error.message : '이미지 처리 중 오류가 발생했습니다.');
     }
+  };
+
+  const handleScreenshotImage = (blob: Blob) => {
+    const file = new File([blob], 'screenshot.png', { type: 'image/png' });
+    void runImageOcrToTextInput([file], 'screenshot');
   };
 
   const handleTextConvert = async () => {
@@ -505,10 +499,14 @@ export default function OrderIntegrationHub() {
       setTemplateBridgeFile(bridge);
       const fixed = loadHubFixedHeaderValues(userId);
       const trimmed = textOrder.trim();
+      const salesChannelFallback =
+        nextTextSalesChannelRef.current?.trim() || undefined;
+      nextTextSalesChannelRef.current = null;
       const result = await convertTextToHubPreview({
         text: trimmed,
         templateBridgeFile: bridge,
         fixedHeaderValues: fixed,
+        salesChannelFallback,
         onStage2ChunkProgress: (completed, total) => {
           if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
         },
@@ -821,7 +819,8 @@ export default function OrderIntegrationHub() {
                   <div className="mb-2.5 flex shrink-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                     <h3 className="shrink-0 text-base font-semibold text-gray-900">파일선택</h3>
                     <p className="min-w-0 text-xs leading-relaxed text-gray-600">
-                      미연동 쇼핑몰 주문엑셀·이미지를 선택하거나 끌어다 놓으면 바로 미리보기로 변환됩니다
+                      엑셀은 선택·드롭 시 바로 미리보기로 변환됩니다. 이미지는 텍스트 칸으로 옮겨
+                      확인 후 변환합니다
                     </p>
                   </div>
                   <div
@@ -1333,6 +1332,13 @@ export default function OrderIntegrationHub() {
         open={screenshotModalOpen}
         onClose={() => setScreenshotModalOpen(false)}
         onImagePasted={handleScreenshotImage}
+      />
+
+      <OrderIntegrationTextProcessingModal
+        open={textProcessingOpen}
+        stage={textProcessingStage}
+        source={textProcessingSource}
+        onConfirmCompleted={() => setTextProcessingOpen(false)}
       />
 
       <TextConvertResultReviewModal
