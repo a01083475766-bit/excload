@@ -178,9 +178,7 @@ export function applyFormatAsActive(
   const bridgeFile = format.bridgeFile
     ? (JSON.parse(JSON.stringify(format.bridgeFile)) as TemplateBridgeFile)
     : null;
-  if (bridgeFile) {
-    saveActiveBridgeFile(bridgeFile, userId);
-  }
+  saveActiveBridgeFile(bridgeFile, userId);
   return { template, bridgeFile };
 }
 

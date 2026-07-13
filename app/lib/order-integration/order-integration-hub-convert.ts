@@ -26,6 +26,8 @@ import {
   ORDER_DEFAULT_CJ_OPT_OUT_KEY,
 } from '@/app/lib/default-cj-courier-template';
 import type { PreviewRowWithId } from '@/app/order-convert/OrderConvertPreviewTableRow';
+import type { OrderStandardFile, StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
+import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 
 export type HubConvertResult = {
   previewRows: PreviewRowWithId[];
@@ -160,6 +162,38 @@ export async function convertTextToHubPreview(input: {
   return {
     previewRows: toPreviewRowsWithIds(pipelineResult.mergeResult.previewRows),
     courierHeaders: pipelineResult.mergeResult.courierHeaders,
+  };
+}
+
+/** 주문조회(API) orderStandardFile.rows → 택배 양식 미리보기 */
+export async function convertOrderStandardRowsToHubPreview(input: {
+  rows: StandardOrderRow[];
+  templateBridgeFile: TemplateBridgeFile;
+  fixedHeaderValues: Record<string, string>;
+}): Promise<HubConvertResult> {
+  if (!input.rows.length) {
+    throw new Error('미리보기에 담을 주문 행이 없습니다.');
+  }
+
+  const orderData: OrderStandardFile = {
+    baseHeaders: BASE_HEADERS,
+    rows: input.rows.map((row) => ({ ...row })),
+    unknownHeaders: [],
+  };
+
+  const stage3Result = await runMergePipeline({
+    template: input.templateBridgeFile,
+    orderData,
+    fixedInput: input.fixedHeaderValues,
+  });
+
+  if (!stage3Result?.previewRows?.length) {
+    throw new Error('주문조회 결과를 택배 양식으로 변환하지 못했습니다. 등록 양식을 확인해 주세요.');
+  }
+
+  return {
+    previewRows: toPreviewRowsWithIds(stage3Result.previewRows),
+    courierHeaders: stage3Result.courierHeaders,
   };
 }
 

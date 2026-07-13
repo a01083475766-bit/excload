@@ -50,11 +50,14 @@ import {
 } from '@/app/lib/excel/preview-download-xlsx';
 import {
   convertExcelBufferToHubPreview,
+  convertOrderStandardRowsToHubPreview,
   convertTextToHubPreview,
   deductHubConvertPoints,
   loadHubFixedHeaderValues,
   loadHubTemplateBridge,
 } from '@/app/lib/order-integration/order-integration-hub-convert';
+import { consumeHubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
+import type { HubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 import { OrderIntegrationFixedInputModal } from '@/app/components/order-integration/OrderIntegrationFixedInputModal';
 import { OrderIntegrationTemplateModal } from '@/app/components/order-integration/OrderIntegrationTemplateModal';
 import { UploadTemplateChangeReuploadModal } from '@/app/components/UploadTemplateChangeReuploadModal';
@@ -66,6 +69,10 @@ import {
 const PREVIEW_TOOL_BTN =
   'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent px-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40';
 const PREVIEW_BATCH_SIZE = 100;
+
+/** Strict Mode 리마운트 대비: 소비한 주문조회 전달분 */
+let pendingFetchSessionCache: HubPendingFetchTransfer | null = null;
+let pendingFetchApplied = false;
 
 /**
  * 쇼핑몰주문연동 허브 — 미연동 몰 파일·텍스트 변환 + 미리보기.
@@ -100,7 +107,7 @@ export default function OrderIntegrationHub() {
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [renderedRowCount, setRenderedRowCount] = useState(PREVIEW_BATCH_SIZE);
 
-  const [busy, setBusy] = useState<'file' | 'text' | 'download' | null>(null);
+  const [busy, setBusy] = useState<'file' | 'text' | 'download' | 'fetch' | null>(null);
   const [statusLabel, setStatusLabel] = useState<string | null>(null);
   const [fixedInputOpen, setFixedInputOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -192,6 +199,63 @@ export default function OrderIntegrationHub() {
     },
     [markNewRows],
   );
+
+  // Strict Mode 리마운트·재방문 모두 대응: storage 소비 + 미적용 캐시
+  useEffect(() => {
+    const fromStorage = consumeHubPendingFetchTransfer();
+    if (fromStorage) {
+      pendingFetchSessionCache = fromStorage;
+      pendingFetchApplied = false;
+    }
+    const pending =
+      fromStorage ??
+      (!pendingFetchApplied && pendingFetchSessionCache ? pendingFetchSessionCache : null);
+    if (!pending || pendingFetchApplied) return;
+
+    let cancelled = false;
+    const run = async () => {
+      setBusy('fetch');
+      setStatusLabel('주문조회 결과를 미리보기에 담는 중…');
+      try {
+        const bridge = refreshTemplateBridge();
+        if (!bridge) {
+          throw new Error('택배 업로드 양식이 없습니다. 먼저 양식을 등록해 주세요.');
+        }
+        const fixedHeaderValues = loadHubFixedHeaderValues(userId);
+        const result = await convertOrderStandardRowsToHubPreview({
+          rows: pending.rows,
+          templateBridgeFile: bridge,
+          fixedHeaderValues,
+        });
+        if (cancelled) return;
+        pendingFetchApplied = true;
+        pendingFetchSessionCache = null;
+        appendPreview(result.previewRows, result.courierHeaders, bridge);
+        const mallLabel =
+          pending.mallSummaries.length > 0
+            ? pending.mallSummaries.map((m) => `${m.name} ${m.count}건`).join(', ')
+            : null;
+        showNotice(
+          mallLabel
+            ? `주문조회 → 미리보기 ${result.previewRows.length.toLocaleString()}건 추가 (${mallLabel})`
+            : `주문조회 → 미리보기 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
+        );
+      } catch (error) {
+        if (!cancelled) {
+          showError(error instanceof Error ? error.message : '주문조회 결과를 담지 못했습니다.');
+        }
+      } finally {
+        if (!cancelled) {
+          setBusy(null);
+          setStatusLabel(null);
+        }
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [appendPreview, refreshTemplateBridge, userId]);
 
   const openTextReview = (
     originalText: string,
@@ -530,7 +594,7 @@ export default function OrderIntegrationHub() {
       const aoa = buildPreviewDownloadAoA(courierHeaders, sortedRows, userOverrides);
       const wb = createPreviewDownloadWorkbook(aoa);
       const fileName = buildPreviewDownloadFileName(new Date(), '엑클로드주문연동');
-      const pointsOk = await deductHubConvertPoints(1, 'download');
+      const pointsOk = await deductHubConvertPoints(1000, 'download');
       if (!pointsOk) {
         throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
       }
@@ -600,8 +664,8 @@ export default function OrderIntegrationHub() {
           </div>
 
           <p className="mb-3 px-2 text-center text-sm leading-relaxed text-gray-600 dark:text-zinc-400">
-            API로 연동된 쇼핑몰은 주문조회로, 아직 연동되지 않은 쇼핑몰은 엑셀·텍스트로
-            같은 미리보기에 담아 택배 업로드 양식으로 정리합니다.
+            API로 연동된 쇼핑몰은 「주문조회 하기」에서 조회한 뒤 미리보기에 담을 수 있고, 아직
+            연동되지 않은 쇼핑몰은 이 화면에서 엑셀·텍스트로 변환해 택배 업로드 양식으로 정리합니다.
           </p>
 
           <div className="flex flex-col gap-2 lg:gap-3">
@@ -905,9 +969,9 @@ export default function OrderIntegrationHub() {
           {previewEmpty ? (
             <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-4 py-10 text-center">
               <p className="max-w-md text-sm leading-relaxed text-gray-500">
-                주문조회·파일·텍스트로 주문을 가져오면 변환 결과가 여기에 표시됩니다.
+                파일·텍스트로 주문을 가져오면 변환 결과가 여기에 표시됩니다.
                 <br />
-                파일 크기·건수에 따라 처리 시간이 달라질 수 있습니다.
+                API 연동 몰은 「주문조회 하기」에서 조회 후 미리보기에 담을 수 있습니다.
               </p>
             </div>
           ) : (
@@ -1204,11 +1268,9 @@ export default function OrderIntegrationHub() {
         }}
         onApplied={({ bridgeFile, shouldClearPreview }) => {
           refreshActiveTemplateStatus();
-          if (bridgeFile) {
-            setTemplateBridgeFile(bridgeFile);
-            if (bridgeFile.courierHeaders?.length) {
-              setCourierHeaders(bridgeFile.courierHeaders);
-            }
+          setTemplateBridgeFile(bridgeFile);
+          if (bridgeFile?.courierHeaders?.length) {
+            setCourierHeaders(bridgeFile.courierHeaders);
           }
           if (shouldClearPreview) {
             setSelectedFiles([]);

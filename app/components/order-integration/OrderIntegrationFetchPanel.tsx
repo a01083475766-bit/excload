@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Check, Loader2 } from 'lucide-react';
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
+import type { StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
+import { writeHubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 
 type ConnectedMall = {
   mallId: OrderIntegrationMallId;
@@ -36,12 +39,22 @@ function mallChipClass(selected: boolean): string {
   return 'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50';
 }
 
+function extractStandardRows(data: unknown): StandardOrderRow[] {
+  if (!data || typeof data !== 'object') return [];
+  const file = (data as { orderStandardFile?: { rows?: unknown } }).orderStandardFile;
+  if (!file || !Array.isArray(file.rows)) return [];
+  return file.rows.filter(
+    (row): row is StandardOrderRow =>
+      Boolean(row) && typeof row === 'object' && !Array.isArray(row),
+  ) as StandardOrderRow[];
+}
+
 /**
  * 주문조회 — 연동된 몰만 표시.
- * 구현된 범위: 몰 선택 + 최근 N일(days) + fetch-orders 호출.
- * (검색어·상태·주문/결제일자 구분 등은 몰 API 미연동이라 UI에 넣지 않음)
+ * 구현된 범위: 몰 선택 + 최근 N일(days) + fetch-orders 호출 + 허브 미리보기 전달.
  */
 export default function OrderIntegrationFetchPanel() {
+  const router = useRouter();
   const [loadingMalls, setLoadingMalls] = useState(true);
   const [connectedMalls, setConnectedMalls] = useState<ConnectedMall[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -50,8 +63,13 @@ export default function OrderIntegrationFetchPanel() {
   const [days, setDays] = useState(7);
 
   const [fetching, setFetching] = useState(false);
+  const [sendingToHub, setSendingToHub] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [results, setResults] = useState<FetchMallResult[] | null>(null);
+  const [pendingStandardRows, setPendingStandardRows] = useState<StandardOrderRow[]>([]);
+  const [pendingMallSummaries, setPendingMallSummaries] = useState<
+    Array<{ mallId: string; name: string; count: number }>
+  >([]);
 
   const allSelected =
     connectedMalls.length > 0 && selectedMallIds.size === connectedMalls.length;
@@ -107,25 +125,34 @@ export default function OrderIntegrationFetchPanel() {
     setDays(7);
     setNotice(null);
     setResults(null);
+    setPendingStandardRows([]);
+    setPendingMallSummaries([]);
   };
 
   const selectedMalls = useMemo(
     () => connectedMalls.filter((m) => selectedMallIds.has(m.mallId)),
-    [connectedMalls, selectedMallIds]
+    [connectedMalls, selectedMallIds],
   );
 
   const onSearch = async () => {
     if (selectedMalls.length === 0) {
       setNotice('조회할 쇼핑몰을 선택해 주세요.');
       setResults(null);
+      setPendingStandardRows([]);
+      setPendingMallSummaries([]);
       return;
     }
 
     setFetching(true);
     setNotice(null);
     setResults(null);
+    setPendingStandardRows([]);
+    setPendingMallSummaries([]);
 
     const nextResults: FetchMallResult[] = [];
+    const collectedRows: StandardOrderRow[] = [];
+    const summaries: Array<{ mallId: string; name: string; count: number }> = [];
+
     for (const mall of selectedMalls) {
       try {
         const res = await fetch(`/api/order/integration/${mall.mallId}/fetch-orders`, {
@@ -138,6 +165,7 @@ export default function OrderIntegrationFetchPanel() {
           count?: number;
           message?: string;
           error?: string;
+          orderStandardFile?: { rows?: StandardOrderRow[] };
         };
         if (!res.ok || data.success === false) {
           nextResults.push({
@@ -149,12 +177,19 @@ export default function OrderIntegrationFetchPanel() {
           });
           continue;
         }
+
+        const rows = extractStandardRows(data);
+        if (rows.length > 0) {
+          collectedRows.push(...rows);
+          summaries.push({ mallId: mall.mallId, name: mall.name, count: rows.length });
+        }
+
         nextResults.push({
           mallId: mall.mallId,
           name: mall.name,
           ok: true,
-          count: data.count ?? 0,
-          message: data.message || `${data.count ?? 0}건`,
+          count: data.count ?? rows.length,
+          message: data.message || `${data.count ?? rows.length}건`,
         });
       } catch (error) {
         nextResults.push({
@@ -168,12 +203,37 @@ export default function OrderIntegrationFetchPanel() {
     }
 
     setResults(nextResults);
+    setPendingStandardRows(collectedRows);
+    setPendingMallSummaries(summaries);
     const okCount = nextResults.filter((r) => r.ok).length;
     const totalOrders = nextResults.reduce((sum, r) => sum + r.count, 0);
     setNotice(
-      `최근 ${days}일 · 선택 ${selectedMalls.length}개 몰 중 ${okCount}개 조회 완료 · 총 ${totalOrders.toLocaleString()}건`
+      collectedRows.length > 0
+        ? `최근 ${days}일 · ${okCount}개 몰 조회 완료 · 총 ${totalOrders.toLocaleString()}건 · 미리보기 담기 가능 ${collectedRows.length.toLocaleString()}건`
+        : `최근 ${days}일 · ${okCount}개 몰 조회 완료 · 총 ${totalOrders.toLocaleString()}건`,
     );
     setFetching(false);
+  };
+
+  const sendToHubPreview = () => {
+    if (pendingStandardRows.length === 0 || sendingToHub) return;
+    setSendingToHub(true);
+    try {
+      writeHubPendingFetchTransfer({
+        source: 'order-fetch',
+        createdAt: new Date().toISOString(),
+        rows: pendingStandardRows,
+        mallSummaries: pendingMallSummaries,
+      });
+      router.push('/order/integration');
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : '미리보기로 전달하지 못했습니다. 건수가 너무 많을 수 있습니다.',
+      );
+      setSendingToHub(false);
+    }
   };
 
   const labelCellClass =
@@ -194,7 +254,7 @@ export default function OrderIntegrationFetchPanel() {
         <p className="mt-2 text-sm leading-relaxed text-gray-600">
           연동이 완료된 쇼핑몰의 주문을 조회할 수 있습니다.
           <br />
-          쇼핑몰과 조회 기간을 선택한 뒤 검색해 주세요.
+          조회 후 「미리보기에 담기」로 택배 업로드 양식 미리보기에 합칠 수 있습니다.
         </p>
       </header>
 
@@ -326,6 +386,26 @@ export default function OrderIntegrationFetchPanel() {
               </li>
             ))}
           </ul>
+          {pendingStandardRows.length > 0 ? (
+            <div className="border-t border-zinc-100 bg-emerald-50/70 px-4 py-3">
+              <p className="mb-2 text-sm text-emerald-900">
+                택배 업로드 양식 미리보기에{' '}
+                <span className="font-semibold">
+                  {pendingStandardRows.length.toLocaleString()}건
+                </span>
+                을 담을 수 있습니다.
+              </p>
+              <button
+                type="button"
+                disabled={sendingToHub}
+                onClick={sendToHubPreview}
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {sendingToHub ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                미리보기에 담기
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
