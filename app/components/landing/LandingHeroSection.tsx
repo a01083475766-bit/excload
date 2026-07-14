@@ -74,15 +74,15 @@ export default function LandingHeroSection() {
             </p>
 
             <h1 className="mt-4 break-keep text-[2rem] font-bold leading-snug tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-[2.35rem] lg:text-[2.6rem]">
-              주문 정리부터 송장 처리까지,
+              복잡한 기능은 빼고 빠른 주문정리,
               <br />
               판매자의 반복 업무를 줄입니다.
             </h1>
 
             <p className="mt-4 max-w-xl break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-300 sm:text-lg">
-              쇼핑몰 주문연동, 카톡 주문 변환, 택배·물류 파일 변환,
+              쇼핑몰 주문연동, 카톡주문정리, 택배·물류파일 변환,
               <br className="hidden sm:block" />
-              송장번호 변환과 전송 기능을 오픈 베타에서 먼저 사용해 보세요.
+              송장번호 매칭과 전송 기능을 오픈 베타에서 먼저 사용해보세요.
             </p>
 
             <ul className="mt-6 space-y-2.5 text-[15px] text-zinc-800 dark:text-zinc-200 sm:text-base">
