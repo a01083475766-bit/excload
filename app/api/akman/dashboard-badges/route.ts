@@ -46,14 +46,12 @@ export async function GET(request: Request) {
       templateLogsSince,
       headerDictSince,
       aiMappingSince,
-      feedbackSince,
     ] = await Promise.all([
       prisma.payment.count({ where: sinceFilter }),
       prisma.pointHistory.count({ where: sinceFilter }),
       prisma.templateHeaderLog.count({ where: sinceFilter }),
       prisma.headerDictionary.count({ where: { firstSeenAt: { gt: since } } }),
       prisma.aiHeaderMappingLog.count({ where: sinceFilter }),
-      prisma.feedbackSubmission.count({ where: sinceFilter }),
     ]);
 
     if (paymentsSince > 0) badges['/akman/payments'] = paymentsSince;
@@ -61,7 +59,6 @@ export async function GET(request: Request) {
     if (templateLogsSince > 0) badges['/akman/template-header-logs'] = templateLogsSince;
     if (headerDictSince > 0) badges['/akman/header-dictionary'] = headerDictSince;
     if (aiMappingSince > 0) badges['/akman/ai-mapping'] = aiMappingSince;
-    if (feedbackSince > 0) badges['/admin/feedback-event'] = feedbackSince;
   }
 
   return Response.json({ badges });

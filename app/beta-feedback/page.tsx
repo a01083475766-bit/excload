@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { FeedbackBoardClient } from '@/app/components/feedback-event/FeedbackBoardClient';
 import { mapBoardPost } from '@/app/lib/feedback-event/map-board-post';
+import { filterVisibleFeedbackPosts } from '@/app/lib/feedback-event/permissions';
 import { getPublicBoardRows } from '@/app/lib/feedback-event/public-board-cache';
 import {
   getFeedbackViewerFromCookies,
@@ -21,7 +22,8 @@ function FeedbackPageShell() {
       <div className="mx-auto max-w-6xl">
         <h1 className="text-2xl font-bold text-zinc-950">베타 피드백</h1>
         <p className="mt-1 text-sm leading-6 text-zinc-600">
-          엑클로드를 사용하며 발견한 오류와 필요한 기능을 알려주세요.
+          엑클로드를 사용하며 발견한 오류와 필요한 기능을 알려주세요. 베타 사용자의 의견과
+          운영자의 확인 내용을 함께 볼 수 있습니다.
         </p>
       </div>
     </div>
@@ -35,9 +37,7 @@ async function FeedbackBoardServer() {
   ]);
 
   const myUserId = await resolveFeedbackViewerUserId(viewer);
-  const visibleRows = rows.filter(
-    (p) => p.publicConsent || viewer.isAdmin || (!!myUserId && p.userId === myUserId),
-  );
+  const visibleRows = filterVisibleFeedbackPosts(rows, myUserId, viewer.isAdmin);
   const initialPosts = visibleRows.map((p) => mapBoardPost(p, myUserId, viewer.isAdmin));
 
   return (

@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isAdminEmail } from '@/app/lib/admin-auth';
 import { buildAuthLoginRedirectUrl } from '@/app/lib/auth/post-login-redirect';
+import { getBetaFeedbackRedirectPath } from '@/app/lib/feedback-event/routes';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -78,9 +79,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // /feedback-event 기존 피드백 이벤트 URL은 베타 피드백 공식 경로로 이동
-  if (pathname.startsWith('/feedback-event')) {
+  const betaFeedbackRedirectPath = getBetaFeedbackRedirectPath(pathname);
+  if (betaFeedbackRedirectPath) {
     const url = request.nextUrl.clone();
-    url.pathname = pathname.replace(/^\/feedback-event/, '/beta-feedback');
+    url.pathname = betaFeedbackRedirectPath;
     return NextResponse.redirect(url, 308);
   }
 

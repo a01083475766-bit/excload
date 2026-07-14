@@ -4,8 +4,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Suspense, useCallback, useState } from 'react';
-import { useUserStore } from '@/app/store/userStore';
-import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
+import { serializeFeedbackContent } from '@/app/lib/feedback-event/map-board-post';
 import {
   FEEDBACK_CONVERSION_RESULTS,
   FEEDBACK_FEATURES,
@@ -21,15 +20,6 @@ type PostVisibility = 'public' | 'private';
 function FeedbackWriteInner() {
   const router = useRouter();
   const { status } = useSession();
-  const user = useUserStore((s) => s.user);
-  const setUser = useUserStore((s) => s.setUser);
-  const { data, loading: statusLoading, refresh } = useFeedbackEventStatus(true);
-
-  const eventActive = data?.event.isActive ?? true;
-
-  const noAdditionalTrial =
-    status === 'authenticated' &&
-    (data?.user.isPaid ?? data?.user.feedbackTrialUsed ?? user?.feedbackTrialUsed ?? false);
 
   const [featureUsed, setFeatureUsed] = useState(FEEDBACK_SELECT_VALUE);
   const [conversionResult, setConversionResult] = useState(FEEDBACK_SELECT_VALUE);
@@ -42,10 +32,6 @@ function FeedbackWriteInner() {
   const handleSubmit = useCallback(async () => {
     if (status !== 'authenticated') {
       router.push(`/auth/login?callbackUrl=${encodeURIComponent('/beta-feedback/write')}`);
-      return;
-    }
-    if (!eventActive) {
-      alert('베타 피드백 접수 기간이 종료되었습니다.');
       return;
     }
     if (!isValidFeedbackFeature(featureUsed)) {
@@ -77,7 +63,7 @@ function FeedbackWriteInner() {
 
     try {
       const form = new FormData();
-      const fullContent = `${title.trim()}\n\n${content.trim()}`;
+      const fullContent = serializeFeedbackContent({ title, body: content });
       form.append('featureUsed', featureUsed);
       form.append('conversionResult', conversionResult);
       form.append('content', fullContent);
@@ -100,17 +86,6 @@ function FeedbackWriteInner() {
         return;
       }
 
-      if (json.trialGranted && json.trialEndsAt && user) {
-        setUser({
-          ...user,
-          points: typeof json.points === 'number' ? json.points : user.points,
-          feedbackTrialEndsAt: json.trialEndsAt,
-          feedbackTrialUsed: true,
-        });
-      }
-
-      void refresh();
-
       if (json.submissionId) {
         router.replace(`/beta-feedback/${json.submissionId}`);
         return;
@@ -123,29 +98,13 @@ function FeedbackWriteInner() {
   }, [
     status,
     router,
-    eventActive,
     content,
     title,
     featureUsed,
     conversionResult,
     visibility,
     attachment,
-    user,
-    setUser,
-    refresh,
   ]);
-
-  if (!statusLoading && !eventActive) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-zinc-900 mb-4">피드백 작성</h1>
-        <p className="text-zinc-600 mb-6">현재 베타 피드백 접수 기간이 아닙니다.</p>
-        <Link href="/beta-feedback" className="text-blue-600 underline">
-          게시판으로
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-zinc-50 min-h-screen py-10 px-4">
@@ -165,13 +124,6 @@ function FeedbackWriteInner() {
         <p className="mb-6 border-l-2 border-amber-500 pl-3 text-sm leading-6 text-amber-900">
           고객 이름, 전화번호, 주소, 주문번호 등 개인정보는 가린 뒤 첨부해 주세요.
         </p>
-
-        {noAdditionalTrial && (
-          <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 leading-relaxed">
-            PRO 30일 체험 혜택은 <strong>계정당 1회</strong>입니다. 추가로 남기신 피드백에도
-            체험 기간이 다시 제공되지는 않으며, 의견은 정상적으로 접수됩니다.
-          </div>
-        )}
 
         <div className="border border-zinc-200 bg-white p-5 space-y-5">
           <div>

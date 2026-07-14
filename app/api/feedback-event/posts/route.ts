@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
-import { getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
-import {
-  getPublicBoardRows,
-} from '@/app/lib/feedback-event/public-board-cache';
+import { getPublicBoardRows } from '@/app/lib/feedback-event/public-board-cache';
 import {
   getFeedbackFeatureLabel,
   getFeedbackResultLabel,
 } from '@/app/lib/feedback-event/labels';
-import { mapBoardPost } from '@/app/lib/feedback-event/map-board-post';
+import { mapBoardPost, visibleFeedbackReply } from '@/app/lib/feedback-event/map-board-post';
+import { filterVisibleFeedbackPosts } from '@/app/lib/feedback-event/permissions';
 import { createFeedbackPerfLogger } from '@/app/lib/feedback-event/perf-log';
 import {
   getFeedbackViewerFromRequest,
@@ -21,7 +19,6 @@ function mapMyPost(p: {
   conversionResult: string;
   content: string;
   publicConsent: boolean;
-  trialGranted: boolean;
   systemReply: string | null;
   createdAt: Date;
 }) {
@@ -31,8 +28,7 @@ function mapMyPost(p: {
     resultLabel: getFeedbackResultLabel(p.conversionResult),
     excerpt: p.content.length > 80 ? `${p.content.slice(0, 80)}…` : p.content,
     publicConsent: p.publicConsent,
-    trialGranted: p.trialGranted,
-    hasSystemReply: !!p.systemReply,
+    hasSystemReply: !!visibleFeedbackReply(p.systemReply),
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -49,19 +45,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
       }
 
-      const [config, user] = await Promise.all([
-        getFeedbackEventConfig(),
-        viewer.userId
-          ? prisma.user.findUnique({
-              where: { id: viewer.userId },
-              select: { id: true },
-            })
-          : prisma.user.findUnique({
-              where: { email: viewer.email! },
-              select: { id: true },
-            }),
-      ]);
-      perf.mark('config+user');
+      const user = viewer.userId
+        ? await prisma.user.findUnique({
+            where: { id: viewer.userId },
+            select: { id: true },
+          })
+        : await prisma.user.findUnique({
+            where: { email: viewer.email! },
+            select: { id: true },
+          });
+      perf.mark('user');
 
       if (!user) {
         return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
@@ -77,7 +70,6 @@ export async function GET(request: NextRequest) {
           conversionResult: true,
           content: true,
           publicConsent: true,
-          trialGranted: true,
           systemReply: true,
           createdAt: true,
         },
@@ -87,17 +79,15 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        eventActive: config.isActive,
         myPosts: mine.map(mapMyPost),
       });
     }
 
-    const [config, viewer, boardRows] = await Promise.all([
-      getFeedbackEventConfig(),
+    const [viewer, boardRows] = await Promise.all([
       getFeedbackViewerFromRequest(request),
       getPublicBoardRows(),
     ]);
-    perf.mark('config+viewer+boardRows');
+    perf.mark('viewer+boardRows');
 
     const isAdmin = viewer.isAdmin;
     const myUserId = await resolveFeedbackViewerUserId(viewer);
@@ -106,22 +96,12 @@ export async function GET(request: NextRequest) {
       perf.flush({ scope: 'public', unauthorized: true });
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
-    const visibleRows = boardRows.filter(
-      (p) => p.publicConsent || isAdmin || (!!myUserId && p.userId === myUserId),
-    );
-    perf.mark('viewer-user+filter');
 
-    const endsAtLabel = config.endsAt.toLocaleDateString('ko-KR', {
-      timeZone: 'Asia/Seoul',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const visibleRows = filterVisibleFeedbackPosts(boardRows, myUserId, isAdmin);
+    perf.mark('viewer-user+filter');
 
     const payload = {
       success: true,
-      eventActive: config.isActive,
-      endsAtLabel,
       viewerIsAdmin: isAdmin,
       boardPosts: visibleRows.map((p) => mapBoardPost(p, myUserId, isAdmin)),
     };
@@ -129,7 +109,7 @@ export async function GET(request: NextRequest) {
     perf.flush({ scope: 'public', cached: false, rows: visibleRows.length });
     return NextResponse.json(payload);
   } catch (error) {
-    console.error('[FeedbackEventPosts]', error);
+    console.error('[FeedbackPosts]', error);
     perf.flush({ error: true });
     return NextResponse.json({ error: '목록을 불러오지 못했습니다.' }, { status: 500 });
   }

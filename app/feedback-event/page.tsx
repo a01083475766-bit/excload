@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function FeedbackEventPage() {
+export default function LegacyFeedbackRedirectPage() {
   redirect('/beta-feedback');
 }

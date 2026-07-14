@@ -6,11 +6,13 @@ import {
   getFeedbackResultLabel,
   maskFeedbackAuthor,
 } from '@/app/lib/feedback-event/labels';
+import { visibleFeedbackReply } from '@/app/lib/feedback-event/map-board-post';
 import { createFeedbackPerfLogger } from '@/app/lib/feedback-event/perf-log';
 import {
   getFeedbackViewerFromRequest,
   resolveFeedbackViewerUserId,
 } from '@/app/lib/feedback-event/viewer';
+import { canViewFeedbackPost } from '@/app/lib/feedback-event/permissions';
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -24,7 +26,6 @@ const POST_SELECT = {
   publicConsent: true,
   attachmentName: true,
   attachmentUrl: true,
-  trialGranted: true,
   systemReply: true,
   createdAt: true,
 } as const;
@@ -39,7 +40,6 @@ type PostRow = {
   publicConsent: boolean;
   attachmentName: string | null;
   attachmentUrl: string | null;
-  trialGranted: boolean;
   systemReply: string | null;
   createdAt: Date;
 };
@@ -47,6 +47,7 @@ type PostRow = {
 function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean) {
   const isMine = myUserId === post.userId;
   const canViewStaffFields = isMine || isAdmin;
+  const reply = visibleFeedbackReply(post.systemReply);
 
   return {
     id: post.id,
@@ -61,8 +62,7 @@ function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean)
     publicConsent: post.publicConsent,
     attachmentName: canViewStaffFields ? post.attachmentName : null,
     attachmentUrl: canViewStaffFields ? post.attachmentUrl : null,
-    trialGranted: canViewStaffFields ? post.trialGranted : false,
-    systemReply: canViewStaffFields ? post.systemReply : null,
+    systemReply: canViewStaffFields ? reply : null,
     createdAt: post.createdAt.toISOString(),
   };
 }
@@ -81,11 +81,6 @@ export async function GET(request: NextRequest, ctx: RouteCtx) {
     ]);
     perf.mark('post+viewer');
 
-    if (!post) {
-      perf.flush({ found: false });
-      return NextResponse.json({ error: '글을 찾을 수 없습니다.' }, { status: 404 });
-    }
-
     const isAdmin = viewer.isAdmin;
     const myUserId = await resolveFeedbackViewerUserId(viewer);
     perf.mark('viewer-user');
@@ -96,7 +91,12 @@ export async function GET(request: NextRequest, ctx: RouteCtx) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
-    if (!post.publicConsent && myUserId !== post.userId && !isAdmin) {
+    if (!post) {
+      perf.flush({ found: false });
+      return NextResponse.json({ error: '글을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    if (!canViewFeedbackPost(post, myUserId, isAdmin)) {
       perf.flush({ forbidden: true });
       return NextResponse.json({ error: '글을 찾을 수 없습니다.' }, { status: 404 });
     }
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest, ctx: RouteCtx) {
     perf.flush({ loggedIn: !isAnonymous, isMine: detail.isMine });
     return NextResponse.json(body);
   } catch (error) {
-    console.error('[FeedbackEventPostDetail]', error);
+    console.error('[FeedbackPostDetail]', error);
     perf.flush({ error: true });
     return NextResponse.json({ error: '조회 실패' }, { status: 500 });
   }
@@ -128,7 +128,7 @@ export async function DELETE(request: NextRequest, ctx: RouteCtx) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[FeedbackEventPostDELETE]', error);
+    console.error('[FeedbackPostDELETE]', error);
     return NextResponse.json({ error: '삭제에 실패했습니다.' }, { status: 500 });
   }
 }

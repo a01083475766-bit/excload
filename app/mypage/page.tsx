@@ -132,6 +132,7 @@ export default function MyPage() {
   const [withdrawConfirmText, setWithdrawConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+  const [nowMs] = useState(() => Date.now());
 
   // 세션이 확인된 뒤 사용자 정보 동기화
   useEffect(() => {
@@ -759,24 +760,13 @@ export default function MyPage() {
         )}
 
         {user?.adminTrialEndsAt &&
-          new Date(user.adminTrialEndsAt).getTime() > Date.now() &&
+          new Date(user.adminTrialEndsAt).getTime() > nowMs &&
           user.plan === 'FREE' && (
             <div className="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-950/40">
               <FeedbackTrialActiveBanner
                 endsAt={user.adminTrialEndsAt}
                 headline="관리자 PRO 혜택 이용 중입니다."
                 className="text-sm text-sky-900 dark:text-sky-100"
-              />
-            </div>
-          )}
-
-        {user?.feedbackTrialEndsAt &&
-          new Date(user.feedbackTrialEndsAt).getTime() > Date.now() &&
-          user.plan === 'FREE' && (
-            <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
-              <FeedbackTrialActiveBanner
-                endsAt={user.feedbackTrialEndsAt}
-                className="text-sm text-emerald-900 dark:text-emerald-100"
               />
             </div>
           )}

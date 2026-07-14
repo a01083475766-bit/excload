@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import type { BoardPostDto } from '@/app/lib/feedback-event/map-board-post';
 import { MessageSquare, PenLine, RotateCw, Search } from 'lucide-react';
 
@@ -16,7 +15,6 @@ type Props = {
 
 export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Props) {
   const { status } = useSession();
-  const { data, loading: statusLoading, isEventActive } = useFeedbackEventStatus(true);
 
   const [boardPosts, setBoardPosts] = useState<BoardPostDto[]>(initialPosts);
   const [viewerIsAdmin, setViewerIsAdmin] = useState(initialViewerIsAdmin);
@@ -107,8 +105,8 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
           <div>
             <h1 className="text-2xl font-bold text-zinc-950">베타 피드백</h1>
             <p className="mt-1 text-sm leading-6 text-zinc-600">
-              엑클로드를 사용하며 발견한 오류와 필요한 기능을 알려주세요. 접수된 의견과
-              수정 진행 상황을 함께 확인할 수 있습니다.
+              엑클로드를 사용하며 발견한 오류와 필요한 기능을 알려주세요. 베타 사용자의 의견과
+              운영자의 확인 내용을 함께 볼 수 있습니다.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -132,15 +130,6 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
             </Link>
           </div>
         </div>
-
-        {!statusLoading && !isEventActive && (
-          <div className="mb-4 border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600">
-            <p className="mb-2">현재 베타 피드백 접수 기간이 아닙니다.</p>
-            <Link href="/pricing" className="text-blue-600 underline">
-              가격 플랜 보기
-            </Link>
-          </div>
-        )}
 
         <section className="mt-5 border border-zinc-200 bg-white">
           <div className="flex flex-col gap-3 border-b border-zinc-200 px-3 py-3 lg:flex-row lg:items-center">

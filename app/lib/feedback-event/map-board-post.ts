@@ -20,18 +20,45 @@ export type BoardPostDto = {
   createdAt: string;
 };
 
+export function serializeFeedbackContent(input: { title: string; body: string }): string {
+  const title = input.title.trim();
+  const body = input.body.trim();
+  return body ? `${title}\n\n${body}` : title;
+}
+
+export function parseFeedbackContent(content: string): { title: string; body: string } {
+  const lines = content.split(/\r?\n/);
+  const firstContentLineIndex = lines.findIndex((line) => line.trim().length > 0);
+
+  if (firstContentLineIndex < 0) {
+    return { title: '제목 없음', body: '' };
+  }
+
+  const title = lines[firstContentLineIndex].trim() || '제목 없음';
+  const body = lines
+    .filter((_, index) => index !== firstContentLineIndex)
+    .join('\n')
+    .trim();
+
+  return { title, body };
+}
+
 export function feedbackTitle(content: string, max = 72): string {
-  const firstLine = content
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find(Boolean);
-  const title = firstLine || '제목 없음';
+  const { title } = parseFeedbackContent(content);
   return title.length > max ? `${title.slice(0, max)}…` : title;
 }
 
 function feedbackExcerpt(content: string, max = 120): string {
-  const normalized = content.replace(/\s+/g, ' ').trim();
+  const { body } = parseFeedbackContent(content);
+  const normalized = (body || content).replace(/\s+/g, ' ').trim();
   return normalized.length > max ? `${normalized.slice(0, max)}…` : normalized;
+}
+
+export function visibleFeedbackReply(reply: string | null): string | null {
+  if (!reply) return null;
+  const legacyBenefitTerms = ['PRO 체험', '체험권', '추가 혜택', '혜택 제공', '사용량'];
+  if (legacyBenefitTerms.some((term) => reply.includes(term))) return null;
+  return reply;
 }
 
 export function mapBoardPost(
@@ -41,6 +68,7 @@ export function mapBoardPost(
 ): BoardPostDto {
   const isMine = !!myUserId && myUserId === p.userId;
   const canViewContent = p.publicConsent || isMine || isAdmin;
+  const reply = visibleFeedbackReply(p.systemReply);
 
   return {
     id: p.id,
@@ -53,7 +81,7 @@ export function mapBoardPost(
     excerpt: canViewContent ? feedbackExcerpt(p.content) : null,
     canOpen: canViewContent,
     canDelete: isAdmin,
-    hasSystemReply: !!p.systemReply,
+    hasSystemReply: !!reply,
     createdAt: p.createdAt.toISOString(),
   };
 }

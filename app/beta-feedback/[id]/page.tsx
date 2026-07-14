@@ -8,7 +8,11 @@ import {
   getFeedbackResultLabel,
   maskFeedbackAuthor,
 } from '@/app/lib/feedback-event/labels';
-import { feedbackTitle } from '@/app/lib/feedback-event/map-board-post';
+import {
+  parseFeedbackContent,
+  visibleFeedbackReply,
+} from '@/app/lib/feedback-event/map-board-post';
+import { canViewFeedbackPost } from '@/app/lib/feedback-event/permissions';
 import {
   getFeedbackViewerFromCookies,
   resolveFeedbackViewerUserId,
@@ -45,7 +49,6 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
         publicConsent: true,
         attachmentName: true,
         attachmentUrl: true,
-        trialGranted: true,
         systemReply: true,
         createdAt: true,
       },
@@ -56,8 +59,7 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
   if (!post) notFound();
 
   const isMine = !!myUserId && myUserId === post.userId;
-  const canViewPrivate = post.publicConsent || isMine || viewer.isAdmin;
-  if (!canViewPrivate) notFound();
+  if (!canViewFeedbackPost(post, myUserId, viewer.isAdmin)) notFound();
 
   const canViewStaffFields = isMine || viewer.isAdmin;
   const dateLabel = post.createdAt.toLocaleString('ko-KR', {
@@ -68,16 +70,8 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
     hour: '2-digit',
     minute: '2-digit',
   });
-  const title = feedbackTitle(post.content, 120);
-  const contentLines = post.content.split(/\r?\n/);
-  const firstContentLineIndex = contentLines.findIndex((line) => line.trim().length > 0);
-  const body =
-    firstContentLineIndex >= 0
-      ? contentLines
-          .filter((_, index) => index !== firstContentLineIndex)
-          .join('\n')
-          .trim()
-      : post.content;
+  const { title, body } = parseFeedbackContent(post.content);
+  const reply = visibleFeedbackReply(post.systemReply);
   const isImageAttachment =
     canViewStaffFields &&
     post.attachmentUrl &&
@@ -98,7 +92,7 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
               </span>
               <span>{getFeedbackFeatureLabel(post.featureUsed)}</span>
               <span>{getFeedbackResultLabel(post.conversionResult)}</span>
-              <span>{post.systemReply ? '답변 있음' : '확인 대기'}</span>
+              <span>{reply ? '답변 있음' : '확인 대기'}</span>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
@@ -140,13 +134,13 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
             </section>
           ) : null}
 
-          {canViewStaffFields && post.systemReply ? (
+          {canViewStaffFields && reply ? (
             <section className="border-t border-zinc-200 px-5 py-4">
               <div className="border-l-2 border-zinc-400 bg-zinc-50 px-4 py-3">
                 <h2 className="text-sm font-semibold text-zinc-900">운영자 답변</h2>
                 <p className="mt-1 text-xs text-zinc-500">{dateLabel}</p>
                 <div className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-800">
-                  {post.systemReply}
+                  {reply}
                 </div>
               </div>
             </section>
