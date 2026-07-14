@@ -292,8 +292,8 @@ export function OpenBetaLandingTop() {
           </div>
           <ul className="mt-5 flex flex-wrap gap-2">
             {OPEN_BETA_MALLS.map((mall) => (
-              <li key={mall}>
-                <span className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+              <li key={mall} className="flex">
+                <span className="inline-flex h-10 min-w-[7.25rem] items-center justify-center rounded-md border border-zinc-200 bg-white px-3 text-center text-sm font-medium leading-tight text-zinc-800 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 sm:min-w-[7.75rem]">
                   {mall}
                 </span>
               </li>
