@@ -77,7 +77,7 @@ import {
   primarySourceTypeFromCounts,
   type InputSourceCounts,
 } from '@/app/lib/history-input-sources';
-import { useUserStore } from '@/app/store/userStore';
+import { useUserStore, type Plan } from '@/app/store/userStore';
 import { Coins } from 'lucide-react';
 import {
   NormalizeQualityNoticeModal,
@@ -2677,7 +2677,7 @@ export default function OrderConvertPage() {
   };
 
   const buildInsufficientPointsMessage = (
-    plan: 'FREE' | 'PRO' | 'YEARLY',
+    plan: Plan,
     nextPointDate?: string | null,
     feedbackTrialEndsAt?: string | null,
     adminTrialEndsAt?: string | null,

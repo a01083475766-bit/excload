@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         email: freshUser.email,
         name: freshUser.name,
         phone: freshUser.phone,
-        plan: freshUser.plan as 'FREE' | 'PRO' | 'YEARLY',
+        plan: freshUser.plan as 'BETA' | 'FREE' | 'PRO' | 'YEARLY',
         points: freshUser.points,
         lastLoginProvider: freshUser.lastLoginProvider,
         lastMonthlyGrant: freshUser.nextPointDate?.toISOString() || null,

@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
         user: {
           id: updatedUser.id,
           email: updatedUser.email,
-          plan: updatedUser.plan as 'FREE' | 'PRO' | 'YEARLY',
+          plan: updatedUser.plan as 'BETA' | 'FREE' | 'PRO' | 'YEARLY',
           points: updatedUser.points,
           nextPointDate: updatedUser.nextPointDate?.toISOString() ?? null,
         },

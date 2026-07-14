@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         user: {
           id: updatedUser.id,
           email: updatedUser.email,
-          plan: updatedUser.plan as 'FREE' | 'PRO' | 'YEARLY',
+          plan: updatedUser.plan as 'BETA' | 'FREE' | 'PRO' | 'YEARLY',
           updatedAt: updatedUser.updatedAt.toISOString(),
         },
         message: `플랜이 ${plan}로 업데이트되었습니다.`,

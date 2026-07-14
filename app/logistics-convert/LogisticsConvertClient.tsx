@@ -89,7 +89,7 @@ import {
   primarySourceTypeFromCounts,
   type InputSourceCounts,
 } from '@/app/lib/history-input-sources';
-import { useUserStore } from '@/app/store/userStore';
+import { useUserStore, type Plan } from '@/app/store/userStore';
 import { shouldChargeDownloadPoints, hasProEntitlementClient } from '@/app/lib/feedback-event/client';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
@@ -4669,7 +4669,7 @@ export function LogisticsConvertClient({
   };
 
   const buildInsufficientPointsMessage = (
-    plan: 'FREE' | 'PRO' | 'YEARLY',
+    plan: Plan,
     nextPointDate?: string | null,
     feedbackTrialEndsAt?: string | null,
     adminTrialEndsAt?: string | null,
