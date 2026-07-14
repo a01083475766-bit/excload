@@ -6,15 +6,8 @@ import {
   EXCLOAD_INTEGRATION_INFO,
   getExcloadOutboundIp,
   ORDER_INTEGRATION_MALLS,
-  type OrderIntegrationMall,
   type OrderIntegrationMallId,
 } from '@/app/lib/order-integration/malls';
-import {
-  getNextApiDirectCandidates,
-  getInquiryApprovalDirectChannelsForUi,
-  getPriorityHubChannels,
-  HUB_OR_EXCEL_PRIORITY_ROADMAP,
-} from '@/app/lib/order-integration/mall-integration-specs';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { MallIntegrationForm } from '@/app/components/order-integration/MallIntegrationForm';
 import { MallSetupGuidePanel } from '@/app/components/order-integration/MallSetupGuidePanel';
@@ -26,13 +19,6 @@ type AvailableMallId = Exclude<OrderIntegrationMallId, 'gmarket'>;
 
 function isAvailableMallId(id: string): id is AvailableMallId {
   return ORDER_INTEGRATION_MALLS.some((m) => m.id === id && m.status === 'available');
-}
-
-function mallStatusLabel(mall: OrderIntegrationMall): string {
-  if (mall.status !== 'available') return mall.preparingLabel ?? '준비중';
-  if (mall.badge === 'live') return '운영';
-  if (mall.badge === 'beta') return '베타';
-  return '연동 가능';
 }
 
 function chipClass(selected: boolean): string {
@@ -77,24 +63,17 @@ function ExcloadInfoList({
 
 /**
  * 쇼핑몰 연동 설정 — 상단 선택 후 무료도구식 2열 상세.
+ * 준비중·후보 채널 안내는 페이지 미노출 — docs/order-integration/connect-page-preparing-and-candidates.md
  * API/DB 로직은 기존 MallIntegrationForm을 재사용합니다.
  */
 export default function OrderIntegrationPanel() {
   const outboundIp = getExcloadOutboundIp();
   const [selectedMallId, setSelectedMallId] = useState<AvailableMallId | 'all'>('all');
-  const [moreOpen, setMoreOpen] = useState(false);
 
   const availableMalls = useMemo(
     () => ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'available'),
     []
   );
-  const preparingMalls = useMemo(
-    () => ORDER_INTEGRATION_MALLS.filter((m) => m.status !== 'available'),
-    []
-  );
-  const nextApiChannels = getNextApiDirectCandidates();
-  const inquiryChannels = getInquiryApprovalDirectChannelsForUi();
-  const priorityHubs = getPriorityHubChannels();
 
   const selectedMall =
     selectedMallId === 'all' ? null : availableMalls.find((m) => m.id === selectedMallId) ?? null;
@@ -232,84 +211,6 @@ export default function OrderIntegrationPanel() {
           </div>
         </section>
       ) : null}
-
-      {preparingMalls.length > 0 ? (
-        <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">준비중</h2>
-          <div className="border border-zinc-100 bg-zinc-50">
-            <ul className="divide-y divide-zinc-100">
-              {preparingMalls.map((mall) => (
-                <li
-                  key={mall.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm text-zinc-500"
-                >
-                  <span>{mall.name}</span>
-                  <span className="text-xs">{mallStatusLabel(mall)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="border-t border-gray-200 pt-4">
-        <button
-          type="button"
-          onClick={() => setMoreOpen((v) => !v)}
-          className="text-sm text-gray-600 underline-offset-2 hover:text-gray-900 hover:underline"
-        >
-          {moreOpen ? '추가 채널·안내 접기' : '추가 채널·안내 보기'}
-        </button>
-
-        {moreOpen ? (
-          <div className="mt-4 space-y-5 text-sm text-gray-600">
-            <div>
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                API 개발 후보
-              </h3>
-              <ul className="list-inside list-disc space-y-1 text-xs">
-                {nextApiChannels.map((ch) => (
-                  <li key={ch.channelCode}>
-                    {ch.channelName}
-                    {ch.channelCode === 'shopify'
-                      ? ' — Shopify OAuth 앱 등록 후 검토'
-                      : ` — ${ch.requiredSellerAction}`}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                문의·승인 필요
-              </h3>
-              <ul className="list-inside list-disc space-y-1 text-xs">
-                {inquiryChannels.map((ch) => (
-                  <li key={ch.channelCode}>
-                    {ch.channelName} — {ch.requiredSellerAction}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                허브·엑셀 우선
-              </h3>
-              <ul className="list-inside list-disc space-y-1 text-xs">
-                {HUB_OR_EXCEL_PRIORITY_ROADMAP.map((item) => (
-                  <li key={item.code}>{item.name}</li>
-                ))}
-                {priorityHubs.map((hub) => (
-                  <li key={hub.channelCode}>{hub.channelName} (검토 중)</li>
-                ))}
-              </ul>
-            </div>
-            <p className="text-xs leading-relaxed text-gray-500">
-              관리자 전용입니다. 메인 연동은 쇼핑몰별 직접 API입니다. G마켓/옥션은 ESM 제휴 승인
-              전까지 설정할 수 없습니다.
-            </p>
-          </div>
-        ) : null}
-      </section>
     </div>
   );
 }

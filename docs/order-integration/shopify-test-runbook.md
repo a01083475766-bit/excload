@@ -21,7 +21,7 @@
 | OrderStandardFile 매핑 | ✅ 구현 완료 | `map-shopify-orders.ts` — line item 1개 = 1행 |
 | 연결 테스트 route | ✅ 구현 완료 | `POST /api/order/integration/shopify/test` |
 | 주문 수집 route | ✅ 구현 완료 | `POST /api/order/integration/shopify/fetch-orders` |
-| UI | ❌ 클릭 불가 | `ReviewChannelCard` — 「API 개발 후보」 |
+| UI | ❌ 미노출 | connect 페이지 후보 섹션 제거 — [connect-page-preparing-and-candidates.md](./connect-page-preparing-and-candidates.md) |
 | Production DB migration | ❌ **미적용** | 레포에 migration 파일은 있으나 Production 미실행 |
 | Lightsail allowed-hosts | ❌ 미반영 | `requiresFixedIpProxy: false` — 1차 직접 호출 설계 |
 
@@ -150,7 +150,7 @@ https://www.excload.com/api/order/integration/shopify/callback
 | 9 | **Token 저장 확인** | callback 후 DB `OrderIntegrationAccount` (provider=SHOPIFY), 암호화 필드·`expiresAt` |
 | 10 | **fetch-orders 테스트** | `POST …/shopify/fetch-orders` — 최근 7일(기본)·60일 상한 |
 | 11 | **OrderStandardFile 결과 확인** | `orderStandardFile`·`previewRows` — line item 행 수·주소·상태 매핑 |
-| 12 | **문제 없을 때만 UI 클릭 가능 처리** | 별도 PR·승인 — `OrderIntegrationPanel` ReviewChannelCard → 연동 카드 |
+| 12 | **문제 없을 때만 UI 클릭 가능 처리** | 별도 PR·승인 — `ORDER_INTEGRATION_MALLS`에 available 추가 후 connect 카드 |
 
 ### 테스트 시 권장 호출 순서
 

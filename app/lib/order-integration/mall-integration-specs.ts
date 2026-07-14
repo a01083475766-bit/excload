@@ -1019,7 +1019,7 @@ export function getPartnershipDirectChannels(): ChannelIntegrationSpec[] {
 
 /**
  * 문의/승인 필요 direct — partnership_required + research_required.
- * UI 「문의/승인 필요 쇼핑몰」·문서 로드맵용. 구현 가능처럼 취급 금지.
+ * 문서·로드맵용 (connect 페이지 미노출). 구현 가능처럼 취급 금지.
  */
 export function getInquiryApprovalDirectChannels(): ChannelIntegrationSpec[] {
   return getDirectApiChannels().filter(
@@ -1027,7 +1027,7 @@ export function getInquiryApprovalDirectChannels(): ChannelIntegrationSpec[] {
   );
 }
 
-/** 문의/승인 그룹 표시 순서 (UI) */
+/** 문의/승인 그룹 표시 순서 (문서·헬퍼용; connect UI 미사용) */
 export const INQUIRY_APPROVAL_UI_ORDER = [
   'zigzag',
   'gmarket',
@@ -1048,7 +1048,7 @@ export function getInquiryApprovalDirectChannelsForUi(): ChannelIntegrationSpec[
 
 /**
  * hub_only / excel_upload_first 후보 — SSOT channelCode 없을 수 있음 (문서·로드맵용).
- * UI 메인·클릭 카드에 넣지 않음. docs/order-integration/remaining-malls-roadmap.md
+ * connect 페이지 미노출. docs/order-integration/connect-page-preparing-and-candidates.md
  */
 export const HUB_OR_EXCEL_PRIORITY_ROADMAP = [
   { code: 'todayhouse', name: '오늘의집', kind: 'hub_only' as const },

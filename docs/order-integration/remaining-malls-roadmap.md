@@ -71,7 +71,8 @@
 | 1300k | 1300K |
 | goldii | 골디 |
 
-상수: `HUB_OR_EXCEL_PRIORITY_ROADMAP` (hub + excel 합본, UI 접이식).
+상수: `HUB_OR_EXCEL_PRIORITY_ROADMAP` (hub + excel 합본).  
+connect 페이지 미노출 — [connect-page-preparing-and-candidates.md](./connect-page-preparing-and-candidates.md)
 
 ---
 
@@ -93,7 +94,8 @@
 
 coupang, smartstore, eleven, cafe24, lotteon, ssg, cjonstyle, godomall, shopby, makeshop  
 
-UI 클릭 가능 = `ORDER_INTEGRATION_MALLS`의 `available` (+ gmarket는 제휴 준비 중·클릭 불가).
+UI 클릭 가능 = `ORDER_INTEGRATION_MALLS`의 `available`만.  
+준비중·후보 목록은 connect 페이지 미노출 — [connect-page-preparing-and-candidates.md](./connect-page-preparing-and-candidates.md)
 
 ---
 
