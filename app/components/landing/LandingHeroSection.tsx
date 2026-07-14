@@ -74,7 +74,9 @@ export default function LandingHeroSection() {
             </p>
 
             <h1 className="mt-4 break-keep text-[2rem] font-bold leading-snug tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-[2.35rem] lg:text-[2.6rem]">
-              복잡한 기능은 빼고 빠른 주문정리,
+              복잡한 기능은 빼고
+              <br />
+              <span className="text-blue-600 dark:text-blue-400">빠른 주문정리,</span>
               <br />
               판매자의 반복 업무를 줄입니다.
             </h1>

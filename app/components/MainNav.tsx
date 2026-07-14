@@ -60,10 +60,10 @@ const primaryLinkClass = `
   whitespace-nowrap
 `;
 
-/** 2단: 보조 메뉴 — 글자: 기존 11px + 0.1rem(요청)만 반영 */
+/** 2단: 보조 메뉴 — 모바일 터치 영역 확보 */
 const secondaryLinkClass = `
-  flex shrink-0 items-center gap-0.5
-  whitespace-nowrap rounded px-1 py-0.5
+  flex shrink-0 items-center gap-1
+  min-h-9 whitespace-nowrap rounded px-1.5 py-1.5
   text-[12px] sm:text-[calc(11px+0.1rem)] leading-snug text-gray-600
   relative
   hover:text-blue-600
@@ -147,7 +147,7 @@ export default function MainNav() {
           )}
         </Link>
 
-        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-start sm:justify-end gap-2 overflow-x-auto overflow-y-hidden pb-px sm:gap-3">
+        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-start gap-2 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-px [-webkit-overflow-scrolling:touch] sm:justify-end sm:gap-3">
           {displayPrimaryItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -178,7 +178,7 @@ export default function MainNav() {
       {/* 2단: 1단 실행 메뉴와 같은 오른쪽 정렬 · 1단과 간격 축소 */}
       <div className="border-t border-gray-100 bg-zinc-50/95">
         <div
-          className={`${navInnerClass} flex flex-nowrap items-center justify-start sm:justify-end gap-x-0.5 gap-y-0.5 overflow-x-auto overflow-y-hidden py-0.5 whitespace-nowrap`}
+          className={`${navInnerClass} flex flex-nowrap items-center justify-start gap-x-0.5 gap-y-0.5 overflow-x-auto overflow-y-hidden overscroll-x-contain py-0.5 whitespace-nowrap [-webkit-overflow-scrolling:touch] sm:justify-end`}
         >
           {displaySecondaryItems.map((item) => {
             const Icon = item.icon;
