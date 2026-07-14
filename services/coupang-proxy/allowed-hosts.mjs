@@ -137,5 +137,10 @@ export function assertUrlAllowed(rawUrl) {
     throw new Error('domain not allowed');
   }
 
+  // HTTPS 기본 포트(생략 또는 443)만 허용 — 8443 등 비표준 포트 차단
+  if (protocol !== 'https' || (parsed.port !== '' && parsed.port !== '443')) {
+    throw new Error('port not allowed');
+  }
+
   return parsed;
 }

@@ -9,19 +9,19 @@ import {
 } from './allowed-hosts.mjs';
 
 describe('Lightsail allowed-hosts.mjs', () => {
-  it('includes all 1-shot exact hosts', () => {
+  it('includes all exact HTTPS upstream hosts from Lightsail checklist', () => {
     expect(getAllowedHostnames().sort()).toEqual(
       [
         'api-gateway.coupang.com',
         'api.commerce.naver.com',
         'api.11st.co.kr',
-        'sbadmin.sabangnet.co.kr',
         'openapi.lotteon.com',
         'eapi.ssgadm.com',
         'api.cjonstyle.com',
         'server-api.e-ncp.com',
         'openhub.godo.co.kr',
         'connect.makeshop.co.kr',
+        'sbadmin.sabangnet.co.kr',
       ].sort(),
     );
   });
@@ -73,5 +73,20 @@ describe('Lightsail allowed-hosts.mjs', () => {
     expect(INTEGRATION_PROXY_SUFFIX_RULES).toEqual([
       expect.objectContaining({ suffix: 'cafe24api.com', protocols: ['https'], malls: ['cafe24'] }),
     ]);
+  });
+
+  it('blocks non-standard HTTPS ports (8443)', () => {
+    expect(() => assertUrlAllowed('https://api.commerce.naver.com:8443/')).toThrow('port not allowed');
+    expect(() => assertUrlAllowed('https://abc123.cafe24api.com:8443/')).toThrow('port not allowed');
+  });
+
+  it('allows default HTTPS port 443 (implicit or explicit)', () => {
+    expect(assertUrlAllowed('https://api.commerce.naver.com/').hostname).toBe('api.commerce.naver.com');
+    // WHATWG URL은 https 기본 포트 443을 생략해 port === '' 로 정규화함
+    expect(() => assertUrlAllowed('https://api.commerce.naver.com:443/')).not.toThrow();
+    expect(assertUrlAllowed('https://api.commerce.naver.com:443/').port).toBe('');
+    expect(assertUrlAllowed('https://abc123.cafe24api.com/api/v2/admin/orders').hostname).toBe(
+      'abc123.cafe24api.com',
+    );
   });
 });

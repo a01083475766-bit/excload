@@ -1,7 +1,7 @@
 /**
- * 엑클로드 주문연동 고정 IP 프록시 — 참조 서버
+ * 엑클로드 주문연동 고정 IP 프록시 — Lightsail 배포용
  *
- * 배포: Lightsail / EC2 등 고정 outbound IP가 있는 VM
+ * 배포: Lightsail 고정 outbound IP VM
  * Vercel env: INTEGRATION_PROXY_BASE_URL, INTEGRATION_PROXY_SHARED_SECRET
  * (하위 호환: COUPANG_PROXY_*)
  *
@@ -9,16 +9,14 @@
  *   GET  /healthz
  *   POST /internal/integration/invoke  — 범용 HTTPS 프록시 (도메인 whitelist)
  *   POST /internal/coupang/invoke      — 쿠팡 HMAC 전용 (하위 호환)
- *
- * ⚠️ 참조 구현입니다. 운영 전 HTTPS(TLS), requestId 중복 차단, 로그 마스킹을 보강하세요.
  */
 
 import { createServer } from 'node:http';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import {
   assertUrlAllowed,
   getAllowedHostnames,
-  INTEGRATION_PROXY_HOST_RULES,
   INTEGRATION_PROXY_SUFFIX_RULES,
 } from './allowed-hosts.mjs';
 
@@ -26,33 +24,53 @@ const PORT = Number(process.env.PORT || 8787);
 const SHARED_SECRET = (
   process.env.INTEGRATION_PROXY_SHARED_SECRET ?? process.env.COUPANG_PROXY_SHARED_SECRET
 )?.trim();
-const INTEGRATION_INVOKE_PATH = '/internal/integration/invoke';
-const COUPANG_INVOKE_PATH = '/internal/coupang/invoke';
-const MAX_AGE_MS = 5 * 60 * 1000;
+export const INTEGRATION_INVOKE_PATH = '/internal/integration/invoke';
+export const COUPANG_INVOKE_PATH = '/internal/coupang/invoke';
+export const MAX_AGE_MS = 5 * 60 * 1000;
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 60_000;
 
-if (!SHARED_SECRET) {
-  console.error('INTEGRATION_PROXY_SHARED_SECRET (or COUPANG_PROXY_SHARED_SECRET) is required');
-  process.exit(1);
-}
-
-function hashBody(body) {
+export function hashBody(body) {
   return createHash('sha256').update(body, 'utf8').digest('hex');
 }
 
-function verifySignature({ method, path, body, timestamp, signature }) {
+/**
+ * @param {{ method: string; path: string; body: string; timestamp: string; signature: string; secret: string; now?: number }} input
+ */
+export function verifySignature({
+  method,
+  path,
+  body,
+  timestamp,
+  signature,
+  secret,
+  now = Date.now(),
+}) {
   const requestTime = Date.parse(timestamp);
   if (Number.isNaN(requestTime)) return false;
-  if (Math.abs(Date.now() - requestTime) > MAX_AGE_MS) return false;
+  if (Math.abs(now - requestTime) > MAX_AGE_MS) return false;
 
   const message = `${timestamp}${method.toUpperCase()}${path}${hashBody(body)}`;
-  const expected = createHmac('sha256', SHARED_SECRET).update(message, 'utf8').digest('hex');
+  const expected = createHmac('sha256', secret).update(message, 'utf8').digest('hex');
   if (expected.length !== signature.length) return false;
   let mismatch = 0;
   for (let i = 0; i < expected.length; i += 1) {
     mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   }
   return mismatch === 0;
+}
+
+export function buildHealthzPayload() {
+  return {
+    ok: true,
+    coupangInvokeEnabled: true,
+    integrationInvokeEnabled: true,
+    exactAllowedHosts: getAllowedHostnames(),
+    suffixRules: INTEGRATION_PROXY_SUFFIX_RULES.map((rule) => ({
+      suffix: rule.suffix,
+      protocols: [...rule.protocols],
+      malls: [...rule.malls],
+    })),
+  };
 }
 
 function formatSignedDate(date = new Date()) {
@@ -124,6 +142,7 @@ async function invokeIntegrationHttp(payload) {
     method: payload.method?.toUpperCase() || 'GET',
     headers,
     body: payload.body ?? undefined,
+    redirect: 'manual',
   });
 
   return {
@@ -131,6 +150,8 @@ async function invokeIntegrationHttp(payload) {
     bodyText: await response.text(),
   };
 }
+
+export { invokeIntegrationHttp };
 
 function sendJson(res, status, data) {
   const body = JSON.stringify(data);
@@ -144,7 +165,7 @@ async function readRequestBody(req) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-async function handleSignedInvoke(req, res, invokePath, handler) {
+async function handleSignedInvoke(req, res, invokePath, handler, secret) {
   const rawBody = await readRequestBody(req);
 
   const timestamp = req.headers['x-excload-proxy-timestamp'];
@@ -156,13 +177,16 @@ async function handleSignedInvoke(req, res, invokePath, handler) {
     return;
   }
 
-  if (!verifySignature({
-    method: 'POST',
-    path: invokePath,
-    body: rawBody,
-    timestamp,
-    signature,
-  })) {
+  if (
+    !verifySignature({
+      method: 'POST',
+      path: invokePath,
+      body: rawBody,
+      timestamp,
+      signature,
+      secret,
+    })
+  ) {
     sendJson(res, 401, { ok: false, error: 'invalid proxy signature' });
     return;
   }
@@ -177,6 +201,7 @@ async function handleSignedInvoke(req, res, invokePath, handler) {
 
   try {
     const result = await handler(payload);
+    // credential·주문본문·개인정보 로그 금지
     console.info('[integration-proxy] invoke ok', {
       requestId,
       path: invokePath,
@@ -200,45 +225,49 @@ async function handleSignedInvoke(req, res, invokePath, handler) {
   }
 }
 
-const server = createServer(async (req, res) => {
-  if (req.url === '/healthz' && req.method === 'GET') {
-    sendJson(res, 200, {
-      ok: true,
-      integrationInvokeEnabled: true,
-      coupangInvokeEnabled: true,
-      allowedHosts: getAllowedHostnames(),
-      suffixRules: INTEGRATION_PROXY_SUFFIX_RULES.map((rule) => ({
-        suffix: rule.suffix,
-        protocols: rule.protocols,
-        malls: rule.malls,
-      })),
-      hostRules: INTEGRATION_PROXY_HOST_RULES.map((rule) => ({
-        hostname: rule.hostname,
-        protocols: rule.protocols,
-        malls: rule.malls,
-      })),
-    });
-    return;
-  }
+/**
+ * @param {{ sharedSecret: string }} options
+ */
+export function createProxyServer({ sharedSecret }) {
+  return createServer(async (req, res) => {
+    if (req.url === '/healthz' && req.method === 'GET') {
+      sendJson(res, 200, buildHealthzPayload());
+      return;
+    }
 
-  if (req.method !== 'POST') {
+    if (req.method !== 'POST') {
+      sendJson(res, 404, { ok: false, error: 'not found' });
+      return;
+    }
+
+    if (req.url === INTEGRATION_INVOKE_PATH) {
+      await handleSignedInvoke(req, res, INTEGRATION_INVOKE_PATH, invokeIntegrationHttp, sharedSecret);
+      return;
+    }
+
+    if (req.url === COUPANG_INVOKE_PATH) {
+      await handleSignedInvoke(req, res, COUPANG_INVOKE_PATH, invokeCoupang, sharedSecret);
+      return;
+    }
+
     sendJson(res, 404, { ok: false, error: 'not found' });
-    return;
+  });
+}
+
+function isMainModule() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return import.meta.url === pathToFileURL(entry).href;
+}
+
+if (isMainModule()) {
+  if (!SHARED_SECRET) {
+    console.error('INTEGRATION_PROXY_SHARED_SECRET (or COUPANG_PROXY_SHARED_SECRET) is required');
+    process.exit(1);
   }
 
-  if (req.url === INTEGRATION_INVOKE_PATH) {
-    await handleSignedInvoke(req, res, INTEGRATION_INVOKE_PATH, invokeIntegrationHttp);
-    return;
-  }
-
-  if (req.url === COUPANG_INVOKE_PATH) {
-    await handleSignedInvoke(req, res, COUPANG_INVOKE_PATH, invokeCoupang);
-    return;
-  }
-
-  sendJson(res, 404, { ok: false, error: 'not found' });
-});
-
-server.listen(PORT, () => {
-  console.info(`integration proxy listening on :${PORT}`);
-});
+  const server = createProxyServer({ sharedSecret: SHARED_SECRET });
+  server.listen(PORT, () => {
+    console.info(`integration proxy listening on :${PORT}`);
+  });
+}
