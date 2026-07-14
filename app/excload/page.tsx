@@ -242,15 +242,18 @@ export default function HomePage() {
       <LandingHeroSection />
 
       <main className={landingContainerClass}>
-        <section className="blue-unified-theme pt-8 pb-8 lg:pt-12 lg:pb-12">
+        <section id="free-trial" className="blue-unified-theme scroll-mt-24 pt-8 pb-8 lg:pt-12 lg:pb-12">
           <div className="relative z-10 flex flex-col gap-8">
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto pt-2 pb-2 lg:pt-4">
-              <p className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
+              <h2 className="text-xl font-extrabold text-zinc-950 dark:text-zinc-100 sm:text-2xl break-keep">
+                무료 테스트
+              </h2>
+              <p className="mt-3 text-base sm:text-lg font-semibold text-zinc-700 dark:text-zinc-300 leading-snug break-keep">
                 {betaMode ? (
                   <>
-                    복잡한 주문 정리, 오픈 베타에서 먼저 무료로 써보세요.
+                    파일을 올리거나 카톡 주문문구를 붙여넣어 바로 결과를 확인해 보세요.
                     <br className="hidden sm:block" />
-                    가입 시 {signupBonusLabel}P · 매월 {signupBonusLabel} 포인트 사용량을 제공합니다.
+                    가입하면 부분 주문연동과 매월 {signupBonusLabel}P도 함께 이용할 수 있습니다.
                   </>
                 ) : (
                   <>
