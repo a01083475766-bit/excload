@@ -181,7 +181,7 @@ function JoinBand() {
           ))}
         </ol>
         <Link
-          href="/auth/signup"
+          href="/auth"
           className="mt-8 inline-flex min-h-12 items-center justify-center rounded-md bg-white px-6 text-base font-semibold text-blue-700 hover:bg-blue-50"
         >
           오픈 베타 참여하기

@@ -296,7 +296,7 @@ export default function HomePage() {
                     <Link
                       href={
                         betaMode && plan.planKey === 'free'
-                          ? '/auth/signup'
+                          ? '/auth'
                           : `/subscribe?plan=${encodeURIComponent(plan.planKey)}`
                       }
                       className={`mt-6 block w-full rounded-md px-4 py-3 text-center text-sm font-semibold ${

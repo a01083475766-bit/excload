@@ -106,7 +106,7 @@ export default function LandingHeroSection() {
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
-                href="/auth/signup"
+                href="/auth"
                 className="inline-flex min-h-12 items-center justify-center rounded-md bg-blue-600 px-6 text-base font-semibold text-white hover:bg-blue-700"
               >
                 오픈 베타 참여하기
