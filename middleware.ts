@@ -77,8 +77,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /feedback-event 오픈 피드백 이벤트
+  // /feedback-event 기존 피드백 이벤트 URL은 베타 피드백 공식 경로로 이동
   if (pathname.startsWith('/feedback-event')) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace(/^\/feedback-event/, '/beta-feedback');
+    return NextResponse.redirect(url, 308);
+  }
+
+  // /beta-feedback — 로그인 전용 베타 피드백 게시판
+  if (pathname.startsWith('/beta-feedback')) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!token) {
+      const callbackPath = pathname + request.nextUrl.search;
+      return NextResponse.redirect(
+        buildAuthLoginRedirectUrl(request.url, callbackPath),
+      );
+    }
     return NextResponse.next();
   }
 

@@ -62,7 +62,7 @@ export async function getMonthlyGrantIneligibilityReason(
     return '월간 사용량 제공 대상 플랜이 아닙니다.';
   }
   if (isFeedbackTrialActive(user.feedbackTrialEndsAt, now)) {
-    return '피드백 이벤트 PRO 체험 중에는 무료 월간 사용량이 제공되지 않습니다.';
+    return '베타 피드백 PRO 체험 중에는 무료 월간 사용량이 제공되지 않습니다.';
   }
   if (isAdminTrialActive(user.adminTrialEndsAt, now)) {
     return '관리자 PRO 혜택 이용 중에는 무료 월간 사용량이 제공되지 않습니다.';

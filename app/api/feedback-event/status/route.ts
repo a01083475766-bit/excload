@@ -1,31 +1,22 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
-import {
-  getCachedAnonymousStatus,
-  setCachedAnonymousStatus,
-} from '@/app/lib/feedback-event/anonymous-status-cache';
 import { formatFeedbackEventEndLabel, getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
 import {
   expireFeedbackTrialIfNeeded,
   isFeedbackTrialActive,
 } from '@/app/lib/feedback-event/entitlement';
 import { createFeedbackPerfLogger } from '@/app/lib/feedback-event/perf-log';
+import { getFeedbackViewerFromRequest } from '@/app/lib/feedback-event/viewer';
 import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
 
-const ANON_CACHE_HEADERS = {
-  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
-};
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   const perf = createFeedbackPerfLogger('status');
   try {
-    const [config, session] = await Promise.all([
+    const [config, viewer] = await Promise.all([
       getFeedbackEventConfig(),
-      getServerSession(authOptions),
+      getFeedbackViewerFromRequest(request),
     ]);
-    perf.mark('config+session');
+    perf.mark('config+viewer');
 
     const eventPayload = {
       isActive: config.isActive,
@@ -58,96 +49,56 @@ export async function GET() {
       isPaid: false,
     };
 
-    if (!session?.user?.email && !session?.user?.id) {
-      const cached = getCachedAnonymousStatus();
-      if (cached) {
-        perf.mark('anon-cache-hit');
-        perf.flush({ cached: true });
-        return NextResponse.json(cached, { headers: ANON_CACHE_HEADERS });
-      }
-
-      const body = {
-        success: true,
-        event: eventPayload,
-        user: defaultUserState,
-      };
-      setCachedAnonymousStatus(body);
-      perf.mark('anon-cache-miss');
-      perf.flush({ cached: false, loggedIn: false });
-      return NextResponse.json(body, { headers: ANON_CACHE_HEADERS });
+    if (!viewer.email && !viewer.userId) {
+      perf.flush({ loggedIn: false });
+      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
     let userState: UserState = { ...defaultUserState };
 
-    const userId = session.user?.id;
-    if (userId) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          plan: true,
-          feedbackTrialUsed: true,
-          feedbackTrialEndsAt: true,
-          feedbackPopupSeenAt: true,
-        },
-      });
-      perf.mark('user-by-id');
+    const user = viewer.userId
+      ? await prisma.user.findUnique({
+          where: { id: viewer.userId },
+          select: {
+            id: true,
+            plan: true,
+            feedbackTrialUsed: true,
+            feedbackTrialEndsAt: true,
+            feedbackPopupSeenAt: true,
+          },
+        })
+      : await prisma.user.findUnique({
+          where: { email: viewer.email! },
+          select: {
+            id: true,
+            plan: true,
+            feedbackTrialUsed: true,
+            feedbackTrialEndsAt: true,
+            feedbackPopupSeenAt: true,
+          },
+        });
+    perf.mark(viewer.userId ? 'user-by-id' : 'user-by-email');
 
-      if (user) {
-        let trialEndsAt = user.feedbackTrialEndsAt;
-        if (trialEndsAt && !isFeedbackTrialActive(trialEndsAt)) {
-          void expireFeedbackTrialIfNeeded(user.id);
-          trialEndsAt = null;
-        }
-
-        const isPaid = isPaidDbPlan(user.plan);
-        const trialActive = isFeedbackTrialActive(trialEndsAt);
-        userState = {
-          loggedIn: true,
-          plan: user.plan,
-          feedbackTrialUsed: user.feedbackTrialUsed,
-          feedbackTrialActive: trialActive,
-          feedbackTrialEndsAt: trialEndsAt?.toISOString() ?? null,
-          feedbackPopupSeen: !!user.feedbackPopupSeenAt,
-          hasProEntitlement: isPaid || trialActive,
-          isPaid,
-          canSubmitForTrial: config.isActive && !isPaid && !user.feedbackTrialUsed,
-        };
+    if (user) {
+      let trialEndsAt = user.feedbackTrialEndsAt;
+      if (trialEndsAt && !isFeedbackTrialActive(trialEndsAt)) {
+        void expireFeedbackTrialIfNeeded(user.id);
+        trialEndsAt = null;
       }
-    } else if (session.user?.email) {
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: {
-          id: true,
-          plan: true,
-          feedbackTrialUsed: true,
-          feedbackTrialEndsAt: true,
-          feedbackPopupSeenAt: true,
-        },
-      });
-      perf.mark('user-by-email');
 
-      if (user) {
-        let trialEndsAt = user.feedbackTrialEndsAt;
-        if (trialEndsAt && !isFeedbackTrialActive(trialEndsAt)) {
-          void expireFeedbackTrialIfNeeded(user.id);
-          trialEndsAt = null;
-        }
-
-        const isPaid = isPaidDbPlan(user.plan);
-        const trialActive = isFeedbackTrialActive(trialEndsAt);
-        userState = {
-          loggedIn: true,
-          plan: user.plan,
-          feedbackTrialUsed: user.feedbackTrialUsed,
-          feedbackTrialActive: trialActive,
-          feedbackTrialEndsAt: trialEndsAt?.toISOString() ?? null,
-          feedbackPopupSeen: !!user.feedbackPopupSeenAt,
-          hasProEntitlement: isPaid || trialActive,
-          isPaid,
-          canSubmitForTrial: config.isActive && !isPaid && !user.feedbackTrialUsed,
-        };
-      }
+      const isPaid = isPaidDbPlan(user.plan);
+      const trialActive = isFeedbackTrialActive(trialEndsAt);
+      userState = {
+        loggedIn: true,
+        plan: user.plan,
+        feedbackTrialUsed: user.feedbackTrialUsed,
+        feedbackTrialActive: trialActive,
+        feedbackTrialEndsAt: trialEndsAt?.toISOString() ?? null,
+        feedbackPopupSeen: !!user.feedbackPopupSeenAt,
+        hasProEntitlement: isPaid || trialActive,
+        isPaid,
+        canSubmitForTrial: config.isActive && !isPaid && !user.feedbackTrialUsed,
+      };
     }
 
     perf.flush({ loggedIn: true });

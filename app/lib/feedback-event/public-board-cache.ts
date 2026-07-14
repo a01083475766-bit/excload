@@ -11,6 +11,7 @@ export type PublicBoardRow = {
   conversionResult: string;
   content: string;
   publicConsent: boolean;
+  systemReply: string | null;
   createdAt: Date;
 };
 
@@ -43,6 +44,7 @@ export async function getPublicBoardRows(): Promise<PublicBoardRow[]> {
       conversionResult: true,
       content: true,
       publicConsent: true,
+      systemReply: true,
       createdAt: true,
     },
   });

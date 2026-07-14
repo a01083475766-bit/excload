@@ -44,7 +44,7 @@ export function buildTrialSystemReply(endsAt: Date): string {
     day: 'numeric',
   });
   return (
-    `소중한 의견 감사합니다. 피드백이 접수되었고, 피드백 이벤트 PRO 체험이 시작되었습니다.\n\n` +
+    `소중한 의견 감사합니다. 피드백이 접수되었고, 베타 피드백 PRO 체험이 시작되었습니다.\n\n` +
     `${label}까지 PRO 기능을 이용하실 수 있습니다. (계정당 1회) ` +
     `체험 종료 후 FREE 플랜으로 전환됩니다.`
   );

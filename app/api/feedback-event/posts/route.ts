@@ -1,49 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
-import { isAdminEmail } from '@/app/lib/admin-auth';
 import { getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
 import {
-  getCachedAnonymousPublicPayload,
   getPublicBoardRows,
-  invalidatePublicBoardCache,
-  PUBLIC_BOARD_CACHE_SECONDS,
-  setCachedAnonymousPublicPayload,
-  type PublicBoardRow,
 } from '@/app/lib/feedback-event/public-board-cache';
 import {
   getFeedbackFeatureLabel,
   getFeedbackResultLabel,
-  maskFeedbackAuthor,
 } from '@/app/lib/feedback-event/labels';
+import { mapBoardPost } from '@/app/lib/feedback-event/map-board-post';
 import { createFeedbackPerfLogger } from '@/app/lib/feedback-event/perf-log';
-
-function feedbackExcerpt(content: string, max = 120): string {
-  return content.length > max ? `${content.slice(0, max)}…` : content;
-}
-
-function mapBoardPost(
-  p: PublicBoardRow,
-  myUserId: string | null,
-  isAdmin: boolean,
-) {
-  const isMine = myUserId === p.userId;
-  const canViewContent = p.publicConsent || isMine || isAdmin;
-
-  return {
-    id: p.id,
-    authorLabel: maskFeedbackAuthor(p.userId),
-    isMine,
-    featureLabel: getFeedbackFeatureLabel(p.featureUsed),
-    resultLabel: getFeedbackResultLabel(p.conversionResult),
-    publicConsent: p.publicConsent,
-    excerpt: canViewContent ? feedbackExcerpt(p.content) : null,
-    canOpen: canViewContent,
-    canDelete: isAdmin,
-    createdAt: p.createdAt.toISOString(),
-  };
-}
+import {
+  getFeedbackViewerFromRequest,
+  resolveFeedbackViewerUserId,
+} from '@/app/lib/feedback-event/viewer';
 
 function mapMyPost(p: {
   id: string;
@@ -67,28 +37,29 @@ function mapMyPost(p: {
   };
 }
 
-const ANON_POSTS_CACHE_HEADERS = {
-  'Cache-Control': `public, s-maxage=${PUBLIC_BOARD_CACHE_SECONDS}, stale-while-revalidate=120`,
-};
-
 export async function GET(request: NextRequest) {
   const perf = createFeedbackPerfLogger('posts');
   try {
     const scope = request.nextUrl.searchParams.get('scope') ?? 'public';
 
     if (scope === 'mine') {
-      const session = await getServerSession(authOptions);
-      perf.mark('session');
-      if (!session?.user?.email) {
+      const viewer = await getFeedbackViewerFromRequest(request);
+      perf.mark('viewer');
+      if (!viewer.email && !viewer.userId) {
         return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
       }
 
       const [config, user] = await Promise.all([
         getFeedbackEventConfig(),
-        prisma.user.findUnique({
-          where: { email: session.user.email },
-          select: { id: true },
-        }),
+        viewer.userId
+          ? prisma.user.findUnique({
+              where: { id: viewer.userId },
+              select: { id: true },
+            })
+          : prisma.user.findUnique({
+              where: { email: viewer.email! },
+              select: { id: true },
+            }),
       ]);
       perf.mark('config+user');
 
@@ -121,25 +92,24 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const [config, session, boardRows] = await Promise.all([
+    const [config, viewer, boardRows] = await Promise.all([
       getFeedbackEventConfig(),
-      getServerSession(authOptions),
+      getFeedbackViewerFromRequest(request),
       getPublicBoardRows(),
     ]);
-    perf.mark('config+session+boardRows');
+    perf.mark('config+viewer+boardRows');
 
-    const isAdmin = isAdminEmail(session?.user?.email);
-    const myUserId = session?.user?.id ?? null;
-    const isAnonymousViewer = !session?.user?.email && !myUserId;
-
+    const isAdmin = viewer.isAdmin;
+    const myUserId = await resolveFeedbackViewerUserId(viewer);
+    const isAnonymousViewer = !viewer.email && !myUserId;
     if (isAnonymousViewer) {
-      const cached = getCachedAnonymousPublicPayload();
-      if (cached) {
-        perf.mark('anon-payload-cache-hit');
-        perf.flush({ scope: 'public', cached: true });
-        return NextResponse.json(cached, { headers: ANON_POSTS_CACHE_HEADERS });
-      }
+      perf.flush({ scope: 'public', unauthorized: true });
+      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
+    const visibleRows = boardRows.filter(
+      (p) => p.publicConsent || isAdmin || (!!myUserId && p.userId === myUserId),
+    );
+    perf.mark('viewer-user+filter');
 
     const endsAtLabel = config.endsAt.toLocaleDateString('ko-KR', {
       timeZone: 'Asia/Seoul',
@@ -153,19 +123,11 @@ export async function GET(request: NextRequest) {
       eventActive: config.isActive,
       endsAtLabel,
       viewerIsAdmin: isAdmin,
-      boardPosts: boardRows.map((p) => mapBoardPost(p, myUserId, isAdmin)),
+      boardPosts: visibleRows.map((p) => mapBoardPost(p, myUserId, isAdmin)),
     };
 
-    if (isAnonymousViewer) {
-      setCachedAnonymousPublicPayload(payload);
-      perf.mark('anon-payload-cache-miss');
-    }
-
-    perf.flush({ scope: 'public', cached: false, rows: boardRows.length });
-    return NextResponse.json(
-      payload,
-      isAnonymousViewer ? { headers: ANON_POSTS_CACHE_HEADERS } : undefined,
-    );
+    perf.flush({ scope: 'public', cached: false, rows: visibleRows.length });
+    return NextResponse.json(payload);
   } catch (error) {
     console.error('[FeedbackEventPosts]', error);
     perf.flush({ error: true });

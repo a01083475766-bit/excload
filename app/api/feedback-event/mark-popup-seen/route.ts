@@ -1,23 +1,22 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
 import { getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
+import { getFeedbackViewerFromRequest } from '@/app/lib/feedback-event/viewer';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const config = await getFeedbackEventConfig();
     if (!config.isActive) {
       return NextResponse.json({ success: true, skipped: true });
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const viewer = await getFeedbackViewerFromRequest(request);
+    if (!viewer.email && !viewer.userId) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
     await prisma.user.update({
-      where: { email: session.user.email },
+      where: viewer.userId ? { id: viewer.userId } : { email: viewer.email! },
       data: { feedbackPopupSeenAt: new Date() },
     });
 

@@ -1,8 +1,5 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
-import { isAdminEmail } from '@/app/lib/admin-auth';
 import { deleteFeedbackSubmissionById } from '@/app/lib/feedback-event/delete-submission';
 import {
   getFeedbackFeatureLabel,
@@ -11,9 +8,9 @@ import {
 } from '@/app/lib/feedback-event/labels';
 import { createFeedbackPerfLogger } from '@/app/lib/feedback-event/perf-log';
 import {
-  getCachedPublicPostDetail,
-  setCachedPublicPostDetail,
-} from '@/app/lib/feedback-event/public-post-detail-cache';
+  getFeedbackViewerFromRequest,
+  resolveFeedbackViewerUserId,
+} from '@/app/lib/feedback-event/viewer';
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -70,64 +67,42 @@ function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean)
   };
 }
 
-const ANON_DETAIL_CACHE_HEADERS = {
-  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
-};
-
-export async function GET(_request: Request, ctx: RouteCtx) {
+export async function GET(request: NextRequest, ctx: RouteCtx) {
   const perf = createFeedbackPerfLogger('post-detail');
   try {
     const { id } = await ctx.params;
 
-    const [post, session] = await Promise.all([
+    const [post, viewer] = await Promise.all([
       prisma.feedbackSubmission.findUnique({
         where: { id },
         select: POST_SELECT,
       }),
-      getServerSession(authOptions),
+      getFeedbackViewerFromRequest(request),
     ]);
-    perf.mark('post+session');
+    perf.mark('post+viewer');
 
     if (!post) {
       perf.flush({ found: false });
       return NextResponse.json({ error: '글을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    const isAdmin = isAdminEmail(session?.user?.email);
-    let myUserId = session?.user?.id ?? null;
-    if (!myUserId && session?.user?.email) {
-      const u = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { id: true },
-      });
-      myUserId = u?.id ?? null;
-      perf.mark('user-by-email');
-    }
-    const isAnonymous = !session?.user?.email && !myUserId;
+    const isAdmin = viewer.isAdmin;
+    const myUserId = await resolveFeedbackViewerUserId(viewer);
+    perf.mark('viewer-user');
+    const isAnonymous = !viewer.email && !myUserId;
 
-    if (post.publicConsent && isAnonymous && !isAdmin) {
-      const cached = getCachedPublicPostDetail(id);
-      if (cached) {
-        perf.mark('anon-detail-cache-hit');
-        perf.flush({ cached: true, public: true });
-        return NextResponse.json(cached, { headers: ANON_DETAIL_CACHE_HEADERS });
-      }
+    if (isAnonymous) {
+      perf.flush({ unauthorized: true });
+      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
     if (!post.publicConsent && myUserId !== post.userId && !isAdmin) {
       perf.flush({ forbidden: true });
-      return NextResponse.json({ error: '비공개 글입니다.' }, { status: 403 });
+      return NextResponse.json({ error: '글을 찾을 수 없습니다.' }, { status: 404 });
     }
 
     const detail = mapPostDetail(post, myUserId, isAdmin);
     const body = { success: true, post: detail };
-
-    if (post.publicConsent && isAnonymous && !isAdmin) {
-      setCachedPublicPostDetail(id, body);
-      perf.mark('anon-detail-cache-miss');
-      perf.flush({ cached: false, public: true });
-      return NextResponse.json(body, { headers: ANON_DETAIL_CACHE_HEADERS });
-    }
 
     perf.flush({ loggedIn: !isAnonymous, isMine: detail.isMine });
     return NextResponse.json(body);
@@ -138,10 +113,10 @@ export async function GET(_request: Request, ctx: RouteCtx) {
   }
 }
 
-export async function DELETE(_request: Request, ctx: RouteCtx) {
+export async function DELETE(request: NextRequest, ctx: RouteCtx) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+    const viewer = await getFeedbackViewerFromRequest(request);
+    if (!viewer.isAdmin) {
       return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 });
     }
 

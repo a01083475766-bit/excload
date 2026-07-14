@@ -40,7 +40,7 @@ export default function FeedbackEventDownloadModal({ open, endsAtLabel, onClose 
           <Gift className="h-8 w-8 shrink-0 text-amber-600" aria-hidden />
           <div>
             <h2 id="feedback-event-popup-title" className="text-lg font-bold text-amber-950">
-              오픈 피드백 이벤트
+              베타 피드백
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-amber-900">
               엑클로드를 사용해 보셨다면 변환 결과·개선 의견을 남겨 주세요. 확인 후{' '}
@@ -56,11 +56,12 @@ export default function FeedbackEventDownloadModal({ open, endsAtLabel, onClose 
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           <Link
-            href="/feedback-event/write"
+            href="/beta-feedback/write"
+            prefetch
             onClick={handleClose}
             className="flex-1 rounded-lg bg-amber-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-amber-700"
           >
-            이벤트 참여하기
+            피드백 작성하기
           </Link>
           <button
             type="button"

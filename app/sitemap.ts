@@ -14,7 +14,6 @@ const PUBLIC_SITEMAP_ENTRIES: {
   { url: 'https://www.excload.com/user-guide', changeFrequency: 'monthly', priority: 0.7 },
   { url: 'https://www.excload.com/about', changeFrequency: 'monthly', priority: 0.7 },
   { url: 'https://www.excload.com/contact', changeFrequency: 'monthly', priority: 0.6 },
-  { url: 'https://www.excload.com/feedback-event', changeFrequency: 'weekly', priority: 0.6 },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 import { getFeedbackEventConfig } from '@/app/lib/feedback-event/config';
 import {
@@ -21,6 +19,7 @@ import {
 } from '@/app/lib/feedback-event/entitlement';
 import { invalidateAnonymousStatusCache } from '@/app/lib/feedback-event/anonymous-status-cache';
 import { invalidatePublicBoardCache } from '@/app/lib/feedback-event/public-board-cache';
+import { getFeedbackViewerFromRequest } from '@/app/lib/feedback-event/viewer';
 import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
 import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
 import path from 'path';
@@ -35,13 +34,13 @@ export async function POST(request: NextRequest) {
     const config = await getFeedbackEventConfig();
     if (!config.isActive) {
       return NextResponse.json(
-        { error: '피드백 이벤트 접수 기간이 종료되었습니다.' },
+        { error: '베타 피드백 접수 기간이 종료되었습니다.' },
         { status: 403 },
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const viewer = await getFeedbackViewerFromRequest(request);
+    if (!viewer.email && !viewer.userId) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
@@ -50,6 +49,7 @@ export async function POST(request: NextRequest) {
     const conversionResult = String(form.get('conversionResult') ?? '').trim();
     const content = String(form.get('content') ?? '').trim();
     const publicConsent = form.get('publicConsent') === 'true' || form.get('publicConsent') === 'on';
+    const fileField = form.get('attachment');
 
     if (!isValidFeedbackFeature(featureUsed)) {
       return NextResponse.json({ error: '사용한 기능을 선택해 주세요.' }, { status: 400 });
@@ -65,8 +65,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!publicConsent && fileField && typeof fileField !== 'string' && fileField.size > 0) {
+      return NextResponse.json(
+        { error: '비공개 글의 안전한 파일 첨부 기능은 준비 중입니다. 첨부 없이 등록해 주세요.' },
+        { status: 400 },
+      );
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: viewer.userId ? { id: viewer.userId } : { email: viewer.email! },
       select: {
         id: true,
         plan: true,
@@ -87,7 +94,6 @@ export async function POST(request: NextRequest) {
 
     let attachmentName: string | null = null;
     let attachmentUrl: string | null = null;
-    const fileField = form.get('attachment');
     if (fileField && typeof fileField !== 'string' && fileField.size > 0) {
       if (fileField.size > MAX_ATTACHMENT_BYTES) {
         return NextResponse.json({ error: '첨부 파일은 5MB 이하만 가능합니다.' }, { status: 400 });

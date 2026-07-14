@@ -80,6 +80,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [pendingPlanChange, setPendingPlanChange] = useState<PendingPlanChangeInfo | null>(null);
   const [nextBillingLabel, setNextBillingLabel] = useState<string | null>(null);
+  const [nowMs] = useState(() => Date.now());
 
   const billingCycleText = planKey === 'yearly' ? '연 단위' : '월 단위';
   const selectedPlan = PAID_PLAN_OPTIONS.find((p) => p.planKey === planKey)!;
@@ -388,8 +389,8 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
                 무료 플랜
               </Link>
               으로 변환·다운로드를 체험해 보신 뒤,{' '}
-              <Link href="/feedback-event" className="font-medium underline">
-                피드백 이벤트 게시판
+              <Link href="/beta-feedback" prefetch className="font-medium underline">
+                베타 피드백 게시판
               </Link>
               로 30일 PRO 체험(계정당 1회)을 받을 수 있습니다. 체험 후에도 구독 없이 무료로 이용할 수
               있습니다.
@@ -398,7 +399,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
 
         {user &&
           user.adminTrialEndsAt &&
-          new Date(user.adminTrialEndsAt).getTime() > Date.now() &&
+          new Date(user.adminTrialEndsAt).getTime() > nowMs &&
           !hasPaidPlan &&
           user.plan === 'FREE' && (
             <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-800 dark:bg-sky-950/40">

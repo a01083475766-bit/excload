@@ -22,6 +22,7 @@ export default function robots(): MetadataRoute.Robots {
         '/setting/',
         '/login/',
         '/feedback-event/',
+        '/beta-feedback/',
       ],
     },
     sitemap: `${BASE_URL}/sitemap.xml`,

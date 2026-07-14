@@ -18,7 +18,7 @@ export function FeedbackEventIntro({ data, from }: Props) {
   return (
     <>
       <div className="text-zinc-600 text-sm leading-relaxed mb-4 space-y-3">
-        <p className="font-medium text-zinc-800">피드백 이벤트 진행 중입니다.</p>
+        <p className="font-medium text-zinc-800">베타 피드백 접수 중입니다.</p>
         <p>
           엑클로드는 여러분의 의견을 바탕으로 더 나아지고 있습니다.
           <br />

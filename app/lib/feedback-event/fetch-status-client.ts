@@ -1,8 +1,4 @@
 import { DEFAULT_FEEDBACK_EVENT_ENDS_AT } from '@/app/lib/feedback-event/constants';
-import {
-  readFeedbackStatusCache,
-  writeFeedbackStatusCache,
-} from '@/app/lib/feedback-event/status-cache';
 import type { FeedbackEventStatusPayload } from '@/app/lib/feedback-event/types';
 
 function buildFallbackStatus(): FeedbackEventStatusPayload {
@@ -34,17 +30,10 @@ function buildFallbackStatus(): FeedbackEventStatusPayload {
 let statusFetchInFlight: Promise<FeedbackEventStatusPayload | null> | null = null;
 
 /**
- * 피드백 이벤트 status API — sessionStorage TTL(60s) + in-flight dedupe.
+ * 베타 피드백 status API — in-flight dedupe.
  * MainNav·피드백 페이지 등 여러 훅이 동시에 호출해도 네트워크 1회만 사용합니다.
  */
-export async function fetchFeedbackEventStatus(
-  options?: { force?: boolean },
-): Promise<FeedbackEventStatusPayload | null> {
-  if (!options?.force) {
-    const cached = readFeedbackStatusCache();
-    if (cached) return cached;
-  }
-
+export async function fetchFeedbackEventStatus(): Promise<FeedbackEventStatusPayload | null> {
   if (statusFetchInFlight) {
     return statusFetchInFlight;
   }
@@ -60,22 +49,17 @@ export async function fetchFeedbackEventStatus(
       window.clearTimeout(timeout);
 
       if (!res.ok) {
-        const fallback = buildFallbackStatus();
-        writeFeedbackStatusCache(fallback);
-        return fallback;
+        return buildFallbackStatus();
       }
 
       const json = await res.json();
       if (json.success) {
-        const payload = { event: json.event, user: json.user } as FeedbackEventStatusPayload;
-        writeFeedbackStatusCache(payload);
-        return payload;
+        return { event: json.event, user: json.user } as FeedbackEventStatusPayload;
       }
       return null;
     } catch {
       const fallback = buildFallbackStatus();
       if (fallback.event.isActive) {
-        writeFeedbackStatusCache(fallback);
         return fallback;
       }
       return null;

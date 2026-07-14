@@ -50,7 +50,7 @@ export default function FeedbackMinePage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace(
-        `/auth/login?callbackUrl=${encodeURIComponent('/feedback-event/mine')}`,
+        `/auth/login?callbackUrl=${encodeURIComponent('/beta-feedback/mine')}`,
       );
       return;
     }
@@ -79,16 +79,16 @@ export default function FeedbackMinePage() {
     <div className="bg-zinc-50 min-h-screen py-10 px-4">
       <div className="max-w-3xl mx-auto">
         <Link
-          href="/feedback-event"
+          href="/beta-feedback"
           className="inline-flex items-center gap-1 text-sm text-zinc-600 hover:text-blue-600 mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
-          게시판 목록
+          베타 피드백
         </Link>
 
         <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-2 flex items-center gap-2">
           <MessageSquare className="h-7 w-7 text-blue-600" aria-hidden />
-          내가 작성한 글
+          내가 작성한 베타 피드백
         </h1>
         <p className="text-sm text-zinc-500 mb-6">
           비공개로 작성한 글도 여기에서 확인할 수 있습니다.
@@ -102,7 +102,7 @@ export default function FeedbackMinePage() {
           <div className="bg-white rounded-xl border border-zinc-200 px-6 py-12 text-center text-sm text-zinc-500">
             아직 작성한 피드백이 없습니다.
             <br />
-            <Link href="/feedback-event/write" className="text-blue-600 underline mt-2 inline-block">
+            <Link href="/beta-feedback/write" className="text-blue-600 underline mt-2 inline-block">
               피드백 작성하기
             </Link>
           </div>
@@ -111,7 +111,7 @@ export default function FeedbackMinePage() {
             {posts.map((p) => (
               <Link
                 key={p.id}
-                href={`/feedback-event/${p.id}`}
+                href={`/beta-feedback/${p.id}`}
                 prefetch
                 className="block px-4 py-3 hover:bg-zinc-50 transition-colors"
               >

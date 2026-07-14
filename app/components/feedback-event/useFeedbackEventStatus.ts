@@ -2,34 +2,24 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { fetchFeedbackEventStatus } from '@/app/lib/feedback-event/fetch-status-client';
-import { readFeedbackStatusCache } from '@/app/lib/feedback-event/status-cache';
 import type { FeedbackEventStatusPayload } from '@/app/lib/feedback-event/types';
 
 export type { FeedbackEventStatusPayload } from '@/app/lib/feedback-event/types';
 
 export function useFeedbackEventStatus(enabled = true) {
-  const [data, setData] = useState<FeedbackEventStatusPayload | null>(() =>
-    enabled ? readFeedbackStatusCache() : null,
-  );
-  const [loading, setLoading] = useState(() => enabled && !readFeedbackStatusCache());
+  const [data, setData] = useState<FeedbackEventStatusPayload | null>(null);
+  const [loading, setLoading] = useState(enabled);
 
   const refresh = useCallback(
-    async (force = false) => {
+    async () => {
       if (!enabled) {
         setData(null);
         setLoading(false);
         return;
       }
 
-      const cached = !force ? readFeedbackStatusCache() : null;
-      if (cached) {
-        setData(cached);
-        setLoading(false);
-        return;
-      }
-
       setLoading(true);
-      const payload = await fetchFeedbackEventStatus({ force });
+      const payload = await fetchFeedbackEventStatus();
       setData(payload);
       setLoading(false);
     },
@@ -37,13 +27,13 @@ export function useFeedbackEventStatus(enabled = true) {
   );
 
   useEffect(() => {
-    void refresh(false);
+    void refresh();
   }, [refresh]);
 
   return {
     data,
     loading,
-    refresh: () => refresh(true),
+    refresh: () => refresh(),
     isEventActive: data?.event.isActive ?? false,
   };
 }

@@ -123,9 +123,8 @@ export default function LandingHeroSection() {
           </div>
 
           <div className="flex min-w-0 flex-col border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/70">
-            <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
+            <div className="flex items-center border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
               <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">엑클로드 업무 흐름</h2>
-              <span className="text-xs font-medium text-zinc-500">예시 화면 · 실제 수치 아님</span>
             </div>
             <ol className="relative flex-1 px-5 py-2">
               {WORKFLOW_STEPS.map((item, index) => (

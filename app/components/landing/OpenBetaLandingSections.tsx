@@ -5,6 +5,19 @@ import { getSignupBonusPoints } from '@/app/lib/open-beta-policy';
 import Link from 'next/link';
 import { useState } from 'react';
 
+const OPEN_BETA_MALLS = [
+  '쿠팡',
+  '스마트스토어',
+  '11번가',
+  '카페24',
+  '롯데ON',
+  'SSG',
+  'CJ온스타일',
+  '샵바이',
+  '고도몰',
+  '메이크샵',
+] as const;
+
 const BENEFITS = [
   {
     title: '무료로 충분히 사용해 보세요',
@@ -180,12 +193,23 @@ function JoinBand() {
             </li>
           ))}
         </ol>
-        <Link
-          href="/auth"
-          className="mt-8 inline-flex min-h-12 items-center justify-center rounded-md bg-white px-6 text-base font-semibold text-blue-700 hover:bg-blue-50"
-        >
-          오픈 베타 참여하기
-        </Link>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Link
+            href="/auth"
+            className="inline-flex min-h-12 items-center justify-center rounded-md bg-white px-6 text-base font-semibold text-blue-700 hover:bg-blue-50"
+          >
+            오픈 베타 참여하기
+          </Link>
+          <Link
+            href="/beta-feedback"
+            className="inline-flex min-h-12 items-center justify-center rounded-md border border-white/45 px-6 text-base font-semibold text-white hover:bg-white/10"
+          >
+            베타 사용자 의견 보기
+          </Link>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-blue-50">
+          오류 제보와 개선 의견, 운영자의 확인 내용을 함께 볼 수 있습니다.
+        </p>
       </div>
     </section>
   );
@@ -244,7 +268,7 @@ function FeaturesSection() {
   );
 }
 
-/** Hero 다음: 혜택 → 참여 독려 */
+/** Hero 다음: 연동 대상 쇼핑몰 → 혜택 → 참여 독려 */
 export function OpenBetaLandingTop() {
   const signupBonusLabel = getSignupBonusPoints().toLocaleString();
   const benefits = BENEFITS.map((item) =>
@@ -255,6 +279,32 @@ export function OpenBetaLandingTop() {
 
   return (
     <>
+      <section className="border-b border-zinc-200 bg-white py-8 dark:border-zinc-800 dark:bg-zinc-950 sm:py-10">
+        <div className={landingContainerClass}>
+          <div className="max-w-3xl">
+            <h2 className="break-keep text-2xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
+              오픈 베타 연동 대상 쇼핑몰
+            </h2>
+            <p className="mt-3 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
+              판매자 계정의 API 이용 승인 여부와 쇼핑몰별 제공 조건에 따라
+              연결 가능 시점이 달라질 수 있습니다.
+            </p>
+          </div>
+          <ul className="mt-5 flex flex-wrap gap-2">
+            {OPEN_BETA_MALLS.map((mall) => (
+              <li key={mall}>
+                <span className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+                  {mall}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 break-keep text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+            사용 중인 쇼핑몰을 연결해 보고, 필요한 연동을 알려주세요.
+          </p>
+        </div>
+      </section>
+
       <section className="border-b border-zinc-200 bg-white py-12 dark:border-zinc-800 dark:bg-zinc-950 sm:py-14">
         <div className={landingContainerClass}>
           <SectionHead
