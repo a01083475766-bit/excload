@@ -93,17 +93,15 @@ describe('GET /api/order/integration/shipments/uploads/[batchId]/linkable-orders
     expect(mocks.loadLinkableOrdersForShipmentUploadBatch).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when user is not admin', async () => {
+  it('allows authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
 
     const response = await GET(buildRequest(), {
       params: Promise.resolve({ batchId: 'batch-1' }),
     });
-    const json = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(json.error).toBe('관리자 권한이 필요합니다.');
-    expect(mocks.loadLinkableOrdersForShipmentUploadBatch).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.loadLinkableOrdersForShipmentUploadBatch).toHaveBeenCalled();
   });
 
   it('returns 404 when batch is not found for session user', async () => {

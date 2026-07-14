@@ -104,17 +104,15 @@ describe('POST /api/order/integration/shipments/uploads/[batchId]/matches/[match
     expect(mocks.excludeShipmentUploadMatch).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when user is not admin', async () => {
+  it('allows authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
 
     const response = await POST(buildRequest(), {
       params: Promise.resolve({ batchId: 'batch-1', matchId: 'match-1' }),
     });
-    const json = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(json.error).toBe('관리자 권한이 필요합니다.');
-    expect(mocks.excludeShipmentUploadMatch).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.excludeShipmentUploadMatch).toHaveBeenCalled();
   });
 
   it('returns 400 when matchId is missing', async () => {

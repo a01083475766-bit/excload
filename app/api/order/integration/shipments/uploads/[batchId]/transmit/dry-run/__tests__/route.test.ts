@@ -117,13 +117,11 @@ describe('POST .../transmit/dry-run', () => {
     expect(mocks.runShipmentTransmissionDryRun).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when user is not admin', async () => {
+  it('allows authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
     const res = await POST(buildRequest({}), params);
-    const json = await res.json();
-    expect(res.status).toBe(403);
-    expect(json.error).toBe('관리자 권한이 필요합니다.');
-    expect(mocks.runShipmentTransmissionDryRun).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(mocks.runShipmentTransmissionDryRun).toHaveBeenCalled();
   });
 
   it('returns 400 for invalid JSON', async () => {

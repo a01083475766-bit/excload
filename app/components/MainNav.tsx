@@ -102,10 +102,10 @@ export default function MainNav() {
   const primaryMenuForUser = primaryMenuItems.filter(
     (item) => !hiddenNavHrefs.has(item.href) && (item.href !== '/history' || isLoggedIn),
   );
-  /** 1단: 주문연동(관리자만)을 택배주문변환 앞에 배치 */
-  const displayPrimaryItems = (
-    isAdmin ? [orderIntegrationMenuItem, ...primaryMenuForUser] : primaryMenuForUser
-  ).filter((item) => !hiddenNavHrefs.has(item.href));
+  /** 1단: 쇼핑몰주문연동을 택배주문변환 앞에 배치 */
+  const displayPrimaryItems = [orderIntegrationMenuItem, ...primaryMenuForUser].filter(
+    (item) => !hiddenNavHrefs.has(item.href),
+  );
   /** 2단: 서비스소개 다음에 관리자·커머스리포트(관리자만), 이어서 랜딩 테스트 */
   const displaySecondaryItems = secondaryMenuItems
     .flatMap((item) => {

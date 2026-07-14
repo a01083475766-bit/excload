@@ -124,17 +124,15 @@ describe('GET /api/order/integration/shipments/uploads/[batchId]', () => {
     expect(mocks.loadShipmentUploadBatchDetail).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when user is not admin', async () => {
+  it('allows authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
 
     const response = await GET(buildRequest(), {
       params: Promise.resolve({ batchId: 'batch-1' }),
     });
-    const json = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(json.error).toBe('관리자 권한이 필요합니다.');
-    expect(mocks.loadShipmentUploadBatchDetail).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(mocks.loadShipmentUploadBatchDetail).toHaveBeenCalled();
   });
 
   it('returns 400 when batchId is missing', async () => {

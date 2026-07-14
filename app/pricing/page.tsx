@@ -107,24 +107,24 @@ export default function PricingPage() {
               ? '오픈 베타 기간에는 무료로 이용할 수 있습니다'
               : '무료로 먼저 써보고, 필요할 때만 업그레이드'}
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-3xl break-keep text-pretty text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-lg">
             {betaMode ? (
               <>
                 회원가입 시 {signupBonus.toLocaleString()}P를 제공하고, 베타 기간에는 매월{' '}
                 {signupBonus.toLocaleString()} 포인트 사용량을 제공합니다.
                 <br />
-                엑셀 다운로드는 무제한 가능하며, 텍스트 변환 시 글자 수만큼 포인트가 차감됩니다. 오픈
-                베타 이용자는 자동으로 유료 전환되지 않습니다.
+                엑셀 다운로드는 무제한 가능하며, 텍스트 변환 시 글자 수만큼 포인트가 차감됩니다.
+                오픈 베타 이용자는 자동으로 유료 전환되지 않습니다.
               </>
             ) : (
               <>
-                엑클로드(EXCLOAD)는 주문 엑셀 변환, 송장 파일 변환, 물류 주문 변환을 하나의 서비스에서
-                이용할 수 있습니다.
+                엑클로드(EXCLOAD)는 주문 엑셀 변환, 송장 파일 변환, 물류 주문 변환을 하나의
+                서비스에서 이용할 수 있습니다.
               </>
             )}
           </p>
           {betaMode ? (
-            <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-500">
+            <p className="mx-auto mt-3 max-w-2xl break-keep text-pretty text-sm text-zinc-500">
               현재 표시된 유료 요금제는 정식 출시 후 적용될 예상 요금입니다.
             </p>
           ) : (

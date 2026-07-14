@@ -89,17 +89,16 @@ describe('POST /api/order/integration/shipments/match', () => {
     expect(json.error).toBe('로그인이 필요합니다.');
   });
 
-  it('returns 403 when user is not admin', async () => {
+  it('allows authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
 
     const formData = new FormData();
     formData.append('file', new File(['송장번호\n1'], 'shipments.csv', { type: 'text/csv' }));
 
     const response = await POST(buildRequest(formData));
-    const json = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(json.error).toBe('관리자 권한이 필요합니다.');
+    expect(response.status).toBe(200);
+    expect(mocks.matchUploadedShipmentFile).toHaveBeenCalled();
   });
 
   it('returns 400 when file is missing', async () => {

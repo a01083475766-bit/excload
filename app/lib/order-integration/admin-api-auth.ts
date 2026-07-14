@@ -1,32 +1,27 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { isAdminEmail } from '@/app/lib/admin-auth';
 import { prisma } from '@/app/lib/prisma';
 
-type AdminAuthSuccess = {
+type OrderIntegrationAuthSuccess = {
   userId: string;
   email: string;
 };
 
-type AdminAuthFailure = {
+type OrderIntegrationAuthFailure = {
   response: NextResponse;
 };
 
-export async function requireOrderIntegrationAdmin():
-  Promise<AdminAuthSuccess | AdminAuthFailure> {
+/** 주문연동 API — 로그인 사용자(본인 계정 스코프)면 허용 */
+export async function requireOrderIntegrationAdmin(): Promise<
+  OrderIntegrationAuthSuccess | OrderIntegrationAuthFailure
+> {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email?.trim();
 
   if (!email) {
     return {
       response: NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 }),
-    };
-  }
-
-  if (!isAdminEmail(email)) {
-    return {
-      response: NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 }),
     };
   }
 
@@ -45,7 +40,7 @@ export async function requireOrderIntegrationAdmin():
 }
 
 export function isAdminAuthFailure(
-  result: AdminAuthSuccess | AdminAuthFailure,
-): result is AdminAuthFailure {
+  result: OrderIntegrationAuthSuccess | OrderIntegrationAuthFailure,
+): result is OrderIntegrationAuthFailure {
   return 'response' in result;
 }
