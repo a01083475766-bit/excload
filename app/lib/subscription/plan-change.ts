@@ -37,6 +37,8 @@ export function getPlanDisplayName(plan: string): string {
       return '연간';
     case 'FREE':
       return '무료';
+    case 'BETA':
+      return '오픈 베타';
     default:
       return plan;
   }

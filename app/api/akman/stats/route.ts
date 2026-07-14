@@ -16,6 +16,10 @@ export async function GET(request: Request) {
     where: { plan: 'FREE' }
   })
 
+  const betaUsers = await prisma.user.count({
+    where: { plan: 'BETA' }
+  })
+
   const proUsers = await prisma.user.count({
     where: { plan: 'PRO' }
   })
@@ -77,6 +81,7 @@ export async function GET(request: Request) {
 
   return Response.json({
     totalUsers,
+    betaUsers,
     freeUsers,
     proUsers,
     yearlyUsers,

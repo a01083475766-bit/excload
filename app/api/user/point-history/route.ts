@@ -4,7 +4,13 @@ import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 
 function reasonLabel(reason: string): string {
-  if (reason === 'FREE플랜_월간사용량자동지급') return '무료 플랜 월간 지급';
+  if (
+    reason === 'FREE플랜_월간사용량자동지급' ||
+    reason === 'FREE플랜_월간사용량리셋지급'
+  ) {
+    return '무료 플랜 월간 지급';
+  }
+  if (reason === 'BETA플랜_월간사용량리셋지급') return '오픈 베타 월간 지급';
   if (reason === 'TOSS_PAYMENT_RESET') return '유료 결제 후 지급';
   if (reason === 'TOSS_RENEWAL_RESET') return '유료 정기갱신 지급';
   if (reason === 'STRIPE_PAYMENT_RESET') return 'Stripe 결제 후 지급';

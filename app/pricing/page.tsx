@@ -1,14 +1,20 @@
-/**
+﻿/**
  * 가격·결제·구독 안내. 서비스 설명 중심 페이지는 app/about/page.tsx 와 역할을 분리합니다.
- * ⚠️ EXCLOAD CONSTITUTION v4.2 — 결제/Stripe 연동은 본 페이지·API 경로에서만 다룹니다.
+ * ⚠️ EXCLOAD CONSTITUTION — 결제/Stripe 연동은 본 페이지·API 경로에서만 다룹니다.
  */
 'use client';
 
 import { Check, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { PricingPlanCta } from '@/app/pricing/PricingPlanCta';
+import { getSignupBonusPoints, isOpenBetaMode } from '@/app/lib/open-beta-policy';
 
 export default function PricingPage() {
+  const { status } = useSession();
+  const betaMode = isOpenBetaMode();
+  const signupBonus = getSignupBonusPoints();
+
   const plans = [
     {
       planKey: 'free' as const,
@@ -78,6 +84,7 @@ export default function PricingPage() {
       showVat: true,
     },
   ];
+
   const comparisonRows = [
     { label: '무료체험', free: '가능', monthly: '가능', yearly: '가능' },
     { label: '월 사용량', free: '5,000', monthly: '400,000', yearly: '400,000' },
@@ -85,43 +92,126 @@ export default function PricingPage() {
     { label: '추천 대상', free: '처음 테스트', monthly: '꾸준한 운영', yearly: '장기 이용' },
   ];
 
+  const betaStartHref =
+    status === 'authenticated' ? '/order/integration' : '/auth/signup';
+
   return (
     <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
       <main className="mx-auto max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
-        {/* 헤더 */}
         <div className="mb-12 rounded-xl border border-blue-100 bg-white px-5 py-12 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:mb-16 lg:px-12">
           <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
             PRICE PLAN
           </p>
           <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 dark:text-zinc-100 sm:text-4xl lg:text-5xl">
-            무료로 먼저 써보고, 필요할 때만 업그레이드
+            {betaMode
+              ? '오픈 베타 기간에는 무료로 이용할 수 있습니다'
+              : '무료로 먼저 써보고, 필요할 때만 업그레이드'}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-lg">
-            엑클로드(EXCLOAD)는 주문 엑셀 변환, 송장 파일 변환, 물류 주문 변환을 하나의 서비스에서
-            이용할 수 있습니다.
+            {betaMode ? (
+              <>
+                회원가입 시 {signupBonus.toLocaleString()}P를 제공하고, 베타 기간에는 매월 잔액을
+                리셋한 뒤 {signupBonus.toLocaleString()}P가 지급됩니다.
+                <br />
+                엑셀 다운로드에는 포인트가 차감되지 않으며, AI 텍스트 변환을 사용할 때만 글자 수만큼
+                포인트가 차감됩니다. 오픈 베타 이용자는 자동으로 유료 전환되지 않습니다.
+              </>
+            ) : (
+              <>
+                엑클로드(EXCLOAD)는 주문 엑셀 변환, 송장 파일 변환, 물류 주문 변환을 하나의 서비스에서
+                이용할 수 있습니다.
+              </>
+            )}
           </p>
-          <p className="mx-auto mt-3 inline-flex rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-            추천: 무료체험으로 결과를 먼저 확인해보세요.
-          </p>
+          {betaMode ? (
+            <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-500">
+              현재 표시된 유료 요금제는 정식 출시 후 적용될 예상 요금입니다.
+            </p>
+          ) : (
+            <p className="mx-auto mt-3 inline-flex rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+              추천: 무료체험으로 결과를 먼저 확인해보세요.
+            </p>
+          )}
         </div>
 
-        {/* 플랜 카드 */}
+        {betaMode ? (
+          <section className="mb-10 w-full rounded-xl border-2 border-blue-600 bg-white p-6 shadow-sm dark:bg-zinc-900 sm:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 text-left">
+                <p className="text-xs font-bold tracking-wide text-blue-600">OPEN BETA</p>
+                <h2 className="mt-2 text-2xl font-black text-zinc-950 dark:text-zinc-100 sm:text-3xl">
+                  엑클로드 오픈 베타
+                </h2>
+                <p className="mt-2 text-lg font-semibold text-zinc-800 dark:text-zinc-200">무료</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                  회원가입만 하면 엑클로드의 주요 기능을 무료로 사용할 수 있습니다.
+                </p>
+                <ul className="mt-4 space-y-2 text-sm text-zinc-700 dark:text-zinc-300">
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                    회원가입 시 {signupBonus.toLocaleString()}P 제공
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                    베타 기간 매월 잔액 리셋 후 {signupBonus.toLocaleString()}P 지급
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                    엑셀 다운로드 무료
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                    텍스트 변환 시에만 포인트 차감
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                    자동 유료 전환 없음
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href={betaStartHref}
+                className="inline-flex h-12 shrink-0 items-center justify-center rounded-lg bg-blue-600 px-8 text-base font-semibold text-white transition hover:bg-blue-700"
+              >
+                무료로 시작하기
+              </Link>
+            </div>
+          </section>
+        ) : null}
+
+        {betaMode ? (
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              정식 출시 예정 요금제
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              아래 요금제는 정식 출시 후 적용될 예정입니다. 가격과 제공 혜택은 베타 운영 결과에 따라
+              변경될 수 있습니다.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mb-12 grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-5">
           {plans.map((plan) => (
             <div
               key={plan.planKey}
-              className={`relative flex flex-col rounded-xl border bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:bg-zinc-900 md:min-h-[520px] lg:p-8 ${
+              className={`relative flex flex-col rounded-xl border bg-white p-6 shadow-sm dark:bg-zinc-900 md:min-h-[520px] lg:p-8 ${
                 plan.popular
-                  ? 'border-blue-500 ring-1 ring-blue-100 dark:ring-blue-950'
+                  ? 'border-blue-600 dark:border-blue-500'
                   : 'border-zinc-200 dark:border-zinc-800'
               }`}
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-4 py-1 text-sm font-bold text-white">
-                  인기 플랜
+                  {betaMode ? '정식 출시 추천' : '인기 플랜'}
                 </div>
               )}
-              
+              {betaMode ? (
+                <div className="mb-3 inline-flex self-center rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                  정식 출시 예정
+                </div>
+              ) : null}
+
               <div className="mb-7 text-center">
                 <h3 className="text-2xl font-black text-zinc-950 dark:text-zinc-100">
                   {plan.name}
@@ -132,7 +222,7 @@ export default function PricingPage() {
                 <div className="mt-5 flex flex-col items-center gap-1">
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-4xl font-black tracking-tight text-zinc-950 dark:text-zinc-100">
-                      {plan.price === '0' ? '무료' : `₩${parseInt(plan.price.replace(/,/g, '')).toLocaleString()}`}
+                      {plan.price === '0' ? '무료' : `₩${plan.price}`}
                     </span>
                     {plan.price !== '0' && (
                       <span className="font-semibold text-zinc-500 dark:text-zinc-400">
@@ -141,37 +231,38 @@ export default function PricingPage() {
                     )}
                   </div>
                   {plan.showVat && (
-                    <span className="text-xs text-zinc-500 dark:text-zinc-500">
-                      (VAT 별도)
-                    </span>
+                    <span className="text-xs text-zinc-500">(VAT 별도)</span>
                   )}
                 </div>
               </div>
-              
+
               <ul className="mb-8 space-y-2.5">
                 {plan.features.map((feature, featureIndex) => (
                   <li key={featureIndex} className="flex items-start gap-2.5">
-                    <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                    <span className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{feature}</span>
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                    <span className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+                      {feature}
+                    </span>
                   </li>
                 ))}
               </ul>
-              
-              {/* 이런 분께 추천합니다 섹션 */}
+
               <div className="mb-8 flex-1 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-                <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3.5">
+                <h4 className="mb-3.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   이런 분께 추천합니다
                 </h4>
                 <ul className="space-y-2">
                   {plan.recommendations.map((recommendation, recIndex) => (
                     <li key={recIndex} className="flex items-start gap-2">
-                      <span className="text-zinc-500 dark:text-zinc-500 mt-0.5 text-xs">•</span>
-                      <span className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{recommendation}</span>
+                      <span className="mt-0.5 text-xs text-zinc-500">•</span>
+                      <span className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                        {recommendation}
+                      </span>
                     </li>
                   ))}
                 </ul>
               </div>
-              
+
               <PricingPlanCta planKey={plan.planKey} planName={plan.name} />
             </div>
           ))}
@@ -190,126 +281,35 @@ export default function PricingPage() {
                 key={row.label}
                 className="grid grid-cols-4 border-t border-zinc-100 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-300"
               >
-                <div className="px-3 py-3 text-left font-semibold text-zinc-900 dark:text-zinc-100">{row.label}</div>
+                <div className="px-3 py-3 text-left font-semibold text-zinc-900 dark:text-zinc-100">
+                  {row.label}
+                </div>
                 <div className="px-3 py-3">{row.free}</div>
-                <div className="px-3 py-3 font-semibold text-blue-700 dark:text-blue-300">{row.monthly}</div>
+                <div className="px-3 py-3 font-semibold text-blue-700 dark:text-blue-300">
+                  {row.monthly}
+                </div>
                 <div className="px-3 py-3">{row.yearly}</div>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="mb-10 max-w-3xl mx-auto text-center text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
-          선택한 플랜 주기에 따라 정기결제가 진행됩니다. 결제 전 이용 조건을 확인해 주세요.
+        <p className="mx-auto mb-10 max-w-3xl text-center text-xs leading-relaxed text-zinc-500">
+          {betaMode
+            ? '오픈 베타 기간에는 신규 유료 결제를 받지 않습니다. 정식 출시 후 요금제가 적용됩니다.'
+            : '선택한 플랜 주기에 따라 정기결제가 진행됩니다. 결제 전 이용 조건을 확인해 주세요.'}
         </p>
 
-        {/* 결제·환불 안내 (토스 심사 대응: 가격 페이지에서 결제 조건 명시) */}
-        <div className="max-w-3xl mx-auto space-y-6 mb-16">
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 lg:p-8">
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
-              결제 안내
-            </h2>
-            <p className="text-zinc-700 dark:text-zinc-300 mb-4">
-              엑클로드는 구독형(정기결제) 서비스입니다.
-            </p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-4 py-3 border border-zinc-200 dark:border-zinc-700">
-              본 서비스는 선불 충전 방식이 아니며, 구독에 따른 월간 사용량(이용 한도)을 제공하고 기능 이용 시
-              사용량이 차감되는 사용량 기반 과금입니다.
-            </p>
-            <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-              <li>현재 카드 결제를 지원합니다. (토스 빌링/기존 결제 연동)</li>
-              <li>정기결제는 선택한 플랜 주기(월/연) 기준으로 반복 결제가 진행됩니다.</li>
-              <li>마이페이지에서 언제든지 해지 예약이 가능하며, 다음 결제일부터 중단됩니다.</li>
-              <li>결제 후 즉시 서비스 이용이 가능합니다.</li>
-              <li>서비스 제공기간: 월간 플랜 1개월 단위, 연간 플랜 12개월 단위</li>
-            </ul>
-          </div>
-
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 lg:p-8">
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
-              환불 정책
-            </h2>
-            <ul className="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
-              <li>결제 후 7일 이내 환불 요청 가능</li>
-              <li>환불은 환불 신청 접수 후 검토를 통해 처리됩니다.</li>
-              <li>필요 시 환불 계좌 정보 확인이 요청될 수 있습니다.</li>
-              <li>환불 처리 결과는 영업일 기준 3~5일 내 안내됩니다.</li>
-            </ul>
-            <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
-              자세한 내용은{' '}
-              <Link href="/refund" className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300">
-                환불 정책 전문
-              </Link>
-              을 참고해 주세요.
-            </p>
-          </div>
-        </div>
-
-        {/* FAQ 섹션 */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 lg:p-10">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-8 text-center">
-            자주 묻는 질문
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-            {[
-              {
-                question: '플랜을 나중에 변경할 수 있나요?',
-                answer: '네, 언제든지 플랜을 업그레이드하거나 다운그레이드할 수 있습니다.',
-              },
-              {
-                question: '무료 플랜에 제한이 있나요?',
-                answer: '무료 플랜은 월 5개 파일 처리 제한이 있으며, 기본 기능만 사용할 수 있습니다.',
-              },
-              {
-                question: '결제는 어떻게 진행되나요?',
-                answer: '현재 카드 결제를 지원하며, 플랜 주기에 따라 정기결제가 갱신됩니다.',
-              },
-              {
-                question: '환불 정책은 어떻게 되나요?',
-                answer:
-                  '결제 후 7일 이내 환불 신청이 가능하며, 접수 후 정책 기준에 따라 검토·처리됩니다. 처리 결과는 영업일 기준 3~5일 내 안내됩니다. 상세는 환불 정책 페이지를 참고해 주세요.',
-              },
-            ].map((faq, index) => (
-              <div key={index} className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-                  {faq.question}
-                </h3>
-                <p className="text-zinc-600 dark:text-zinc-400 text-sm">
-                  {faq.answer}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* VAT 안내 및 플랜 변경 안내 */}
-        <div className="mt-8 text-center space-y-2">
-          <p className="text-sm text-zinc-500 dark:text-zinc-500">
-            * 모든 가격은 부가세 별도입니다.
-          </p>
-          <div className="flex items-center justify-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
-            <span>언제든지 플랜 변경 가능</span>
-            <span className="text-zinc-300 dark:text-zinc-700">|</span>
-            <span>언제든지 해지 가능</span>
-          </div>
-        </div>
-
-        {/* CTA 섹션 */}
-        <div className="mt-12 lg:mt-16 text-center">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-8 lg:p-12">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              더 많은 정보가 필요하신가요?
-            </h2>
-            <p className="text-lg text-blue-100 mb-8">
-              고객 지원팀이 도와드리겠습니다.
-            </p>
+        <div className="mt-12 text-center lg:mt-16">
+          <div className="rounded-xl bg-blue-600 p-8 lg:p-12">
+            <h2 className="mb-4 text-3xl font-bold text-white">더 많은 정보가 필요하신가요?</h2>
+            <p className="mb-8 text-lg text-blue-100">고객 지원팀이 도와드리겠습니다.</p>
             <Link
               href="/contact"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-8 py-4 font-semibold text-blue-600 transition-colors hover:bg-blue-50"
             >
               문의하기
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="h-5 w-5" />
             </Link>
           </div>
         </div>

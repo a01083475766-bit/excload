@@ -1,9 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
-import { useUserStore } from '@/app/store/userStore';
+import { isOpenBetaMode } from '@/app/lib/open-beta-policy';
 
 type PlanKey = 'free' | 'monthly' | 'yearly';
 
@@ -14,50 +13,46 @@ export function PricingPlanCta({
   planKey: PlanKey;
   planName: string;
 }) {
-  const router = useRouter();
-  const { status } = useSession();
-  const user = useUserStore((s) => s.user);
-  const { data: eventStatus, isEventActive } = useFeedbackEventStatus(true);
-
-  const handleClick = () => {
-    if (planKey === 'free') {
-      window.location.href = '/excload';
-      return;
-    }
-
-    if (
-      isEventActive &&
-      status === 'authenticated' &&
-      user?.plan === 'FREE' &&
-      eventStatus?.user.canSubmitForTrial
-    ) {
-      const target = planKey === 'yearly' ? 'yearly' : 'monthly';
-      router.push(`/feedback-event?from=pricing&plan=${target}`);
-      return;
-    }
-
-    window.location.href = `/subscribe?plan=${encodeURIComponent(planKey)}`;
-  };
-
-  let label = `${planName} 시작하기`;
-  if (planKey === 'free') label = '무료체험 사용해보기';
-  if (
-    isEventActive &&
-    (planKey === 'monthly' || planKey === 'yearly') &&
-    status === 'authenticated' &&
-    user?.plan === 'FREE' &&
-    eventStatus?.user.canSubmitForTrial
-  ) {
-    label = '피드백 이벤트로 PRO 1개월 체험';
+  if (isOpenBetaMode()) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="w-full cursor-not-allowed rounded-lg border border-zinc-200 bg-zinc-100 px-6 py-3 text-center font-semibold text-zinc-500"
+      >
+        출시 예정
+      </button>
+    );
   }
 
+  // 정식 모드용 (베타 종료 후)
+  return <LegacyPricingPlanCta planKey={planKey} planName={planName} />;
+}
+
+function LegacyPricingPlanCta({
+  planKey,
+  planName,
+}: {
+  planKey: PlanKey;
+  planName: string;
+}) {
+  const { status } = useSession();
+  let label = `${planName} 시작하기`;
+  if (planKey === 'free') label = '무료체험 사용해보기';
+
+  const href =
+    planKey === 'free'
+      ? '/excload'
+      : status === 'authenticated'
+        ? `/subscribe?plan=${encodeURIComponent(planKey)}`
+        : `/auth/login?callbackUrl=${encodeURIComponent(`/subscribe?plan=${planKey}`)}`;
+
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className="w-full text-center px-6 py-3 rounded-lg font-semibold transition-colors bg-blue-600 hover:bg-blue-700 text-white"
+    <Link
+      href={href}
+      className="block w-full rounded-lg bg-blue-600 px-6 py-3 text-center font-semibold text-white transition-colors hover:bg-blue-700"
     >
       {label}
-    </button>
+    </Link>
   );
 }

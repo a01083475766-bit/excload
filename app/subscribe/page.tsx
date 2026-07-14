@@ -10,6 +10,11 @@ import { dbPlanToIntervalKey, getPlanDisplayName } from '@/app/lib/subscription/
 import { useFeedbackEventStatus } from '@/app/components/feedback-event/useFeedbackEventStatus';
 import { hasProEntitlementClient } from '@/app/lib/feedback-event/client';
 import { FeedbackTrialActiveBanner } from '@/app/components/feedback-event/FeedbackTrialActiveBanner';
+import {
+  canStartPaidCheckout,
+  getNewPaidCheckoutBlockMessage,
+  isNewPaidCheckoutDisabled,
+} from '@/app/lib/open-beta-policy';
 
 import Link from 'next/link';
 import { Shield, Lock } from 'lucide-react';
@@ -78,8 +83,6 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
 
   const billingCycleText = planKey === 'yearly' ? '연 단위' : '월 단위';
   const selectedPlan = PAID_PLAN_OPTIONS.find((p) => p.planKey === planKey)!;
-  const paymentActionsDisabled =
-    !termsAgreed || tossLoading || tossChargeLoading || scheduleLoading;
   const tossAmount = planKey === 'yearly' ? 40000 : 4000;
   const tossOrderName = planKey === 'yearly' ? 'EXCLOAD YEARLY 구독' : 'EXCLOAD PRO 구독';
   const subscribeButtonLabel = '구독 시작하기';
@@ -87,6 +90,14 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
 
   const currentPlanKey = user?.plan ? dbPlanToIntervalKey(user.plan) : null;
   const hasPaidPlan = user?.plan === 'PRO' || user?.plan === 'YEARLY';
+  const paidCheckoutBlocked =
+    isNewPaidCheckoutDisabled() && !(user?.plan && canStartPaidCheckout(user.plan));
+  const paymentActionsDisabled =
+    !termsAgreed ||
+    tossLoading ||
+    tossChargeLoading ||
+    scheduleLoading ||
+    paidCheckoutBlocked;
   const isPlanChangeTarget =
     hasPaidPlan && currentPlanKey !== null && currentPlanKey !== planKey;
   const targetPlanLabel = planKey === 'yearly' ? '연간' : '프로(월간)';
@@ -352,6 +363,19 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
             </p>
           )}
         </header>
+
+        {paidCheckoutBlocked ? (
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm leading-relaxed text-blue-900">
+            <p className="font-semibold">오픈 베타 기간입니다</p>
+            <p className="mt-2">{getNewPaidCheckoutBlockMessage()}</p>
+            <Link
+              href="/pricing"
+              className="mt-3 inline-flex font-medium text-blue-700 underline underline-offset-2"
+            >
+              가격·베타 안내 보기
+            </Link>
+          </div>
+        ) : null}
 
         {isEventActive &&
           authStatus === 'authenticated' &&

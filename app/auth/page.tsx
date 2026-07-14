@@ -325,7 +325,7 @@ function AuthPageContent() {
           email,
           phone: phoneDigits,
           password,
-          plan: 'FREE', // 기본값: 무료 회원
+          plan: 'BETA', // 서버에서도 open-beta 정책으로 확정
           deviceId,
         }),
       });

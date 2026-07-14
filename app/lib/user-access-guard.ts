@@ -6,6 +6,7 @@ import {
   isSignupBonusBlocked,
   recordSignupBonusFingerprints,
 } from '@/app/lib/free-benefit-fingerprint';
+import { getNewSignupPlan, getSignupBonusPoints } from '@/app/lib/open-beta-policy';
 
 export interface UserAccessFields {
   isBlocked: boolean;
@@ -44,7 +45,7 @@ export async function syncUserIpAndAbuseScore(userId: string, ip: string): Promi
 }
 
 /**
- * 소셜 최초 가입 등 아직 가입 보너스를 받지 않은 계정에 5000 지급 시도.
+ * 소셜 최초 가입 등 아직 가입 보너스를 받지 않은 계정에 보너스 지급 시도.
  * abuseFlag·fingerprint·이미 지급 여부를 확인합니다.
  */
 export async function tryGrantInitialFreeBenefits(userId: string): Promise<boolean> {
@@ -58,6 +59,7 @@ export async function tryGrantInitialFreeBenefits(userId: string): Promise<boole
       points: true,
       abuseFlag: true,
       signupBonusClaimed: true,
+      plan: true,
     },
   });
 
@@ -82,12 +84,16 @@ export async function tryGrantInitialFreeBenefits(userId: string): Promise<boole
     return false;
   }
 
+  const bonus = getSignupBonusPoints();
+  const signupPlan = getNewSignupPlan();
   const signupNow = new Date();
   await prisma.user.update({
     where: { id: userId },
     data: {
-      points: 5000,
+      points: bonus,
+      plan: user.plan === 'FREE' || user.plan === 'BETA' ? signupPlan : user.plan,
       signupBonusClaimed: true,
+      // FREE·BETA 모두 다음 월간 지급일 설정 (BETA는 베타 중 매월 5만P)
       nextPointDate: addOneMonthKeepingDay(signupNow),
     },
   });
@@ -118,13 +124,16 @@ export async function finalizeSignupFreeBenefits(params: {
 
   const abuseFlag = !!user?.abuseFlag;
   const canGrant = !params.fingerprintBlocked && !abuseFlag;
+  const bonus = getSignupBonusPoints();
+  const signupPlan = getNewSignupPlan();
 
   if (canGrant) {
     const signupNow = new Date();
     await prisma.user.update({
       where: { id: params.userId },
       data: {
-        points: 5000,
+        points: bonus,
+        plan: signupPlan,
         signupBonusClaimed: true,
         nextPointDate: addOneMonthKeepingDay(signupNow),
       },
@@ -140,6 +149,7 @@ export async function finalizeSignupFreeBenefits(params: {
   await prisma.user.update({
     where: { id: params.userId },
     data: {
+      plan: signupPlan,
       signupBonusClaimed: true,
       nextPointDate: null,
     },

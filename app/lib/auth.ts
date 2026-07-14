@@ -341,6 +341,7 @@ export const authOptions: NextAuthOptions = {
                 emailVerified: new Date(),
                 signupProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
                 lastLoginProvider: providerDbValue === 'UNKNOWN' ? 'CREDENTIALS' : providerDbValue,
+                plan: (await import('@/app/lib/open-beta-policy')).getNewSignupPlan(),
                 points: 0,
                 signupBonusClaimed: false,
                 nextPointDate: null,

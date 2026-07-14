@@ -1,24 +1,19 @@
 /**
  * 월간 사용량 자동 제공 API
  *
- * ⚠️ EXCLOAD CONSTITUTION v4.2 준수
- * 사용자 DB는 파이프라인 구조와 독립적으로 동작합니다.
+ * FREE: 매월 5,000
+ * BETA(오픈 베타): 매월 50,000 — open-beta-policy
+ * PRO/YEARLY: 지급 대상 아님
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
-import {
-  MONTHLY_FREE_GRANT_AMOUNT,
-  tryGrantMonthlyFreePoints,
-} from '@/app/lib/grant-monthly-points-core';
+import { tryGrantMonthlyFreePoints } from '@/app/lib/grant-monthly-points-core';
 
 /**
  * POST /api/user/grant-monthly-points
- * 월간 사용량 자동 제공
- * - 무료 회원(free): 매월 5000 사용량
- * - 유료 회원(pro, yearly): 지급 대상 아님
  */
 export async function POST(_request: NextRequest) {
   try {
@@ -78,12 +73,12 @@ export async function POST(_request: NextRequest) {
         return NextResponse.json({
           success: true,
           alreadyGranted: false,
-          grantedAmount: MONTHLY_FREE_GRANT_AMOUNT,
+          grantedAmount: result.grantedAmount,
           message: '월간 사용량이 제공되었습니다.',
           user: {
             id: result.user.id,
             email: result.user.email,
-            plan: result.user.plan as 'FREE' | 'PRO' | 'YEARLY',
+            plan: result.user.plan,
             points: result.user.points,
             lastMonthlyGrant: result.user.nextPointDate?.toISOString() || null,
             nextPointDate: result.user.nextPointDate?.toISOString() || null,
@@ -99,7 +94,7 @@ export async function POST(_request: NextRequest) {
           user: {
             id: result.user.id,
             email: result.user.email,
-            plan: result.user.plan as 'FREE' | 'PRO' | 'YEARLY',
+            plan: result.user.plan,
             points: result.user.points,
             lastMonthlyGrant: result.user.nextPointDate?.toISOString() || null,
             nextPointDate: result.user.nextPointDate?.toISOString() || null,
@@ -123,7 +118,7 @@ export async function POST(_request: NextRequest) {
   } catch (error) {
     console.error('[Grant Monthly Points API] 에러:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : '월간 사용량 제공 실패' },
+      { error: '월간 사용량 처리 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

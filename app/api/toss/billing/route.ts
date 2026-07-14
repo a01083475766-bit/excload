@@ -6,6 +6,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import {
+  canStartPaidCheckout,
+  getNewPaidCheckoutBlockMessage,
+} from '@/app/lib/open-beta-policy';
 
 function basicAuthHeader(secretKey: string) {
   const token = Buffer.from(`${secretKey}:`, 'utf8').toString('base64');
@@ -25,6 +29,18 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id || !session.user.email) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    const { prisma } = await import('@/app/lib/prisma');
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true },
+    });
+    if (!currentUser || !canStartPaidCheckout(currentUser.plan)) {
+      return NextResponse.json(
+        { error: getNewPaidCheckoutBlockMessage(), code: 'OPEN_BETA_PAID_CHECKOUT_DISABLED' },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
@@ -85,7 +101,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { prisma } = await import('@/app/lib/prisma');
     const { clearPaymentFailureOnCardUpdate } = await import(
       '@/app/lib/subscription/payment-failure'
     );

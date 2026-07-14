@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     // 검색어 및 페이지네이션 파라미터 확인
     const { searchParams } = new URL(request.url);
     const searchTerm = searchParams.get('search') || '';
-    const planFilter = searchParams.get('plan') || ''; // FREE, PRO, YEARLY
+    const planFilter = searchParams.get('plan') || ''; // BETA, FREE, PRO, YEARLY
     const dateFilter = searchParams.get('date') || ''; // today, thisMonth
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
     
     // 플랜 필터 조건
-    if (planFilter && ['FREE', 'PRO', 'YEARLY'].includes(planFilter)) {
+    if (planFilter && ['BETA', 'FREE', 'PRO', 'YEARLY'].includes(planFilter)) {
       whereCondition.plan = planFilter;
     }
     

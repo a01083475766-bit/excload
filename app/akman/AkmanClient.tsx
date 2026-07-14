@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 interface AkmanStats {
   totalUsers: number;
   freeUsers: number;
+  betaUsers?: number;
   proUsers: number;
   yearlyUsers: number;
   todayUsers: number;
@@ -44,7 +45,7 @@ interface AdminUserRow {
   id: string;
   email: string;
   phone?: string | null;
-  plan: 'FREE' | 'PRO' | 'YEARLY' | string;
+  plan: 'BETA' | 'FREE' | 'PRO' | 'YEARLY' | string;
   points: number;
   signupProvider?: 'CREDENTIALS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'UNKNOWN' | string;
   lastLoginProvider?: 'CREDENTIALS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'UNKNOWN' | string;
@@ -138,7 +139,7 @@ export default function AkmanClient() {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-  const [userPlanFilter, setUserPlanFilter] = useState<'ALL' | 'FREE' | 'PRO' | 'YEARLY'>('ALL');
+  const [userPlanFilter, setUserPlanFilter] = useState<'ALL' | 'BETA' | 'FREE' | 'PRO' | 'YEARLY'>('ALL');
   const [userDateFilter, setUserDateFilter] = useState<'ALL' | 'today' | 'thisMonth'>('ALL');
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [duplicateLoading, setDuplicateLoading] = useState(false);
@@ -221,7 +222,7 @@ export default function AkmanClient() {
     newSignupSinceLastVisit > 0 ? '마지막 방문 이후' : '오늘';
 
   const loadUsers = async (
-    plan: 'ALL' | 'FREE' | 'PRO' | 'YEARLY' = userPlanFilter,
+    plan: 'ALL' | 'BETA' | 'FREE' | 'PRO' | 'YEARLY' = userPlanFilter,
     date: 'ALL' | 'today' | 'thisMonth' = userDateFilter,
     search: string = userSearchTerm
   ) => {
@@ -248,7 +249,7 @@ export default function AkmanClient() {
   };
 
   const openUsers = async (
-    plan: 'ALL' | 'FREE' | 'PRO' | 'YEARLY' = 'ALL',
+    plan: 'ALL' | 'BETA' | 'FREE' | 'PRO' | 'YEARLY' = 'ALL',
     date: 'ALL' | 'today' | 'thisMonth' = 'ALL',
     search: string = userSearchTerm
   ) => {
@@ -446,9 +447,10 @@ export default function AkmanClient() {
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.monthlyUsers)}</div>
           </div>
           <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('FREE', 'ALL')}>
-            <div style={{ fontSize: '13px', color: '#666' }}>FREE / PRO / YEARLY</div>
+            <div style={{ fontSize: '13px', color: '#666' }}>BETA / FREE / PRO / YEARLY</div>
             <div style={{ fontSize: '15px', fontWeight: 600, marginTop: '4px' }}>
-              {fmt(stats.freeUsers)} / {fmt(stats.proUsers)} / {fmt(stats.yearlyUsers)}
+              {fmt(stats.betaUsers ?? 0)} / {fmt(stats.freeUsers)} / {fmt(stats.proUsers)} /{' '}
+              {fmt(stats.yearlyUsers)}
             </div>
           </div>
           <div style={statCard}>

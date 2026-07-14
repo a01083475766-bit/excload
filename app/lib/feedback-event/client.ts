@@ -1,4 +1,5 @@
 import type { Plan } from '@/app/store/userStore';
+import { shouldChargeDownloadPointsForPlan } from '@/app/lib/open-beta-policy';
 
 export function hasProEntitlementClient(
   plan: Plan | string,
@@ -16,5 +17,6 @@ export function shouldChargeDownloadPoints(
   feedbackTrialEndsAt?: string | null,
   adminTrialEndsAt?: string | null,
 ): boolean {
-  return !hasProEntitlementClient(plan, feedbackTrialEndsAt, adminTrialEndsAt);
+  const hasPro = hasProEntitlementClient(plan, feedbackTrialEndsAt, adminTrialEndsAt);
+  return shouldChargeDownloadPointsForPlan(plan, hasPro);
 }

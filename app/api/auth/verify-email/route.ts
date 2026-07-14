@@ -8,6 +8,7 @@
 import { prisma } from '@/app/lib/prisma';
 import { calculateAbuseScore } from '@/app/lib/abuseScore';
 import { NextResponse } from 'next/server';
+import { getSignupBonusPoints } from '@/app/lib/open-beta-policy';
 
 /**
  * GET /api/auth/verify-email?token=xxx
@@ -79,12 +80,14 @@ export async function GET(req: Request) {
       }
     }
 
+    const bonusPoints = getSignupBonusPoints();
+
     // 3. 이메일 인증 완료 및 사용량/로그 처리
     const updatedUser = await prisma.user.update({
       where: { email: record.email },
       data: {
         emailVerified: new Date(),
-        points: givePoints ? 5000 : currentUser.points ?? 0,
+        points: givePoints ? bonusPoints : currentUser.points ?? 0,
       },
       select: {
         id: true,
@@ -95,7 +98,7 @@ export async function GET(req: Request) {
       await prisma.pointHistory.create({
         data: {
           userId: updatedUser.id,
-          change: 5000,
+          change: bonusPoints,
           reason: 'EMAIL_VERIFICATION_BONUS',
         },
       });

@@ -12,6 +12,7 @@ import { getClientIp } from '@/app/lib/client-ip';
 import { serviceBlockedResponse, tryGrantInitialFreeBenefits } from '@/app/lib/user-access-guard';
 import { hasProEntitlement } from '@/app/lib/feedback-event/entitlement';
 import { isMonthlyGrantDue, tryGrantMonthlyFreePoints } from '@/app/lib/grant-monthly-points-core';
+import { shouldChargeDownloadPointsForPlan } from '@/app/lib/open-beta-policy';
 
 interface UsePointsRequest {
   amount: number;
@@ -107,18 +108,23 @@ export async function POST(request: NextRequest) {
       let chargeUser = user;
       const normalizedAmount = Math.max(1, Math.floor(amount));
 
-      if (type === 'download' && hasProEntitlement(chargeUser)) {
+      if (
+        type === 'download' &&
+        !shouldChargeDownloadPointsForPlan(chargeUser.plan, hasProEntitlement(chargeUser))
+      ) {
         return NextResponse.json({
           success: true,
           user: {
             id: chargeUser.id,
             email: chargeUser.email,
-            plan: chargeUser.plan as 'FREE' | 'PRO' | 'YEARLY',
+            plan: chargeUser.plan,
             points: chargeUser.points,
             nextPointDate: chargeUser.nextPointDate?.toISOString() ?? null,
           },
           usedAmount: 0,
-          reason: 'PRO_엑셀다운로드_무제한',
+          reason: hasProEntitlement(chargeUser)
+            ? 'PRO_엑셀다운로드_무제한'
+            : 'BETA_엑셀다운로드_무료',
         });
       }
 
@@ -139,7 +145,7 @@ export async function POST(request: NextRequest) {
 
       if (
         chargeUser.points < normalizedAmount &&
-        chargeUser.plan === 'FREE' &&
+        (chargeUser.plan === 'FREE' || chargeUser.plan === 'BETA') &&
         isMonthlyGrantDue(chargeUser)
       ) {
         const grantSource = await prisma.user.findUnique({

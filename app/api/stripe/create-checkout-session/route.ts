@@ -10,6 +10,10 @@ import { getPublicBaseUrl } from '@/app/lib/public-base-url';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import Stripe from 'stripe';
+import {
+  canStartPaidCheckout,
+  getNewPaidCheckoutBlockMessage,
+} from '@/app/lib/open-beta-policy';
 
 interface CreateCheckoutSessionRequest {
   planType: 'monthly' | 'yearly';
@@ -64,13 +68,20 @@ export async function POST(request: NextRequest) {
     const { prisma } = await import('@/app/lib/prisma');
     const user = await prisma.user.findUnique({
       where: { email: userEmail },
-      select: { id: true, stripeCustomerId: true },
+      select: { id: true, stripeCustomerId: true, plan: true },
     });
 
     if (!user) {
       return NextResponse.json(
         { error: '사용자를 찾을 수 없습니다.' },
         { status: 404 }
+      );
+    }
+
+    if (!canStartPaidCheckout(user.plan)) {
+      return NextResponse.json(
+        { error: getNewPaidCheckoutBlockMessage(), code: 'OPEN_BETA_PAID_CHECKOUT_DISABLED' },
+        { status: 403 },
       );
     }
 

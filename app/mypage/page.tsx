@@ -423,7 +423,7 @@ export default function MyPage() {
   const getUsageHint = (plan: string) => {
     switch (plan) {
       case 'FREE':
-        return '무료 플랜은 매월 지급된 사용량이 잔여에 합산되어 표시됩니다.';
+        return '무료 플랜은 매월 지급일에 사용량이 리셋된 뒤 제공분으로 맞춰집니다.';
       case 'PRO':
       case 'YEARLY':
         return '유료 플랜은 결제·갱신 주기에 맞춰 제공된 사용량이 잔여로 표시됩니다.';

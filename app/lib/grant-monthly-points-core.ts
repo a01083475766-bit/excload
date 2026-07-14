@@ -3,9 +3,11 @@ import { addOneMonthKeepingDay } from '@/app/lib/add-one-month-keeping-day';
 import { isMonthlyFreeGrantBlocked } from '@/app/lib/free-benefit-fingerprint';
 import { isFeedbackTrialActive } from '@/app/lib/feedback-event/entitlement';
 import { isAdminTrialActive } from '@/app/lib/admin-pro-trial';
+import { getMonthlyGrantForPlan } from '@/app/lib/open-beta-policy';
 
+/** @deprecated FREE 월간 금액 — getMonthlyGrantForPlan('FREE') 사용 */
 export const MONTHLY_FREE_GRANT_AMOUNT = 5000;
-export const MONTHLY_FREE_GRANT_REASON = 'FREE플랜_월간사용량자동지급';
+export const MONTHLY_FREE_GRANT_REASON = 'FREE플랜_월간사용량리셋지급';
 
 export type MonthlyGrantEligibleUser = {
   id: string;
@@ -55,8 +57,9 @@ export async function getMonthlyGrantIneligibilityReason(
   user: MonthlyGrantEligibleUser,
   now = new Date(),
 ): Promise<string | null> {
-  if (user.plan !== 'FREE') {
-    return 'FREE 플랜만 월간 사용량 제공 대상입니다';
+  const grant = getMonthlyGrantForPlan(user.plan);
+  if (!grant) {
+    return '월간 사용량 제공 대상 플랜이 아닙니다.';
   }
   if (isFeedbackTrialActive(user.feedbackTrialEndsAt, now)) {
     return '피드백 이벤트 PRO 체험 중에는 무료 월간 사용량이 제공되지 않습니다.';
@@ -78,15 +81,16 @@ export async function getMonthlyGrantIneligibilityReason(
   return null;
 }
 
-/** FREE 플랜 월간 지급 시도. updateMany 조건으로 중복 지급 방지. */
+/** FREE/BETA 월간 지급 시도. updateMany 조건으로 중복 지급 방지. */
 export async function tryGrantMonthlyFreePoints(
   user: MonthlyGrantEligibleUser,
   now = new Date(),
 ): Promise<MonthlyGrantResult> {
+  const grant = getMonthlyGrantForPlan(user.plan);
   const ineligible = await getMonthlyGrantIneligibilityReason(user, now);
-  if (ineligible) {
+  if (!grant || ineligible) {
     return {
-      status: ineligible.includes('지급일') ? 'not_due' : 'not_eligible',
+      status: ineligible?.includes('지급일') ? 'not_due' : 'not_eligible',
       user: {
         id: user.id,
         email: user.email,
@@ -94,21 +98,24 @@ export async function tryGrantMonthlyFreePoints(
         points: user.points,
         nextPointDate: user.nextPointDate,
       },
-      reason: ineligible,
+      reason: ineligible ?? '월간 사용량 제공 대상 플랜이 아닙니다.',
     };
   }
 
   const dueDate = user.nextPointDate ?? addOneMonthKeepingDay(user.createdAt);
+  const nextPoints =
+    grant.mode === 'reset' ? grant.amount : user.points + grant.amount;
+  const historyChange = nextPoints - user.points;
 
   const txResult = await prisma.$transaction(async (tx) => {
     const updateResult = await tx.user.updateMany({
       where: {
         id: user.id,
-        plan: 'FREE',
+        plan: user.plan,
         OR: [{ nextPointDate: null }, { nextPointDate: { lte: now } }],
       },
       data: {
-        points: { increment: MONTHLY_FREE_GRANT_AMOUNT },
+        points: nextPoints,
         nextPointDate: addOneMonthKeepingDay(dueDate),
       },
     });
@@ -117,13 +124,15 @@ export async function tryGrantMonthlyFreePoints(
       return { granted: false as const };
     }
 
-    await tx.pointHistory.create({
-      data: {
-        userId: user.id,
-        change: MONTHLY_FREE_GRANT_AMOUNT,
-        reason: MONTHLY_FREE_GRANT_REASON,
-      },
-    });
+    if (historyChange !== 0) {
+      await tx.pointHistory.create({
+        data: {
+          userId: user.id,
+          change: historyChange,
+          reason: grant.reason,
+        },
+      });
+    }
 
     const updated = await tx.user.findUnique({
       where: { id: user.id },
@@ -135,7 +144,7 @@ export async function tryGrantMonthlyFreePoints(
         nextPointDate: true,
       },
     });
-    return { granted: true as const, updatedUser: updated };
+    return { granted: true as const, updatedUser: updated, amount: grant.amount };
   });
 
   if (!txResult.granted) {
@@ -160,14 +169,14 @@ export async function tryGrantMonthlyFreePoints(
     };
   }
 
-  const { updatedUser } = txResult;
+  const { updatedUser, amount } = txResult;
   if (!updatedUser) {
     throw new Error('사용자를 찾을 수 없습니다.');
   }
 
   return {
     status: 'granted',
-    grantedAmount: MONTHLY_FREE_GRANT_AMOUNT,
+    grantedAmount: amount,
     user: updatedUser,
   };
 }

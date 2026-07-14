@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { clearAllPreviewWorkspacesInTab } from '@/app/lib/preview-workspace-session';
 
-export type Plan = 'FREE' | 'PRO' | 'YEARLY';
+export type Plan = 'BETA' | 'FREE' | 'PRO' | 'YEARLY';
 
 export interface User {
   userId: string;
@@ -239,7 +239,8 @@ export const useUserStore = create<UserStoreState>()(
         if (!user) return;
 
         const monthlyDue =
-          user.plan === 'FREE' && isMonthlyGrantDueClient(user.nextPointDate);
+          (user.plan === 'FREE' || user.plan === 'BETA') &&
+          isMonthlyGrantDueClient(user.nextPointDate);
         const hasEnoughPoints = user.points >= requiredPoints;
 
         if (hasEnoughPoints && !monthlyDue) {
@@ -258,7 +259,7 @@ export const useUserStore = create<UserStoreState>()(
         if (!refreshed) return;
 
         const stillNeedsGrant =
-          refreshed.plan === 'FREE' &&
+          (refreshed.plan === 'FREE' || refreshed.plan === 'BETA') &&
           isMonthlyGrantDueClient(refreshed.nextPointDate) &&
           refreshed.points < requiredPoints;
 

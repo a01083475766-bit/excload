@@ -46,7 +46,7 @@ function collectFingerprintEntries(
   return entries;
 }
 
-/** 가입 보너스(5000)를 이미 받았거나, 동일 식별자로 재가입한 경우 */
+/** 가입 보너스를 이미 받았거나, 동일 식별자로 재가입한 경우 */
 export async function isSignupBonusBlocked(
   identifiers: FreeBenefitIdentifiers,
 ): Promise<boolean> {

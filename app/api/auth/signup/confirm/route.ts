@@ -5,6 +5,7 @@ import { getClientIp } from '@/app/lib/client-ip';
 import { finalizeSignupFreeBenefits } from '@/app/lib/user-access-guard';
 import { isSignupBonusBlocked } from '@/app/lib/free-benefit-fingerprint';
 import { isWithinWithdrawGrace } from '@/app/lib/account-withdrawal';
+import { getNewSignupPlan } from '@/app/lib/open-beta-policy';
 
 interface SignupConfirmBody {
   email?: string;
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
             email: verification.email,
             phone: verification.phone,
             passwordHash: verification.passwordHash,
-            plan: 'FREE',
+            plan: getNewSignupPlan(),
             points: 0,
             emailVerified: new Date(),
             signupProvider: 'CREDENTIALS',

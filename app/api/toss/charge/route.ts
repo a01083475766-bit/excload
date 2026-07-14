@@ -8,6 +8,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { executeTossBillingCharge } from '@/app/lib/toss/execute-billing-charge';
 import type { PaidDbPlan } from '@/app/lib/subscription/plan-change';
+import {
+  canStartPaidCheckout,
+  getNewPaidCheckoutBlockMessage,
+} from '@/app/lib/open-beta-policy';
 
 /** 동시 탭·재전송 시 한 요청만 토스 API까지 가도록 DB 락(만료 시 자동 해제) */
 const TOSS_CHARGE_LOCK_MS = 60_000;
@@ -45,6 +49,17 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id || !session.user.email) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { plan: true },
+    });
+    if (!currentUser || !canStartPaidCheckout(currentUser.plan)) {
+      return NextResponse.json(
+        { error: getNewPaidCheckoutBlockMessage(), code: 'OPEN_BETA_PAID_CHECKOUT_DISABLED' },
+        { status: 403 },
+      );
     }
 
     const body = await request.json().catch(() => ({} as Record<string, unknown>));
