@@ -23,9 +23,9 @@ export default function PricingPage() {
       period: '월',
       description: '무료 이용 플랜',
       features: [
-        '매월 5,000 사용량 제공',
-        '텍스트 변환 시 글자수만큼 사용량 차감',
-        '엑셀 다운로드 1회 최대 1,000 사용량 차감(잔여가 더 적으면 전액 차감)',
+        '매월 5,000 포인트 제공',
+        '텍스트 변환 시 글자 수만큼 포인트 차감',
+        '엑셀 다운로드 1회 최대 1,000 포인트 차감(잔여가 더 적으면 전액 차감)',
         '텍스트 입력 최대 5,000자',
       ],
       recommendations: [
@@ -43,8 +43,8 @@ export default function PricingPage() {
       period: '월',
       description: '꾸준한 주문 처리를 위한 플랜',
       features: [
-        '매월 400,000 사용량 제공',
-        '텍스트 변환 시 글자수만큼 사용량 차감',
+        '매월 400,000 포인트 제공',
+        '텍스트 변환 시 글자 수만큼 포인트 차감',
         '엑셀 다운로드 무제한',
       ],
       recommendations: [
@@ -66,8 +66,8 @@ export default function PricingPage() {
       description: '장기 이용자를 위한 연간 플랜',
       features: [
         '20% 할인',
-        '매월 400,000 사용량 제공',
-        '텍스트 변환 시 글자수만큼 사용량 차감',
+        '매월 400,000 포인트 제공',
+        '텍스트 변환 시 글자 수만큼 포인트 차감',
         '엑셀 다운로드 무제한',
       ],
       recommendations: [
@@ -87,7 +87,7 @@ export default function PricingPage() {
 
   const comparisonRows = [
     { label: '무료체험', free: '가능', monthly: '가능', yearly: '가능' },
-    { label: '월 사용량', free: '5,000', monthly: '400,000', yearly: '400,000' },
+    { label: '월 포인트', free: '5,000', monthly: '400,000', yearly: '400,000' },
     { label: '엑셀 다운로드', free: '차감 방식', monthly: '무제한', yearly: '무제한' },
     { label: '추천 대상', free: '처음 테스트', monthly: '꾸준한 운영', yearly: '장기 이용' },
   ];
@@ -110,11 +110,11 @@ export default function PricingPage() {
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-lg">
             {betaMode ? (
               <>
-                회원가입 시 {signupBonus.toLocaleString()}P를 제공하고, 베타 기간에는 매월 잔액을
-                리셋한 뒤 {signupBonus.toLocaleString()}P가 지급됩니다.
+                회원가입 시 {signupBonus.toLocaleString()}P를 제공하고, 베타 기간에는 매월{' '}
+                {signupBonus.toLocaleString()} 포인트 사용량을 제공합니다.
                 <br />
-                엑셀 다운로드에는 포인트가 차감되지 않으며, AI 텍스트 변환을 사용할 때만 글자 수만큼
-                포인트가 차감됩니다. 오픈 베타 이용자는 자동으로 유료 전환되지 않습니다.
+                엑셀 다운로드는 무제한 가능하며, 텍스트 변환 시 글자 수만큼 포인트가 차감됩니다. 오픈
+                베타 이용자는 자동으로 유료 전환되지 않습니다.
               </>
             ) : (
               <>
@@ -153,15 +153,15 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                    베타 기간 매월 잔액 리셋 후 {signupBonus.toLocaleString()}P 지급
+                    매월 {signupBonus.toLocaleString()} 포인트 사용량 제공
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                    엑셀 다운로드 무료
+                    엑셀 다운로드 무제한 가능
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                    텍스트 변환 시에만 포인트 차감
+                    텍스트 변환 시 글자 수만큼 포인트 차감
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
