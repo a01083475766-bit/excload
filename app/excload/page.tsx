@@ -8,6 +8,7 @@ import { getSignupBonusPoints, isOpenBetaMode } from '@/app/lib/open-beta-policy
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
+import { useState } from 'react';
 
 const TrialEmbed = dynamic(
   () =>
@@ -35,6 +36,7 @@ const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'
 export default function HomePage() {
   const betaMode = isOpenBetaMode();
   const signupBonusLabel = getSignupBonusPoints().toLocaleString();
+  const [showInvoiceTrial, setShowInvoiceTrial] = useState(false);
 
   const plans = betaMode
     ? [
@@ -142,20 +144,22 @@ export default function HomePage() {
 
       <section
         id="free-trial"
-        className="scroll-mt-24 border-b border-zinc-200 bg-white py-10 dark:border-zinc-800 dark:bg-zinc-950 sm:py-12"
+        className="scroll-mt-24 border-b border-zinc-200 bg-white py-8 dark:border-zinc-800 dark:bg-zinc-950 sm:py-10"
       >
         <div className={landingContainerClass}>
-          <div className="max-w-2xl">
-            <h2 className="break-keep text-xl font-bold text-zinc-950 dark:text-zinc-50 sm:text-2xl">
+          <div className="max-w-3xl">
+            <h2 className="break-keep text-2xl font-bold text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
               무료 테스트
             </h2>
-            <p className="mt-2 break-keep text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            <p className="mt-3 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
               가입 전에 주문 파일이나 카톡 주문문구로 변환 결과를 바로 확인해 보세요.
             </p>
           </div>
 
-          <div className="mt-6 w-full">
-            <TrialEmbed trialMode landingEmbed />
+          <div className="mt-5 w-full">
+            <div className="overflow-hidden border border-zinc-200 dark:border-zinc-800">
+              <TrialEmbed trialMode landingEmbed />
+            </div>
             <p className="mt-2 text-center text-sm text-zinc-500">
               파일 업로드가 부담되면 카톡 주문문구를 붙여넣어도 테스트할 수 있습니다.{' '}
               <Link
@@ -164,30 +168,48 @@ export default function HomePage() {
               >
                 전체 화면 체험
               </Link>
-              {' · '}
-              <Link
-                href="/invoice-file-convert/trial"
-                className="text-blue-700 underline underline-offset-2 hover:text-blue-800 dark:text-blue-400"
-              >
-                송장변환 체험
-              </Link>
             </p>
 
-            <div className="invoice-native-theme mt-8 w-full">
-              <InvoiceFileConvertTrialModeProvider trialMode>
-                <InvoiceTrialEmbed />
-              </InvoiceFileConvertTrialModeProvider>
+            <div
+              id="invoice-trial"
+              className="mt-6 scroll-mt-24 border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900/40"
+            >
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">송장변환 무료 체험</h3>
+              <p className="mt-2 max-w-2xl break-keep text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+                택배사 출고 결과와 주문을 연결해 쇼핑몰 송장 업로드 파일로 정리하는 기능을 먼저
+                확인해 보세요.
+              </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center justify-center rounded-md bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
+                  onClick={() => {
+                    setShowInvoiceTrial(true);
+                    window.requestAnimationFrame(() => {
+                      document.getElementById('invoice-trial')?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      });
+                    });
+                  }}
+                >
+                  {showInvoiceTrial ? '아래에서 테스트 중' : '송장변환 테스트 펼치기'}
+                </button>
+                <Link
+                  href="/invoice-file-convert/trial"
+                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                >
+                  송장변환 전용 페이지로 이동
+                </Link>
+              </div>
+              {showInvoiceTrial ? (
+                <div className="invoice-native-theme mt-5 w-full border border-zinc-200 bg-white dark:border-zinc-800">
+                  <InvoiceFileConvertTrialModeProvider trialMode>
+                    <InvoiceTrialEmbed />
+                  </InvoiceFileConvertTrialModeProvider>
+                </div>
+              ) : null}
             </div>
-            <p className="mt-2 text-center text-sm text-zinc-500">
-              송장변환 전체 화면이 필요하면{' '}
-              <Link
-                href="/invoice-file-convert/trial"
-                className="text-blue-700 underline underline-offset-2 hover:text-blue-800 dark:text-blue-400"
-              >
-                송장변환 체험 전용 페이지
-              </Link>
-              로 이동할 수 있습니다.
-            </p>
           </div>
         </div>
       </section>
@@ -195,15 +217,15 @@ export default function HomePage() {
       {betaMode ? <OpenBetaLandingBottom /> : null}
 
       <section id="pricing" className="bg-zinc-50 py-12 dark:bg-black sm:py-16">
-        <div className={`${landingContainerClass} max-w-6xl`}>
-          <div className="mb-8 max-w-2xl">
-            <p className="text-[11px] font-bold tracking-[0.18em] text-blue-600">PRICE PLAN</p>
-            <h2 className="mt-2 break-keep text-xl font-bold text-zinc-950 dark:text-zinc-50 sm:text-2xl">
+        <div className={landingContainerClass}>
+          <div className="mb-8 max-w-3xl">
+            <p className="text-xs font-bold tracking-[0.18em] text-blue-600">PRICE PLAN</p>
+            <h2 className="mt-2 break-keep text-2xl font-bold text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
               {betaMode
                 ? '오픈 베타 기간에는 무료로 이용할 수 있습니다'
                 : '무료로 먼저 써보고, 필요할 때만 업그레이드'}
             </h2>
-            <p className="mt-2 break-keep text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            <p className="mt-3 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
               {betaMode ? (
                 <>
                   회원가입 시 {signupBonusLabel}P · 매월 {signupBonusLabel} 포인트 사용량을 제공합니다.
@@ -215,63 +237,84 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            {plans.map((plan) => (
-              <div
-                key={plan.planKey}
-                className={`flex flex-col border bg-white p-5 dark:bg-zinc-950 ${
-                  plan.popular
-                    ? 'border-blue-600 dark:border-blue-500'
-                    : 'border-zinc-200 dark:border-zinc-800'
-                }`}
-              >
-                {plan.upcoming ? (
-                  <p className="mb-2 text-[11px] font-semibold text-zinc-500">정식 출시 예정</p>
-                ) : null}
-                <h3 className="text-lg font-bold text-zinc-950 dark:text-zinc-50">{plan.name}</h3>
-                <p className="mt-2 min-h-[2.5rem] text-sm text-zinc-500">{plan.description}</p>
-                <div className="mt-4 flex items-end gap-1 text-zinc-950 dark:text-zinc-50">
-                  <span className="text-2xl font-bold tracking-tight">{plan.priceMain}</span>
-                  <span className="pb-0.5 text-sm text-zinc-500">{plan.priceSub}</span>
-                </div>
-                <ul className="mt-5 flex-1 space-y-2">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                {plan.upcoming ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="mt-6 w-full cursor-not-allowed border border-zinc-200 bg-zinc-100 px-4 py-2.5 text-sm font-semibold text-zinc-500"
-                  >
-                    출시 예정
-                  </button>
-                ) : (
-                  <Link
-                    href={
-                      betaMode && plan.planKey === 'free'
-                        ? '/auth/signup'
-                        : `/subscribe?plan=${encodeURIComponent(plan.planKey)}`
-                    }
-                    className={`mt-6 block w-full rounded-md px-4 py-2.5 text-center text-sm font-semibold ${
-                      plan.popular
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-zinc-900 text-white hover:bg-black dark:bg-white dark:text-zinc-950'
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-stretch">
+            {plans.map((plan) => {
+              const emphasize = Boolean(betaMode && plan.planKey === 'free');
+              const muted = Boolean(betaMode && plan.upcoming);
+              return (
+                <div
+                  key={plan.planKey}
+                  className={`flex flex-col border bg-white p-5 dark:bg-zinc-950 sm:p-6 ${
+                    emphasize
+                      ? 'border-blue-600 shadow-sm ring-1 ring-blue-600 md:scale-[1.02] dark:border-blue-500 dark:ring-blue-500'
+                      : muted
+                        ? 'border-zinc-200 opacity-80 dark:border-zinc-800'
+                        : 'border-zinc-200 dark:border-zinc-800'
+                  }`}
+                >
+                  {plan.upcoming ? (
+                    <p className="mb-2 text-xs font-semibold text-zinc-500">정식 출시 예정</p>
+                  ) : emphasize ? (
+                    <p className="mb-2 text-xs font-bold text-blue-700 dark:text-blue-400">지금 참여 가능</p>
+                  ) : null}
+                  <h3
+                    className={`font-bold text-zinc-950 dark:text-zinc-50 ${
+                      emphasize ? 'text-xl sm:text-2xl' : 'text-lg'
                     }`}
                   >
-                    {plan.planKey === 'free'
-                      ? betaMode
-                        ? '오픈 베타 참여하기'
-                        : '무료체험 사용해보기'
-                      : `${plan.name} 시작하기`}
-                  </Link>
-                )}
-              </div>
-            ))}
+                    {plan.name}
+                  </h3>
+                  <p className="mt-2 min-h-[2.5rem] text-sm text-zinc-500">{plan.description}</p>
+                  <div className="mt-4 flex items-end gap-1 text-zinc-950 dark:text-zinc-50">
+                    <span
+                      className={`font-bold tracking-tight ${emphasize ? 'text-3xl' : 'text-2xl'}`}
+                    >
+                      {plan.priceMain}
+                    </span>
+                    <span className="pb-0.5 text-sm text-zinc-500">{plan.priceSub}</span>
+                  </div>
+                  <ul className="mt-5 flex-1 space-y-2">
+                    {plan.features.map((feature) => (
+                      <li
+                        key={feature}
+                        className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300"
+                      >
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {plan.upcoming ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-6 w-full cursor-not-allowed border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-500"
+                    >
+                      출시 예정
+                    </button>
+                  ) : (
+                    <Link
+                      href={
+                        betaMode && plan.planKey === 'free'
+                          ? '/auth/signup'
+                          : `/subscribe?plan=${encodeURIComponent(plan.planKey)}`
+                      }
+                      className={`mt-6 block w-full rounded-md px-4 py-3 text-center text-sm font-semibold ${
+                        emphasize
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-zinc-900 text-white hover:bg-black dark:bg-white dark:text-zinc-950'
+                      }`}
+                    >
+                      {plan.planKey === 'free'
+                        ? betaMode
+                          ? '오픈 베타 참여하기'
+                          : '무료체험 사용해보기'
+                        : `${plan.name} 시작하기`}
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-8 overflow-x-auto border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">

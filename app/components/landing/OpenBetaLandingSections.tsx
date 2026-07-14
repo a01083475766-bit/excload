@@ -27,6 +27,7 @@ const BENEFITS = [
 type FeatureCard = {
   title: string;
   body: string;
+  flow: string;
   actionLabel?: string;
   href?: string;
   status?: string;
@@ -36,36 +37,42 @@ const FEATURES: FeatureCard[] = [
   {
     title: '쇼핑몰 주문연동',
     body: '쿠팡·스마트스토어 등 여러 쇼핑몰의 주문을 한곳에서 확인하고 배송 업무로 연결합니다.',
+    flow: '쇼핑몰 주문 API → 주문 목록 확인',
     actionLabel: '오픈 베타로 이용하기',
     href: '/order/integration',
   },
   {
     title: '카톡 주문 변환',
     body: '카카오톡으로 받은 주문 내용을 이름, 연락처, 주소, 상품, 수량 등의 항목으로 정리합니다.',
+    flow: '카톡 주문 내용 → 주문 항목 정리',
     actionLabel: '직접 붙여넣어 테스트하기',
     href: '#free-trial',
   },
   {
     title: '택배사 양식 변환',
     body: '주문 파일을 CJ대한통운, 롯데택배, 한진택배, 로젠택배 등 사용하는 택배사 양식에 맞게 변환합니다.',
+    flow: '주문 엑셀 → 택배사 양식',
     actionLabel: '엑셀 파일 변환하기',
     href: '/order-convert',
   },
   {
     title: '물류사 양식 변환',
     body: '판매자가 가진 주문 파일을 사용하는 물류사 또는 출고 양식에 맞춰 정리합니다.',
+    flow: '주문 파일 → 물류·출고양식',
     actionLabel: '변환 기능 살펴보기',
     href: '/logistics-convert',
   },
   {
     title: '송장번호 변환·매칭',
     body: '택배사에서 받은 출고 결과를 주문과 연결하고 쇼핑몰별 송장 입력 파일로 변환합니다.',
+    flow: '주문 파일 + 송장 파일 → 송장 업로드 파일',
     actionLabel: '송장 변환 사용하기',
     href: '/invoice-file-convert',
   },
   {
     title: '쇼핑몰 송장 전송',
     body: '연결된 쇼핑몰 주문에 택배사와 송장번호를 전송해 배송 처리를 이어갑니다.',
+    flow: '매칭된 송장 → 쇼핑몰 전송',
     status: '오픈 베타',
     actionLabel: '송장 전송 화면 보기',
     href: '/order/integration/shipments',
@@ -116,11 +123,11 @@ const FAQ_ITEMS = [
 
 function SectionHead({ title, desc }: { title: string; desc: string }) {
   return (
-    <div className="max-w-2xl">
-      <h2 className="break-keep text-xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-2xl">
+    <div className="max-w-3xl">
+      <h2 className="break-keep text-2xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
         {title}
       </h2>
-      <p className="mt-2 break-keep text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-[15px]">
+      <p className="mt-3 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
         {desc}
       </p>
     </div>
@@ -137,27 +144,112 @@ function FaqItem({ q, a }: { q: string; a: string }) {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="break-keep text-sm font-semibold text-zinc-900 dark:text-zinc-100">{q}</span>
+        <span className="break-keep text-base font-semibold text-zinc-900 dark:text-zinc-100">{q}</span>
         <span className="shrink-0 text-zinc-400" aria-hidden>
           {open ? '−' : '+'}
         </span>
       </button>
       {open ? (
-        <p className="pb-4 break-keep text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{a}</p>
+        <p className="pb-4 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">{a}</p>
       ) : null}
     </div>
   );
 }
 
-/** 혜택 + 기능 소개 (무료 테스트 위) */
+function JoinBand() {
+  return (
+    <section className="border-b border-zinc-200 bg-blue-600 py-12 text-white sm:py-14">
+      <div className={landingContainerClass}>
+        <div className="max-w-3xl">
+          <h2 className="break-keep text-2xl font-bold sm:text-[1.75rem]">
+            직접 사용해 보고,
+            <br />
+            엑클로드를 함께 완성해 주세요.
+          </h2>
+          <p className="mt-3 break-keep text-base leading-relaxed text-blue-50">
+            오픈 베타는 완성된 기능을 단순히 구경하는 기간이 아닙니다.
+            실제 주문과 배송 업무에 사용해 보고 불편한 점을 알려주세요.
+            판매자에게 필요한 기능부터 확인하고 개선하겠습니다.
+          </p>
+        </div>
+        <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {JOIN_STEPS.map((step) => (
+            <li key={step.n} className="border border-white/25 bg-white/10 px-4 py-4">
+              <p className="text-xs font-bold text-blue-100">{step.n}</p>
+              <p className="mt-1.5 text-base font-semibold">{step.t}</p>
+            </li>
+          ))}
+        </ol>
+        <Link
+          href="/auth/signup"
+          className="mt-8 inline-flex min-h-12 items-center justify-center rounded-md bg-white px-6 text-base font-semibold text-blue-700 hover:bg-blue-50"
+        >
+          오픈 베타 참여하기
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function FeaturesSection() {
+  return (
+    <section id="features" className="scroll-mt-24 border-b border-zinc-200 bg-zinc-50 py-12 dark:border-zinc-800 dark:bg-black sm:py-14">
+      <div className={landingContainerClass}>
+        <SectionHead
+          title="엑클로드에서 할 수 있는 일"
+          desc="주문을 확인하고, 필요한 양식으로 바꾸고, 송장번호를 다시 쇼핑몰에 연결하는 과정을 도와드립니다."
+        />
+        <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((feature) => (
+            <article
+              key={feature.title}
+              className="flex flex-col border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{feature.title}</h3>
+                {feature.status ? (
+                  <span className="rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-900">
+                    {feature.status}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-3 border-l-2 border-blue-600 pl-3 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                {feature.flow}
+              </p>
+              <p className="mt-3 flex-1 break-keep text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-400">
+                {feature.body}
+              </p>
+              {feature.href && feature.actionLabel ? (
+                feature.href.startsWith('#') ? (
+                  <a
+                    href={feature.href}
+                    className="mt-5 inline-flex text-base font-semibold text-blue-700 hover:underline dark:text-blue-400"
+                  >
+                    {feature.actionLabel}
+                  </a>
+                ) : (
+                  <Link
+                    href={feature.href}
+                    className="mt-5 inline-flex text-base font-semibold text-blue-700 hover:underline dark:text-blue-400"
+                  >
+                    {feature.actionLabel}
+                  </Link>
+                )
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Hero 다음: 혜택 → 참여 독려 */
 export function OpenBetaLandingTop() {
   const signupBonusLabel = getSignupBonusPoints().toLocaleString();
   const benefits = BENEFITS.map((item) =>
     item.title.includes('50,000P')
-      ? {
-          ...item,
-          title: item.title.replaceAll('50,000P', `${signupBonusLabel}P`),
-        }
+      ? { ...item, title: item.title.replaceAll('50,000P', `${signupBonusLabel}P`) }
       : item,
   );
 
@@ -169,14 +261,16 @@ export function OpenBetaLandingTop() {
             title="오픈 베타 참여자에게 드리는 혜택"
             desc="엑클로드의 주요 기능을 직접 사용해 보고, 판매 업무에 필요한 기능을 함께 만들어 주세요."
           />
-          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {benefits.map((item) => (
               <article
                 key={item.title}
-                className="border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
+                className="flex min-h-[168px] flex-col border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900/50 sm:p-6"
               >
-                <h3 className="break-keep text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.title}</h3>
-                <p className="mt-2 break-keep text-xs leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-[13px]">
+                <h3 className="break-keep text-base font-bold text-zinc-950 dark:text-zinc-50 sm:text-lg">
+                  {item.title}
+                </h3>
+                <p className="mt-3 flex-1 break-keep text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-400">
                   {item.body}
                 </p>
               </article>
@@ -184,57 +278,13 @@ export function OpenBetaLandingTop() {
           </div>
         </div>
       </section>
-
-      <section id="features" className="scroll-mt-24 border-b border-zinc-200 bg-zinc-50 py-12 dark:border-zinc-800 dark:bg-black sm:py-14">
-        <div className={landingContainerClass}>
-          <SectionHead
-            title="엑클로드에서 할 수 있는 일"
-            desc="주문을 확인하고, 필요한 양식으로 바꾸고, 송장번호를 다시 쇼핑몰에 연결하는 과정을 도와드립니다."
-          />
-          <div className="mt-8 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((feature) => (
-              <article
-                key={feature.title}
-                className="flex flex-col border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{feature.title}</h3>
-                  {feature.status ? (
-                    <span className="rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-800">
-                      {feature.status}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-2 flex-1 break-keep text-xs leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-[13px]">
-                  {feature.body}
-                </p>
-                {feature.href && feature.actionLabel ? (
-                  feature.href.startsWith('#') ? (
-                    <a
-                      href={feature.href}
-                      className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400"
-                    >
-                      {feature.actionLabel}
-                    </a>
-                  ) : (
-                    <Link
-                      href={feature.href}
-                      className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400"
-                    >
-                      {feature.actionLabel}
-                    </Link>
-                  )
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+      <JoinBand />
+      <FeaturesSection />
     </>
   );
 }
 
-/** 업무 흐름·참여 독려·소식·FAQ (무료 테스트 아래) */
+/** 무료 테스트 다음: 업무 흐름 → 이메일 → FAQ */
 export function OpenBetaLandingBottom() {
   return (
     <>
@@ -244,48 +294,19 @@ export function OpenBetaLandingBottom() {
             title="흩어진 주문과 배송 업무를 하나의 흐름으로"
             desc="쇼핑몰, 엑셀, 카톡에 흩어진 주문을 정리하고 배송 처리 결과를 다시 쇼핑몰에 입력하는 반복 작업을 줄입니다."
           />
-          <ol className="mt-8 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {FLOW.map((label, index) => (
               <li
                 key={label}
-                className="relative border border-zinc-200 bg-zinc-50 px-3 py-4 dark:border-zinc-800 dark:bg-zinc-900/50"
+                className="border border-zinc-200 bg-zinc-50 px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900/50"
               >
-                <p className="text-[11px] font-bold text-blue-600">{String(index + 1).padStart(2, '0')}</p>
-                <p className="mt-1 break-keep text-sm font-semibold text-zinc-900 dark:text-zinc-100">{label}</p>
+                <p className="text-xs font-bold text-blue-600">{String(index + 1).padStart(2, '0')}</p>
+                <p className="mt-2 break-keep text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                  {label}
+                </p>
               </li>
             ))}
           </ol>
-        </div>
-      </section>
-
-      <section className="border-b border-zinc-200 bg-blue-600 py-12 text-white sm:py-14">
-        <div className={landingContainerClass}>
-          <div className="max-w-2xl">
-            <h2 className="break-keep text-xl font-bold sm:text-2xl">
-              직접 사용해 보고,
-              <br />
-              엑클로드를 함께 완성해 주세요.
-            </h2>
-            <p className="mt-3 break-keep text-sm leading-relaxed text-blue-50 sm:text-[15px]">
-              오픈 베타는 완성된 기능을 단순히 구경하는 기간이 아닙니다.
-              실제 주문과 배송 업무에 사용해 보고 불편한 점을 알려주세요.
-              판매자에게 필요한 기능부터 확인하고 개선하겠습니다.
-            </p>
-          </div>
-          <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {JOIN_STEPS.map((step) => (
-              <li key={step.n} className="border border-white/25 bg-white/10 px-3 py-3">
-                <p className="text-[11px] font-bold text-blue-100">{step.n}</p>
-                <p className="mt-1 text-sm font-semibold">{step.t}</p>
-              </li>
-            ))}
-          </ol>
-          <Link
-            href="/auth/signup"
-            className="mt-8 inline-flex min-h-11 items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-          >
-            오픈 베타 참여하기
-          </Link>
         </div>
       </section>
 
@@ -293,17 +314,17 @@ export function OpenBetaLandingBottom() {
         <div className={landingContainerClass}>
           <SectionHead
             title="아직 사용해 볼 시간이 없으신가요?"
-            desc="새로운 쇼핑몰 연동과 기능 업데이트, 오픈 베타 주요 소식을 받고 싶으시면 고객문의로 남겨 주세요."
+            desc="새로운 쇼핑몰 연동과 오픈 베타 업데이트를 이메일로 알려드립니다. 현재는 고객문의 페이지에서 이메일과 함께 ‘오픈 베타 소식 신청’이라고 남겨 주세요."
           />
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
               href="/contact"
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              className="inline-flex min-h-12 items-center justify-center rounded-md border border-zinc-300 bg-white px-6 text-base font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
             >
-              고객문의로 소식 요청하기
+              이메일로 업데이트 소식 신청하기
             </Link>
-            <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-              별도의 자동 메일링 구독은 아직 제공하지 않으며, 문의로 남겨 주시면 안내드립니다.
+            <p className="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+              별도 자동 구독 폼은 아직 없으며, 고객문의로 신청해 주시면 됩니다.
             </p>
           </div>
         </div>
@@ -323,7 +344,6 @@ export function OpenBetaLandingBottom() {
   );
 }
 
-/** @deprecated OpenBetaLandingTop + OpenBetaLandingBottom 사용 */
 export function OpenBetaLandingSections() {
   return (
     <>
