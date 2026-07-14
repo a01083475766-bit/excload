@@ -118,11 +118,6 @@ export default function LandingHeroSection() {
                 기능 둘러보기
               </a>
             </div>
-
-            <p className="mt-4 max-w-md break-keep text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-              카드 등록 없이 시작할 수 있으며,
-              별도의 동의 없이 유료로 전환되지 않습니다.
-            </p>
           </div>
 
           <div className="flex min-w-0 flex-col border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/70">

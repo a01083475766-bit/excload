@@ -291,8 +291,8 @@ export function OpenBetaLandingBottom() {
       <section className="border-b border-zinc-200 bg-white py-12 dark:border-zinc-800 dark:bg-zinc-950 sm:py-14">
         <div className={landingContainerClass}>
           <SectionHead
-            title="흩어진 주문과 배송 업무를 하나의 흐름으로"
-            desc="쇼핑몰, 엑셀, 카톡에 흩어진 주문을 정리하고 배송 처리 결과를 다시 쇼핑몰에 입력하는 반복 작업을 줄입니다."
+            title="여러 채널의 주문과 배송 업무를 하나의 흐름으로"
+            desc="쇼핑몰, 엑셀, 카톡에 나뉘어 있는 주문을 정리하고 배송 처리 결과를 다시 쇼핑몰에 입력하는 반복 작업을 줄입니다."
           />
           <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {FLOW.map((label, index) => (
