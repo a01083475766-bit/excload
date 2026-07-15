@@ -11,6 +11,7 @@ export type BoardPostDto = {
   authorLabel: string;
   isMine: boolean;
   featureLabel: string;
+  categoryLabel: string;
   resultLabel: string;
   publicConsent: boolean;
   excerpt: string | null;
@@ -70,12 +71,15 @@ export function mapBoardPost(
   const canViewContent = p.publicConsent || isMine || isAdmin;
   const reply = visibleFeedbackReply(p.systemReply);
 
+  const categoryLabel = getFeedbackFeatureLabel(p.featureUsed);
+
   return {
     id: p.id,
     title: canViewContent ? feedbackTitle(p.content) : '비공개 글',
     authorLabel: maskFeedbackAuthor(p.userId),
     isMine,
-    featureLabel: getFeedbackFeatureLabel(p.featureUsed),
+    featureLabel: categoryLabel,
+    categoryLabel,
     resultLabel: getFeedbackResultLabel(p.conversionResult),
     publicConsent: p.publicConsent,
     excerpt: canViewContent ? feedbackExcerpt(p.content) : null,

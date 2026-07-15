@@ -6,7 +6,6 @@ import { buildAuthLoginRedirectPath } from '@/app/lib/auth/post-login-redirect';
 import { prisma } from '@/app/lib/prisma';
 import {
   getFeedbackFeatureLabel,
-  getFeedbackResultLabel,
   maskFeedbackAuthor,
 } from '@/app/lib/feedback-event/labels';
 import {
@@ -92,7 +91,6 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
                 {post.publicConsent ? '공개' : '비공개'}
               </span>
               <span>{getFeedbackFeatureLabel(post.featureUsed)}</span>
-              <span>{getFeedbackResultLabel(post.conversionResult)}</span>
               <span>{reply ? '답변 있음' : '확인 대기'}</span>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

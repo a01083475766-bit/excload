@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { validateFeedbackAttachmentPolicy } from '@/app/lib/feedback-event/attachment-policy';
 import {
+  DEFAULT_FEEDBACK_CATEGORY,
+  normalizeFeedbackCategory,
+  normalizeFeedbackConversionResult,
+} from '@/app/lib/feedback-event/constants';
+import {
   feedbackTitle,
   parseFeedbackContent,
   serializeFeedbackContent,
@@ -94,6 +99,21 @@ describe('feedback post visibility', () => {
       'mine-private',
       'other-private',
     ]);
+  });
+});
+
+describe('feedback category compatibility', () => {
+  it('defaults an empty category to free writing', () => {
+    expect(normalizeFeedbackCategory('')).toBe(DEFAULT_FEEDBACK_CATEGORY);
+  });
+
+  it('accepts new board categories and legacy feature values', () => {
+    expect(normalizeFeedbackCategory('question')).toBe('question');
+    expect(normalizeFeedbackCategory('order-convert')).toBe('order-convert');
+  });
+
+  it('defaults a missing conversion result to the legacy other value', () => {
+    expect(normalizeFeedbackConversionResult('')).toBe('other');
   });
 });
 

@@ -9,6 +9,7 @@ import { ArrowLeft, MessageSquare } from 'lucide-react';
 type MyPost = {
   id: string;
   featureLabel: string;
+  categoryLabel?: string;
   resultLabel: string;
   excerpt: string;
   publicConsent?: boolean;
@@ -117,9 +118,7 @@ export default function FeedbackMinePage() {
               >
                 <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 mb-1">
                   <span>{formatDate(p.createdAt)}</span>
-                  <span>{p.featureLabel}</span>
-                  <span className="text-zinc-400">·</span>
-                  <span>{p.resultLabel}</span>
+                  <span>{p.categoryLabel ?? p.featureLabel}</span>
                   {p.publicConsent && (
                     <span className="rounded bg-blue-50 text-blue-700 px-1.5 py-0.5">공개</span>
                   )}

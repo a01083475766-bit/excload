@@ -22,9 +22,12 @@ function mapMyPost(p: {
   systemReply: string | null;
   createdAt: Date;
 }) {
+  const categoryLabel = getFeedbackFeatureLabel(p.featureUsed);
+
   return {
     id: p.id,
-    featureLabel: getFeedbackFeatureLabel(p.featureUsed),
+    featureLabel: categoryLabel,
+    categoryLabel,
     resultLabel: getFeedbackResultLabel(p.conversionResult),
     excerpt: p.content.length > 80 ? `${p.content.slice(0, 80)}…` : p.content,
     publicConsent: p.publicConsent,

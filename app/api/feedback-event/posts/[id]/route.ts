@@ -48,6 +48,7 @@ function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean)
   const isMine = myUserId === post.userId;
   const canViewStaffFields = isMine || isAdmin;
   const reply = visibleFeedbackReply(post.systemReply);
+  const categoryLabel = getFeedbackFeatureLabel(post.featureUsed);
 
   return {
     id: post.id,
@@ -56,7 +57,8 @@ function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean)
     canDelete: isAdmin,
     authorLabel: isMine ? '나' : maskFeedbackAuthor(post.userId),
     authorEmail: isAdmin ? post.user.email : null,
-    featureLabel: getFeedbackFeatureLabel(post.featureUsed),
+    featureLabel: categoryLabel,
+    categoryLabel,
     resultLabel: getFeedbackResultLabel(post.conversionResult),
     content: post.content,
     publicConsent: post.publicConsent,

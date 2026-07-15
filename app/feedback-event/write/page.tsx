@@ -6,11 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Suspense, useCallback, useState } from 'react';
 import { serializeFeedbackContent } from '@/app/lib/feedback-event/map-board-post';
 import {
-  FEEDBACK_CONVERSION_RESULTS,
-  FEEDBACK_FEATURES,
+  DEFAULT_FEEDBACK_CATEGORY,
+  FEEDBACK_CATEGORIES,
   FEEDBACK_SELECT_VALUE,
-  isValidFeedbackConversionResult,
-  isValidFeedbackFeature,
   MIN_FEEDBACK_CONTENT_LENGTH,
 } from '@/app/lib/feedback-event/constants';
 import { ArrowLeft } from 'lucide-react';
@@ -21,8 +19,7 @@ function FeedbackWriteInner() {
   const router = useRouter();
   const { status } = useSession();
 
-  const [featureUsed, setFeatureUsed] = useState(FEEDBACK_SELECT_VALUE);
-  const [conversionResult, setConversionResult] = useState(FEEDBACK_SELECT_VALUE);
+  const [category, setCategory] = useState(FEEDBACK_SELECT_VALUE);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [visibility, setVisibility] = useState<PostVisibility | null>(null);
@@ -32,14 +29,6 @@ function FeedbackWriteInner() {
   const handleSubmit = useCallback(async () => {
     if (status !== 'authenticated') {
       router.push(`/auth/login?callbackUrl=${encodeURIComponent('/beta-feedback/write')}`);
-      return;
-    }
-    if (!isValidFeedbackFeature(featureUsed)) {
-      alert('사용한 기능을 선택해 주세요.');
-      return;
-    }
-    if (!isValidFeedbackConversionResult(conversionResult)) {
-      alert('현재 상황을 선택해 주세요.');
       return;
     }
     if (title.trim().length < 2) {
@@ -64,8 +53,8 @@ function FeedbackWriteInner() {
     try {
       const form = new FormData();
       const fullContent = serializeFeedbackContent({ title, body: content });
-      form.append('featureUsed', featureUsed);
-      form.append('conversionResult', conversionResult);
+      form.append('featureUsed', category || DEFAULT_FEEDBACK_CATEGORY);
+      form.append('conversionResult', 'other');
       form.append('content', fullContent);
       form.append('publicConsent', visibility === 'public' ? 'true' : 'false');
       if (attachment) form.append('attachment', attachment);
@@ -100,8 +89,7 @@ function FeedbackWriteInner() {
     router,
     content,
     title,
-    featureUsed,
-    conversionResult,
+    category,
     visibility,
     attachment,
   ]);
@@ -119,7 +107,7 @@ function FeedbackWriteInner() {
 
         <h1 className="mb-2 text-2xl font-bold text-zinc-950">베타 피드백 작성</h1>
         <p className="mb-2 text-sm leading-6 text-zinc-600">
-          오류가 발생한 화면과 실행 순서를 자세히 적어주시면 확인에 도움이 됩니다.
+          엑클로드를 사용하며 느낀 점, 궁금한 점, 불편한 점이나 개선 의견을 자유롭게 남겨주세요.
         </p>
         <p className="mb-6 border-l-2 border-amber-500 pl-3 text-sm leading-6 text-amber-900">
           고객 이름, 전화번호, 주소, 주문번호 등 개인정보는 가린 뒤 첨부해 주세요.
@@ -127,39 +115,24 @@ function FeedbackWriteInner() {
 
         <div className="border border-zinc-200 bg-white p-5 space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-zinc-800 mb-1">관련 기능</label>
+            <label className="block text-sm font-semibold text-zinc-800 mb-1">말머리</label>
             <select
-              value={featureUsed}
-              onChange={(e) => setFeatureUsed(e.target.value)}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
               className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm"
             >
-              <option value={FEEDBACK_SELECT_VALUE} disabled>
-                선택
+              <option value={FEEDBACK_SELECT_VALUE}>
+                자유글
               </option>
-              {FEEDBACK_FEATURES.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
+              {FEEDBACK_CATEGORIES.filter(
+                (item) => item.value !== DEFAULT_FEEDBACK_CATEGORY,
+              ).map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
                 </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-zinc-800 mb-1">현재 상황</label>
-            <select
-              value={conversionResult}
-              onChange={(e) => setConversionResult(e.target.value)}
-              className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm"
-            >
-              <option value={FEEDBACK_SELECT_VALUE} disabled>
-                선택
-              </option>
-              {FEEDBACK_CONVERSION_RESULTS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+            <p className="mt-1 text-xs text-zinc-500">선택하지 않으면 자유글로 등록됩니다.</p>
           </div>
 
           <div>
@@ -168,23 +141,24 @@ function FeedbackWriteInner() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded border border-zinc-300 px-3 py-2 text-sm"
-              placeholder="예: 송장 변환 결과에서 주소가 잘못 분리됩니다"
+              placeholder="제목을 입력해주세요."
             />
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-zinc-800 mb-1">내용</label>
             <ul className="mb-2 list-disc space-y-0.5 pl-5 text-xs leading-5 text-zinc-500">
-              <li>어떤 기능을 사용했나요?</li>
-              <li>어떤 순서로 실행했나요?</li>
-              <li>기대한 결과와 실제 결과는 어떻게 달랐나요?</li>
+              <li>사용하면서 궁금했던 점</li>
+              <li>불편하거나 개선되었으면 하는 점</li>
+              <li>새롭게 추가되었으면 하는 기능</li>
+              <li>자유로운 사용 후기</li>
             </ul>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={8}
               className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm resize-y"
-              placeholder="오류 화면, 실행 순서, 기대한 결과, 실제 결과를 적어주세요."
+              placeholder="엑클로드를 사용하며 느낀 점이나 궁금한 내용을 자유롭게 적어주세요."
             />
             <p className="mt-1 text-xs text-zinc-500">최소 {MIN_FEEDBACK_CONTENT_LENGTH}자</p>
           </div>

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
 import {
-  isValidFeedbackConversionResult,
-  isValidFeedbackFeature,
   MIN_FEEDBACK_CONTENT_LENGTH,
+  normalizeFeedbackCategory,
+  normalizeFeedbackConversionResult,
 } from '@/app/lib/feedback-event/constants';
 import { invalidatePublicBoardCache } from '@/app/lib/feedback-event/public-board-cache';
 import { getFeedbackViewerFromRequest } from '@/app/lib/feedback-event/viewer';
@@ -24,18 +24,13 @@ export async function POST(request: NextRequest) {
     }
 
     const form = await request.formData();
-    const featureUsed = String(form.get('featureUsed') ?? '').trim();
-    const conversionResult = String(form.get('conversionResult') ?? '').trim();
+    const featureUsed = normalizeFeedbackCategory(String(form.get('featureUsed') ?? '').trim());
+    const conversionResult = normalizeFeedbackConversionResult(
+      String(form.get('conversionResult') ?? '').trim(),
+    );
     const content = String(form.get('content') ?? '').trim();
     const publicConsent = form.get('publicConsent') === 'true' || form.get('publicConsent') === 'on';
     const fileField = form.get('attachment');
-
-    if (!isValidFeedbackFeature(featureUsed)) {
-      return NextResponse.json({ error: '사용한 기능을 선택해 주세요.' }, { status: 400 });
-    }
-    if (!isValidFeedbackConversionResult(conversionResult)) {
-      return NextResponse.json({ error: '현재 상황을 선택해 주세요.' }, { status: 400 });
-    }
 
     if (content.length < MIN_FEEDBACK_CONTENT_LENGTH) {
       return NextResponse.json(

@@ -1,10 +1,15 @@
 import {
+  FEEDBACK_CATEGORIES,
   FEEDBACK_CONVERSION_RESULTS,
   FEEDBACK_FEATURES,
 } from '@/app/lib/feedback-event/constants';
 
 export function getFeedbackFeatureLabel(value: string): string {
-  return FEEDBACK_FEATURES.find((f) => f.value === value)?.label ?? value;
+  return (
+    FEEDBACK_CATEGORIES.find((category) => category.value === value)?.label ??
+    FEEDBACK_FEATURES.find((f) => f.value === value)?.label ??
+    value
+  );
 }
 
 export function getFeedbackResultLabel(value: string): string {

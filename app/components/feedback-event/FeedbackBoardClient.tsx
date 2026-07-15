@@ -21,7 +21,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
   const [boardLoading, setBoardLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'mine'>('all');
-  const [featureFilter, setFeatureFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
 
   const loadBoard = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setBoardLoading(true);
@@ -85,16 +85,20 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
     return boardPosts.filter((post) => {
       if (visibilityFilter === 'public' && !post.publicConsent) return false;
       if (visibilityFilter === 'mine' && !post.isMine) return false;
-      if (featureFilter !== 'all' && post.featureLabel !== featureFilter) return false;
+      const categoryLabel = post.categoryLabel ?? post.featureLabel;
+      if (categoryFilter !== 'all' && categoryLabel !== categoryFilter) return false;
       if (!q) return true;
-      return [post.title, post.excerpt, post.featureLabel, post.resultLabel, post.authorLabel]
+      return [post.title, post.excerpt, categoryLabel, post.authorLabel]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(q));
     });
-  }, [boardPosts, featureFilter, query, visibilityFilter]);
+  }, [boardPosts, categoryFilter, query, visibilityFilter]);
 
-  const featureOptions = useMemo(
-    () => Array.from(new Set(boardPosts.map((post) => post.featureLabel))).sort(),
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(boardPosts.map((post) => post.categoryLabel ?? post.featureLabel)),
+      ).sort(),
     [boardPosts],
   );
 
@@ -105,8 +109,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
           <div>
             <h1 className="text-2xl font-bold text-zinc-950">베타 피드백</h1>
             <p className="mt-1 text-sm leading-6 text-zinc-600">
-              엑클로드를 사용하며 발견한 오류와 필요한 기능을 알려주세요. 베타 사용자의 의견과
-              운영자의 확인 내용을 함께 볼 수 있습니다.
+              엑클로드를 사용하며 느낀 점, 궁금한 점, 불편한 점과 개선 아이디어를 자유롭게 나눠주세요.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -138,7 +141,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="제목, 내용, 기능 검색"
+                placeholder="제목, 내용, 말머리 검색"
                 className="h-9 w-full rounded border border-zinc-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-zinc-500"
               />
             </label>
@@ -155,14 +158,14 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                 <option value="mine">내 글</option>
               </select>
               <select
-                value={featureFilter}
-                onChange={(event) => setFeatureFilter(event.target.value)}
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
                 className="h-9 rounded border border-zinc-300 bg-white px-2 text-sm"
               >
-                <option value="all">전체 기능</option>
-                {featureOptions.map((feature) => (
-                  <option key={feature} value={feature}>
-                    {feature}
+                <option value="all">전체 말머리</option>
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
                   </option>
                 ))}
               </select>
@@ -191,8 +194,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
               <table className="hidden w-full table-fixed text-sm md:table">
                 <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs text-zinc-600">
                   <tr>
-                    <th className="w-24 px-3 py-2 font-medium">공개</th>
-                    <th className="w-32 px-3 py-2 font-medium">관련 기능</th>
+                    <th className="w-28 px-3 py-2 font-medium">말머리</th>
                     <th className="px-3 py-2 font-medium">제목</th>
                     <th className="w-28 px-3 py-2 font-medium">작성자</th>
                     <th className="w-24 px-3 py-2 font-medium">답변</th>
@@ -205,12 +207,9 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                 <tbody className="divide-y divide-zinc-100">
                   {filteredPosts.map((p) => (
                     <tr key={p.id} className="hover:bg-zinc-50">
-                      <td className="px-3 py-2 align-top">
-                        <span className="rounded border border-zinc-200 px-1.5 py-0.5 text-xs text-zinc-600">
-                          {p.publicConsent ? '공개' : '비공개'}
-                        </span>
+                      <td className="px-3 py-2 align-top text-zinc-600">
+                        {p.categoryLabel ?? p.featureLabel}
                       </td>
-                      <td className="px-3 py-2 align-top text-zinc-600">{p.featureLabel}</td>
                       <td className="px-3 py-2 align-top">
                         <Link
                           href={`/beta-feedback/${p.id}`}
@@ -221,6 +220,11 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                         </Link>
                         {p.excerpt ? (
                           <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{p.excerpt}</p>
+                        ) : null}
+                        {!p.publicConsent ? (
+                          <span className="mt-1 inline-flex rounded border border-zinc-200 px-1.5 py-0.5 text-xs text-zinc-500">
+                            비공개
+                          </span>
                         ) : null}
                       </td>
                       <td className="px-3 py-2 align-top text-zinc-600">
@@ -259,8 +263,8 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                     className="block px-3 py-3 hover:bg-zinc-50"
                   >
                     <div className="mb-1 flex items-center gap-2 text-xs text-zinc-500">
-                      <span>{p.publicConsent ? '공개' : '비공개'}</span>
-                      <span>{p.featureLabel}</span>
+                      <span>{p.categoryLabel ?? p.featureLabel}</span>
+                      {!p.publicConsent ? <span>비공개</span> : null}
                       <span>{formatDate(p.createdAt)}</span>
                       <span className={p.hasSystemReply ? 'text-emerald-700' : 'text-zinc-400'}>
                         {p.hasSystemReply ? '답변 있음' : '확인 대기'}
