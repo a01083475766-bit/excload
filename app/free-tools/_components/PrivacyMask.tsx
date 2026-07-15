@@ -546,7 +546,7 @@ export function PrivacyMask() {
   return (
     <>
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <FileLock2 className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -595,7 +595,7 @@ export function PrivacyMask() {
             </label>
 
             {fileName && (
-              <div className="mt-3 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-3 flex flex-col gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <span className="min-w-0 truncate font-medium text-zinc-800">
                   {fileName}
                   {fileSize !== null && <span className="ml-2 text-zinc-500">({formatFileSize(fileSize)})</span>}
@@ -616,7 +616,7 @@ export function PrivacyMask() {
             </p>
 
             {error && (
-              <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+              <div className="mt-3 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
                 {error}
               </div>
@@ -627,14 +627,14 @@ export function PrivacyMask() {
             <button
               type="button"
               onClick={loadExample}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+              className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
             >
               예시 데이터 불러오기
             </button>
             <button
               type="button"
               onClick={resetAll}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
             >
               <RotateCcw className="size-4" aria-hidden />
               초기화
@@ -649,7 +649,7 @@ export function PrivacyMask() {
                   <select
                     value={selectedSheetIndex}
                     onChange={(event) => handleSheetChange(Number(event.target.value))}
-                    className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm"
+                    className="mt-2 w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm"
                   >
                     {sheets.map((sheet, index) => (
                       <option key={sheet.name} value={index}>
@@ -665,7 +665,7 @@ export function PrivacyMask() {
                 <select
                   value={headerRowIndex}
                   onChange={(event) => handleHeaderChange(Number(event.target.value))}
-                  className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm"
+                  className="mt-2 w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm"
                 >
                   {headerOptions.map((option) => (
                     <option key={option.index} value={option.index}>
@@ -675,7 +675,7 @@ export function PrivacyMask() {
                 </select>
               </label>
 
-              <div className="rounded-xl border border-blue-100 bg-white/95 p-4 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:z-10">
+              <div className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm lg:sticky lg:top-24 lg:z-10">
                 <p className="text-xs leading-relaxed text-zinc-600">
                   체크박스와 가림 방식을 바꾸면 오른쪽 미리보기는 바로 반영됩니다. 다운로드할 파일은
                   현재 설정을 확인한 뒤 아래 버튼으로 생성해 주세요.
@@ -684,7 +684,7 @@ export function PrivacyMask() {
                   type="button"
                   onClick={processRows}
                   disabled={loading}
-                  className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+                  className="mt-3 w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
                 >
                   {loading ? '처리 중...' : '현재 설정으로 다운로드 파일 만들기'}
                 </button>
@@ -727,7 +727,7 @@ export function PrivacyMask() {
                   const maskedValue = setting ? applyMask(firstValue, setting) : '';
 
                   return (
-                    <div key={column.index} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div key={column.index} className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
                       <label className="flex items-start gap-3">
                         <input
                           type="checkbox"
@@ -758,7 +758,7 @@ export function PrivacyMask() {
                           <select
                             value={setting?.mode ?? 'custom'}
                             onChange={(event) => updateSetting(column.index, { mode: event.target.value as MaskMode })}
-                            className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                            className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                           >
                             {maskModes.map((mode) => (
                               <option key={mode.value} value={mode.value}>
@@ -774,7 +774,7 @@ export function PrivacyMask() {
                             <select
                               value={setting.addressLevel}
                               onChange={(event) => updateSetting(column.index, { addressLevel: event.target.value as AddressLevel })}
-                              className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                             >
                               <option value="normal">보통 가리기</option>
                               <option value="light">약하게 가리기</option>
@@ -791,7 +791,7 @@ export function PrivacyMask() {
                             <input
                               value={setting.customPrefix}
                               onChange={(event) => updateSetting(column.index, { customPrefix: event.target.value.replace(/\D/g, '') })}
-                              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
                             />
                           </label>
                           <label className="block">
@@ -799,7 +799,7 @@ export function PrivacyMask() {
                             <input
                               value={setting.customSuffix}
                               onChange={(event) => updateSetting(column.index, { customSuffix: event.target.value.replace(/\D/g, '') })}
-                              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
                             />
                           </label>
                           <label className="block">
@@ -808,17 +808,17 @@ export function PrivacyMask() {
                               value={setting.customMaskChar}
                               maxLength={1}
                               onChange={(event) => updateSetting(column.index, { customMaskChar: event.target.value.slice(0, 1) || '*' })}
-                              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                              className="mt-1 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
                             />
                           </label>
                         </div>
                       )}
 
                       <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                        <p className="rounded-xl bg-white p-3 text-zinc-600">
+                        <p className="rounded-md bg-white p-3 text-zinc-600">
                           원본 예시: <span className="font-semibold text-zinc-900">{firstValue || '-'}</span>
                         </p>
-                        <p className="rounded-xl bg-white p-3 text-zinc-600">
+                        <p className="rounded-md bg-white p-3 text-zinc-600">
                           결과 예시: <span className="font-semibold text-blue-700">{maskedValue || '-'}</span>
                         </p>
                       </div>
@@ -833,14 +833,14 @@ export function PrivacyMask() {
             type="button"
             onClick={processRows}
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+            className="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
           >
             {loading ? '처리 중...' : '현재 설정으로 다운로드 파일 만들기'}
           </button>
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">미리보기·처리 결과</h3>
         <p className="mt-2 text-xs leading-relaxed text-amber-700">
           미리보기에는 원본 정보가 표시될 수 있으므로 공용 화면에서는 주의해 주세요.
@@ -854,7 +854,7 @@ export function PrivacyMask() {
           <div className="mt-4 space-y-4">
             {result && (
               <div
-                className={`rounded-xl border p-4 ${
+                className={`rounded-md border p-4 ${
                   result.errorCellCount > 0
                     ? 'border-amber-100 bg-amber-50 text-amber-900'
                     : 'border-emerald-100 bg-emerald-50 text-emerald-800'
@@ -950,12 +950,12 @@ export function PrivacyMask() {
                 <button
                   type="button"
                   onClick={downloadMaskedFile}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
                 >
                   <Download className="size-4" aria-hidden />
                   개인정보 가린 엑셀 받기
                 </button>
-                <p className="rounded-xl bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-500">
+                <p className="rounded-md bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-500">
                   원본 파일은 변경되지 않습니다. 새로 생성되는 파일에서는 원본의 일부 서식, 수식 또는
                   병합 셀이 유지되지 않을 수 있습니다. 다운로드 후에도 개인정보가 충분히 가려졌는지
                   파일을 직접 확인해 주세요.

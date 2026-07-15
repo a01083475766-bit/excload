@@ -424,7 +424,7 @@ export function ExcelCsvConverter() {
   return (
     <>
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <FileSpreadsheet className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -479,7 +479,7 @@ export function ExcelCsvConverter() {
             </label>
 
             {loadedFile && (
-              <div className="mt-3 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-3 flex flex-col gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <span className="min-w-0 truncate font-medium text-zinc-800">
                   {loadedFile.file.name}
                   <span className="ml-2 text-zinc-500">({formatBytes(loadedFile.file.size)})</span>
@@ -496,7 +496,7 @@ export function ExcelCsvConverter() {
             )}
 
             {error && (
-              <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="polite">
+              <div className="mt-3 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="polite">
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
                 {error}
               </div>
@@ -504,7 +504,7 @@ export function ExcelCsvConverter() {
           </div>
 
           {loadedFile?.kind === 'excel' && (
-            <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="space-y-4 rounded-md border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-bold text-zinc-950">엑셀 → CSV 설정</p>
               {loadedFile.sheetNames.length > 1 && (
                 <div className="space-y-2">
@@ -538,7 +538,7 @@ export function ExcelCsvConverter() {
                   value={loadedFile.selectedSheetName}
                   disabled={excelSheetMode === 'all'}
                   onChange={(event) => changeSheet(event.target.value)}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                 >
                   {loadedFile.sheetNames.map((sheetName) => (
                     <option key={sheetName} value={sheetName}>
@@ -556,7 +556,7 @@ export function ExcelCsvConverter() {
                       setCsvOutputDelimiter(event.target.value as Exclude<CsvDelimiter, 'auto'>);
                       markStale();
                     }}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                   >
                     <option value=",">쉼표(,)</option>
                     <option value="\t">탭</option>
@@ -571,14 +571,14 @@ export function ExcelCsvConverter() {
                       setCsvOutputEncoding(event.target.value as CsvOutputEncoding);
                       markStale();
                     }}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                   >
                     <option value="utf8-bom">UTF-8 BOM 포함</option>
                     <option value="utf8">UTF-8</option>
                   </select>
                 </label>
               </div>
-              <p className="rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-700">
+              <p className="rounded-md bg-amber-50 p-3 text-xs leading-relaxed text-amber-700">
                 CSV 파일은 엑셀의 셀 색상, 글꼴, 테두리, 병합 등의 서식을 저장하지 않습니다. 수식이 있는
                 경우 CSV에는 화면에 표시되는 값만 저장될 수 있습니다.
               </p>
@@ -586,7 +586,7 @@ export function ExcelCsvConverter() {
           )}
 
           {loadedFile?.kind === 'csv' && (
-            <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="space-y-4 rounded-md border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-bold text-zinc-950">CSV → 엑셀 설정</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
@@ -594,7 +594,7 @@ export function ExcelCsvConverter() {
                   <select
                     value={csvEncoding}
                     onChange={(event) => void rereadCsv(csvDelimiter, event.target.value as CsvEncoding)}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                   >
                     <option value="auto">자동 감지</option>
                     <option value="utf-8">UTF-8</option>
@@ -606,7 +606,7 @@ export function ExcelCsvConverter() {
                   <select
                     value={csvDelimiter}
                     onChange={(event) => void rereadCsv(event.target.value as CsvDelimiter, csvEncoding)}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                   >
                     <option value="auto">자동 감지</option>
                     <option value=",">쉼표(,)</option>
@@ -615,7 +615,7 @@ export function ExcelCsvConverter() {
                   </select>
                 </label>
               </div>
-              <div className="rounded-xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+              <div className="rounded-md bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
                 감지된 구분 문자: {delimiterLabel(loadedFile.detectedDelimiter)} · 감지된 인코딩:{' '}
                 {encodingLabel(loadedFile.detectedEncoding)}
               </div>
@@ -627,7 +627,7 @@ export function ExcelCsvConverter() {
                     setCsvSheetName(safeSheetName(event.target.value));
                     markStale();
                   }}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                 />
               </label>
               <label className="flex items-start gap-2 text-sm font-medium text-zinc-700">
@@ -655,7 +655,7 @@ export function ExcelCsvConverter() {
               type="button"
               onClick={() => void convertFile()}
               disabled={processing}
-              className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+              className="rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
             >
               {processing
                 ? '파일을 변환하고 있습니다.'
@@ -668,7 +668,7 @@ export function ExcelCsvConverter() {
             <button
               type="button"
               onClick={resetAll}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
             >
               <RotateCcw className="size-4" aria-hidden />
               설정 초기화
@@ -682,7 +682,7 @@ export function ExcelCsvConverter() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">파일 정보와 미리보기</h3>
         {!loadedFile ? (
           <p className="mt-5 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
@@ -690,7 +690,7 @@ export function ExcelCsvConverter() {
           </p>
         ) : (
           <div className="mt-5 space-y-4">
-            <div className="grid gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm sm:grid-cols-2">
+            <div className="grid gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm sm:grid-cols-2">
               <p><span className="font-semibold text-zinc-600">파일명:</span> {loadedFile.file.name}</p>
               <p><span className="font-semibold text-zinc-600">형식:</span> {loadedFile.extension.toUpperCase()}</p>
               <p><span className="font-semibold text-zinc-600">크기:</span> {formatBytes(loadedFile.file.size)}</p>
@@ -734,7 +734,7 @@ export function ExcelCsvConverter() {
 
             {result && (
               <div
-                className={`rounded-xl border p-4 ${
+                className={`rounded-md border p-4 ${
                   resultState === 'stale'
                     ? 'border-amber-200 bg-amber-50 text-amber-800'
                     : 'border-emerald-100 bg-emerald-50 text-emerald-800'
@@ -753,7 +753,7 @@ export function ExcelCsvConverter() {
                   type="button"
                   disabled={resultState !== 'done'}
                   onClick={() => downloadBlob(result.blob, result.fileName)}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-500"
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-500"
                 >
                   <Download className="size-4" aria-hidden />
                   {result.outputFormat === 'ZIP' ? 'CSV 파일 ZIP 다운로드' : '변환 파일 다운로드'}

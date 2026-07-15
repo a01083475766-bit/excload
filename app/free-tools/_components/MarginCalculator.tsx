@@ -577,7 +577,7 @@ export function MarginCalculator() {
   return (
     <>
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <Calculator className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -810,7 +810,7 @@ export function MarginCalculator() {
 
       <section
         ref={resultSummaryRef}
-        className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start"
+        className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start"
       >
         <h3 className="text-lg font-bold text-zinc-950">결과 표시 영역</h3>
         {!result && (
@@ -821,7 +821,7 @@ export function MarginCalculator() {
         )}
         <div className="mt-4 space-y-3">
           <div
-            className={`rounded-xl border p-5 ${
+            className={`rounded-md border p-5 ${
               result && !profitPositive
                 ? 'border-red-200 bg-red-50'
                 : 'border-emerald-100 bg-emerald-50/70'
@@ -853,7 +853,7 @@ export function MarginCalculator() {
             )}
           </div>
 
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
+          <div className="rounded-md border border-zinc-100 bg-zinc-50 p-5 text-sm">
             <p className="mb-3 font-semibold text-zinc-800">판매가 안내</p>
             {result ? (
               <>
@@ -880,7 +880,7 @@ export function MarginCalculator() {
             )}
           </div>
 
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
+          <div className="rounded-md border border-zinc-100 bg-zinc-50 p-5 text-sm">
             <p className="mb-3 font-semibold text-zinc-800">상세 결과</p>
             {result ? (
               <>
@@ -921,7 +921,7 @@ export function MarginCalculator() {
             )}
           </div>
 
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
+          <div className="rounded-md border border-zinc-100 bg-zinc-50 p-5 text-sm">
             <p className="mb-3 font-semibold text-zinc-800">확인 필요 항목</p>
             <ul className="space-y-2 text-zinc-600">
               <li>실제 수수료는 쇼핑몰, 상품 카테고리, 결제 방식에 따라 달라질 수 있습니다.</li>
@@ -941,7 +941,7 @@ export function MarginCalculator() {
     {result && !floatingSummaryDismissed && (
       <div className="fixed inset-x-3 bottom-3 z-40 xl:hidden">
         <div
-          className={`flex items-center gap-3 rounded-xl border p-3 pr-2 shadow-lg backdrop-blur-sm ${
+          className={`flex items-center gap-3 rounded-md border p-3 pr-2 shadow-md ${
             profitPositive
               ? 'border-emerald-200 bg-emerald-50/95'
               : 'border-red-200 bg-red-50/95'

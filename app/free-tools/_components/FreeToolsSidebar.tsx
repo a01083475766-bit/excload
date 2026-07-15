@@ -17,17 +17,17 @@ type ToolNavLinkProps = {
 
 function ToolNavLink({ slug, name, shortDescription, icon: Icon, active, variant }: ToolNavLinkProps) {
   const activeClass = active
-    ? 'border-blue-300 bg-blue-50/90 ring-1 ring-blue-100'
-    : 'border-slate-900/[0.08] bg-white/75';
+    ? 'border-blue-600 bg-blue-50'
+    : 'border-transparent bg-white hover:bg-zinc-50';
 
   if (variant === 'mobile') {
     return (
       <Link
         href={`/free-tools/${slug}`}
-        className={`flex shrink-0 snap-start items-center gap-2 rounded-2xl border px-3 py-2.5 text-left shadow-sm backdrop-blur transition hover:border-teal-300/60 hover:bg-white/90 ${activeClass}`}
+        className={`flex shrink-0 snap-start items-center gap-2 rounded-md border px-3 py-2.5 text-left shadow-sm transition-colors hover:border-blue-300 ${activeClass}`}
       >
         <span
-          className={`rounded-lg p-1.5 ${
+          className={`rounded p-1.5 ${
             active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
           }`}
         >
@@ -43,10 +43,10 @@ function ToolNavLink({ slug, name, shortDescription, icon: Icon, active, variant
   return (
     <Link
       href={`/free-tools/${slug}`}
-      className={`flex h-[88px] items-start gap-3 rounded-2xl border p-3 text-left shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-teal-300/60 hover:bg-white/90 hover:shadow-md ${activeClass}`}
+      className={`flex min-h-[76px] items-start gap-3 border-l-2 p-3 text-left transition-colors ${activeClass}`}
     >
       <span
-        className={`mt-0.5 rounded-lg p-2 ${
+        className={`mt-0.5 rounded p-2 ${
           active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
         }`}
       >
@@ -91,7 +91,10 @@ export function FreeToolsSidebar({ activeSlug }: Props) {
           <span className="mt-1 block text-xs font-medium text-slate-500">회원가입 없이 바로 사용</span>
         </div>
 
-        <nav aria-label="무료도구 목록" className="block space-y-2">
+        <nav
+          aria-label="무료도구 목록"
+          className="block overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm divide-y divide-zinc-100"
+        >
           {freeTools.map((tool) => (
             <ToolNavLink
               key={tool.slug}

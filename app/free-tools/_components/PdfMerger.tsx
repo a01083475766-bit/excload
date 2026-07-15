@@ -641,7 +641,7 @@ export function PdfMerger() {
   return (
     <>
       <div className="space-y-5">
-        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start gap-3">
             <FileText className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
             <div>
@@ -655,7 +655,7 @@ export function PdfMerger() {
         </section>
 
         <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
             <label
               tabIndex={0}
               onKeyDown={(event) => {
@@ -701,23 +701,23 @@ export function PdfMerger() {
             </label>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={processing || loadingFiles} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:bg-zinc-50 disabled:text-zinc-400">
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={processing || loadingFiles} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:bg-zinc-50 disabled:text-zinc-400">
                 PDF 추가
               </button>
-              <button type="button" onClick={clearFiles} disabled={processing || files.length === 0} className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400">
+              <button type="button" onClick={clearFiles} disabled={processing || files.length === 0} className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400">
                 전체 삭제
               </button>
-              <button type="button" onClick={resetFileOrder} disabled={processing || files.length < 2} className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400">
+              <button type="button" onClick={resetFileOrder} disabled={processing || files.length < 2} className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400">
                 파일 순서 초기화
               </button>
             </div>
 
             {(error || thumbnailNotice || loadingFiles) && (
               <div className="mt-4 space-y-2" aria-live="polite">
-                {loadingFiles && <p className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700">PDF 파일을 읽고 있습니다.</p>}
-                {thumbnailNotice && <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">{thumbnailNotice}</p>}
+                {loadingFiles && <p className="rounded-md border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700">PDF 파일을 읽고 있습니다.</p>}
+                {thumbnailNotice && <p className="rounded-md border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">{thumbnailNotice}</p>}
                 {error && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
                       <div className="min-w-0 flex-1">
@@ -768,7 +768,7 @@ export function PdfMerger() {
             )}
 
             <div className="mt-5 space-y-3">
-              <p className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs leading-relaxed text-blue-900">
+              <p className="rounded-md border border-blue-100 bg-blue-50/70 p-3 text-xs leading-relaxed text-blue-900">
                 위에서부터 표시된 파일 순서대로 PDF가 합쳐집니다. 각 파일 안에서는 원래 페이지 순서가 유지됩니다.
               </p>
 
@@ -796,10 +796,10 @@ export function PdfMerger() {
                         event.preventDefault();
                         reorderByDrop(file.id);
                       }}
-                      className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+                      className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 sm:w-24 sm:shrink-0">
+                        <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 sm:w-24 sm:shrink-0">
                           {file.firstThumbnailUrl ? (
                             <img src={file.firstThumbnailUrl} alt={`${file.name} 첫 페이지 미리보기`} className="max-h-full max-w-full object-contain" />
                           ) : (
@@ -835,9 +835,9 @@ export function PdfMerger() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+          <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
             <h3 className="text-lg font-bold text-zinc-950">PDF 구성 요약</h3>
-            <div className="mt-4 grid gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 sm:grid-cols-2">
+            <div className="mt-4 grid gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 sm:grid-cols-2">
               <span>업로드 파일: {files.length.toLocaleString('ko-KR')}개</span>
               <span>원본 전체 페이지: {originalPageCount.toLocaleString('ko-KR')}페이지</span>
               <span>결과 포함 페이지: {includedPages.length.toLocaleString('ko-KR')}페이지</span>
@@ -865,19 +865,19 @@ export function PdfMerger() {
                 value={fileName}
                 disabled={processing}
                 onChange={(event) => setFileName(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                 placeholder="합친문서"
               />
             </label>
 
             {includedPages.length === 0 && files.length > 0 && (
-              <p className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="mt-3 rounded-md border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
                 결과 PDF에 포함할 페이지를 한 장 이상 선택해 주세요.
               </p>
             )}
 
             {processing && (
-              <p className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700" aria-live="polite">
+              <p className="mt-3 rounded-md border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700" aria-live="polite">
                 PDF 파일을 처리하고 있습니다. {progressText}
               </p>
             )}
@@ -886,7 +886,7 @@ export function PdfMerger() {
               type="button"
               onClick={() => void createMergedPdf()}
               disabled={processing || files.length === 0 || includedPages.length === 0}
-              className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+              className="mt-4 w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
             >
               {processing ? 'PDF 파일을 처리하고 있습니다.' : files.length === 1 ? '편집한 PDF 만들기' : 'PDF 합치기'}
             </button>
@@ -897,7 +897,7 @@ export function PdfMerger() {
             </div>
 
             {resultState === 'stale' && (
-              <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+              <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
                 PDF 구성이나 페이지 설정이 변경되었습니다. PDF를 다시 만들어 주세요.
               </p>
             )}
@@ -916,19 +916,19 @@ export function PdfMerger() {
                   <span className="truncate sm:col-span-2">결과 파일: {outputName}</span>
                 </div>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  <button type="button" onClick={() => downloadBlob(result.blob, outputName)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+                  <button type="button" onClick={() => downloadBlob(result.blob, outputName)} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700">
                     <Download className="size-4" aria-hidden />
                     결과 PDF 다운로드
                   </button>
-                  <button type="button" onClick={() => { setPreviewUrl(result.url); setPreviewTitle(`결과 미리보기: ${outputName}`); }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50">
+                  <button type="button" onClick={() => { setPreviewUrl(result.url); setPreviewTitle(`결과 미리보기: ${outputName}`); }} className="inline-flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50">
                     <Eye className="size-4" aria-hidden />
                     결과 미리보기
                   </button>
-                  <button type="button" onClick={clearFiles} className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+                  <button type="button" onClick={clearFiles} className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
                     <X className="size-4" aria-hidden />
                     다른 PDF 작업
                   </button>
-                  <button type="button" onClick={resetAll} className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+                  <button type="button" onClick={resetAll} className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
                     <RotateCcwSquare className="size-4" aria-hidden />
                     설정 초기화
                   </button>
@@ -944,7 +944,7 @@ export function PdfMerger() {
         </div>
 
         {files.length > 0 && (
-          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-lg font-bold text-zinc-950">페이지 구성</h3>
@@ -952,7 +952,7 @@ export function PdfMerger() {
                   페이지 제외는 결과 PDF에만 적용됩니다. 원본 PDF 파일은 변경되지 않습니다.
                 </p>
               </div>
-              <button type="button" onClick={resetAllRotations} disabled={processing || rotatedPageCount === 0} className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400">
+              <button type="button" onClick={resetAllRotations} disabled={processing || rotatedPageCount === 0} className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400">
                 전체 회전 초기화
               </button>
             </div>
@@ -962,7 +962,7 @@ export function PdfMerger() {
                 const filePages = pages.filter((page) => page.fileId === file.id).sort((a, b) => a.pageIndex - b.pageIndex);
                 const includedCount = filePages.filter((page) => page.included).length;
                 return (
-                  <div key={file.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <div key={file.id} className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
                         <p title={file.name} className="truncate text-sm font-bold text-zinc-950">{file.name}</p>
@@ -992,13 +992,13 @@ export function PdfMerger() {
                           disabled={processing}
                           onChange={(event) => updateRangeInput(file.id, event.target.value)}
                           placeholder="예: 1-3, 5, 8-10"
-                          className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                          className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                         />
                       </label>
-                      <button type="button" onClick={() => applyRange(file, 'include-only')} disabled={processing} className="self-end rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 disabled:text-zinc-400">
+                      <button type="button" onClick={() => applyRange(file, 'include-only')} disabled={processing} className="self-end rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 disabled:text-zinc-400">
                         입력한 페이지만 포함
                       </button>
-                      <button type="button" onClick={() => applyRange(file, 'exclude')} disabled={processing} className="self-end rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 disabled:text-zinc-400">
+                      <button type="button" onClick={() => applyRange(file, 'exclude')} disabled={processing} className="self-end rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 disabled:text-zinc-400">
                         입력한 페이지 제외
                       </button>
                     </div>
@@ -1007,11 +1007,11 @@ export function PdfMerger() {
                       {filePages.map((page) => (
                         <article
                           key={page.id}
-                          className={`rounded-xl border p-3 ${
+                          className={`rounded-md border p-3 ${
                             page.included ? 'border-zinc-200 bg-white' : 'border-zinc-200 bg-zinc-100 opacity-70'
                           }`}
                         >
-                          <div className="flex h-40 items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-white">
+                          <div className="flex h-40 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white">
                             {page.thumbnailUrl ? (
                               <img
                                 src={page.thumbnailUrl}
@@ -1073,7 +1073,7 @@ export function PdfMerger() {
             if (event.target === event.currentTarget) setPreviewUrl(null);
           }}
         >
-          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-md bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
               <p className="min-w-0 truncate text-sm font-bold text-zinc-950">{previewTitle}</p>
               <button type="button" onClick={() => setPreviewUrl(null)} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">

@@ -563,7 +563,7 @@ export function ImageTextExtractor() {
 
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <ImageIcon className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -663,7 +663,7 @@ export function ImageTextExtractor() {
           </div>
 
           {loadedImage ? (
-            <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm ring-1 ring-blue-100">
+            <div className="rounded-md border border-blue-200 bg-blue-50/70 p-4 shadow-sm ring-1 ring-blue-100">
               <div className="flex flex-col gap-3">
                 <div className="flex h-36 items-center justify-center overflow-hidden rounded-lg border border-blue-100 bg-white/90 sm:h-44">
                   <div
@@ -783,7 +783,7 @@ export function ImageTextExtractor() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <div>
           <div>
             <h3 className="text-lg font-bold text-zinc-950">추출된 글자</h3>

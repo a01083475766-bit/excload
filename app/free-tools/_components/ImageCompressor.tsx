@@ -709,7 +709,7 @@ export function ImageCompressor() {
 
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <ImageIcon className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -803,7 +803,7 @@ export function ImageCompressor() {
             </button>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
             <p className="text-sm font-bold text-zinc-950">크기 설정</p>
             <div className="mt-3 rounded-lg border border-blue-100 bg-white p-3">
               <p className="text-xs font-bold text-zinc-800">설정 적용 방식</p>
@@ -992,7 +992,7 @@ export function ImageCompressor() {
             )}
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
             <p className="text-sm font-bold text-zinc-950">품질과 결과 형식</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="block">
@@ -1058,7 +1058,7 @@ export function ImageCompressor() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="text-lg font-bold text-zinc-950">이미지 목록과 결과</h3>
@@ -1068,7 +1068,7 @@ export function ImageCompressor() {
             type="button"
             onClick={() => void downloadAll()}
             disabled={completedItems.length === 0}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-500"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-500"
           >
             <Download className="size-4" aria-hidden />
             전체 다운로드
@@ -1093,7 +1093,7 @@ export function ImageCompressor() {
                   ? getPixelSizeError('세로', effectiveSettings.pixelHeight)
                   : null;
               return (
-                <div key={item.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <div key={item.id} className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1421,7 +1421,7 @@ export function ImageCompressor() {
                   </div>
 
                   <div
-                    className={`mt-3 rounded-xl px-3 py-2 text-xs font-semibold ${
+                    className={`mt-3 rounded-md px-3 py-2 text-xs font-semibold ${
                       item.outputBlob && item.outputBlob.size > item.size
                         ? 'bg-amber-50 text-amber-700'
                         : hasOutput
@@ -1456,7 +1456,7 @@ export function ImageCompressor() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="image-preview-dialog-title"
-            className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-xl bg-white p-5 shadow-xl sm:p-6"
+            className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-md bg-white p-5 shadow-xl sm:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -1505,7 +1505,7 @@ export function ImageCompressor() {
             </div>
 
             <div
-              className={`mt-4 rounded-xl px-4 py-3 text-sm font-semibold ${
+              className={`mt-4 rounded-md px-4 py-3 text-sm font-semibold ${
                 previewItem.outputBlob && previewItem.outputBlob.size > previewItem.size
                   ? 'bg-amber-50 text-amber-700'
                   : 'bg-emerald-50 text-emerald-700'

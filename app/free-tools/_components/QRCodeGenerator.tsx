@@ -288,11 +288,11 @@ export function QRCodeGenerator() {
     }
   };
 
-  const inputClassName = 'mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm';
+  const inputClassName = 'mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm';
 
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <QrCode className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -483,12 +483,12 @@ export function QRCodeGenerator() {
                         setWifiPassword(event.target.value);
                         markStale();
                       }}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm"
+                      className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowWifiPassword((prev) => !prev)}
-                      className="shrink-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                      className="shrink-0 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
                     >
                       {showWifiPassword ? '숨기기' : '보기'}
                     </button>
@@ -506,14 +506,14 @@ export function QRCodeGenerator() {
                 />
                 숨겨진 네트워크
               </label>
-              <p className="rounded-xl bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
+              <p className="rounded-md bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">
                 QR코드를 스캔하면 와이파이 연결 정보를 확인할 수 있습니다. 와이파이 이름과 비밀번호는
                 서버에 저장되거나 전송되지 않습니다.
               </p>
             </div>
           )}
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
             <p className="text-sm font-bold text-zinc-950">기본 설정</p>
             <label className="mt-3 block">
               <span className="text-xs font-medium text-zinc-600">QR코드 크기</span>
@@ -534,7 +534,7 @@ export function QRCodeGenerator() {
             <button
               type="button"
               onClick={() => setAdvancedOpen((prev) => !prev)}
-              className="mt-4 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              className="mt-4 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
             >
               {advancedOpen ? '고급 설정 접기' : '고급 설정 펼치기'}
             </button>
@@ -550,7 +550,7 @@ export function QRCodeGenerator() {
                       setDarkColor(event.target.value);
                       markStale();
                     }}
-                    className="mt-1 h-11 w-full rounded-xl border border-zinc-200 bg-white p-1"
+                    className="mt-1 h-11 w-full rounded-md border border-zinc-200 bg-white p-1"
                   />
                 </label>
                 <label className="block">
@@ -562,7 +562,7 @@ export function QRCodeGenerator() {
                       setLightColor(event.target.value);
                       markStale();
                     }}
-                    className="mt-1 h-11 w-full rounded-xl border border-zinc-200 bg-white p-1"
+                    className="mt-1 h-11 w-full rounded-md border border-zinc-200 bg-white p-1"
                   />
                 </label>
                 <label className="block">
@@ -597,7 +597,7 @@ export function QRCodeGenerator() {
                   수 있습니다.
                 </p>
                 {colorWarning && (
-                  <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-700">
+                  <div className="sm:col-span-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-700">
                     QR코드와 배경 색상의 차이가 작으면 카메라가 인식하지 못할 수 있습니다. 검정색
                     QR코드와 흰색 배경 사용을 권장합니다.
                   </div>
@@ -607,7 +607,7 @@ export function QRCodeGenerator() {
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+            <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
               <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
               {error}
             </div>
@@ -618,14 +618,14 @@ export function QRCodeGenerator() {
               type="button"
               onClick={() => void generateQR()}
               disabled={generating}
-              className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+              className="rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
             >
               {generating ? '생성 중...' : 'QR코드 만들기'}
             </button>
             <button
               type="button"
               onClick={resetAll}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
             >
               <RotateCcw className="size-4" aria-hidden />
               설정 초기화
@@ -640,7 +640,7 @@ export function QRCodeGenerator() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">QR코드 결과 미리보기</h3>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           생성한 QR코드는 PNG 또는 SVG 파일로 받을 수 있습니다. 보통은 PNG를 받으면 되고, 크게 인쇄하거나
@@ -654,7 +654,7 @@ export function QRCodeGenerator() {
         ) : (
           <div className="mt-5 space-y-4">
             <div
-              className={`rounded-xl border p-4 text-center ${
+              className={`rounded-md border p-4 text-center ${
                 resultState === 'stale' ? 'border-amber-200 bg-amber-50' : 'border-emerald-100 bg-emerald-50'
               }`}
             >
@@ -682,7 +682,7 @@ export function QRCodeGenerator() {
               />
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-bold text-zinc-950">결과 요약</p>
               <dl className="mt-3 space-y-2 text-sm">
                 <div className="flex gap-2">
@@ -703,7 +703,7 @@ export function QRCodeGenerator() {
                 type="button"
                 disabled={resultState !== 'done'}
                 onClick={() => downloadDataUrl(result.pngUrl, 'excload-qr-code.png')}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-500"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-500"
               >
                 <Download className="size-4" aria-hidden />
                 PNG 다운로드
@@ -712,7 +712,7 @@ export function QRCodeGenerator() {
                 type="button"
                 disabled={resultState !== 'done'}
                 onClick={() => downloadBlob(result.svg, 'excload-qr-code.svg', 'image/svg+xml;charset=utf-8')}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:border-zinc-200 disabled:text-zinc-400"
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:border-zinc-200 disabled:text-zinc-400"
               >
                 <Download className="size-4" aria-hidden />
                 SVG 다운로드
@@ -720,17 +720,17 @@ export function QRCodeGenerator() {
             </div>
 
             <div className="grid gap-2 text-xs leading-relaxed sm:grid-cols-2">
-              <p className="rounded-xl bg-blue-50 p-3 text-blue-900">
+              <p className="rounded-md bg-blue-50 p-3 text-blue-900">
                 <span className="font-bold">PNG</span>: 사진 파일처럼 바로 쓰기 쉽습니다. 카톡, 블로그,
                 상세페이지에 올릴 때 추천합니다.
               </p>
-              <p className="rounded-xl bg-zinc-50 p-3 text-zinc-600">
+              <p className="rounded-md bg-zinc-50 p-3 text-zinc-600">
                 <span className="font-bold text-zinc-800">SVG</span>: 크게 확대해도 선명한 파일입니다. 인쇄물,
                 디자인 편집용으로 좋습니다.
               </p>
             </div>
 
-            <p className="rounded-xl bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-500">
+            <p className="rounded-md bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-500">
               다운로드하기 전에 휴대전화 카메라로 QR코드가 정상적으로 인식되는지 확인해 보세요.
             </p>
           </div>

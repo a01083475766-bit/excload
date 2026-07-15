@@ -717,7 +717,7 @@ export function DuplicateCheck() {
   return (
     <>
       <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <FileSpreadsheet className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -767,7 +767,7 @@ export function DuplicateCheck() {
             </label>
 
             {uploadedFiles.length > 0 && (
-              <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm">
+              <div className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <span className="min-w-0 truncate font-medium text-zinc-800">
                     {fileName}
@@ -805,14 +805,14 @@ export function DuplicateCheck() {
             </p>
 
             {loading && processingStatus && (
-              <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700">
+              <div className="mt-3 rounded-md border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700">
                 {processingStatus}
               </div>
             )}
 
             {error && (
               <div
-                className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                className="mt-3 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"
                 role="alert"
               >
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -825,14 +825,14 @@ export function DuplicateCheck() {
             <button
               type="button"
               onClick={loadExample}
-              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+              className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
             >
               예시 데이터 불러오기
             </button>
             <button
               type="button"
               onClick={resetAll}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
             >
               <RotateCcw className="size-4" aria-hidden />
               초기화
@@ -847,7 +847,7 @@ export function DuplicateCheck() {
                   <select
                     value={selectedSheetIndex}
                     onChange={(event) => handleSheetChange(Number(event.target.value))}
-                    className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm"
+                    className="mt-2 w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm"
                   >
                     {sheets.map((sheet, index) => (
                       <option key={sheet.name} value={index}>
@@ -863,7 +863,7 @@ export function DuplicateCheck() {
                 <select
                   value={headerRowIndex}
                   onChange={(event) => handleHeaderChange(Number(event.target.value))}
-                  className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm"
+                  className="mt-2 w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm"
                 >
                   {headerOptions.map((option) => (
                     <option key={option.index} value={option.index}>
@@ -880,7 +880,7 @@ export function DuplicateCheck() {
                     type="button"
                     onClick={() => addQuickColumns(quickColumns.order)}
                     disabled={quickColumns.order.length === 0}
-                    className={`rounded-xl border px-3 py-2 text-sm font-semibold disabled:text-zinc-400 ${
+                    className={`rounded-md border px-3 py-2 text-sm font-semibold disabled:text-zinc-400 ${
                       includesColumnSet(selectedColumnIndexes, quickColumns.order)
                         ? 'border-blue-400 bg-blue-600 text-white shadow-sm'
                         : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
@@ -892,7 +892,7 @@ export function DuplicateCheck() {
                     type="button"
                     onClick={() => addQuickColumns(quickColumns.phone)}
                     disabled={quickColumns.phone.length === 0}
-                    className={`rounded-xl border px-3 py-2 text-sm font-semibold disabled:text-zinc-400 ${
+                    className={`rounded-md border px-3 py-2 text-sm font-semibold disabled:text-zinc-400 ${
                       includesColumnSet(selectedColumnIndexes, quickColumns.phone)
                         ? 'border-blue-400 bg-blue-600 text-white shadow-sm'
                         : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
@@ -904,7 +904,7 @@ export function DuplicateCheck() {
                     type="button"
                     onClick={() => addQuickColumns(quickColumns.recipientAddress)}
                     disabled={quickColumns.recipientAddress.length === 0}
-                    className={`rounded-xl border px-3 py-2 text-sm font-semibold disabled:text-zinc-400 ${
+                    className={`rounded-md border px-3 py-2 text-sm font-semibold disabled:text-zinc-400 ${
                       includesColumnSet(selectedColumnIndexes, quickColumns.recipientAddress)
                         ? 'border-blue-400 bg-blue-600 text-white shadow-sm'
                         : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
@@ -915,7 +915,7 @@ export function DuplicateCheck() {
                   <button
                     type="button"
                     onClick={clearSelectedColumns}
-                    className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
+                    className={`rounded-md border px-3 py-2 text-sm font-semibold ${
                       selectedColumnIndexes.length === 0
                         ? 'border-blue-400 bg-blue-600 text-white shadow-sm'
                         : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
@@ -955,7 +955,7 @@ export function DuplicateCheck() {
                   </div>
                 </div>
                 {selectedColumnIndexes.length >= 5 && (
-                  <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-600">
+                  <p className="mt-3 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-600">
                     선택한 열이 많을수록 모든 값이 같아야 하므로 중복이 적게 발견될 수 있습니다.
                   </p>
                 )}
@@ -988,14 +988,14 @@ export function DuplicateCheck() {
             type="button"
             onClick={runCheck}
             disabled={loading}
-            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+            className="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
           >
             {loading ? '검사 중...' : '중복 검사하기'}
           </button>
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">검사 결과</h3>
         {!result ? (
           <p className="mt-3 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-5 text-sm leading-relaxed text-zinc-600">
@@ -1017,7 +1017,7 @@ export function DuplicateCheck() {
             )}
 
             <div
-              className={`rounded-xl border p-4 ${
+              className={`rounded-md border p-4 ${
                 result.duplicateGroupCount === 0
                   ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
                   : 'border-amber-100 bg-amber-50 text-amber-900'
@@ -1042,7 +1042,7 @@ export function DuplicateCheck() {
                 type="button"
                 onClick={downloadDuplicateRows}
                 disabled={result.duplicateRows.length === 0}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-50 disabled:text-zinc-400"
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-50 disabled:text-zinc-400"
               >
                 <Download className="size-4" aria-hidden />
                 중복 행만 엑셀로 받기
@@ -1050,7 +1050,7 @@ export function DuplicateCheck() {
               <button
                 type="button"
                 onClick={() => setDedupeConfirmOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
               >
                 <Download className="size-4" aria-hidden />
                 중복 제거 파일 받기
@@ -1149,7 +1149,7 @@ export function DuplicateCheck() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="dedupe-download-title"
-            className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-6 shadow-xl"
+            className="w-full max-w-md rounded-md border border-zinc-200 bg-white p-6 shadow-xl"
           >
             <h3 id="dedupe-download-title" className="text-lg font-bold text-zinc-950">
               중복 제거 파일을 다운로드할까요?
@@ -1166,12 +1166,12 @@ export function DuplicateCheck() {
                 </strong>
                 입니다. 기준값이 없는 행과 중복이 아닌 행은 그대로 유지됩니다.
               </p>
-              <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
                 선택한 기준 열이 같더라도 상품명, 수량, 옵션, 배송메시지 등 다른 내용은 서로 다를 수
                 있습니다. 다운로드 후 삭제된 주문이 실제로 제외해도 되는 주문인지 확인하고, 필요한
                 상품명·수량·옵션은 직접 수정해 주세요.
               </p>
-              <p className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500">
+              <p className="rounded-md bg-zinc-50 p-3 text-xs text-zinc-500">
                 원본 파일은 변경되지 않습니다. 다운로드 파일만 새로 생성됩니다.
               </p>
             </div>
@@ -1179,7 +1179,7 @@ export function DuplicateCheck() {
               <button
                 type="button"
                 onClick={() => setDedupeConfirmOpen(false)}
-                className="flex-1 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                className="flex-1 rounded-md border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
               >
                 취소
               </button>
@@ -1189,7 +1189,7 @@ export function DuplicateCheck() {
                   downloadDedupedRows();
                   setDedupeConfirmOpen(false);
                 }}
-                className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                className="flex-1 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
               >
                 확인 후 다운로드
               </button>

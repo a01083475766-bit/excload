@@ -531,7 +531,7 @@ export function ImageToPdf() {
   };
 
   const settingsSummary = (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm">
+    <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm">
       <p className="font-bold text-zinc-950">예상 PDF 구성</p>
       <div className="mt-3 grid gap-2 text-zinc-600 sm:grid-cols-2">
         <span>총 {items.length.toLocaleString('ko-KR')}페이지</span>
@@ -547,7 +547,7 @@ export function ImageToPdf() {
   return (
     <>
       <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start gap-3">
             <ImageIcon className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
             <div>
@@ -603,7 +603,7 @@ export function ImageToPdf() {
             </label>
 
             {error && (
-              <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="polite">
+              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="polite">
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
                 <span>{error}</span>
               </div>
@@ -614,7 +614,7 @@ export function ImageToPdf() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={processing}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:bg-zinc-50 disabled:text-zinc-400"
+                className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:bg-zinc-50 disabled:text-zinc-400"
               >
                 이미지 추가
               </button>
@@ -622,7 +622,7 @@ export function ImageToPdf() {
                 type="button"
                 onClick={clearImages}
                 disabled={processing || items.length === 0}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
+                className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
               >
                 전체 삭제
               </button>
@@ -630,7 +630,7 @@ export function ImageToPdf() {
                 type="button"
                 onClick={resetOrder}
                 disabled={processing || items.length < 2}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
+                className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
               >
                 순서 초기화
               </button>
@@ -638,7 +638,7 @@ export function ImageToPdf() {
                 type="button"
                 onClick={resetRotation}
                 disabled={processing || items.length === 0}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
+                className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:text-zinc-400"
               >
                 회전 초기화
               </button>
@@ -668,10 +668,10 @@ export function ImageToPdf() {
                         event.preventDefault();
                         reorderByDrop(item.id);
                       }}
-                      className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm"
+                      className="rounded-md border border-zinc-200 bg-white p-3 shadow-sm"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row">
-                        <div className="flex h-32 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-[linear-gradient(45deg,#f4f4f5_25%,transparent_25%),linear-gradient(-45deg,#f4f4f5_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f4f4f5_75%),linear-gradient(-45deg,transparent_75%,#f4f4f5_75%)] bg-[length:18px_18px] bg-[position:0_0,0_9px,9px_-9px,-9px_0] sm:w-36 sm:shrink-0">
+                        <div className="flex h-32 w-full items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-[linear-gradient(45deg,#f4f4f5_25%,transparent_25%),linear-gradient(-45deg,#f4f4f5_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f4f4f5_75%),linear-gradient(-45deg,transparent_75%,#f4f4f5_75%)] bg-[length:18px_18px] bg-[position:0_0,0_9px,9px_-9px,-9px_0] sm:w-36 sm:shrink-0">
                           <img
                             src={item.previewUrl}
                             alt={`${item.name} 미리보기`}
@@ -715,7 +715,7 @@ export function ImageToPdf() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+        <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
           <div className="flex items-start gap-3">
             <FileText className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
             <div>
@@ -737,7 +737,7 @@ export function ImageToPdf() {
                     setPageSizeMode(event.target.value as PageSizeMode);
                     markStale();
                   }}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                 >
                   <option value="a4">A4</option>
                   <option value="image">이미지 크기에 맞춤</option>
@@ -753,7 +753,7 @@ export function ImageToPdf() {
                       setOrientation(event.target.value as A4Orientation);
                       markStale();
                     }}
-                    className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                   >
                     <option value="auto">자동</option>
                     <option value="portrait">세로</option>
@@ -773,7 +773,7 @@ export function ImageToPdf() {
                     setFitMode(event.target.value as FitMode);
                     markStale();
                   }}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                 >
                   <option value="contain">페이지 안에 전체 이미지 표시</option>
                   <option value="cover">페이지를 가득 채우기</option>
@@ -788,7 +788,7 @@ export function ImageToPdf() {
                     setMarginMode(event.target.value as MarginMode);
                     markStale();
                   }}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm disabled:bg-zinc-100 disabled:text-zinc-400"
+                  className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm disabled:bg-zinc-100 disabled:text-zinc-400"
                 >
                   <option value="none">여백 없음</option>
                   <option value="narrow">좁게</option>
@@ -799,7 +799,7 @@ export function ImageToPdf() {
             </div>
 
             {fitMode === 'cover' && (
-              <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
+              <p className="rounded-md border border-amber-100 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
                 페이지 비율과 이미지 비율이 다르면 이미지 가장자리가 일부 잘릴 수 있습니다.
               </p>
             )}
@@ -814,7 +814,7 @@ export function ImageToPdf() {
                     setQualityMode(event.target.value as QualityMode);
                     markStale();
                   }}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                 >
                   <option value="small">작은 용량</option>
                   <option value="normal">일반 화질</option>
@@ -830,7 +830,7 @@ export function ImageToPdf() {
                     setFileName(event.target.value);
                     markStale();
                   }}
-                  className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
                   placeholder="이미지모음"
                 />
               </label>
@@ -843,7 +843,7 @@ export function ImageToPdf() {
             )}
 
             {processing && (
-              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700" aria-live="polite">
+              <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-sm font-semibold text-blue-700" aria-live="polite">
                 이미지를 PDF로 변환하고 있습니다. {progressText}
               </div>
             )}
@@ -852,14 +852,14 @@ export function ImageToPdf() {
               type="button"
               onClick={() => void createPdf()}
               disabled={processing}
-              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+              className="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
             >
               {processing ? '이미지를 PDF로 변환하고 있습니다.' : 'PDF 만들기'}
             </button>
 
             {result && (
               <div
-                className={`rounded-xl border p-4 ${
+                className={`rounded-md border p-4 ${
                   resultState === 'stale' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-100 bg-emerald-50 text-emerald-800'
                 }`}
               >
@@ -878,7 +878,7 @@ export function ImageToPdf() {
                     type="button"
                     onClick={() => downloadBlob(result.blob, pdfFileName)}
                     disabled={resultState !== 'done'}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-500"
+                    className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-zinc-200 disabled:text-zinc-500"
                   >
                     <Download className="size-4" aria-hidden />
                     PDF 다운로드
@@ -887,7 +887,7 @@ export function ImageToPdf() {
                     type="button"
                     onClick={() => setPreviewOpen(true)}
                     disabled={resultState !== 'done' || !result.url}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:border-zinc-200 disabled:text-zinc-400"
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:border-zinc-200 disabled:text-zinc-400"
                   >
                     <Eye className="size-4" aria-hidden />
                     PDF 미리보기
@@ -895,7 +895,7 @@ export function ImageToPdf() {
                   <button
                     type="button"
                     onClick={clearImages}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
                   >
                     <X className="size-4" aria-hidden />
                     다른 이미지 변환
@@ -903,7 +903,7 @@ export function ImageToPdf() {
                   <button
                     type="button"
                     onClick={resetAll}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
                   >
                     <RotateCcwSquare className="size-4" aria-hidden />
                     설정 초기화
@@ -937,7 +937,7 @@ export function ImageToPdf() {
             if (event.target === event.currentTarget) setPreviewOpen(false);
           }}
         >
-          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+          <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-md bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
               <p className="min-w-0 truncate text-sm font-bold text-zinc-950">PDF 미리보기: {result.fileName}</p>
               <button

@@ -67,7 +67,7 @@ const initialForm: LabelForm = {
   memo: '당일 발송 상품',
 };
 
-const inputClassName = 'mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm';
+const inputClassName = 'mt-1 w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm';
 
 function escapeXml(value: string) {
   return value
@@ -363,7 +363,7 @@ export function ProductLabelMaker() {
 
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2 xl:items-start">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-start gap-3">
           <Barcode className="mt-1 size-5 shrink-0 text-blue-600" aria-hidden />
           <div>
@@ -378,7 +378,7 @@ export function ProductLabelMaker() {
           </div>
         </div>
 
-        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+        <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
           <div className="flex gap-2">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
             <p>
@@ -405,7 +405,7 @@ export function ProductLabelMaker() {
             </select>
           </label>
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
             <p className="text-sm font-bold text-zinc-950">바코드 형식</p>
             <p className="mt-2 text-sm text-zinc-700">CODE128</p>
             <p className="mt-2 text-xs leading-relaxed text-zinc-500">
@@ -414,7 +414,7 @@ export function ProductLabelMaker() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4">
             <p className="text-sm font-bold text-zinc-950">표시 옵션</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <label className="block">
@@ -487,7 +487,7 @@ export function ProductLabelMaker() {
           </div>
 
           {barcodeError && (
-            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+            <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
               <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
               {barcodeError}
             </div>
@@ -496,7 +496,7 @@ export function ProductLabelMaker() {
           <button
             type="button"
             onClick={loadExample}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 sm:w-fit"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 sm:w-fit"
           >
             <RotateCcw className="size-4" aria-hidden />
             예시 다시 불러오기
@@ -514,13 +514,13 @@ export function ProductLabelMaker() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
+      <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 xl:sticky xl:top-36 xl:self-start">
         <h3 className="text-lg font-bold text-zinc-950">라벨 미리보기</h3>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           비어 있는 항목은 라벨에서 자동으로 숨깁니다. 다운로드되는 SVG는 mm 크기 정보를 포함합니다.
         </p>
 
-        <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-slate-100 p-4">
+        <div className="mt-5 overflow-x-auto rounded-md border border-slate-200 bg-slate-100 p-4">
           <div
             className={`mx-auto w-full rounded-[18px] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] ${
               options.showBorder ? 'ring-1 ring-slate-200' : ''
@@ -534,7 +534,7 @@ export function ProductLabelMaker() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   {form.productName.trim() && (
-                    <h4 className="line-clamp-2 text-lg font-black leading-tight tracking-[-0.03em] text-slate-950 sm:text-xl">
+                    <h4 className="line-clamp-2 text-lg font-black leading-tight text-slate-950 sm:text-xl">
                       {form.productName}
                     </h4>
                   )}
@@ -577,7 +577,7 @@ export function ProductLabelMaker() {
                   </div>
                 )}
                 {form.barcodeValue.trim() && options.showBarcodeValue && (
-                  <p className="mt-1 truncate text-center text-xs font-black tracking-[0.12em] text-slate-900">
+                  <p className="mt-1 truncate text-center text-xs font-black text-slate-900">
                     {form.barcodeValue}
                   </p>
                 )}
@@ -587,7 +587,7 @@ export function ProductLabelMaker() {
           </div>
         </div>
 
-        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+        <p className="mt-3 rounded-md bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
           출력 후 실제 바코드 스캐너 또는 휴대폰 앱으로 인식 여부를 확인해 주세요. 바코드 주변 여백이 너무
           좁거나 인쇄가 흐리면 스캔이 어려울 수 있습니다.
         </p>
@@ -596,7 +596,7 @@ export function ProductLabelMaker() {
           <button
             type="button"
             onClick={() => void downloadPng()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
           >
             <Download className="size-4" aria-hidden />
             PNG 다운로드
@@ -604,7 +604,7 @@ export function ProductLabelMaker() {
           <button
             type="button"
             onClick={downloadSvg}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
           >
             <Download className="size-4" aria-hidden />
             SVG 다운로드
@@ -612,7 +612,7 @@ export function ProductLabelMaker() {
           <button
             type="button"
             onClick={() => void downloadPdf()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-700 hover:bg-teal-100"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
           >
             <Download className="size-4" aria-hidden />
             인쇄용 PDF 다운로드
@@ -620,11 +620,11 @@ export function ProductLabelMaker() {
         </div>
 
         <div className="mt-4 space-y-3 text-xs leading-relaxed">
-          <p className="rounded-xl bg-blue-50 p-3 text-blue-900">
+          <p className="rounded-md bg-blue-50 p-3 text-blue-900">
             쿠팡, 스마트스토어, 대형마트 등에 등록하는 공식 상품 바코드는 GS1 등 공식 기관에서 발급받은
             번호를 사용해야 할 수 있습니다.
           </p>
-          <p className="rounded-xl bg-zinc-50 p-3 text-zinc-600">
+          <p className="rounded-md bg-zinc-50 p-3 text-zinc-600">
             다운로드 후 실제 라벨 프린터나 인쇄 설정에서 크기와 스캔 인식 여부를 한 번 확인해 주세요.
           </p>
         </div>
