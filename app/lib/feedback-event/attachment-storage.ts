@@ -60,7 +60,7 @@ export async function uploadFeedbackAttachmentObject(input: {
         'Cache-Control': 'no-store',
         'x-upsert': 'false',
       },
-      body: input.bytes,
+      body: new Uint8Array(input.bytes),
     },
   );
 
