@@ -13,6 +13,7 @@ import {
   resolveFeedbackViewerUserId,
 } from '@/app/lib/feedback-event/viewer';
 import { canViewFeedbackPost } from '@/app/lib/feedback-event/permissions';
+import { buildFeedbackAttachmentDownloadPath } from '@/app/lib/feedback-event/attachment-reference';
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -49,6 +50,7 @@ function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean)
   const canViewStaffFields = isMine || isAdmin;
   const reply = visibleFeedbackReply(post.systemReply);
   const categoryLabel = getFeedbackFeatureLabel(post.featureUsed);
+  const attachmentDownloadUrl = buildFeedbackAttachmentDownloadPath(post.id, post.attachmentUrl);
 
   return {
     id: post.id,
@@ -62,8 +64,8 @@ function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean)
     resultLabel: getFeedbackResultLabel(post.conversionResult),
     content: post.content,
     publicConsent: post.publicConsent,
-    attachmentName: canViewStaffFields ? post.attachmentName : null,
-    attachmentUrl: canViewStaffFields ? post.attachmentUrl : null,
+    attachmentName: attachmentDownloadUrl ? post.attachmentName : null,
+    attachmentUrl: attachmentDownloadUrl,
     systemReply: canViewStaffFields ? reply : null,
     createdAt: post.createdAt.toISOString(),
   };

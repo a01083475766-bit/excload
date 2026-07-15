@@ -13,6 +13,7 @@ import {
   visibleFeedbackReply,
 } from '@/app/lib/feedback-event/map-board-post';
 import { canViewFeedbackPost } from '@/app/lib/feedback-event/permissions';
+import { buildFeedbackAttachmentDownloadPath } from '@/app/lib/feedback-event/attachment-reference';
 import {
   getFeedbackViewerFromCookies,
   resolveFeedbackViewerUserId,
@@ -72,10 +73,11 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
   });
   const { title, body } = parseFeedbackContent(post.content);
   const reply = visibleFeedbackReply(post.systemReply);
+  const attachmentDownloadUrl = buildFeedbackAttachmentDownloadPath(post.id, post.attachmentUrl);
   const isImageAttachment =
-    canViewStaffFields &&
-    post.attachmentUrl &&
-    /\.(png|jpe?g|webp)$/i.test(post.attachmentUrl);
+    attachmentDownloadUrl &&
+    post.attachmentName &&
+    /\.(png|jpe?g|webp)$/i.test(post.attachmentName);
 
   return (
     <main className="min-h-screen bg-zinc-50 px-4 py-6 sm:py-8">
@@ -111,18 +113,18 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
             </div>
           </section>
 
-          {canViewStaffFields && post.attachmentUrl && post.attachmentName ? (
+          {attachmentDownloadUrl && post.attachmentName ? (
             <section className="border-t border-zinc-200 px-5 py-4">
               <h2 className="mb-2 text-sm font-semibold text-zinc-900">첨부파일</h2>
               {isImageAttachment ? (
-                <a href={post.attachmentUrl} target="_blank" rel="noopener noreferrer" className="mb-3 block max-w-xs">
-                  <img src={post.attachmentUrl} alt="" className="max-h-40 border border-zinc-200 object-contain" />
+                <a href={attachmentDownloadUrl} target="_blank" rel="noopener noreferrer" className="mb-3 block max-w-xs">
+                  <img src={attachmentDownloadUrl} alt="" className="max-h-40 border border-zinc-200 object-contain" />
                 </a>
               ) : null}
               <div className="flex items-center justify-between gap-3 border-t border-zinc-100 py-2 text-sm">
                 <span className="min-w-0 truncate text-zinc-700">{post.attachmentName}</span>
                 <a
-                  href={post.attachmentUrl}
+                  href={attachmentDownloadUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="shrink-0 text-sm font-medium text-zinc-700 underline"

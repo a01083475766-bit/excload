@@ -8,13 +8,18 @@ import {
 import { invalidatePublicBoardCache } from '@/app/lib/feedback-event/public-board-cache';
 import { getFeedbackViewerFromRequest } from '@/app/lib/feedback-event/viewer';
 import { validateFeedbackAttachmentPolicy } from '@/app/lib/feedback-event/attachment-policy';
+import { validateFeedbackImageFile } from '@/app/lib/feedback-event/attachment-file';
+import {
+  buildFeedbackAttachmentObjectKey,
+  buildPrivateFeedbackAttachmentReference,
+  isValidFeedbackSubmissionId,
+} from '@/app/lib/feedback-event/attachment-reference';
+import {
+  deleteFeedbackAttachmentObject,
+  uploadFeedbackAttachmentObject,
+} from '@/app/lib/feedback-event/attachment-storage';
 import { serviceBlockedResponse } from '@/app/lib/user-access-guard';
-import path from 'path';
-import fs from 'fs/promises';
 import crypto from 'crypto';
-
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
-const ALLOWED_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.xlsx', '.xls', '.csv']);
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,6 +36,12 @@ export async function POST(request: NextRequest) {
     const content = String(form.get('content') ?? '').trim();
     const publicConsent = form.get('publicConsent') === 'true' || form.get('publicConsent') === 'on';
     const fileField = form.get('attachment');
+    const requestedSubmissionId = String(form.get('submissionId') ?? '').trim();
+
+    if (requestedSubmissionId && !isValidFeedbackSubmissionId(requestedSubmissionId)) {
+      return NextResponse.json({ error: '잘못된 등록 요청입니다.' }, { status: 400 });
+    }
+    const submissionId = requestedSubmissionId || crypto.randomUUID();
 
     if (content.length < MIN_FEEDBACK_CONTENT_LENGTH) {
       return NextResponse.json(
@@ -67,39 +78,85 @@ export async function POST(request: NextRequest) {
     const blockedResponse = serviceBlockedResponse(user);
     if (blockedResponse) return blockedResponse;
 
-    let attachmentName: string | null = null;
-    let attachmentUrl: string | null = null;
-    if (fileField && typeof fileField !== 'string' && fileField.size > 0) {
-      if (fileField.size > MAX_ATTACHMENT_BYTES) {
-        return NextResponse.json({ error: '첨부 파일은 5MB 이하만 가능합니다.' }, { status: 400 });
+    const existingSubmission = await prisma.feedbackSubmission.findUnique({
+      where: { id: submissionId },
+      select: { id: true, userId: true },
+    });
+    if (existingSubmission) {
+      if (existingSubmission.userId !== user.id) {
+        return NextResponse.json({ error: '중복된 등록 요청입니다.' }, { status: 409 });
       }
-      const ext = path.extname(fileField.name).toLowerCase();
-      if (!ALLOWED_EXT.has(ext)) {
-        return NextResponse.json(
-          { error: '첨부는 이미지, 엑셀, CSV 파일만 가능합니다.' },
-          { status: 400 },
-        );
-      }
-      const buf = Buffer.from(await fileField.arrayBuffer());
-      const safeName = `${crypto.randomUUID()}${ext}`;
-      const dir = path.join(process.cwd(), 'public', 'uploads', 'feedback');
-      await fs.mkdir(dir, { recursive: true });
-      await fs.writeFile(path.join(dir, safeName), buf);
-      attachmentName = fileField.name;
-      attachmentUrl = `/uploads/feedback/${safeName}`;
+      return NextResponse.json({ success: true, submissionId: existingSubmission.id });
     }
 
-    const submission = await prisma.feedbackSubmission.create({
-      data: {
+    let attachmentName: string | null = null;
+    let attachmentUrl: string | null = null;
+    let uploadedObjectKey: string | null = null;
+    if (fileField && typeof fileField !== 'string' && fileField.size > 0) {
+      const validated = await validateFeedbackImageFile(fileField);
+      if (!validated.ok) {
+        return NextResponse.json(
+          { error: validated.error },
+          { status: validated.status },
+        );
+      }
+
+      const objectKey = buildFeedbackAttachmentObjectKey({
         userId: user.id,
-        featureUsed,
-        conversionResult,
-        content,
-        publicConsent,
-        attachmentName,
-        attachmentUrl,
-      },
-    });
+        submissionId,
+        extension: validated.file.extension,
+      });
+      try {
+        await uploadFeedbackAttachmentObject({
+          objectKey,
+          bytes: validated.file.bytes,
+          contentType: validated.file.contentType,
+        });
+        uploadedObjectKey = objectKey;
+      } catch (error) {
+        try {
+          await deleteFeedbackAttachmentObject(objectKey);
+        } catch {
+          // 업로드 응답 유실 가능성에 대한 best-effort 정리
+        }
+        console.error('[FeedbackSubmitAttachmentUpload]', error instanceof Error ? error.message : error);
+        return NextResponse.json(
+          { error: '첨부파일 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' },
+          { status: 503 },
+        );
+      }
+
+      attachmentName = validated.file.originalName.replace(/[\r\n\0]/g, '').trim().slice(0, 255);
+      attachmentUrl = buildPrivateFeedbackAttachmentReference(objectKey);
+    }
+
+    let submission;
+    try {
+      submission = await prisma.feedbackSubmission.create({
+        data: {
+          id: submissionId,
+          userId: user.id,
+          featureUsed,
+          conversionResult,
+          content,
+          publicConsent,
+          attachmentName,
+          attachmentUrl,
+        },
+      });
+    } catch (error) {
+      if (uploadedObjectKey) {
+        try {
+          await deleteFeedbackAttachmentObject(uploadedObjectKey);
+        } catch (cleanupError) {
+          console.error(
+            '[FeedbackSubmitAttachmentCleanup]',
+            cleanupError instanceof Error ? cleanupError.message : cleanupError,
+          );
+        }
+      }
+      throw error;
+    }
 
     invalidatePublicBoardCache();
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { validateFeedbackAttachmentPolicy } from '@/app/lib/feedback-event/attachment-policy';
 import {
+  buildFeedbackAttachmentDownloadPath,
+  buildPrivateFeedbackAttachmentReference,
+} from '@/app/lib/feedback-event/attachment-reference';
+import {
   DEFAULT_FEEDBACK_CATEGORY,
   normalizeFeedbackCategory,
   normalizeFeedbackConversionResult,
@@ -201,13 +205,13 @@ describe('feedback title/body compatibility', () => {
 });
 
 describe('feedback attachment policy', () => {
-  it('rejects private posts with a public attachment', () => {
+  it('allows private posts to use the private attachment flow', () => {
     expect(
       validateFeedbackAttachmentPolicy({
         publicConsent: false,
         attachment: { size: 1 },
       }),
-    ).toMatchObject({ ok: false, status: 400 });
+    ).toEqual({ ok: true });
   });
 
   it('rejects public attachments over 5MB and allows public attachments within limit', () => {
@@ -233,5 +237,20 @@ describe('feedback attachment policy', () => {
         attachment: null,
       }),
     ).toEqual({ ok: true });
+  });
+
+  it('keeps legacy public attachment URLs and hides private object keys behind the API', () => {
+    expect(buildFeedbackAttachmentDownloadPath('post-1', '/uploads/feedback/legacy.png')).toBe(
+      '/uploads/feedback/legacy.png',
+    );
+    const reference = buildPrivateFeedbackAttachmentReference(
+      'feedback/user-a/post-1/11111111-1111-4111-8111-111111111111.png',
+    );
+    expect(buildFeedbackAttachmentDownloadPath('post-1', reference)).toBe(
+      '/api/feedback-event/posts/post-1/attachment',
+    );
+    expect(buildFeedbackAttachmentDownloadPath('post-1', reference)).not.toContain(
+      '11111111-1111-4111-8111-111111111111.png',
+    );
   });
 });

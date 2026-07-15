@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Suspense, useCallback, useState } from 'react';
+import { Suspense, useCallback, useRef, useState } from 'react';
 import { serializeFeedbackContent } from '@/app/lib/feedback-event/map-board-post';
 import {
   DEFAULT_FEEDBACK_CATEGORY,
@@ -26,6 +26,8 @@ function FeedbackWriteInner() {
   const [visibility, setVisibility] = useState<PostVisibility | null>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const submissionIdRef = useRef<string | null>(null);
 
   const handleSubmit = useCallback(async () => {
     if (status !== 'authenticated') {
@@ -44,11 +46,6 @@ function FeedbackWriteInner() {
       alert('공개 또는 비공개를 선택해 주세요.');
       return;
     }
-    if (visibility === 'private' && attachment) {
-      alert('비공개 글의 안전한 파일 첨부 기능은 준비 중입니다. 첨부를 해제하고 본문에 내용을 적어 주세요.');
-      return;
-    }
-
     setSubmitting(true);
 
     try {
@@ -58,6 +55,8 @@ function FeedbackWriteInner() {
       form.append('conversionResult', 'other');
       form.append('content', fullContent);
       form.append('publicConsent', visibility === 'public' ? 'true' : 'false');
+      submissionIdRef.current ||= crypto.randomUUID();
+      form.append('submissionId', submissionIdRef.current);
       if (attachment) form.append('attachment', attachment);
 
       const controller = new AbortController();
@@ -166,24 +165,57 @@ function FeedbackWriteInner() {
 
           <div>
             <label className="block text-sm font-semibold text-zinc-800 mb-1">
-              첨부 (스크린샷·엑셀 헤더 등, 선택)
+              스크린샷 첨부 (선택)
             </label>
+            <p className="mb-2 text-xs leading-5 text-zinc-500">
+              오류 화면이나 확인이 필요한 화면을 첨부할 수 있습니다. 고객 이름, 전화번호,
+              주소, 주문번호 등 개인정보는 가린 후 올려주세요.
+            </p>
             <input
+              ref={attachmentInputRef}
               type="file"
-              accept=".png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv"
-              onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+              accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                if (!file) {
+                  setAttachment(null);
+                  return;
+                }
+                const extension = file.name.split('.').pop()?.toLowerCase();
+                if (!extension || !['png', 'jpg', 'jpeg', 'webp'].includes(extension)) {
+                  alert('PNG, JPG, WebP 이미지만 첨부할 수 있습니다.');
+                  e.target.value = '';
+                  setAttachment(null);
+                  return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                  alert('첨부 파일은 5MB 이하만 가능합니다.');
+                  e.target.value = '';
+                  setAttachment(null);
+                  return;
+                }
+                setAttachment(file);
+              }}
               className="w-full text-sm"
             />
-            <p className="mt-1 text-xs text-zinc-500">
-              공개 글에 첨부한 파일은 다른 베타 사용자도 볼 수 있습니다. 고객 이름, 전화번호,
-              주소, 주문번호 등 개인정보는 반드시 가려주세요. (5MB 이하)
-            </p>
-            {visibility === 'private' && (
-              <p className="mt-2 text-xs leading-5 text-amber-800">
-                운영자에게만 공개하는 글의 안전한 파일 첨부 기능은 준비 중입니다. 현재는
-                개인정보를 제거한 내용을 본문으로 작성해 주세요.
-              </p>
-            )}
+            <p className="mt-1 text-xs text-zinc-500">PNG, JPG, WebP · 최대 5MB</p>
+            {attachment ? (
+              <div className="mt-2 flex items-center justify-between gap-3 border-t border-zinc-100 pt-2 text-sm">
+                <span className="min-w-0 truncate text-zinc-700">
+                  {attachment.name} · {(attachment.size / 1024).toFixed(1)}KB
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachment(null);
+                    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+                  }}
+                  className="shrink-0 text-sm font-medium text-zinc-600 underline"
+                >
+                  삭제
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-6 pt-1">
@@ -200,12 +232,7 @@ function FeedbackWriteInner() {
               <input
                 type="checkbox"
                 checked={visibility === 'private'}
-                onChange={() => {
-                  if (attachment) {
-                    alert('비공개 글에는 현재 첨부를 등록할 수 없습니다. 첨부 파일을 해제해 주세요.');
-                  }
-                  setVisibility('private');
-                }}
+                onChange={() => setVisibility('private')}
                 className="h-4 w-4"
               />
               <span className="text-sm font-medium text-zinc-800">비공개</span>
