@@ -42,13 +42,14 @@ const primaryMenuItems: MenuItem[] = [
 
 /** 2단: 안내·계정 등 보조 메뉴 */
 const secondaryMenuItems: MenuItem[] = [
+  { href: '/beta-feedback', label: '베타 피드백', icon: MessageSquare },
   { href: '/about', label: '서비스소개', icon: Info },
   { href: '/pricing', label: '가격', icon: CreditCard },
-  { href: '/beta-feedback', label: '베타 피드백', icon: MessageSquare },
   { href: '/contact', label: '고객문의', icon: MessageCircle },
 ];
 
 const hiddenNavHrefs = new Set(['/feedback-event']);
+const adminOnlyNavHrefs = new Set(['/akman', '/akman/commerce-report', '/landing-test']);
 
 /** 본문 영역 기준선 유지 + 모바일 세로에서 좌우 패딩 축소 */
 const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-3 sm:px-5 lg:px-8';
@@ -108,14 +109,11 @@ export default function MainNav() {
   const displayPrimaryItems = [orderIntegrationMenuItem, ...primaryMenuForUser].filter(
     (item) => !hiddenNavHrefs.has(item.href),
   );
-  /** 2단: 서비스소개 다음에 관리자·커머스리포트(관리자만), 이어서 랜딩 테스트 */
-  const displaySecondaryItems = secondaryMenuItems
-    .flatMap((item) => {
-      if (item.href !== '/about') return [item];
-      if (!isAdmin) return [item];
-      return [item, adminMenuItem, commerceReportMenuItem, landingTestMenuItem];
-    })
-    .filter((item) => !hiddenNavHrefs.has(item.href));
+  /** 2단: 관리자 전용 메뉴를 앞에 두고, 공통 메뉴를 이어서 표시 */
+  const displaySecondaryItems = [
+    ...(isAdmin ? [adminMenuItem, commerceReportMenuItem, landingTestMenuItem] : []),
+    ...secondaryMenuItems,
+  ].filter((item) => !hiddenNavHrefs.has(item.href));
 
   const isLogoActive = pathname === '/excload' || pathname === '/';
 
@@ -184,6 +182,7 @@ export default function MainNav() {
         >
           {displaySecondaryItems.map((item) => {
             const Icon = item.icon;
+            const isAdminOnly = adminOnlyNavHrefs.has(item.href);
             const isActive =
               pathname === item.href ||
               (item.href === '/free-tools' && pathname?.startsWith('/free-tools/')) ||
@@ -204,7 +203,11 @@ export default function MainNav() {
                 href={item.href}
                 className={`
                   ${secondaryLinkClass}
-                  ${isActive ? 'font-semibold text-blue-600 hover:text-blue-600' : 'font-normal'}
+                  ${
+                    isActive || isAdminOnly
+                      ? 'font-semibold text-blue-600 hover:text-blue-600'
+                      : 'font-normal'
+                  }
                 `}
               >
                 <Icon className="size-3 shrink-0 opacity-60" aria-hidden />
