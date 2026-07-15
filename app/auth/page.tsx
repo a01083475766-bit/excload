@@ -83,7 +83,7 @@ function AuthPageContent() {
       case 'AccessDenied':
         return '로그인이 취소되었거나 권한이 거부되었습니다.';
       case 'OAuthCallback':
-        return 'Google 로그인 콜백 단계에서 실패했습니다. 주소창이 www.excload.com이면 excload.com으로 접속한 뒤 다시 시도해주세요. 계속되면 Vercel의 NEXTAUTH_URL이 https://excload.com 과 일치하는지 확인해주세요.';
+        return 'Google 로그인 콜백 단계에서 실패했습니다. Vercel의 NEXTAUTH_URL과 Google OAuth 콜백 주소가 https://www.excload.com 기준으로 일치하는지 확인해주세요.';
       case 'OAuthSignin':
       case 'OAuthCreateAccount':
         return 'Google 로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';

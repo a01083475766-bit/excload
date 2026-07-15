@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-export const SITE_URL = 'https://excload.com';
+export const SITE_URL = 'https://www.excload.com';
 
 export const DEFAULT_TITLE =
   '엑클로드(EXCLOAD) - 주문 엑셀·송장 파일 자동 변환';

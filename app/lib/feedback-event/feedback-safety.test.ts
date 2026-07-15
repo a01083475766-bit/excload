@@ -49,32 +49,20 @@ describe('feedback-event legacy route redirect', () => {
     expect(getBetaFeedbackRedirectPath('/beta-feedback')).toBeNull();
   });
 
-  it('uses the apex domain when building beta feedback login redirects', () => {
-    expect(
-      buildAuthLoginRedirectUrl('https://excload.com/beta-feedback/write', '/beta-feedback/post-1'),
-    ).toBe('https://excload.com/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1');
+  it('preserves the request origin when building beta feedback login redirects', () => {
     expect(
       buildAuthLoginRedirectUrl(
         'https://www.excload.com/beta-feedback/write',
         '/beta-feedback/post-1',
       ),
-    ).toBe('https://excload.com/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1');
+    ).toBe('https://www.excload.com/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1');
+    expect(
+      buildAuthLoginRedirectUrl('http://localhost:3000/beta-feedback/write', '/beta-feedback/post-1'),
+    ).toBe('http://localhost:3000/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1');
   });
 
-  it('canonicalizes www requests to the apex domain exactly once in next config', async () => {
-    const redirects = await nextConfig.redirects?.();
-    expect(redirects).toEqual([
-      expect.objectContaining({
-        has: [{ type: 'host', value: 'www.excload.com' }],
-        destination: 'https://excload.com/:path*',
-        permanent: true,
-      }),
-    ]);
-    expect(
-      redirects?.some((redirect) =>
-        redirect.has?.some((condition) => condition.type === 'host' && condition.value === 'excload.com'),
-      ),
-    ).toBe(false);
+  it('delegates host canonicalization to Vercel instead of next config', () => {
+    expect(nextConfig.redirects).toBeUndefined();
   });
 
   it('accepts relative callback URLs and rejects external callback URLs', () => {

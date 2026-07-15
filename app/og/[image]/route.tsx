@@ -171,7 +171,7 @@ export async function GET(_request: Request, { params }: RouteProps) {
           }}
         >
           <div>회원가입 없이 · 설치 없이 · 브라우저에서 바로 사용</div>
-          <div>excload.com</div>
+          <div>www.excload.com</div>
         </div>
       </div>
     ),
