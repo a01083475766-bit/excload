@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BoardPostDto } from '@/app/lib/feedback-event/map-board-post';
-import { MessageSquare, PenLine, RotateCw, Search } from 'lucide-react';
+import { Lock, MessageSquare, PenLine, RotateCw, Search } from 'lucide-react';
 
 const PUBLIC_POSTS_URL = '/api/feedback-event/posts?scope=public';
 
@@ -79,6 +79,10 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
       month: '2-digit',
       day: '2-digit',
     });
+
+  const showPrivatePostNotice = () => {
+    alert('작성자와 관리자만 볼 수 있는 비공개 글입니다.');
+  };
 
   const filteredPosts = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -211,13 +215,24 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                         {p.categoryLabel ?? p.featureLabel}
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <Link
-                          href={`/beta-feedback/${p.id}`}
-                          prefetch
-                          className="font-semibold text-zinc-950 hover:text-blue-700"
-                        >
-                          {p.title}
-                        </Link>
+                        {p.canOpen ? (
+                          <Link
+                            href={`/beta-feedback/${p.id}`}
+                            prefetch
+                            className="font-semibold text-zinc-950 hover:text-blue-700"
+                          >
+                            {p.title}
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={showPrivatePostNotice}
+                            className="inline-flex items-center gap-1.5 text-left font-semibold text-zinc-600"
+                          >
+                            <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            {p.title}
+                          </button>
+                        )}
                         {p.excerpt ? (
                           <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{p.excerpt}</p>
                         ) : null}
@@ -231,9 +246,14 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                         {p.isMine ? '나' : p.authorLabel}
                       </td>
                       <td className="px-3 py-2 align-top">
-                        <span className={p.hasSystemReply ? 'text-xs text-emerald-700' : 'text-xs text-zinc-400'}>
-                          {p.hasSystemReply ? '답변 있음' : '확인 대기'}
+                        <span className={p.hasAdminReply ? 'text-xs text-emerald-700' : 'text-xs text-zinc-400'}>
+                          {p.hasAdminReply ? '답변 완료' : '확인 대기'}
                         </span>
+                        {p.canOpen && p.commentCount > 0 ? (
+                          <span className="mt-0.5 block text-xs text-zinc-400">
+                            댓글 {p.commentCount}
+                          </span>
+                        ) : null}
                       </td>
                       <td className="px-3 py-2 align-top text-zinc-500">
                         {formatDate(p.createdAt)}
@@ -255,27 +275,48 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
               </table>
 
               <div className="divide-y divide-zinc-100 md:hidden">
-                {filteredPosts.map((p) => (
-                  <Link
-                    key={p.id}
-                    href={`/beta-feedback/${p.id}`}
-                    prefetch
-                    className="block px-3 py-3 hover:bg-zinc-50"
-                  >
+                {filteredPosts.map((p) => {
+                  const content = (
+                    <>
                     <div className="mb-1 flex items-center gap-2 text-xs text-zinc-500">
                       <span>{p.categoryLabel ?? p.featureLabel}</span>
                       {!p.publicConsent ? <span>비공개</span> : null}
                       <span>{formatDate(p.createdAt)}</span>
-                      <span className={p.hasSystemReply ? 'text-emerald-700' : 'text-zinc-400'}>
-                        {p.hasSystemReply ? '답변 있음' : '확인 대기'}
+                      <span className={p.hasAdminReply ? 'text-emerald-700' : 'text-zinc-400'}>
+                        {p.hasAdminReply ? '답변 완료' : '확인 대기'}
                       </span>
+                      {p.canOpen && p.commentCount > 0 ? <span>댓글 {p.commentCount}</span> : null}
                     </div>
-                    <p className="line-clamp-1 text-sm font-semibold text-zinc-950">{p.title}</p>
+                    <p className="flex items-center gap-1.5 line-clamp-1 text-sm font-semibold text-zinc-950">
+                      {!p.canOpen ? <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden /> : null}
+                      {p.title}
+                    </p>
                     {p.excerpt ? (
                       <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">{p.excerpt}</p>
                     ) : null}
-                  </Link>
-                ))}
+                    </>
+                  );
+
+                  return p.canOpen ? (
+                    <Link
+                      key={p.id}
+                      href={`/beta-feedback/${p.id}`}
+                      prefetch
+                      className="block px-3 py-3 hover:bg-zinc-50"
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={showPrivatePostNotice}
+                      className="block w-full px-3 py-3 text-left hover:bg-zinc-50"
+                    >
+                      {content}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

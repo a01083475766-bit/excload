@@ -29,6 +29,12 @@ const POST_SELECT = {
   attachmentUrl: true,
   systemReply: true,
   createdAt: true,
+  comments: {
+    where: { isAdminComment: true },
+    take: 1,
+    select: { id: true },
+  },
+  _count: { select: { comments: true } },
 } as const;
 
 type PostRow = {
@@ -43,11 +49,12 @@ type PostRow = {
   attachmentUrl: string | null;
   systemReply: string | null;
   createdAt: Date;
+  comments: { id: string }[];
+  _count: { comments: number };
 };
 
 function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean) {
   const isMine = myUserId === post.userId;
-  const canViewStaffFields = isMine || isAdmin;
   const reply = visibleFeedbackReply(post.systemReply);
   const categoryLabel = getFeedbackFeatureLabel(post.featureUsed);
   const attachmentDownloadUrl = buildFeedbackAttachmentDownloadPath(post.id, post.attachmentUrl);
@@ -66,7 +73,9 @@ function mapPostDetail(post: PostRow, myUserId: string | null, isAdmin: boolean)
     publicConsent: post.publicConsent,
     attachmentName: attachmentDownloadUrl ? post.attachmentName : null,
     attachmentUrl: attachmentDownloadUrl,
-    systemReply: canViewStaffFields ? reply : null,
+    systemReply: reply,
+    hasAdminReply: !!reply || post.comments.length > 0,
+    commentCount: post._count.comments,
     createdAt: post.createdAt.toISOString(),
   };
 }

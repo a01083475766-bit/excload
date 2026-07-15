@@ -21,6 +21,8 @@ function mapMyPost(p: {
   publicConsent: boolean;
   systemReply: string | null;
   createdAt: Date;
+  comments: { id: string }[];
+  _count: { comments: number };
 }) {
   const categoryLabel = getFeedbackFeatureLabel(p.featureUsed);
 
@@ -31,7 +33,8 @@ function mapMyPost(p: {
     resultLabel: getFeedbackResultLabel(p.conversionResult),
     excerpt: p.content.length > 80 ? `${p.content.slice(0, 80)}…` : p.content,
     publicConsent: p.publicConsent,
-    hasSystemReply: !!visibleFeedbackReply(p.systemReply),
+    hasSystemReply: !!visibleFeedbackReply(p.systemReply) || p.comments.length > 0,
+    commentCount: p._count.comments,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -75,6 +78,12 @@ export async function GET(request: NextRequest) {
           publicConsent: true,
           systemReply: true,
           createdAt: true,
+          comments: {
+            where: { isAdminComment: true },
+            take: 1,
+            select: { id: true },
+          },
+          _count: { select: { comments: true } },
         },
       });
       perf.mark('mine-query');

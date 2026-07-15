@@ -11,6 +11,7 @@ import {
 } from '@/app/lib/feedback-event/constants';
 import {
   feedbackTitle,
+  mapBoardPost,
   parseFeedbackContent,
   serializeFeedbackContent,
 } from '@/app/lib/feedback-event/map-board-post';
@@ -141,10 +142,11 @@ describe('feedback post visibility', () => {
     { id: 'other-private', userId: 'user-b', publicConsent: false },
   ];
 
-  it('allows public and own private posts for a normal user', () => {
+  it('includes private rows in the board list for a normal user', () => {
     expect(filterVisibleFeedbackPosts(posts, 'user-a', false).map((post) => post.id)).toEqual([
       'public',
       'mine-private',
+      'other-private',
     ]);
   });
 
@@ -158,6 +160,80 @@ describe('feedback post visibility', () => {
       'mine-private',
       'other-private',
     ]);
+  });
+
+  const privateBoardRow = {
+    id: 'private-post',
+    userId: 'secret-author-id',
+    featureUsed: 'question',
+    conversionResult: 'success',
+    content: '노출되면 안 되는 제목\n\n노출되면 안 되는 본문',
+    publicConsent: false,
+    systemReply: null,
+    createdAt: new Date('2026-07-16T00:00:00.000Z'),
+    comments: [] as { id: string }[],
+    _count: { comments: 2 },
+    attachmentUrl: 'supabase-private:feedback/secret/object.png',
+  };
+
+  it('shows an own private title and an admin can see it too', () => {
+    expect(mapBoardPost(privateBoardRow, 'secret-author-id', false).title).toBe(
+      '노출되면 안 되는 제목',
+    );
+    expect(mapBoardPost(privateBoardRow, 'admin-id', true).title).toBe(
+      '노출되면 안 되는 제목',
+    );
+  });
+
+  it('serializes another user private post as safe placeholders only', () => {
+    const dto = mapBoardPost(privateBoardRow, 'other-user', false);
+    const serialized = JSON.stringify(dto);
+
+    expect(dto).toMatchObject({
+      title: '비공개 글입니다',
+      authorLabel: '비공개',
+      categoryLabel: '비공개',
+      excerpt: null,
+      canOpen: false,
+      commentCount: 0,
+    });
+    expect(serialized).not.toContain('노출되면 안 되는 제목');
+    expect(serialized).not.toContain('노출되면 안 되는 본문');
+    expect(serialized).not.toContain('secret-author-id');
+    expect(serialized).not.toContain('secret/object.png');
+  });
+
+  it('marks complete only for a visible legacy reply or an admin comment', () => {
+    expect(
+      mapBoardPost(
+        { ...privateBoardRow, publicConsent: true, comments: [], _count: { comments: 1 } },
+        'viewer',
+        false,
+      ).hasAdminReply,
+    ).toBe(false);
+    expect(
+      mapBoardPost(
+        {
+          ...privateBoardRow,
+          publicConsent: true,
+          comments: [{ id: 'admin-comment' }],
+          _count: { comments: 1 },
+        },
+        'viewer',
+        false,
+      ).hasAdminReply,
+    ).toBe(true);
+    expect(
+      mapBoardPost(
+        {
+          ...privateBoardRow,
+          publicConsent: true,
+          systemReply: 'PRO 체험 혜택 제공 안내',
+        },
+        'viewer',
+        false,
+      ).hasAdminReply,
+    ).toBe(false);
   });
 });
 

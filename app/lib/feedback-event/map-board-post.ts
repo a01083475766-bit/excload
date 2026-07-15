@@ -17,7 +17,10 @@ export type BoardPostDto = {
   excerpt: string | null;
   canOpen: boolean;
   canDelete: boolean;
+  isPrivatePlaceholder: boolean;
+  hasAdminReply: boolean;
   hasSystemReply: boolean;
+  commentCount: number;
   createdAt: string;
 };
 
@@ -70,22 +73,27 @@ export function mapBoardPost(
   const isMine = !!myUserId && myUserId === p.userId;
   const canViewContent = p.publicConsent || isMine || isAdmin;
   const reply = visibleFeedbackReply(p.systemReply);
+  const hasAdminReply = !!reply || p.comments.length > 0;
 
   const categoryLabel = getFeedbackFeatureLabel(p.featureUsed);
+  const safeCategoryLabel = canViewContent ? categoryLabel : '비공개';
 
   return {
     id: p.id,
-    title: canViewContent ? feedbackTitle(p.content) : '비공개 글',
-    authorLabel: maskFeedbackAuthor(p.userId),
+    title: canViewContent ? feedbackTitle(p.content) : '비공개 글입니다',
+    authorLabel: canViewContent ? maskFeedbackAuthor(p.userId) : '비공개',
     isMine,
-    featureLabel: categoryLabel,
-    categoryLabel,
-    resultLabel: getFeedbackResultLabel(p.conversionResult),
+    featureLabel: safeCategoryLabel,
+    categoryLabel: safeCategoryLabel,
+    resultLabel: canViewContent ? getFeedbackResultLabel(p.conversionResult) : '비공개',
     publicConsent: p.publicConsent,
     excerpt: canViewContent ? feedbackExcerpt(p.content) : null,
     canOpen: canViewContent,
     canDelete: isAdmin,
-    hasSystemReply: !!reply,
+    isPrivatePlaceholder: !canViewContent,
+    hasAdminReply,
+    hasSystemReply: hasAdminReply,
+    commentCount: canViewContent ? p._count.comments : 0,
     createdAt: p.createdAt.toISOString(),
   };
 }

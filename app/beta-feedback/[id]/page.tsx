@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { FeedbackDeleteButton } from '@/app/components/feedback-event/FeedbackDeleteButton';
+import { FeedbackComments } from '@/app/components/feedback-event/FeedbackComments';
 import { buildAuthLoginRedirectPath } from '@/app/lib/auth/post-login-redirect';
 import { prisma } from '@/app/lib/prisma';
 import {
@@ -13,6 +14,10 @@ import {
   visibleFeedbackReply,
 } from '@/app/lib/feedback-event/map-board-post';
 import { canViewFeedbackPost } from '@/app/lib/feedback-event/permissions';
+import {
+  canCreateFeedbackComment,
+  mapFeedbackComment,
+} from '@/app/lib/feedback-event/comments';
 import { buildFeedbackAttachmentDownloadPath } from '@/app/lib/feedback-event/attachment-reference';
 import {
   getFeedbackViewerFromCookies,
@@ -52,6 +57,16 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
         attachmentUrl: true,
         systemReply: true,
         createdAt: true,
+        comments: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            userId: true,
+            content: true,
+            isAdminComment: true,
+            createdAt: true,
+          },
+        },
       },
     }),
     resolveFeedbackViewerUserId(viewer),
@@ -62,7 +77,6 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
   const isMine = !!myUserId && myUserId === post.userId;
   if (!canViewFeedbackPost(post, myUserId, viewer.isAdmin)) notFound();
 
-  const canViewStaffFields = isMine || viewer.isAdmin;
   const dateLabel = post.createdAt.toLocaleString('ko-KR', {
     timeZone: 'Asia/Seoul',
     year: 'numeric',
@@ -73,6 +87,14 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
   });
   const { title, body } = parseFeedbackContent(post.content);
   const reply = visibleFeedbackReply(post.systemReply);
+  const hasAdminReply = !!reply || post.comments.some((comment) => comment.isAdminComment);
+  const visibleComments =
+    !post.publicConsent && !viewer.isAdmin
+      ? post.comments.filter((comment) => comment.isAdminComment)
+      : post.comments;
+  const commentDtos = visibleComments.map((comment) =>
+    mapFeedbackComment(comment, myUserId, viewer.isAdmin, post.publicConsent),
+  );
   const attachmentDownloadUrl = buildFeedbackAttachmentDownloadPath(post.id, post.attachmentUrl);
   const isImageAttachment =
     attachmentDownloadUrl &&
@@ -93,7 +115,7 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
                 {post.publicConsent ? '공개' : '비공개'}
               </span>
               <span>{getFeedbackFeatureLabel(post.featureUsed)}</span>
-              <span>{reply ? '답변 있음' : '확인 대기'}</span>
+              <span>{hasAdminReply ? '답변 완료' : '확인 대기'}</span>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
@@ -135,7 +157,7 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
             </section>
           ) : null}
 
-          {canViewStaffFields && reply ? (
+          {reply ? (
             <section className="border-t border-zinc-200 px-5 py-4">
               <div className="border-l-2 border-zinc-400 bg-zinc-50 px-4 py-3">
                 <h2 className="text-sm font-semibold text-zinc-900">운영자 답변</h2>
@@ -146,6 +168,17 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
               </div>
             </section>
           ) : null}
+
+          <FeedbackComments
+            postId={post.id}
+            initialComments={commentDtos}
+            publicConsent={post.publicConsent}
+            viewerIsAdmin={viewer.isAdmin}
+            canComment={canCreateFeedbackComment({
+              publicConsent: post.publicConsent,
+              isAdmin: viewer.isAdmin,
+            })}
+          />
         </article>
       </div>
     </main>

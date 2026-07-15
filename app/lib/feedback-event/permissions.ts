@@ -13,8 +13,8 @@ export function canViewFeedbackPost(
 
 export function filterVisibleFeedbackPosts<T extends FeedbackPostVisibilityInput>(
   posts: T[],
-  viewerUserId: string | null,
-  isAdmin: boolean,
+  _viewerUserId: string | null,
+  _isAdmin: boolean,
 ): T[] {
-  return posts.filter((post) => canViewFeedbackPost(post, viewerUserId, isAdmin));
+  return posts;
 }

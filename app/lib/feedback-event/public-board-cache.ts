@@ -13,6 +13,8 @@ export type PublicBoardRow = {
   publicConsent: boolean;
   systemReply: string | null;
   createdAt: Date;
+  comments: { id: string }[];
+  _count: { comments: number };
 };
 
 let rowsCache: { at: number; rows: PublicBoardRow[] } | null = null;
@@ -46,6 +48,12 @@ export async function getPublicBoardRows(): Promise<PublicBoardRow[]> {
       publicConsent: true,
       systemReply: true,
       createdAt: true,
+      comments: {
+        where: { isAdminComment: true },
+        take: 1,
+        select: { id: true },
+      },
+      _count: { select: { comments: true } },
     },
   });
 
