@@ -72,15 +72,8 @@ export async function GET(request: NextRequest, ctx: RouteCtx) {
   try {
     const { id } = await ctx.params;
 
-    const [post, viewer] = await Promise.all([
-      prisma.feedbackSubmission.findUnique({
-        where: { id },
-        select: POST_SELECT,
-      }),
-      getFeedbackViewerFromRequest(request),
-    ]);
-    perf.mark('post+viewer');
-
+    const viewer = await getFeedbackViewerFromRequest(request);
+    perf.mark('viewer');
     const isAdmin = viewer.isAdmin;
     const myUserId = await resolveFeedbackViewerUserId(viewer);
     perf.mark('viewer-user');
@@ -90,6 +83,12 @@ export async function GET(request: NextRequest, ctx: RouteCtx) {
       perf.flush({ unauthorized: true });
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
+
+    const post = await prisma.feedbackSubmission.findUnique({
+      where: { id },
+      select: POST_SELECT,
+    });
+    perf.mark('post');
 
     if (!post) {
       perf.flush({ found: false });

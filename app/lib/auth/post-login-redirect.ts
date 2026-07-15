@@ -12,17 +12,23 @@ export function requiresMiddlewareSession(path: string): boolean {
   return (
     path.startsWith('/akman') ||
     path.startsWith('/admin') ||
-    path.startsWith('/history')
+    path.startsWith('/history') ||
+    path.startsWith('/beta-feedback')
   );
+}
+
+/** 미인증 시 통합 로그인(/auth) 경로 — /auth/login 2-hop 제거 */
+export function buildAuthLoginRedirectPath(callbackPath: string): string {
+  const params = new URLSearchParams({ mode: 'login' });
+  if (callbackPath) {
+    params.set('callbackUrl', callbackPath);
+  }
+  return `/auth?${params.toString()}`;
 }
 
 /** 미인증 시 통합 로그인(/auth) URL — /auth/login 2-hop 제거 */
 export function buildAuthLoginRedirectUrl(origin: string, callbackPath: string): string {
-  const url = new URL('/auth', origin);
-  url.searchParams.set('mode', 'login');
-  if (callbackPath) {
-    url.searchParams.set('callbackUrl', callbackPath);
-  }
+  const url = new URL(buildAuthLoginRedirectPath(callbackPath), origin);
   return url.toString();
 }
 

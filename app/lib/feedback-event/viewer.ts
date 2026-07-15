@@ -15,15 +15,20 @@ const EMPTY_VIEWER: FeedbackViewer = {
   isAdmin: false,
 };
 
-function viewerFromToken(token: Awaited<ReturnType<typeof getToken>>): FeedbackViewer {
+export function viewerFromToken(token: Awaited<ReturnType<typeof getToken>>): FeedbackViewer {
   if (!token || typeof token === 'string') return EMPTY_VIEWER;
   const email = typeof token.email === 'string' ? token.email.trim().toLowerCase() : null;
-  const userId = typeof token.id === 'string' ? token.id : null;
+  const userId =
+    typeof token.id === 'string'
+      ? token.id
+      : typeof token.sub === 'string'
+        ? token.sub
+        : null;
   if (!email && !userId) return EMPTY_VIEWER;
   return {
     userId,
     email,
-    isAdmin: isAdminEmail(email),
+    isAdmin: Boolean(token.isAdmin) || isAdminEmail(email),
   };
 }
 

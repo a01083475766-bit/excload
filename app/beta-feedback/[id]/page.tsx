@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { FeedbackDeleteButton } from '@/app/components/feedback-event/FeedbackDeleteButton';
+import { buildAuthLoginRedirectPath } from '@/app/lib/auth/post-login-redirect';
 import { prisma } from '@/app/lib/prisma';
 import {
   getFeedbackFeatureLabel,
@@ -33,7 +34,7 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
   const { id } = await params;
   const viewer = await getFeedbackViewerFromCookies();
   if (!viewer.email && !viewer.userId) {
-    redirect(`/auth/login?callbackUrl=${encodeURIComponent(`/beta-feedback/${id}`)}`);
+    redirect(buildAuthLoginRedirectPath(`/beta-feedback/${id}`));
   }
 
   const [post, myUserId] = await Promise.all([

@@ -9,7 +9,9 @@ import {
   canViewFeedbackPost,
   filterVisibleFeedbackPosts,
 } from '@/app/lib/feedback-event/permissions';
+import { buildAuthLoginRedirectPath } from '@/app/lib/auth/post-login-redirect';
 import { getBetaFeedbackRedirectPath } from '@/app/lib/feedback-event/routes';
+import { viewerFromToken } from '@/app/lib/feedback-event/viewer';
 
 describe('feedback-event legacy route redirect', () => {
   it.each([
@@ -33,6 +35,38 @@ describe('feedback-event legacy route redirect', () => {
     expect(getBetaFeedbackRedirectPath('/uploads/feedback/a.png')).toBeNull();
     expect(getBetaFeedbackRedirectPath('/feedback-eventual')).toBeNull();
     expect(getBetaFeedbackRedirectPath('/beta-feedback')).toBeNull();
+  });
+
+  it('builds the integrated auth redirect path without the /auth/login hop', () => {
+    expect(buildAuthLoginRedirectPath('/beta-feedback/post-1')).toBe(
+      '/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1',
+    );
+  });
+});
+
+describe('feedback viewer token mapping', () => {
+  it('accepts NextAuth sub as a viewer id fallback', () => {
+    expect(
+      viewerFromToken({
+        sub: 'user-sub-id',
+      }),
+    ).toMatchObject({
+      userId: 'user-sub-id',
+      email: null,
+      isAdmin: false,
+    });
+  });
+
+  it('preserves the admin flag from the JWT', () => {
+    expect(
+      viewerFromToken({
+        sub: 'admin-user-id',
+        isAdmin: true,
+      }),
+    ).toMatchObject({
+      userId: 'admin-user-id',
+      isAdmin: true,
+    });
   });
 });
 
