@@ -8,17 +8,6 @@ import { getBetaFeedbackRedirectPath } from '@/app/lib/feedback-event/routes';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // OAuth/NextAuth는 시작 호스트의 쿠키(state·CSRF)가 콜백 호스트와 같아야 합니다.
-  // apex(excload.com)로 들어오면 www로 통일합니다. (localhost·미리보기는 영향 없음)
-  const rawHost = request.headers.get('host') ?? '';
-  const hostOnly = rawHost.split(':')[0]?.toLowerCase() ?? '';
-  if (hostOnly === 'excload.com') {
-    const url = request.nextUrl.clone();
-    url.hostname = 'www.excload.com';
-    url.protocol = 'https:';
-    return NextResponse.redirect(url, 308);
-  }
-
   // 검색엔진 등록용 정적 메타·소유확인 파일 (HTML 리다이렉트 방지)
   if (
     pathname === '/sitemap.xml' ||

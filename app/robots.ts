@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const BASE_URL = 'https://www.excload.com';
+const BASE_URL = 'https://excload.com';
 
 export default function robots(): MetadataRoute.Robots {
   return {

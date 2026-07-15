@@ -4,7 +4,6 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Suspense, useCallback, useState } from 'react';
-import { navigatePostLogin } from '@/app/lib/auth/post-login-redirect';
 import { serializeFeedbackContent } from '@/app/lib/feedback-event/map-board-post';
 import {
   DEFAULT_FEEDBACK_CATEGORY,
@@ -12,6 +11,7 @@ import {
   FEEDBACK_SELECT_VALUE,
   MIN_FEEDBACK_CONTENT_LENGTH,
 } from '@/app/lib/feedback-event/constants';
+import { getBetaFeedbackPostPath } from '@/app/lib/feedback-event/routes';
 import { ArrowLeft } from 'lucide-react';
 
 type PostVisibility = 'public' | 'private';
@@ -77,10 +77,10 @@ function FeedbackWriteInner() {
       }
 
       if (json.submissionId) {
-        navigatePostLogin(`/beta-feedback/${json.submissionId}`, router);
+        router.push(getBetaFeedbackPostPath(json.submissionId));
         return;
       }
-      navigatePostLogin('/beta-feedback', router);
+      router.push('/beta-feedback');
     } catch {
       alert('제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       setSubmitting(false);

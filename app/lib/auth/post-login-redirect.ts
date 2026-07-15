@@ -29,6 +29,9 @@ export function buildAuthLoginRedirectPath(callbackPath: string): string {
 /** 미인증 시 통합 로그인(/auth) URL — /auth/login 2-hop 제거 */
 export function buildAuthLoginRedirectUrl(origin: string, callbackPath: string): string {
   const url = new URL(buildAuthLoginRedirectPath(callbackPath), origin);
+  if (url.hostname === 'www.excload.com') {
+    url.hostname = 'excload.com';
+  }
   return url.toString();
 }
 

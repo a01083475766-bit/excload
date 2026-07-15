@@ -62,7 +62,7 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
     사용 중 불편한 점이나 문의사항이 있으시면 언제든지 연락해주세요.
   </p>
   <p style="font-size:14px;">
-    👉 <a href="https://www.excload.com" target="_blank" rel="noopener noreferrer">엑클로드 바로가기</a>
+    👉 <a href="https://excload.com" target="_blank" rel="noopener noreferrer">엑클로드 바로가기</a>
   </p>
   <hr style="margin:25px 0;" />
   <p style="font-size:12px; color:#888;">
@@ -83,7 +83,7 @@ export async function sendPasswordResetCodeEmail(payload: PasswordResetMailPaylo
       `인증코드: ${payload.code}`,
       `${payload.expireMinutes}분 내에 엑클로드 비밀번호 재설정 화면에 인증코드를 입력해주세요.`,
       '',
-      '엑클로드 바로가기: https://www.excload.com',
+      '엑클로드 바로가기: https://excload.com',
       '',
       '본 요청을 하지 않으셨다면 이 메일을 무시하셔도 됩니다.',
       '본 메일은 발신전용으로 회신이 불가합니다.',

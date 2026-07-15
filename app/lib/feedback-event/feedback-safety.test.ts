@@ -14,9 +14,16 @@ import {
   canViewFeedbackPost,
   filterVisibleFeedbackPosts,
 } from '@/app/lib/feedback-event/permissions';
-import { buildAuthLoginRedirectPath } from '@/app/lib/auth/post-login-redirect';
-import { getBetaFeedbackRedirectPath } from '@/app/lib/feedback-event/routes';
+import {
+  buildAuthLoginRedirectUrl,
+  getPostLoginPath,
+} from '@/app/lib/auth/post-login-redirect';
+import {
+  getBetaFeedbackPostPath,
+  getBetaFeedbackRedirectPath,
+} from '@/app/lib/feedback-event/routes';
 import { viewerFromSessionUser, viewerFromToken } from '@/app/lib/feedback-event/viewer';
+import nextConfig from '../../../next.config';
 
 describe('feedback-event legacy route redirect', () => {
   it.each([
@@ -42,10 +49,49 @@ describe('feedback-event legacy route redirect', () => {
     expect(getBetaFeedbackRedirectPath('/beta-feedback')).toBeNull();
   });
 
-  it('builds the integrated auth redirect path without the /auth/login hop', () => {
-    expect(buildAuthLoginRedirectPath('/beta-feedback/post-1')).toBe(
-      '/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1',
+  it('uses the apex domain when building beta feedback login redirects', () => {
+    expect(
+      buildAuthLoginRedirectUrl('https://excload.com/beta-feedback/write', '/beta-feedback/post-1'),
+    ).toBe('https://excload.com/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1');
+    expect(
+      buildAuthLoginRedirectUrl(
+        'https://www.excload.com/beta-feedback/write',
+        '/beta-feedback/post-1',
+      ),
+    ).toBe('https://excload.com/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1');
+  });
+
+  it('canonicalizes www requests to the apex domain exactly once in next config', async () => {
+    const redirects = await nextConfig.redirects?.();
+    expect(redirects).toEqual([
+      expect.objectContaining({
+        has: [{ type: 'host', value: 'www.excload.com' }],
+        destination: 'https://excload.com/:path*',
+        permanent: true,
+      }),
+    ]);
+    expect(
+      redirects?.some((redirect) =>
+        redirect.has?.some((condition) => condition.type === 'host' && condition.value === 'excload.com'),
+      ),
+    ).toBe(false);
+  });
+
+  it('accepts relative callback URLs and rejects external callback URLs', () => {
+    expect(getPostLoginPath(new URLSearchParams('callbackUrl=%2Fbeta-feedback%2Fpost-1'))).toBe(
+      '/beta-feedback/post-1',
     );
+    expect(
+      getPostLoginPath(new URLSearchParams('callbackUrl=https%3A%2F%2Fevil.example%2F')),
+    ).toBe('/order-convert');
+    expect(getPostLoginPath(new URLSearchParams('callbackUrl=%2F%2Fevil.example%2F'))).toBe(
+      '/order-convert',
+    );
+  });
+
+  it('builds the submit success path without sending the user to auth', () => {
+    expect(getBetaFeedbackPostPath('post-1')).toBe('/beta-feedback/post-1');
+    expect(getBetaFeedbackPostPath('post-1')).not.toContain('/auth');
   });
 });
 
@@ -86,6 +132,13 @@ describe('feedback viewer token mapping', () => {
       email: 'user@example.com',
       isAdmin: false,
     });
+  });
+
+  it('allows a refreshed detail page to recognize an own private post from token.sub', () => {
+    const viewer = viewerFromToken({ sub: 'user-a' });
+    expect(canViewFeedbackPost({ userId: 'user-a', publicConsent: false }, viewer.userId, false)).toBe(
+      true,
+    );
   });
 });
 

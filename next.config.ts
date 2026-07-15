@@ -7,16 +7,15 @@ const nextConfig: NextConfig = {
     },
   },
   /**
-   * OAuth는 시작한 호스트의 쿠키(state/CSRF)에 의존합니다.
-   * apex(excload.com)에서 시작하고 콜백만 www인 경우 NextAuth가 OAuthCallback로 실패할 수 있어
-   * 운영 도메인을 www로 통일합니다. (localhost·미리보기 호스트는 영향 없음)
+   * 운영 공식 도메인은 apex(excload.com)입니다.
+   * 호스트 정규화는 여기서만 처리해 middleware와 중복 리다이렉트가 나지 않게 합니다.
    */
   async redirects() {
     return [
       {
         source: '/:path*',
-        has: [{ type: 'host', value: 'excload.com' }],
-        destination: 'https://www.excload.com/:path*',
+        has: [{ type: 'host', value: 'www.excload.com' }],
+        destination: 'https://excload.com/:path*',
         permanent: true,
       },
     ];
