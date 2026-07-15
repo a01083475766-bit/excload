@@ -26,7 +26,7 @@ export async function requireOrderIntegrationAdmin(): Promise<
     };
   }
 
-  if (session.user.isAdmin !== true && !isAdminEmail(email)) {
+  if (session?.user?.isAdmin !== true && !isAdminEmail(email)) {
     return {
       response: NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 }),
     };
