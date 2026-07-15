@@ -105,7 +105,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /order/integration — 주문연동 (로그인 필요)
+  // /order/integration — 주문연동 관리자 전용
   if (pathname.startsWith('/order/integration')) {
     const token = await getToken({
       req: request,
@@ -116,6 +116,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(
         buildAuthLoginRedirectUrl(request.url, callbackPath),
       );
+    }
+    const email =
+      typeof token.email === 'string'
+        ? token.email
+        : typeof token.sub === 'string'
+          ? token.sub
+          : null;
+    if (token.isAdmin !== true && !isAdminEmail(email)) {
+      return NextResponse.redirect(new URL('/excload', request.url));
     }
     return NextResponse.next();
   }

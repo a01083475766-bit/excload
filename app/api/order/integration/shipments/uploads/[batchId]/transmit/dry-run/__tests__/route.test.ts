@@ -117,11 +117,11 @@ describe('POST .../transmit/dry-run', () => {
     expect(mocks.runShipmentTransmissionDryRun).not.toHaveBeenCalled();
   });
 
-  it('allows authenticated non-admin users', async () => {
+  it('returns 403 for authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
     const res = await POST(buildRequest({}), params);
-    expect(res.status).toBe(200);
-    expect(mocks.runShipmentTransmissionDryRun).toHaveBeenCalled();
+    expect(res.status).toBe(403);
+    expect(mocks.runShipmentTransmissionDryRun).not.toHaveBeenCalled();
   });
 
   it('returns 400 for invalid JSON', async () => {

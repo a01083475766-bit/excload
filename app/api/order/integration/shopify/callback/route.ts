@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
 
   const session = await getServerSession(authOptions);
   const email = session?.user?.email?.trim();
-  if (!email || !isAdminEmail(email)) {
+  if (!email || (session.user.isAdmin !== true && !isAdminEmail(email))) {
     return redirectToUi({ status: 'error', message: '관리자 로그인이 필요합니다.' });
   }
 

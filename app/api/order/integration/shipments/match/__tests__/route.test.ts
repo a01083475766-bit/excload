@@ -89,7 +89,7 @@ describe('POST /api/order/integration/shipments/match', () => {
     expect(json.error).toBe('로그인이 필요합니다.');
   });
 
-  it('allows authenticated non-admin users', async () => {
+  it('returns 403 for authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
 
     const formData = new FormData();
@@ -97,8 +97,8 @@ describe('POST /api/order/integration/shipments/match', () => {
 
     const response = await POST(buildRequest(formData));
 
-    expect(response.status).toBe(200);
-    expect(mocks.matchUploadedShipmentFile).toHaveBeenCalled();
+    expect(response.status).toBe(403);
+    expect(mocks.matchUploadedShipmentFile).not.toHaveBeenCalled();
   });
 
   it('returns 400 when file is missing', async () => {

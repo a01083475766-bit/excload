@@ -124,15 +124,15 @@ describe('GET /api/order/integration/shipments/uploads/[batchId]', () => {
     expect(mocks.loadShipmentUploadBatchDetail).not.toHaveBeenCalled();
   });
 
-  it('allows authenticated non-admin users', async () => {
+  it('returns 403 for authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
 
     const response = await GET(buildRequest(), {
       params: Promise.resolve({ batchId: 'batch-1' }),
     });
 
-    expect(response.status).toBe(200);
-    expect(mocks.loadShipmentUploadBatchDetail).toHaveBeenCalled();
+    expect(response.status).toBe(403);
+    expect(mocks.loadShipmentUploadBatchDetail).not.toHaveBeenCalled();
   });
 
   it('returns 400 when batchId is missing', async () => {

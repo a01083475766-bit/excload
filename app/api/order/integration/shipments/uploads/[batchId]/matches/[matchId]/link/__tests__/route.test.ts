@@ -105,15 +105,15 @@ describe('POST /api/order/integration/shipments/uploads/[batchId]/matches/[match
     expect(mocks.linkShipmentUploadMatch).not.toHaveBeenCalled();
   });
 
-  it('allows authenticated non-admin users', async () => {
+  it('returns 403 for authenticated non-admin users', async () => {
     mocks.isAdminEmail.mockReturnValueOnce(false);
 
     const response = await POST(buildRequest({ orderSyncOrderId: 'order-1' }), {
       params: Promise.resolve({ batchId: 'batch-1', matchId: 'match-1' }),
     });
 
-    expect(response.status).toBe(200);
-    expect(mocks.linkShipmentUploadMatch).toHaveBeenCalled();
+    expect(response.status).toBe(403);
+    expect(mocks.linkShipmentUploadMatch).not.toHaveBeenCalled();
   });
 
   it('returns 400 when orderSyncOrderId is missing', async () => {

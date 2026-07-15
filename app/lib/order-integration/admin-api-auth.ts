@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import { isAdminEmail } from '@/app/lib/admin-auth';
 import { prisma } from '@/app/lib/prisma';
 
 type OrderIntegrationAuthSuccess = {
@@ -12,7 +13,7 @@ type OrderIntegrationAuthFailure = {
   response: NextResponse;
 };
 
-/** 주문연동 API — 로그인 사용자(본인 계정 스코프)면 허용 */
+/** 주문연동 API — 기존 엑클로드 관리자 기준을 통과한 사용자만 허용 */
 export async function requireOrderIntegrationAdmin(): Promise<
   OrderIntegrationAuthSuccess | OrderIntegrationAuthFailure
 > {
@@ -22,6 +23,12 @@ export async function requireOrderIntegrationAdmin(): Promise<
   if (!email) {
     return {
       response: NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 }),
+    };
+  }
+
+  if (session.user.isAdmin !== true && !isAdminEmail(email)) {
+    return {
+      response: NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 }),
     };
   }
 
