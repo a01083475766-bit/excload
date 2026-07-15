@@ -22,7 +22,7 @@ export function FreeToolsLayout({
       <div className="max-w-3xl">
         <p className="mb-2 text-xs font-semibold text-blue-700">{eyebrow}</p>
         <h1 className="text-2xl font-bold text-zinc-950 sm:text-3xl">{title}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:text-base">
+        <p className="mt-2 text-sm leading-relaxed text-zinc-600 sm:text-base">
           {description}
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-zinc-600">
