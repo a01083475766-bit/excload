@@ -16,7 +16,7 @@ import {
 } from '@/app/lib/feedback-event/permissions';
 import { buildAuthLoginRedirectPath } from '@/app/lib/auth/post-login-redirect';
 import { getBetaFeedbackRedirectPath } from '@/app/lib/feedback-event/routes';
-import { viewerFromToken } from '@/app/lib/feedback-event/viewer';
+import { viewerFromSessionUser, viewerFromToken } from '@/app/lib/feedback-event/viewer';
 
 describe('feedback-event legacy route redirect', () => {
   it.each([
@@ -71,6 +71,20 @@ describe('feedback viewer token mapping', () => {
     ).toMatchObject({
       userId: 'admin-user-id',
       isAdmin: true,
+    });
+  });
+
+  it('maps the server session user used by RSC detail pages', () => {
+    expect(
+      viewerFromSessionUser({
+        id: 'session-user-id',
+        email: 'USER@EXAMPLE.COM',
+        isAdmin: false,
+      }),
+    ).toMatchObject({
+      userId: 'session-user-id',
+      email: 'user@example.com',
+      isAdmin: false,
     });
   });
 });

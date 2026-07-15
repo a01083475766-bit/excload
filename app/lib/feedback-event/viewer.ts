@@ -1,5 +1,7 @@
 import { getToken } from 'next-auth/jwt';
+import { getServerSession } from 'next-auth';
 import { headers } from 'next/headers';
+import { authOptions } from '@/app/lib/auth';
 import { isAdminEmail } from '@/app/lib/admin-auth';
 import { prisma } from '@/app/lib/prisma';
 
@@ -32,6 +34,21 @@ export function viewerFromToken(token: Awaited<ReturnType<typeof getToken>>): Fe
   };
 }
 
+export function viewerFromSessionUser(user: {
+  id?: string | null;
+  email?: string | null;
+  isAdmin?: boolean | null;
+} | null | undefined): FeedbackViewer {
+  const email = typeof user?.email === 'string' ? user.email.trim().toLowerCase() : null;
+  const userId = typeof user?.id === 'string' ? user.id : null;
+  if (!email && !userId) return EMPTY_VIEWER;
+  return {
+    userId,
+    email,
+    isAdmin: Boolean(user?.isAdmin) || isAdminEmail(email),
+  };
+}
+
 /** API Route: getServerSession 대신 JWT만 읽어 세션 오버헤드를 줄입니다. */
 export async function getFeedbackViewerFromRequest(req: {
   headers: Headers | Record<string, string | string[] | undefined>;
@@ -45,6 +62,10 @@ export async function getFeedbackViewerFromRequest(req: {
 
 /** RSC: 요청 Cookie에서 JWT만 읽습니다. */
 export async function getFeedbackViewerFromCookies(): Promise<FeedbackViewer> {
+  const session = await getServerSession(authOptions);
+  const sessionViewer = viewerFromSessionUser(session?.user);
+  if (sessionViewer.email || sessionViewer.userId) return sessionViewer;
+
   const headerList = await headers();
   const cookieHeader = headerList.get('cookie') ?? '';
   if (!cookieHeader) return EMPTY_VIEWER;
