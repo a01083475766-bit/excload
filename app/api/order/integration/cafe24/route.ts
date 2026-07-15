@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import {
   deleteCafe24Account,
   getCafe24AccountForUser,
@@ -10,8 +10,8 @@ import {
 } from '@/app/lib/order-integration/cafe24-account';
 
 export async function GET() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   const account = await getCafe24AccountForUser(auth.userId);
   return NextResponse.json({
@@ -20,8 +20,8 @@ export async function GET() {
 }
 
 export async function DELETE() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   const deleted = await deleteCafe24Account(auth.userId);
   if (!deleted) {

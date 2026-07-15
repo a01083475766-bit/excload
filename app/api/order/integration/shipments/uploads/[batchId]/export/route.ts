@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 
 import {
   buildShipmentUploadExportRows,
@@ -27,8 +27,8 @@ export async function GET(
   { params }: { params: Promise<{ batchId: string }> },
 ) {
   try {
-    const auth = await requireOrderIntegrationAdmin();
-    if (isAdminAuthFailure(auth)) return auth.response;
+    const auth = await requireOrderIntegrationUser();
+    if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
     const userId = auth.userId;
 
     const { batchId } = await params;

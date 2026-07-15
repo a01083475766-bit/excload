@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import { getIntegrationTransportInfo } from '@/app/lib/integration-proxy/config';
 import { EXCLOAD_MAKESHOP_OUTBOUND_IP } from '@/app/lib/makeshop/api-spec';
 import { isMakeshopOAuthConfigured } from '@/app/lib/makeshop/oauth-credentials';
 
-/** 관리자 전용 — 주문연동 고정 IP 프록시(direct/proxy) 확인 */
+/** 로그인 사용자용 — 주문연동 고정 IP 프록시(direct/proxy) 확인 */
 export async function GET() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   const transport = getIntegrationTransportInfo();
 

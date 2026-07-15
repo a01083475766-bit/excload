@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { OrderIntegrationProvider } from '@prisma/client';
 import { prisma } from '@/app/lib/prisma';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import {
   ORDER_INTEGRATION_MALLS,
   type OrderIntegrationMallId,
@@ -25,8 +25,8 @@ const PROVIDER_TO_MALL_ID: Partial<Record<OrderIntegrationProvider, OrderIntegra
 
 /** 현재 사용자에게 저장된(연동된) 쇼핑몰 목록 */
 export async function GET() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   const accounts = await prisma.orderIntegrationAccount.findMany({
     where: { userId: auth.userId },

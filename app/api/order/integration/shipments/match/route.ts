@@ -1,9 +1,9 @@
 import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 
 import {
   matchUploadedShipmentFile,
@@ -15,8 +15,8 @@ import { prisma } from '@/app/lib/prisma';
 
 export async function POST(request: Request) {
   try {
-    const auth = await requireOrderIntegrationAdmin();
-    if (isAdminAuthFailure(auth)) return auth.response;
+    const auth = await requireOrderIntegrationUser();
+    if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
     const userId = auth.userId;
 
     const formData = await request.formData();

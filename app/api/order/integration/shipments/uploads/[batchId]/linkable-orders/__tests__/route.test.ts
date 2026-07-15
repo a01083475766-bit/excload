@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   getServerSession: vi.fn(),
   userFindUnique: vi.fn(),
-  isAdminEmail: vi.fn(),
   loadLinkableOrdersForShipmentUploadBatch: vi.fn(),
 }));
 
@@ -13,10 +12,6 @@ vi.mock('next-auth', () => ({
 
 vi.mock('@/app/lib/auth', () => ({
   authOptions: {},
-}));
-
-vi.mock('@/app/lib/admin-auth', () => ({
-  isAdminEmail: mocks.isAdminEmail,
 }));
 
 vi.mock('@/app/lib/prisma', () => ({
@@ -73,7 +68,6 @@ describe('GET /api/order/integration/shipments/uploads/[batchId]/linkable-orders
     vi.clearAllMocks();
     mocks.getServerSession.mockResolvedValue({ user: { email: 'user@example.com' } });
     mocks.userFindUnique.mockResolvedValue({ id: 'user-a' });
-    mocks.isAdminEmail.mockReturnValue(true);
     mocks.loadLinkableOrdersForShipmentUploadBatch.mockResolvedValue({
       success: true,
       body: buildSuccessBody(),
@@ -90,17 +84,6 @@ describe('GET /api/order/integration/shipments/uploads/[batchId]/linkable-orders
 
     expect(response.status).toBe(401);
     expect(json.error).toBe('로그인이 필요합니다.');
-    expect(mocks.loadLinkableOrdersForShipmentUploadBatch).not.toHaveBeenCalled();
-  });
-
-  it('returns 403 for authenticated non-admin users', async () => {
-    mocks.isAdminEmail.mockReturnValueOnce(false);
-
-    const response = await GET(buildRequest(), {
-      params: Promise.resolve({ batchId: 'batch-1' }),
-    });
-
-    expect(response.status).toBe(403);
     expect(mocks.loadLinkableOrdersForShipmentUploadBatch).not.toHaveBeenCalled();
   });
 

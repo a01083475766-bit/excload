@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import { upsertShopifyAccount } from '@/app/lib/order-integration/shopify-account';
 import { buildShopifyAuthorizeUrl } from '@/app/lib/shopify/oauth';
 import {
@@ -38,8 +38,8 @@ async function resolveShopFromRequest(request: NextRequest): Promise<string> {
 }
 
 async function handleConnect(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   // Feature flag — env 누락 500보다 먼저. disabled면 authorize/DB/token 경로 진입 금지
   if (!isShopifyIntegrationEnabled()) {

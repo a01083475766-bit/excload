@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import { isIntegrationEncryptionConfigured } from '@/app/lib/order-integration/encryption';
 import {
   saveMakeshopAccount,
@@ -10,8 +10,8 @@ import {
 } from '@/app/lib/order-integration/makeshop-account';
 
 export async function POST(request: NextRequest) {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   if (!isIntegrationEncryptionConfigured()) {
     return NextResponse.json(

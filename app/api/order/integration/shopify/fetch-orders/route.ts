@@ -2,9 +2,9 @@ import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/app/lib/prisma';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import {
   decryptShopifyAccountCredentials,
   getShopifyAccountForUser,
@@ -27,8 +27,8 @@ import {
 } from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 
 export async function POST() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   if (!isShopifyIntegrationEnabled()) {
     return shopifyIntegrationDisabledJsonResponse();

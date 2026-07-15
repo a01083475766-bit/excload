@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isShopifyIntegrationEnabled } from '@/app/lib/shopify/oauth-credentials';
 
 const {
-  requireOrderIntegrationAdminMock,
+  requireOrderIntegrationUserMock,
   getShopifyAccountForUserMock,
   decryptShopifyAccountCredentialsMock,
   markShopifyAccountSyncResultMock,
@@ -10,7 +10,7 @@ const {
   fetchShopifyOrdersMock,
   testShopifyConnectionMock,
 } = vi.hoisted(() => ({
-  requireOrderIntegrationAdminMock: vi.fn(),
+  requireOrderIntegrationUserMock: vi.fn(),
   getShopifyAccountForUserMock: vi.fn(),
   decryptShopifyAccountCredentialsMock: vi.fn(),
   markShopifyAccountSyncResultMock: vi.fn(),
@@ -19,9 +19,9 @@ const {
   testShopifyConnectionMock: vi.fn(),
 }));
 
-vi.mock('@/app/lib/order-integration/admin-api-auth', () => ({
-  requireOrderIntegrationAdmin: requireOrderIntegrationAdminMock,
-  isAdminAuthFailure: (auth: { response?: Response }) => Boolean(auth.response),
+vi.mock('@/app/lib/order-integration/user-api-auth', () => ({
+  requireOrderIntegrationUser: requireOrderIntegrationUserMock,
+  isOrderIntegrationUserAuthFailure: (auth: { response?: Response }) => Boolean(auth.response),
 }));
 
 vi.mock('@/app/lib/order-integration/shopify-account', () => ({
@@ -50,7 +50,7 @@ beforeEach(() => {
   for (const key of ENV_KEYS) {
     envSnapshot[key] = process.env[key];
   }
-  requireOrderIntegrationAdminMock.mockResolvedValue({ userId: 'user-1', email: 'admin@example.com' });
+  requireOrderIntegrationUserMock.mockResolvedValue({ userId: 'user-1', email: 'user@example.com' });
   getShopifyAccountForUserMock.mockResolvedValue({ id: 'acc-1' });
   decryptShopifyAccountCredentialsMock.mockReturnValue({
     shopDomain: 'mystore.myshopify.com',

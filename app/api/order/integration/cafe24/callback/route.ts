@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
-import { isAdminEmail } from '@/app/lib/admin-auth';
 import { exchangeCafe24AuthorizationCode } from '@/app/lib/cafe24/client';
 import { verifyCafe24OAuthState } from '@/app/lib/cafe24/oauth-state';
+import {
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import {
   getCafe24AccountById,
   saveCafe24OAuthTokens,
@@ -43,10 +44,15 @@ export async function GET(request: NextRequest) {
     return redirectToUi({ oauth: 'error', message: 'OAuth state 검증에 실패했습니다. 다시 시도해 주세요.' });
   }
 
-  const session = await getServerSession(authOptions);
-  const email = session?.user?.email?.trim();
-  if (!email || (session?.user?.isAdmin !== true && !isAdminEmail(email))) {
-    return redirectToUi({ oauth: 'error', message: '관리자 로그인이 필요합니다.' });
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) {
+    return redirectToUi({ oauth: 'error', message: '로그인이 필요합니다.' });
+  }
+  if (auth.userId !== statePayload.userId) {
+    return redirectToUi({
+      oauth: 'error',
+      message: '로그인 사용자와 OAuth 요청이 일치하지 않습니다.',
+    });
   }
 
   try {

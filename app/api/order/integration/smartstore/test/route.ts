@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import {
   getSmartstoreAccountForUser,
   markSmartstoreAccountTestResult,
@@ -12,8 +12,8 @@ import { testSmartstoreConnection, toUserFacingSmartstoreErrorMessage } from '@/
 import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
 
 export async function POST() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   if (!isIntegrationProxyConfigured()) {
     return NextResponse.json(

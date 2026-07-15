@@ -6,6 +6,7 @@ import {
 } from '@/app/lib/order-integration/encryption';
 import {
   decryptShopifyAccountCredentials,
+  getShopifyAccountById,
   parseShopifyCredentialMeta,
   serializeShopifyCredentialMeta,
   upsertShopifyAccount,
@@ -50,6 +51,26 @@ describe('OrderIntegrationProvider.SHOPIFY', () => {
   });
 });
 
+describe('getShopifyAccountById', () => {
+  it('scopes an account id lookup to the logged-in user and returns null for another user', async () => {
+    vi.mocked(prisma.orderIntegrationAccount.findFirst).mockResolvedValue(null);
+
+    const account = await getShopifyAccountById({
+      userId: 'user-b',
+      accountId: 'account-a',
+    });
+
+    expect(account).toBeNull();
+    expect(prisma.orderIntegrationAccount.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'account-a',
+        userId: 'user-b',
+        provider: OrderIntegrationProvider.SHOPIFY,
+      },
+    });
+  });
+});
+
 describe('shopify credential meta', () => {
   it('serializes scope and refreshTokenExpiresAt', () => {
     const raw = serializeShopifyCredentialMeta({
@@ -66,31 +87,33 @@ describe('upsertShopifyAccount', () => {
   it('stores shopDomain as vendorId and encrypts tokens', async () => {
     await withEncryptionKey(async () => {
       vi.mocked(prisma.orderIntegrationAccount.findUnique).mockResolvedValue(null);
-      vi.mocked(prisma.orderIntegrationAccount.create).mockImplementation(async ({ data }) => ({
-        id: 'acc-shopify-1',
-        userId: data.userId,
-        provider: data.provider,
-        accountName: data.accountName,
-        vendorId: data.vendorId,
-        sellerId: null,
-        accessKeyCiphertext: data.accessKeyCiphertext,
-        accessKeyIv: data.accessKeyIv,
-        accessKeyAuthTag: data.accessKeyAuthTag,
-        secretKeyCiphertext: data.secretKeyCiphertext,
-        secretKeyIv: data.secretKeyIv,
-        secretKeyAuthTag: data.secretKeyAuthTag,
-        apiKeyCiphertext: data.apiKeyCiphertext,
-        apiKeyIv: data.apiKeyIv,
-        apiKeyAuthTag: data.apiKeyAuthTag,
-        encryptionKeyVersion: data.encryptionKeyVersion,
-        expiresAt: data.expiresAt ?? null,
-        status: data.status,
-        lastTestedAt: null,
-        lastSyncedAt: null,
-        lastErrorMessage: data.lastErrorMessage ?? null,
-        createdAt: new Date('2026-07-08T10:00:00.000Z'),
-        updatedAt: new Date('2026-07-08T10:00:00.000Z'),
-      }));
+      vi.mocked(prisma.orderIntegrationAccount.create).mockImplementation(({ data }) =>
+        Promise.resolve({
+          id: 'acc-shopify-1',
+          userId: data.userId,
+          provider: data.provider,
+          accountName: data.accountName,
+          vendorId: data.vendorId,
+          sellerId: null,
+          accessKeyCiphertext: data.accessKeyCiphertext,
+          accessKeyIv: data.accessKeyIv,
+          accessKeyAuthTag: data.accessKeyAuthTag,
+          secretKeyCiphertext: data.secretKeyCiphertext,
+          secretKeyIv: data.secretKeyIv,
+          secretKeyAuthTag: data.secretKeyAuthTag,
+          apiKeyCiphertext: data.apiKeyCiphertext,
+          apiKeyIv: data.apiKeyIv,
+          apiKeyAuthTag: data.apiKeyAuthTag,
+          encryptionKeyVersion: data.encryptionKeyVersion,
+          expiresAt: data.expiresAt ?? null,
+          status: data.status,
+          lastTestedAt: null,
+          lastSyncedAt: null,
+          lastErrorMessage: data.lastErrorMessage ?? null,
+          createdAt: new Date('2026-07-08T10:00:00.000Z'),
+          updatedAt: new Date('2026-07-08T10:00:00.000Z'),
+        }) as ReturnType<typeof prisma.orderIntegrationAccount.create>,
+      );
 
       const account = await upsertShopifyAccount({
         userId: 'user-1',

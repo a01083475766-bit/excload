@@ -7,7 +7,7 @@ import {
 import { SHOPIFY_OAUTH_SCOPES } from '@/app/lib/shopify/shop-domain';
 
 const {
-  requireOrderIntegrationAdminMock,
+  requireOrderIntegrationUserMock,
   upsertShopifyAccountMock,
   buildShopifyAuthorizeUrlMock,
   createShopifyOAuthStateMock,
@@ -17,10 +17,8 @@ const {
   verifyShopifyOAuthHmacMock,
   verifyShopifyOAuthStateMock,
   getShopifyAccountByIdMock,
-  getServerSessionMock,
-  isAdminEmailMock,
 } = vi.hoisted(() => ({
-  requireOrderIntegrationAdminMock: vi.fn(),
+  requireOrderIntegrationUserMock: vi.fn(),
   upsertShopifyAccountMock: vi.fn(),
   buildShopifyAuthorizeUrlMock: vi.fn(),
   createShopifyOAuthStateMock: vi.fn(),
@@ -30,25 +28,11 @@ const {
   verifyShopifyOAuthHmacMock: vi.fn(),
   verifyShopifyOAuthStateMock: vi.fn(),
   getShopifyAccountByIdMock: vi.fn(),
-  getServerSessionMock: vi.fn(),
-  isAdminEmailMock: vi.fn(),
 }));
 
-vi.mock('next-auth', () => ({
-  getServerSession: getServerSessionMock,
-}));
-
-vi.mock('@/app/lib/auth', () => ({
-  authOptions: {},
-}));
-
-vi.mock('@/app/lib/admin-auth', () => ({
-  isAdminEmail: isAdminEmailMock,
-}));
-
-vi.mock('@/app/lib/order-integration/admin-api-auth', () => ({
-  requireOrderIntegrationAdmin: requireOrderIntegrationAdminMock,
-  isAdminAuthFailure: (auth: { response?: Response }) => Boolean(auth.response),
+vi.mock('@/app/lib/order-integration/user-api-auth', () => ({
+  requireOrderIntegrationUser: requireOrderIntegrationUserMock,
+  isOrderIntegrationUserAuthFailure: (auth: { response?: Response }) => Boolean(auth.response),
 }));
 
 vi.mock('@/app/lib/order-integration/shopify-account', () => ({
@@ -103,7 +87,10 @@ beforeEach(() => {
     envSnapshot[key] = process.env[key];
   }
   vi.clearAllMocks();
-  requireOrderIntegrationAdminMock.mockResolvedValue({ userId: 'user-1', email: 'admin@example.com' });
+  requireOrderIntegrationUserMock.mockResolvedValue({
+    userId: 'user-1',
+    email: 'user@example.com',
+  });
   resolveShopifyClientIdMock.mockReturnValue('test-client-id');
   process.env.SHOPIFY_CLIENT_ID = 'test-client-id';
   process.env.SHOPIFY_CLIENT_SECRET = 'test-client-secret';
@@ -192,6 +179,11 @@ describe('shopify connect feature flag', () => {
         state: 'signed-state',
       }),
     );
+    expect(createShopifyOAuthStateMock).toHaveBeenCalledWith({
+      userId: 'user-1',
+      accountId: 'acc-1',
+      shopDomain: 'mystore.myshopify.com',
+    });
     expect(SHOPIFY_OAUTH_SCOPES).toBe('read_orders');
     expect(SHOPIFY_OAUTH_SCOPES).not.toContain('read_all_orders');
   });
@@ -218,7 +210,7 @@ describe('shopify callback feature flag', () => {
     expect(verifyShopifyOAuthStateMock).not.toHaveBeenCalled();
   });
 
-  it('runs exchange and save when enabled and checks pass', async () => {
+  it('allows a regular user to exchange and save when checks pass', async () => {
     process.env.SHOPIFY_INTEGRATION_ENABLED = 'true';
     process.env.SHOPIFY_OAUTH_STATE_SECRET = Buffer.alloc(32, 3).toString('base64');
     process.env.EXCLOAD_INTEGRATION_ENCRYPTION_KEY = Buffer.alloc(32, 3).toString('base64');
@@ -231,8 +223,6 @@ describe('shopify callback feature flag', () => {
       ts: Date.now(),
     });
     verifyShopifyOAuthHmacMock.mockReturnValue(true);
-    getServerSessionMock.mockResolvedValue({ user: { email: 'admin@example.com' } });
-    isAdminEmailMock.mockReturnValue(true);
     getShopifyAccountByIdMock.mockResolvedValue({
       id: 'acc-1',
       vendorId: 'mystore.myshopify.com',
@@ -266,5 +256,29 @@ describe('shopify callback feature flag', () => {
       }),
     );
     expect(saveShopifyOAuthTokensMock.mock.calls[0]?.[0]?.scope).not.toContain('read_all_orders');
+  });
+
+  it('rejects a valid state that belongs to another logged-in user', async () => {
+    process.env.SHOPIFY_INTEGRATION_ENABLED = 'true';
+    verifyShopifyOAuthStateMock.mockReturnValue({
+      userId: 'user-2',
+      accountId: 'acc-2',
+      shopDomain: 'mystore.myshopify.com',
+      nonce: 'n',
+      ts: Date.now(),
+    });
+    verifyShopifyOAuthHmacMock.mockReturnValue(true);
+
+    const res = await callbackGet(
+      new NextRequest(
+        'http://localhost/api/order/integration/shopify/callback?code=auth-code&state=signed&shop=mystore.myshopify.com&hmac=valid',
+      ),
+    );
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('status=error');
+    expect(getShopifyAccountByIdMock).not.toHaveBeenCalled();
+    expect(exchangeShopifyAuthorizationCodeMock).not.toHaveBeenCalled();
+    expect(saveShopifyOAuthTokensMock).not.toHaveBeenCalled();
   });
 });

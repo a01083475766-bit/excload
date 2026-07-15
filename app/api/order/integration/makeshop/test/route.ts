@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import {
   getMakeshopAccountForUser,
   markMakeshopAccountTestResult,
@@ -13,8 +13,8 @@ import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config
 import { isMakeshopOAuthConfigured } from '@/app/lib/makeshop/oauth-credentials';
 
 export async function POST() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   if (!isIntegrationProxyConfigured()) {
     return NextResponse.json(

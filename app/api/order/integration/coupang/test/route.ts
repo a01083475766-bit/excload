@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { testCoupangConnection } from '@/app/lib/coupang/client';
 import { toUserFacingCoupangErrorMessage } from '@/app/lib/coupang/errors';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import {
   getCoupangAccountForUser,
   isCoupangApiKeyExpired,
@@ -13,8 +13,8 @@ import {
 } from '@/app/lib/order-integration/coupang-account';
 
 export async function POST() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   const account = await getCoupangAccountForUser(auth.userId);
   if (!account) {

@@ -4,6 +4,10 @@ import { getToken } from 'next-auth/jwt';
 import { isAdminEmail } from '@/app/lib/admin-auth';
 import { buildAuthLoginRedirectUrl } from '@/app/lib/auth/post-login-redirect';
 import { getBetaFeedbackRedirectPath } from '@/app/lib/feedback-event/routes';
+import {
+  isProtectedOrderIntegrationPath,
+  isPublicOrderIntegrationPath,
+} from '@/app/lib/order-integration/access-policy';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -105,8 +109,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /order/integration — 주문연동 관리자 전용
-  if (pathname.startsWith('/order/integration')) {
+  // /order/integration — 정적 소개 화면은 공개
+  if (isPublicOrderIntegrationPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  // /order/integration 하위 작업 화면 — 로그인 사용자 전용
+  if (isProtectedOrderIntegrationPath(pathname)) {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
@@ -116,15 +125,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(
         buildAuthLoginRedirectUrl(request.url, callbackPath),
       );
-    }
-    const email =
-      typeof token.email === 'string'
-        ? token.email
-        : typeof token.sub === 'string'
-          ? token.sub
-          : null;
-    if (token.isAdmin !== true && !isAdminEmail(email)) {
-      return NextResponse.redirect(new URL('/excload', request.url));
     }
     return NextResponse.next();
   }

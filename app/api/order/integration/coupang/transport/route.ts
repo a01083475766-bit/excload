@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import { getCoupangTransportInfo } from '@/app/lib/coupang/transport/resolve-transport';
 
-/** 관리자 전용 — 현재 쿠팡 API 호출 경로(direct/proxy) 확인 */
+/** 로그인 사용자용 — 현재 쿠팡 API 호출 경로(direct/proxy) 확인 */
 export async function GET() {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   const transport = getCoupangTransportInfo();
 

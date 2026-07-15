@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 
 import { toSafeShipmentMatchLogMessage } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
 import {
@@ -19,8 +19,8 @@ export async function POST(
   { params }: { params: Promise<{ batchId: string; matchId: string }> },
 ) {
   try {
-    const auth = await requireOrderIntegrationAdmin();
-    if (isAdminAuthFailure(auth)) return auth.response;
+    const auth = await requireOrderIntegrationUser();
+    if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
     const userId = auth.userId;
 
     const { batchId, matchId } = await params;

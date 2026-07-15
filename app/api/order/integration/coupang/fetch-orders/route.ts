@@ -10,9 +10,9 @@ import {
 } from '@/app/lib/coupang/map-coupang-orders';
 import { toUserFacingCoupangErrorMessage } from '@/app/lib/coupang/errors';
 import {
-  isAdminAuthFailure,
-  requireOrderIntegrationAdmin,
-} from '@/app/lib/order-integration/admin-api-auth';
+  isOrderIntegrationUserAuthFailure,
+  requireOrderIntegrationUser,
+} from '@/app/lib/order-integration/user-api-auth';
 import {
   getCoupangAccountForUser,
   isCoupangApiKeyExpired,
@@ -26,8 +26,8 @@ import {
 import { readFetchOrderDays } from '@/app/lib/order-integration/parse-fetch-order-days';
 
 export async function POST(request: Request) {
-  const auth = await requireOrderIntegrationAdmin();
-  if (isAdminAuthFailure(auth)) return auth.response;
+  const auth = await requireOrderIntegrationUser();
+  if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
   const days = await readFetchOrderDays(request);
 
