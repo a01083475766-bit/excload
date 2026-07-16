@@ -19,7 +19,6 @@ import {
 import { useUserStore } from '@/app/store/userStore';
 import { formatPhoneDisplay, formatPhoneForInput } from '@/app/utils/format-phone';
 import { FAVORITE_MALLS_KEY, removeLocalStorageForUser } from '@/app/lib/scoped-local-storage';
-import { FeedbackTrialActiveBanner } from '@/app/components/feedback-event/FeedbackTrialActiveBanner';
 
 interface SubscriptionState {
   status: string | null;
@@ -759,17 +758,7 @@ export default function MyPage() {
           <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">계정 정보 불러오는 중…</p>
         )}
 
-        {user?.adminTrialEndsAt &&
-          new Date(user.adminTrialEndsAt).getTime() > nowMs &&
-          user.plan === 'FREE' && (
-            <div className="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-950/40">
-              <FeedbackTrialActiveBanner
-                endsAt={user.adminTrialEndsAt}
-                headline="관리자 PRO 혜택 이용 중입니다."
-                className="text-sm text-sky-900 dark:text-sky-100"
-              />
-            </div>
-          )}
+        {/* Feedback/PRO 체험 관련 배너는 신규 보상 정책에 맞춰 노출하지 않습니다. */}
 
         {paymentFailure.isPastDue && hasPaidPlan && (
           <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">

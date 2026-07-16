@@ -247,7 +247,13 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                       </td>
                       <td className="px-3 py-2 align-top">
                         <span className={p.hasAdminReply ? 'text-xs text-emerald-700' : 'text-xs text-zinc-400'}>
-                          {p.hasAdminReply ? '답변 완료' : '확인 대기'}
+                          {!p.publicConsent
+                            ? p.hasAdminReply
+                              ? '비공개답변'
+                              : '비공개답변 대기'
+                            : p.hasAdminReply
+                              ? '답변 완료'
+                              : '확인 대기'}
                         </span>
                         {p.canOpen && p.commentCount > 0 ? (
                           <span className="mt-0.5 block text-xs text-zinc-400">
@@ -283,7 +289,13 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                       {!p.publicConsent ? <span>비공개</span> : null}
                       <span>{formatDate(p.createdAt)}</span>
                       <span className={p.hasAdminReply ? 'text-emerald-700' : 'text-zinc-400'}>
-                        {p.hasAdminReply ? '답변 완료' : '확인 대기'}
+                        {!p.publicConsent
+                          ? p.hasAdminReply
+                            ? '비공개답변'
+                            : '비공개답변 대기'
+                          : p.hasAdminReply
+                            ? '답변 완료'
+                            : '확인 대기'}
                       </span>
                       {p.canOpen && p.commentCount > 0 ? <span>댓글 {p.commentCount}</span> : null}
                     </div>

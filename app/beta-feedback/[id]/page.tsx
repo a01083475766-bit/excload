@@ -115,7 +115,15 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
                 {post.publicConsent ? '공개' : '비공개'}
               </span>
               <span>{getFeedbackFeatureLabel(post.featureUsed)}</span>
-              <span>{hasAdminReply ? '답변 완료' : '확인 대기'}</span>
+              <span>
+                {post.publicConsent
+                  ? hasAdminReply
+                    ? '답변 완료'
+                    : '확인 대기'
+                  : hasAdminReply
+                    ? '비공개답변'
+                    : '비공개답변 대기'}
+              </span>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">

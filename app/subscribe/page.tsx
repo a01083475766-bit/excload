@@ -7,7 +7,6 @@
 import { useUserStore } from '@/app/store/userStore';
 import { runAfterTossChargeResponse } from '@/app/lib/toss/after-charge-client';
 import { dbPlanToIntervalKey, getPlanDisplayName } from '@/app/lib/subscription/plan-change';
-import { FeedbackTrialActiveBanner } from '@/app/components/feedback-event/FeedbackTrialActiveBanner';
 import {
   canStartPaidCheckout,
   getNewPaidCheckoutBlockMessage,
@@ -375,19 +374,7 @@ function PaidPlanCheckout({ planKey }: { planKey: 'monthly' | 'yearly' }) {
           </div>
         ) : null}
 
-        {user &&
-          user.adminTrialEndsAt &&
-          new Date(user.adminTrialEndsAt).getTime() > nowMs &&
-          !hasPaidPlan &&
-          user.plan === 'FREE' && (
-            <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-800 dark:bg-sky-950/40">
-              <FeedbackTrialActiveBanner
-                endsAt={user.adminTrialEndsAt}
-                headline="관리자 PRO 혜택 이용 중입니다."
-                className="text-sm text-sky-900 dark:text-sky-100"
-              />
-            </div>
-          )}
+        {/* Feedback/PRO 체험 관련 배너는 신규 보상 정책에 맞춰 노출하지 않습니다. */}
 
         <div className="rounded-[10px] bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200/80 dark:border-zinc-800 overflow-hidden">
           <section className="p-5 border-b border-zinc-100 dark:border-zinc-800">
