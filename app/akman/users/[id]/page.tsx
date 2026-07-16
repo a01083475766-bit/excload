@@ -71,6 +71,8 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [trialMonths, setTrialMonths] = useState(1);
   const [trialSubmitting, setTrialSubmitting] = useState(false);
+  // 렌더 중 Date.now() 직접 호출(impure)을 피하기 위해 마운트 후 현재 시각을 상태로 보관한다.
+  const [nowMs, setNowMs] = useState<number | null>(null);
 
   // 사용자 상세 정보 조회
   const fetchUserDetail = async () => {
@@ -99,6 +101,11 @@ export default function UserDetailPage() {
       fetchUserDetail();
     }
   }, [userId, router]);
+
+  // 관리자 PRO 체험 만료 판정용 기준 시각(클라이언트 마운트 시점).
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
 
   // 사용량 증감
   const handleAdjustPoints = async (amount: number) => {
@@ -326,7 +333,9 @@ export default function UserDetailPage() {
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>Plan</div>
             <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{user.plan}</div>
           </div>
-          {user.adminTrialEndsAt && new Date(user.adminTrialEndsAt).getTime() > Date.now() && (
+          {user.adminTrialEndsAt &&
+            nowMs !== null &&
+            new Date(user.adminTrialEndsAt).getTime() > nowMs && (
             <div>
               <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>관리자 PRO 혜택</div>
               <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#17a2b8' }}>
@@ -509,7 +518,8 @@ export default function UserDetailPage() {
                 +{trialMonths}개월 부여
               </button>
               {user.adminTrialEndsAt &&
-                new Date(user.adminTrialEndsAt).getTime() > Date.now() && (
+                nowMs !== null &&
+                new Date(user.adminTrialEndsAt).getTime() > nowMs && (
                   <button
                     onClick={handleRevokeProTrial}
                     disabled={trialSubmitting}
