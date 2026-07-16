@@ -55,21 +55,46 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
   },
   smartstore: {
     title: '스마트스토어 설정 방법',
-    sellerCenterHref: 'https://sell.smartstore.naver.com',
-    sellerCenterLabel: '스마트스토어 센터',
+    sellerCenterHref: 'https://apicenter.commerce.naver.com',
+    sellerCenterLabel: '네이버 커머스API센터',
     steps: [
       {
-        title: '센터 로그인',
-        body: '스마트스토어 센터에 로그인합니다.',
+        title: '커머스API센터 접속',
+        body: (
+          <>
+            <strong>커머스API센터</strong>에 로그인합니다. 스마트스토어센터에서 시작해도 커머스API센터로
+            이동하며, 해당 스토어의 <strong>통합매니저 권한</strong>이 필요합니다.
+          </>
+        ),
       },
       {
-        title: '애플리케이션 등록',
-        body: '커머스API 애플리케이션을 등록하고 API 호출 IP에 엑클로드 outbound IP를 추가합니다.',
+        title: '내 스토어 애플리케이션 등록',
+        body: (
+          <>
+            [애플리케이션 &gt; 내스토어 애플리케이션]에서 앱을 등록하고, 사용할{' '}
+            <strong>API(주문 관련 권한 포함)</strong>를 선택합니다. 스토어당 최대 3개까지 등록할 수
+            있습니다.
+          </>
+        ),
       },
       {
-        title: 'Client ID / Secret',
-        body: '발급된 값을 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
+        title: 'API 호출 IP 등록',
+        body: '왼쪽 엑클로드 정보의 outbound IP를 애플리케이션의 API 호출 IP에 추가합니다.',
       },
+      {
+        title: 'Client ID / Secret 입력',
+        body: (
+          <>
+            발급된 <strong>애플리케이션 ID(Client ID)</strong>와 <strong>시크릿(Client Secret)</strong>을
+            왼쪽 입력란에 넣고 연결 테스트 후 저장합니다. type은 기본 <strong>SELF</strong>입니다.
+          </>
+        ),
+      },
+    ],
+    notes: [
+      '이 방식은 판매자 본인이 발급하는 「내 스토어 애플리케이션」입니다. 커머스솔루션마켓(솔루션 구독) 방식과 다릅니다.',
+      '서비스 URL·Redirect URI는 입력하지 않습니다.',
+      '인증 전자서명·토큰 발급은 엑클로드가 자동으로 처리합니다.',
     ],
   },
   cafe24: {
