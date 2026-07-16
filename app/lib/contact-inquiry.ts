@@ -5,6 +5,7 @@ export const CONTACT_INQUIRY_TYPE_LABELS: Record<string, string> = {
   feature: '기능 요청',
   partner: '제휴 / 협업 문의',
   business: '비즈니스 문의',
+  beta_news: '오픈 베타 소식 신청',
 };
 
 export const CONTACT_MESSAGE_MAX_LENGTH = 5000;

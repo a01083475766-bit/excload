@@ -196,7 +196,7 @@ export function LandingWhyHowCarriers() {
 /** 참고 랜딩 CTA — 기존 가격 블록 직전(전환 유도), 레이아웃 푸터는 그대로 유지 */
 export function LandingPrePricingCta() {
   return (
-    <section className="relative overflow-hidden py-16 lg:py-24">
+    <section className="relative overflow-hidden py-11 lg:py-[4.2rem]">
       <div
         className="absolute inset-0 bg-gradient-to-br from-blue-800 via-blue-900 to-[#0f172a]"
         aria-hidden

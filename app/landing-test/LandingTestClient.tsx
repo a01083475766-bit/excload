@@ -5,116 +5,36 @@ import {
   LandingPrePricingCta,
   LandingWhyHowCarriers,
 } from '@/app/components/landing/LandingReferenceSections';
-import LandingHeroSection from '@/app/components/landing/LandingHeroSection';
 import { landingContainerClass } from '@/app/components/landing/landingLayout';
-import { InvoiceFileConvertTrialModeProvider } from '@/app/invoice-file-convert/trial-mode-context';
-import dynamic from 'next/dynamic';
-import Image from 'next/image';
+import LandingTestFeatureStories from '@/app/landing-test/LandingTestFeatureStories';
+import LandingTestHeroSection from '@/app/landing-test/LandingTestHeroSection';
+import LandingTestOpenBetaBenefits from '@/app/landing-test/LandingTestOpenBetaBenefits';
+import LandingTestTrialSection from '@/app/landing-test/LandingTestTrialSection';
+import LandingTestWorkflowSection from '@/app/landing-test/LandingTestWorkflowSection';
+import { getSignupBonusPoints, isOpenBetaMode } from '@/app/lib/open-beta-policy';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
-import { getSignupBonusPoints, isOpenBetaMode } from '@/app/lib/open-beta-policy';
-const TrialEmbed = dynamic(
-  () =>
-    import('@/app/logistics-convert/LogisticsConvertClient').then(
-      (mod) => mod.LogisticsConvertClient,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        무료체험 화면을 불러오는 중입니다...
-      </div>
-    ),
-  },
-);
-const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-      송장변환 체험 화면을 불러오는 중입니다...
-    </div>
-  ),
-});
-
-type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
-type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
-
-const shoppingMallCards: { key: ShoppingMallKey; name: string }[] = [
-  { key: 'naver', name: '스마트스토어' },
-  { key: 'eleven', name: '11번가' },
-  { key: 'coupang', name: '쿠팡' },
-  { key: 'gmarket', name: 'G마켓' },
-  { key: 'auction', name: '옥션' },
-  { key: 'cafe24', name: '카페24' },
-];
-
-const courierCards: { key: CourierKey; name: string; logo: string; color: string }[] = [
-  { key: 'cj', name: 'CJ대한통운', logo: 'CJ', color: '#0f5ca8' },
-  { key: 'logen', name: '로젠택배', logo: 'LOGEN', color: '#b07a1f' },
-  { key: 'post', name: '우체국택배', logo: 'POST', color: '#dc2626' },
-  { key: 'hanjin', name: '한진택배', logo: 'HANJIN', color: '#0f75bc' },
-  { key: 'lotte', name: '롯데택배', logo: 'LOTTE', color: '#dc2626' },
-  { key: 'kydexp', name: '경동택배', logo: 'KYDEXP', color: '#138f45' },
-];
-
-function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
-  if (type === 'naver') {
-    return <span className="text-[16px] font-black leading-none tracking-tight text-[#03c75a]">NAVER</span>;
-  }
-  if (type === 'eleven') {
-    return <span className="text-[20px] font-black leading-none tracking-tight text-[#ef3340]">11&gt;</span>;
-  }
-  if (type === 'coupang') {
-    return (
-      <span className="text-[14px] font-black leading-none tracking-tight">
-        <span className="text-[#6b1d1d]">cou</span>
-        <span className="text-[#f59e0b]">p</span>
-        <span className="text-[#16a34a]">a</span>
-        <span className="text-[#2563eb]">n</span>
-        <span className="text-[#38bdf8]">g</span>
-      </span>
-    );
-  }
-  if (type === 'gmarket') {
-    return (
-      <span className="text-[15px] font-black leading-none tracking-tight">
-        <span className="text-[#00b050]">G</span>
-        <span className="text-[#1d4ed8]">market</span>
-      </span>
-    );
-  }
-  if (type === 'auction') {
-    return <span className="text-[17px] font-black leading-none text-[#c1121f]">옥션</span>;
-  }
-  return (
-    <span className="text-[16px] font-black leading-none tracking-tight">
-      <span className="text-[#111827]">cafe</span>
-      <span className="text-[#0ea5e9]">24</span>
-    </span>
-  );
-}
 
 /**
- * 실서비스 랜딩(app/excload/page.tsx)을 그대로 복제한 관리자 전용 테스트본입니다.
- * 여기서 자유롭게 수정·실험한 뒤, 확정된 내용만 실서비스 랜딩에 반영하세요.
+ * 관리자 전용 랜딩 테스트본 (/landing-test).
+ * 여기서 실험·확정한 뒤, 운영 랜딩(/excload)에만 반영하세요.
  */
 export default function LandingTestPage() {
   const betaMode = isOpenBetaMode();
-  const signupBonus = getSignupBonusPoints();
-  const signupBonusLabel = signupBonus.toLocaleString();
+  const signupBonusLabel = getSignupBonusPoints().toLocaleString();
 
   const plans = betaMode
     ? [
         {
           planKey: 'free' as const,
           name: '오픈 베타',
-          priceLabel: '무료',
           priceMain: '무료',
           priceSub: '가입 후 바로 사용',
           description: '회원가입만 하면 주요 기능을 무료로 사용할 수 있습니다',
           features: [
             `회원가입 시 ${signupBonusLabel}P 제공`,
             `매월 ${signupBonusLabel} 포인트 사용량 제공`,
+            '쇼핑몰 주문연동 오픈 베타 이용',
             '엑셀 다운로드 무제한 가능',
             '텍스트 변환 시 글자 수만큼 포인트 차감',
             '자동 유료 전환 없음',
@@ -125,7 +45,6 @@ export default function LandingTestPage() {
         {
           planKey: 'monthly' as const,
           name: '프로',
-          priceLabel: '₩4,000 / 월',
           priceMain: '4,000원',
           priceSub: '/ 월',
           description: '꾸준한 주문 처리를 위한 플랜 (정식 출시 예정)',
@@ -140,15 +59,10 @@ export default function LandingTestPage() {
         {
           planKey: 'yearly' as const,
           name: '연간',
-          priceLabel: '₩40,000 / 년',
           priceMain: '40,000원',
           priceSub: '/ 년',
           description: '장기 이용자를 위한 연간 플랜 (정식 출시 예정)',
-          features: [
-            '20% 할인',
-            '매월 400,000 포인트 제공',
-            '엑셀 다운로드 무제한',
-          ],
+          features: ['20% 할인', '매월 400,000 포인트 제공', '엑셀 다운로드 무제한'],
           popular: false,
           upcoming: true,
         },
@@ -157,7 +71,6 @@ export default function LandingTestPage() {
         {
           planKey: 'free' as const,
           name: '무료',
-          priceLabel: '무료',
           priceMain: '0원',
           priceSub: '가입 후 바로 사용',
           description: '무료 이용 플랜',
@@ -172,7 +85,6 @@ export default function LandingTestPage() {
         {
           planKey: 'monthly' as const,
           name: '프로',
-          priceLabel: '₩4,000 / 월',
           priceMain: '4,000원',
           priceSub: '/ 월',
           description: '꾸준한 주문 처리를 위한 플랜',
@@ -187,19 +99,15 @@ export default function LandingTestPage() {
         {
           planKey: 'yearly' as const,
           name: '연간',
-          priceLabel: '₩40,000 / 년',
           priceMain: '40,000원',
           priceSub: '/ 년',
           description: '장기 이용자를 위한 연간 플랜',
-          features: [
-            '20% 할인',
-            '매월 400,000 포인트 제공',
-            '엑셀 다운로드 무제한',
-          ],
+          features: ['20% 할인', '매월 400,000 포인트 제공', '엑셀 다운로드 무제한'],
           popular: false,
           upcoming: false,
         },
       ];
+
   const featureCards = [
     {
       label: '무료체험',
@@ -207,9 +115,9 @@ export default function LandingTestPage() {
       description: '설명서를 읽기 전에 엑셀 파일이나 카톡 주문문구로 결과를 먼저 확인할 수 있습니다.',
     },
     {
-      label: '주문정리',
-      title: '쇼핑몰별 주문을 한 파일로',
-      description: '스마트스토어, 쿠팡, 오픈마켓 등 서로 다른 주문 형태를 택배사 업로드용으로 정리합니다.',
+      label: '주문연동',
+      title: '쇼핑몰 주문을 한 흐름으로',
+      description: '스마트스토어, 쿠팡, 오픈마켓 주문을 가져와 파일 정리와 이어서 처리합니다.',
     },
     {
       label: '송장변환',
@@ -222,15 +130,12 @@ export default function LandingTestPage() {
       description: '이미지 압축, PDF 병합, 엑셀 변환처럼 자주 필요한 작업을 웹에서 바로 처리합니다.',
     },
   ];
+
   const planComparisonRows = betaMode
     ? [
         { label: '오픈 베타', free: '가능', monthly: '—', yearly: '—' },
-        {
-          label: '월 포인트',
-          free: `${signupBonusLabel}P`,
-          monthly: '400,000P',
-          yearly: '400,000P',
-        },
+        { label: '주문연동', free: '오픈 베타', monthly: '—', yearly: '—' },
+        { label: '월 포인트', free: `${signupBonusLabel}P`, monthly: '400,000P', yearly: '400,000P' },
         { label: '엑셀 다운로드', free: '무제한', monthly: '무제한', yearly: '무제한' },
         { label: '추천 대상', free: '베타 이용', monthly: '정식 출시 후', yearly: '정식 출시 후' },
       ]
@@ -242,155 +147,26 @@ export default function LandingTestPage() {
       ];
 
   return (
-    <div className="landing-soft-font pt-6 bg-zinc-50 dark:bg-black min-h-screen">
-      <LandingHeroSection />
+    <div className="landing-soft-font min-h-screen bg-zinc-50 pt-[3.15rem] dark:bg-black">
+      <LandingTestHeroSection />
+      <LandingTestOpenBetaBenefits />
 
       <main className={landingContainerClass}>
-        <section id="free-trial" className="blue-unified-theme scroll-mt-24 pt-8 pb-8 lg:pt-12 lg:pb-12">
-          <div className="relative z-10 flex flex-col gap-8">
-            <div className="flex flex-col items-center text-center max-w-3xl mx-auto pt-2 pb-2 lg:pt-4">
-              <h2 className="text-xl font-extrabold text-zinc-950 dark:text-zinc-100 sm:text-2xl break-keep">
-                무료 테스트
-              </h2>
-              <p className="mt-3 text-base sm:text-lg font-semibold text-zinc-700 dark:text-zinc-300 leading-snug break-keep">
-                {betaMode ? (
-                  <>
-                    파일을 올리거나 카톡 주문문구를 붙여넣어 바로 결과를 확인해 보세요.
-                    <br className="hidden sm:block" />
-                    가입하면 부분 주문연동과 매월 {signupBonusLabel}P도 함께 이용할 수 있습니다.
-                  </>
-                ) : (
-                  <>
-                    복잡한 주문 정리, 먼저 무료로 테스트해보세요.
-                    <br className="hidden sm:block" />
-                    편리하면{' '}
-                    <span className="font-bold text-emerald-700 dark:text-emerald-400">월 4,000원</span>
-                    으로 계속 사용할 수 있습니다.
-                  </>
-                )}
-              </p>
-            </div>
+        <LandingTestFeatureStories />
+        <LandingTestTrialSection />
+        <LandingTestWorkflowSection />
 
-            {/* 홈에서도 바로 체험 가능: 기존 /trial 페이지는 그대로 유지 */}
-            <div className="w-full">
-              <TrialEmbed trialMode landingEmbed />
-              <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
-                파일 업로드가 부담되면 카톡 주문문구를 붙여넣어도 테스트할 수 있습니다.{' '}
-                <Link href="/trial" className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300">
-                  전체 화면 체험
-                </Link>
-                {' · '}
-                <Link
-                  href="/invoice-file-convert/trial"
-                  className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300"
-                >
-                  송장변환 체험
-                </Link>
-                도 사용할 수 있습니다.
-              </p>
-              <div className="mt-8 w-full">
-                <div className="invoice-native-theme">
-                  <InvoiceFileConvertTrialModeProvider trialMode>
-                    <InvoiceTrialEmbed />
-                  </InvoiceFileConvertTrialModeProvider>
-                </div>
-                <p className="mt-2 text-center text-sm sm:text-base text-zinc-500 dark:text-zinc-500 leading-snug">
-                  송장변환 전체 화면이 필요하면{' '}
-                  <Link
-                    href="/invoice-file-convert/trial"
-                    className="text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300"
-                  >
-                    송장변환 체험 전용 페이지
-                  </Link>
-                  로 이동할 수 있습니다.
-                </p>
-              </div>
-            </div>
-
-            <div className="mx-auto max-w-4xl px-3 pt-16 pb-8 text-center lg:pt-20 lg:pb-10">
-              <h2 className="text-3xl font-extrabold leading-snug text-zinc-950 dark:text-zinc-100 sm:text-4xl [word-break:keep-all]">
-                주문 확인은 그대로,
-                <br />
-                파일 정리는 더 간단하게.
-              </h2>
-              <p className="mt-5 text-lg font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-xl [word-break:keep-all]">
-                내려받은 주문 엑셀을 택배사 양식에 맞춰 전달하면 됩니다.
-              </p>
-              <p className="mt-2 text-lg font-semibold leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-xl [word-break:keep-all]">
-                복잡한 주문관리 프로그램을 새로 배울 필요가 없습니다.
-              </p>
-            </div>
-
-            <div className="mx-auto grid w-full max-w-6xl items-start gap-4 lg:grid-cols-[210px_minmax(0,1024px)]">
-              <div className="space-y-3 pt-10 lg:pt-16">
-                <div className="grid grid-cols-2 gap-2">
-                  {shoppingMallCards.map((mall) => (
-                    <div
-                      key={mall.name}
-                      className="flex min-h-[54px] flex-col items-center justify-center rounded-xl border border-zinc-200 bg-white px-2 py-2 text-center shadow-sm"
-                    >
-                      <ShoppingMallBrand type={mall.key} />
-                      <span className="mt-1 text-[12px] font-black leading-none text-black [word-break:keep-all]">
-                        {mall.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex h-[92px] flex-col items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 via-teal-700 to-blue-900 px-3 text-center shadow-sm">
-                  <p className="text-[15px] font-black leading-tight text-amber-200 [word-break:keep-all]">
-                    여러 쇼핑몰 주문을
-                  </p>
-                  <p className="mt-1 text-[15px] font-black leading-tight text-amber-200 [word-break:keep-all]">
-                    택배사 양식으로 정리
-                  </p>
-                </div>
-
-                <div className="space-y-1.5 pt-4 lg:pt-5">
-                  {courierCards.map((courier) => (
-                    <div
-                      key={courier.name}
-                      className="flex min-h-[32px] items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 shadow-sm"
-                    >
-                      <span
-                        className="w-[46px] shrink-0 text-center text-[11px] font-black leading-none tracking-tight"
-                        style={{ color: courier.color }}
-                      >
-                        {courier.logo}
-                      </span>
-                      <span className="text-center text-[12px] font-black text-black [word-break:keep-all]">
-                        {courier.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Image
-                src="/landing/quick-order-preview2.png"
-                alt="엑클로드 빠른 주문 정리 화면 미리보기"
-                width={1024}
-                height={576}
-                priority
-                unoptimized
-                className="ml-auto h-auto w-full max-w-[1024px]"
-              />
-            </div>
-
-            {/* 기존 데모 애니메이션 자리 — 3단계 안내 (참고 랜딩) */}
-            <div className="w-full pt-12 pb-4 lg:pt-16 lg:pb-6">
-              <div className="mx-auto w-full max-w-6xl">
-                <div className="rounded-2xl border border-blue-200 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-7 lg:p-8">
-                  <LandingHowToSteps variant="embedded" />
-                </div>
-              </div>
+        <section className="py-10 lg:py-14">
+          <div className="mx-auto w-full max-w-6xl">
+            <div className="rounded-2xl border border-blue-200 bg-white/90 p-5 shadow-sm dark:border-blue-900 dark:bg-zinc-900/90 md:p-7 lg:p-8">
+              <LandingHowToSteps variant="embedded" />
             </div>
           </div>
         </section>
 
         <LandingWhyHowCarriers />
 
-        <section className="py-12 lg:py-16">
+        <section className="py-8 lg:py-11">
           <div className="mx-auto max-w-6xl px-3">
             <div className="mb-8 text-center lg:mb-10">
               <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
@@ -400,7 +176,8 @@ export default function LandingTestPage() {
                 필요한 기능만 한눈에 보이게
               </h2>
               <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-zinc-500 dark:text-zinc-400">
-                쇼핑몰 운영자가 실제로 자주 쓰는 흐름만 남겨, 처음 들어와도 어디를 눌러야 할지 바로 알 수 있게 정리했습니다.
+                쇼핑몰 운영자가 실제로 자주 쓰는 흐름만 남겨, 처음 들어와도 어디를 눌러야 할지 바로 알 수 있게
+                정리했습니다.
               </p>
             </div>
 
@@ -437,10 +214,9 @@ export default function LandingTestPage() {
 
         <LandingPrePricingCta />
 
-        {/* 가격 섹션 */}
-        <section className="py-16 lg:py-24">
+        <section className="py-11 lg:py-[4.2rem]">
           <div className="mx-auto max-w-6xl">
-            <div className="mb-10 text-center">
+            <div className="mb-7 text-center">
               <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
                 PRICE PLAN
               </p>
@@ -452,9 +228,8 @@ export default function LandingTestPage() {
               <p className="mx-auto mt-3 max-w-2xl text-zinc-600 dark:text-zinc-400">
                 {betaMode ? (
                   <>
-                    회원가입 시 {signupBonusLabel}P를 제공하고, 베타 기간에는 매월 {signupBonusLabel}{' '}
-                    포인트 사용량을 제공합니다. 엑셀 다운로드는 무제한 가능하며, 텍스트 변환 시 글자
-                    수만큼 포인트가 차감됩니다.
+                    회원가입 시 {signupBonusLabel}P를 제공하고, 베타 기간에는 매월 {signupBonusLabel} 포인트
+                    사용량을 제공합니다. 주문연동·파일 변환을 무료로 먼저 이용해 보세요.
                   </>
                 ) : (
                   '핵심 차이만 빠르게 볼 수 있게 카드와 비교표로 정리했습니다.'
@@ -462,8 +237,8 @@ export default function LandingTestPage() {
               </p>
               {betaMode ? (
                 <p className="mx-auto mt-4 max-w-xl text-sm text-zinc-500">
-                  현재 표시된 유료 요금제는 정식 출시 후 적용될 예상 요금입니다. 오픈 베타 이용자는
-                  자동으로 유료 전환되지 않습니다.
+                  현재 표시된 유료 요금제는 정식 출시 후 적용될 예상 요금입니다. 오픈 베타 이용자는 자동으로 유료
+                  전환되지 않습니다.
                 </p>
               ) : (
                 <div className="mx-auto mt-6 inline-flex rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
@@ -494,9 +269,7 @@ export default function LandingTestPage() {
                   ) : null}
 
                   <div className="text-center">
-                    <h3 className="text-xl font-extrabold text-zinc-950 dark:text-zinc-100">
-                      {plan.name}
-                    </h3>
+                    <h3 className="text-xl font-extrabold text-zinc-950 dark:text-zinc-100">{plan.name}</h3>
                     <p className="mt-3 min-h-[2.5rem] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
                       {plan.description}
                     </p>
@@ -514,7 +287,7 @@ export default function LandingTestPage() {
                         key={feature}
                         className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300"
                       >
-                        <Check className="w-4 h-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -532,7 +305,7 @@ export default function LandingTestPage() {
                     <Link
                       href={
                         betaMode && plan.planKey === 'free'
-                          ? '/auth/signup'
+                          ? '/auth'
                           : `/subscribe?plan=${encodeURIComponent(plan.planKey)}`
                       }
                       className={`mt-7 block w-full rounded-lg px-4 py-3 text-center text-sm font-bold transition ${
@@ -584,7 +357,10 @@ export default function LandingTestPage() {
                 : '표시된 금액과 제공량은 현재 서비스 기준입니다. 자세한 결제 조건은 가격 페이지에서 확인하세요.'}
             </p>
             <div className="mt-3 text-center">
-              <Link href="/pricing" className="text-sm text-blue-700 dark:text-blue-400 hover:underline underline-offset-2">
+              <Link
+                href="/pricing"
+                className="text-sm text-blue-700 underline underline-offset-2 hover:underline dark:text-blue-400"
+              >
                 가격 페이지 전체 보기
               </Link>
             </div>

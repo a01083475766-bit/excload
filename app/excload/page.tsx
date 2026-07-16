@@ -137,26 +137,26 @@ export default function HomePage() {
       ];
 
   return (
-    <div className="landing-soft-font min-h-screen bg-zinc-50 pt-6 dark:bg-black">
+    <div className="landing-soft-font min-h-screen bg-zinc-50 pt-[3.15rem] dark:bg-black">
       <LandingHeroSection />
 
       {betaMode ? <OpenBetaLandingTop /> : null}
 
       <section
         id="free-trial"
-        className="scroll-mt-24 border-b border-zinc-200 bg-white py-8 dark:border-zinc-800 dark:bg-zinc-950 sm:py-10"
+        className="scroll-mt-24 border-b border-zinc-200 bg-white py-11 dark:border-zinc-800 dark:bg-zinc-950 sm:py-14"
       >
         <div className={landingContainerClass}>
-          <div className="max-w-3xl">
+          <div className="mb-3 max-w-3xl sm:mb-4">
             <h2 className="break-keep text-2xl font-bold text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
               무료 테스트
             </h2>
-            <p className="mt-3 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
+            <p className="mt-4 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
               가입 전에 주문 파일이나 카톡 주문문구로 변환 결과를 바로 확인해 보세요.
             </p>
           </div>
 
-          <div className="mt-5 w-full">
+          <div className="mt-7 w-full">
             <div className="overflow-hidden border border-zinc-200 dark:border-zinc-800">
               <TrialEmbed trialMode landingEmbed />
             </div>
@@ -216,16 +216,16 @@ export default function HomePage() {
 
       {betaMode ? <OpenBetaLandingBottom /> : null}
 
-      <section id="pricing" className="bg-zinc-50 py-12 dark:bg-black sm:py-16">
+      <section id="pricing" className="bg-zinc-50 py-[4.2rem] dark:bg-black sm:py-[5.6rem]">
         <div className={landingContainerClass}>
-          <div className="mb-8 max-w-3xl">
+          <div className="mb-11 max-w-3xl">
             <p className="text-xs font-bold tracking-[0.18em] text-blue-600">PRICE PLAN</p>
-            <h2 className="mt-2 break-keep text-2xl font-bold text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
+            <h2 className="mt-3 break-keep text-2xl font-bold text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
               {betaMode
                 ? '오픈 베타 기간에는 무료로 이용할 수 있습니다'
                 : '무료로 먼저 써보고, 필요할 때만 업그레이드'}
             </h2>
-            <p className="mt-3 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
+            <p className="mt-4 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
               {betaMode ? (
                 <>
                   회원가입 시 {signupBonusLabel}P · 매월 {signupBonusLabel} 포인트 사용량을 제공합니다.

@@ -14,27 +14,38 @@ export async function POST(request: NextRequest) {
     const form = await request.formData();
 
     const type = String(form.get('type') ?? 'general').trim();
-    const name = String(form.get('name') ?? '').trim();
     const email = String(form.get('email') ?? '').trim();
-    const subject = String(form.get('subject') ?? '').trim();
-    const message = String(form.get('message') ?? '').trim();
+    const isBetaNews = type === 'beta_news';
+
+    let name = String(form.get('name') ?? '').trim();
+    let subject = String(form.get('subject') ?? '').trim();
+    let message = String(form.get('message') ?? '').trim();
     const company = String(form.get('company') ?? '').trim();
     const phone = String(form.get('phone') ?? '').trim();
 
-    if (!name || name.length > 80) {
-      return NextResponse.json({ error: '이름을 확인해 주세요.' }, { status: 400 });
-    }
-    if (!isValidContactEmail(email)) {
-      return NextResponse.json({ error: '이메일 형식을 확인해 주세요.' }, { status: 400 });
-    }
-    if (!subject || subject.length > 200) {
-      return NextResponse.json({ error: '제목을 확인해 주세요.' }, { status: 400 });
-    }
-    if (!message || message.length > CONTACT_MESSAGE_MAX_LENGTH) {
-      return NextResponse.json(
-        { error: `문의 내용을 ${CONTACT_MESSAGE_MAX_LENGTH}자 이내로 입력해 주세요.` },
-        { status: 400 }
-      );
+    if (isBetaNews) {
+      if (!isValidContactEmail(email)) {
+        return NextResponse.json({ error: '이메일 형식을 확인해 주세요.' }, { status: 400 });
+      }
+      name = name || '소식 신청';
+      subject = subject || '오픈 베타 소식 신청';
+      message = message || '오픈 베타·쇼핑몰 연동 업데이트 소식을 이메일로 받고 싶습니다.';
+    } else {
+      if (!name || name.length > 80) {
+        return NextResponse.json({ error: '이름을 확인해 주세요.' }, { status: 400 });
+      }
+      if (!isValidContactEmail(email)) {
+        return NextResponse.json({ error: '이메일 형식을 확인해 주세요.' }, { status: 400 });
+      }
+      if (!subject || subject.length > 200) {
+        return NextResponse.json({ error: '제목을 확인해 주세요.' }, { status: 400 });
+      }
+      if (!message || message.length > CONTACT_MESSAGE_MAX_LENGTH) {
+        return NextResponse.json(
+          { error: `문의 내용을 ${CONTACT_MESSAGE_MAX_LENGTH}자 이내로 입력해 주세요.` },
+          { status: 400 }
+        );
+      }
     }
 
     const typeLabel = getInquiryTypeLabel(type);
@@ -107,7 +118,9 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({
         success: true,
-        message: '문의가 접수되었습니다. 입력하신 이메일로 접수 확인 메일을 보내드렸습니다.',
+        message: isBetaNews
+          ? '소식 신청이 접수되었습니다. 업데이트 소식을 이메일로 보내드리겠습니다.'
+          : '문의가 접수되었습니다. 입력하신 이메일로 접수 확인 메일을 보내드렸습니다.',
         inquiryId,
         dbSaved: !!inquiryId,
       });

@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Mail, MessageCircle, HelpCircle, Send, Phone, Paperclip } from 'lucide-react';
 
 const initialFormData = {
@@ -13,9 +15,11 @@ const initialFormData = {
   phone: '',
 };
 
-export default function ContactPage() {
-  const [formData, setFormData] = useState(initialFormData);
+function ContactPageContent() {
+  const searchParams = useSearchParams();
+  const isBetaNews = searchParams?.get('intent') === 'beta-news';
 
+  const [formData, setFormData] = useState(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentName, setAttachmentName] = useState<string | null>(null);
@@ -23,6 +27,69 @@ export default function ContactPage() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+
+  const handleBetaNewsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitFeedback(null);
+
+    const email = formData.email.trim();
+    if (!email) {
+      setSubmitFeedback({ type: 'error', message: '이메일을 입력해 주세요.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const body = new FormData();
+      body.set('type', 'beta_news');
+      body.set('email', email);
+
+      const res = await fetch('/api/contact', { method: 'POST', body });
+      let data: Record<string, unknown> = {};
+      try {
+        data = (await res.json()) as Record<string, unknown>;
+      } catch {
+        throw new Error('서버 응답을 읽을 수 없습니다.');
+      }
+
+      if (!res.ok) {
+        if (data?.inquiryId) {
+          setFormData(initialFormData);
+          setSubmitFeedback({
+            type: 'success',
+            message:
+              (typeof data.error === 'string' ? data.error : null) ||
+              '소식 신청은 접수되었습니다. 확인 메일 발송에 실패했을 수 있으니 잠시만 기다려 주세요.',
+          });
+          return;
+        }
+        setSubmitFeedback({
+          type: 'error',
+          message:
+            (typeof data.error === 'string' ? data.error : null) || '소식 신청에 실패했습니다.',
+        });
+        return;
+      }
+
+      setFormData(initialFormData);
+      setSubmitFeedback({
+        type: 'success',
+        message:
+          (typeof data.message === 'string' ? data.message : null) ||
+          '소식 신청이 접수되었습니다. 업데이트 소식을 이메일로 보내드리겠습니다.',
+      });
+    } catch (err) {
+      setSubmitFeedback({
+        type: 'error',
+        message:
+          err instanceof Error
+            ? err.message
+            : '소식 신청 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,10 +218,88 @@ export default function ContactPage() {
     },
   ];
 
+  if (isBetaNews) {
+    return (
+      <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
+        <main className="mx-auto max-w-xl px-3 py-8 sm:px-5 lg:px-8">
+          <section className="mb-6 border border-blue-100 bg-white px-5 py-8 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8">
+            <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
+              OPEN BETA NEWS
+            </p>
+            <h1 className="mt-3 text-2xl font-bold tracking-tight text-zinc-950 dark:text-zinc-100 sm:text-3xl">
+              업데이트 소식 신청
+            </h1>
+            <p className="mx-auto mt-3 max-w-md break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
+              이메일만 남겨 주시면, 새로운 쇼핑몰 연동과 오픈 베타 소식을 보내드립니다.
+            </p>
+          </section>
+
+          <div className="border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-8">
+            <form onSubmit={handleBetaNewsSubmit} className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  이메일
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full rounded-md border border-zinc-200 bg-white px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              {submitFeedback ? (
+                <p
+                  className={`rounded-md px-4 py-3 text-sm ${
+                    submitFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                      : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200'
+                  }`}
+                  role="alert"
+                >
+                  {submitFeedback.message}
+                </p>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
+                    <span>신청 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-5 w-5" />
+                    소식 신청하기
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="mt-5 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              문의가 필요하시면{' '}
+              <Link href="/contact" className="font-semibold text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                고객문의
+              </Link>
+              로 이동해 주세요.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 pt-12 dark:bg-black">
       <main className="mx-auto max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
-        {/* 헤더 */}
         <section className="mb-8 rounded-xl border border-blue-100 bg-white px-5 py-10 text-center shadow-sm dark:border-blue-950 dark:bg-zinc-900 sm:px-8 lg:mb-10 lg:px-12">
           <p className="text-xs font-bold tracking-[0.22em] text-blue-600 dark:text-blue-400">
             CONTACT
@@ -176,24 +321,22 @@ export default function ContactPage() {
         </section>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
-          {/* 문의 폼 */}
           <div className="lg:col-span-2">
             <div className="space-y-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-8">
               <h2 className="mb-6 text-2xl font-black text-zinc-950 dark:text-zinc-100">
                 문의하기
               </h2>
-              
+
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* 문의 유형 */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                       문의 유형
                     </label>
                     <select
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                     >
                       <option value="general">일반 문의</option>
                       <option value="billing">결제 문의</option>
@@ -208,71 +351,70 @@ export default function ContactPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     이름
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder="이름을 입력해주세요"
                     required
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     이메일
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder="이메일을 입력해주세요"
                     required
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     제목
                   </label>
                   <input
                     type="text"
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder="문의 제목을 입력해주세요"
                     required
                   />
                 </div>
-                
-                {/* 비즈니스 문의 전용 필드 */}
+
                 {formData.type === 'business' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                      <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         회사명
                       </label>
                       <input
                         type="text"
                         value={formData.company}
                         onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                        className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                         placeholder="회사명을 입력해주세요"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                      <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         연락처
                       </label>
                       <input
                         type="text"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                         placeholder="연락 가능한 전화번호를 입력해주세요"
                       />
                     </div>
@@ -280,14 +422,14 @@ export default function ContactPage() {
                 )}
 
                 <div className="grid grid-cols-1 gap-4">
-                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     문의 내용
                   </label>
                   <textarea
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     rows={10}
-                    className="w-full px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm leading-relaxed"
+                    className="w-full resize-none rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm leading-relaxed text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                     placeholder={
                       formData.type === 'business'
                         ? '협업 또는 제안 내용을 자세히 작성해주세요'
@@ -295,21 +437,20 @@ export default function ContactPage() {
                     }
                     required
                   />
-                  {/* 첨부파일 */}
                   <div>
-                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                       첨부파일 (선택)
                     </label>
                     <label className="flex flex-col items-start justify-between gap-3 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 transition-colors hover:border-blue-500 hover:bg-blue-50/60 dark:border-zinc-700 dark:bg-zinc-900/40 dark:hover:bg-zinc-800/60 sm:flex-row sm:items-center">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
-                          <Paperclip className="w-4 h-4" />
+                          <Paperclip className="h-4 w-4" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-xs sm:text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                          <span className="text-xs font-medium text-zinc-800 dark:text-zinc-100 sm:text-sm">
                             파일 선택
                           </span>
-                          <span className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400">
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 sm:text-xs">
                             스크린샷, 엑셀 파일 등을 첨부하시면 더 빠르게 도와드릴 수 있어요.
                           </span>
                         </div>
@@ -330,9 +471,9 @@ export default function ContactPage() {
                   </div>
                 </div>
 
-                {submitFeedback && (
+                {submitFeedback ? (
                   <p
-                    className={`text-sm rounded-lg px-4 py-3 ${
+                    className={`rounded-lg px-4 py-3 text-sm ${
                       submitFeedback.type === 'success'
                         ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
                         : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200'
@@ -341,12 +482,12 @@ export default function ContactPage() {
                   >
                     {submitFeedback.message}
                   </p>
-                )}
-                
+                ) : null}
+
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 hover:shadow-md disabled:cursor-not-allowed disabled:bg-blue-400"
                 >
                   {isSubmitting ? (
                     <>
@@ -355,7 +496,7 @@ export default function ContactPage() {
                     </>
                   ) : (
                     <>
-                      <Send className="w-5 h-5" />
+                      <Send className="h-5 w-5" />
                       문의하기
                     </>
                   )}
@@ -364,32 +505,31 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* 연락처 정보 */}
           <div className="space-y-6">
             <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-6">
               <h3 className="mb-4 text-lg font-black text-zinc-950 dark:text-zinc-100">
                 문의 및 안내
               </h3>
-              
+
               <div className="space-y-4 text-sm">
                 <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <Mail className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
                   <div>
                     <p className="font-medium text-zinc-700 dark:text-zinc-300">📧 이메일</p>
                     <p className="text-zinc-600 dark:text-zinc-400">sacom5766@naver.com</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3">
-                  <Phone className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <Phone className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
                   <div>
                     <p className="font-medium text-zinc-700 dark:text-zinc-300">🕐 운영 시간</p>
                     <p className="text-zinc-600 dark:text-zinc-400">평일 10:00 ~ 18:00</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3">
-                  <MessageCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
                   <div>
                     <p className="font-medium text-zinc-700 dark:text-zinc-300">💬 안내</p>
                     <p className="text-zinc-600 dark:text-zinc-400">
@@ -400,22 +540,22 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* FAQ */}
             <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:p-6">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-zinc-950 dark:text-zinc-100">
-                <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <HelpCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 자주 묻는 질문
               </h3>
-              
+
               <div className="space-y-4">
                 {faqs.map((faq, index) => (
-                  <div key={index} className="border-b border-zinc-200 dark:border-zinc-800 pb-4 last:border-0">
-                    <p className="font-medium text-zinc-900 dark:text-zinc-100 mb-1 text-sm">
+                  <div
+                    key={index}
+                    className="border-b border-zinc-200 pb-4 last:border-0 dark:border-zinc-800"
+                  >
+                    <p className="mb-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                       {faq.question}
                     </p>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {faq.answer}
-                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{faq.answer}</p>
                   </div>
                 ))}
               </div>
@@ -424,5 +564,19 @@ export default function ContactPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-zinc-50 pt-12 text-sm text-zinc-500 dark:bg-black">
+          불러오는 중...
+        </div>
+      }
+    >
+      <ContactPageContent />
+    </Suspense>
   );
 }
