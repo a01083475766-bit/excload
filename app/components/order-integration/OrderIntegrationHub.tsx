@@ -57,8 +57,9 @@ import {
   loadHubTemplateBridge,
 } from '@/app/lib/order-integration/order-integration-hub-convert';
 import {
-  clearHubPendingFetchTransfer,
-  readHubPendingFetchTransfer,
+  consumeHubPendingFetchTransfer,
+  HUB_PENDING_FETCH_STORAGE_KEY,
+  isPendingFetchCacheReusable,
 } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 import type { HubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 import {
@@ -281,14 +282,41 @@ export default function OrderIntegrationHub() {
   );
 
   const tryApplyPendingFetch = useCallback(async () => {
-    const fromStorage = readHubPendingFetchTransfer();
-    if (fromStorage) {
-      pendingFetchSessionCache = fromStorage;
-      pendingFetchApplied = false;
+    // 사용자 식별 전에는 소비하지 않는다(다른 계정 오노출·조기 삭제 방지).
+    if (!userId) return;
+
+    // Strict Mode 리마운트/재시도 대비: 이미 소비해 캐시된 전달분 재사용.
+    // 단, 다른 사용자·만료·미지원 버전 캐시는 재사용하지 않고 폐기한다.
+    const canReuseCache =
+      !pendingFetchApplied &&
+      isPendingFetchCacheReusable(pendingFetchSessionCache, { accountScope: userId });
+    if (!canReuseCache && pendingFetchSessionCache && !pendingFetchApplied) {
+      pendingFetchSessionCache = null;
     }
-    const pending =
-      fromStorage ??
-      (!pendingFetchApplied && pendingFetchSessionCache ? pendingFetchSessionCache : null);
+    let pending: HubPendingFetchTransfer | null = canReuseCache ? pendingFetchSessionCache : null;
+
+    if (!pending) {
+      const consumed = consumeHubPendingFetchTransfer({ accountScope: userId });
+      switch (consumed.status) {
+        case 'ok':
+          pendingFetchSessionCache = consumed.transfer;
+          pendingFetchApplied = false;
+          pending = consumed.transfer;
+          break;
+        case 'expired':
+          showNotice('이전에 담은 주문 정보가 만료되었습니다.\n주문조회 화면에서 다시 담아주세요.');
+          return;
+        case 'unsupported_version':
+          showNotice('담은 주문 정보 형식이 오래되었습니다.\n주문조회 화면에서 다시 담아주세요.');
+          return;
+        case 'account_mismatch':
+        case 'invalid':
+        case 'empty':
+        default:
+          return;
+      }
+    }
+
     if (!pending || pendingFetchApplied || pendingFetchInFlight) return;
 
     pendingFetchInFlight = true;
@@ -307,7 +335,6 @@ export default function OrderIntegrationHub() {
       });
       pendingFetchApplied = true;
       pendingFetchSessionCache = null;
-      clearHubPendingFetchTransfer();
       appendPreview(result.previewRows, result.courierHeaders, bridge);
       const mallLabel =
         pending.mallSummaries.length > 0
@@ -326,6 +353,15 @@ export default function OrderIntegrationHub() {
       setStatusLabel(null);
     }
   }, [appendPreview, refreshTemplateBridge, userId]);
+
+  // 사용자 식별이 늦게 로드되는 경우 대비: userId 준비 후 대기 중인 전달분이 있으면 적용.
+  useEffect(() => {
+    if (!userId || typeof window === 'undefined') return;
+    const hasPending =
+      pendingFetchSessionCache != null ||
+      sessionStorage.getItem(HUB_PENDING_FETCH_STORAGE_KEY) != null;
+    if (hasPending) void tryApplyPendingFetch();
+  }, [userId, tryApplyPendingFetch]);
 
   usePreviewWorkspaceSession({
     pageKey: HUB_WORKSPACE_PAGE,

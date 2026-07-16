@@ -2,6 +2,12 @@ import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 import { createEmptyBaseHeaderRow, type BaseHeaderRow } from '@/app/pipeline/base/base-headers';
 import type { OrderStandardFile, StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
 import type { SmartstoreProductOrderDetail } from '@/app/lib/smartstore/client';
+import type { OrderFetchView } from '@/app/lib/order-integration/order-fetch-view';
+import {
+  EXCLOAD_ORDER_STATUS_LABEL,
+  normalizeSmartstoreOrderStatus,
+  normalizeSmartstorePlaceOrderStatus,
+} from '@/app/lib/order-integration/order-status';
 
 const SMARTSTORE_STATUS_LABEL: Record<string, string> = {
   PAYED: '결제완료',
@@ -40,6 +46,44 @@ function normalizePhone(value?: string | null): string {
   return value.replace(/[^\d+]/g, '').replace(/^\+82/, '0');
 }
 
+/**
+ * 결제 금액 선택: 네이버 수량 클레임 확대 이후 폐기 예정인 totalPaymentAmount 대신
+ * remain(호출 시점) → initial(주문 시점) → total(레거시) 순으로 사용한다.
+ */
+function pickPaymentAmount(productOrder: NonNullable<SmartstoreProductOrderDetail['productOrder']>): string {
+  const amount =
+    productOrder.remainPaymentAmount ??
+    productOrder.initialPaymentAmount ??
+    productOrder.totalPaymentAmount;
+  return amount != null ? String(amount) : '';
+}
+
+/**
+ * 처리(발송 대상) 수량 선택: remain(호출 시점 잔여) → quantity(레거시) → initial(주문 시점) 순.
+ * 부분 클레임 후 실제 발송해야 하는 수량을 반영한다.
+ */
+function pickProcessingQuantity(
+  productOrder: NonNullable<SmartstoreProductOrderDetail['productOrder']>,
+): number {
+  const quantity =
+    productOrder.remainQuantity ?? productOrder.quantity ?? productOrder.initialQuantity;
+  return quantity != null ? quantity : 1;
+}
+
+const SMARTSTORE_CLAIM_TYPE_LABEL: Record<string, string> = {
+  CANCEL: '취소',
+  RETURN: '반품',
+  EXCHANGE: '교환',
+};
+
+function claimLabelOf(
+  productOrder: NonNullable<SmartstoreProductOrderDetail['productOrder']>,
+): string {
+  const type = (productOrder.claimType ?? '').trim().toUpperCase();
+  if (!type) return '';
+  return SMARTSTORE_CLAIM_TYPE_LABEL[type] ?? type;
+}
+
 export function mapSmartstoreOrderToStandardRow(detail: SmartstoreProductOrderDetail): BaseHeaderRow {
   const row = createEmptyBaseHeaderRow();
   const order = detail.order ?? {};
@@ -51,6 +95,8 @@ export function mapSmartstoreOrderToStandardRow(detail: SmartstoreProductOrderDe
   row['주문상태'] = mapStatusLabel(productOrder.productOrderStatus);
   row['주문일시'] = order.orderDate ?? '';
   row['결제일시'] = order.paymentDate ?? '';
+  row['결제금액'] = pickPaymentAmount(productOrder);
+  row['결제구분'] = order.paymentMeans ?? '';
   row['주문자'] = order.ordererName ?? '';
   row['주문자연락처'] = normalizePhone(order.ordererTel);
   row['받는사람'] = shipping.name ?? '';
@@ -61,10 +107,59 @@ export function mapSmartstoreOrderToStandardRow(detail: SmartstoreProductOrderDe
   row['배송메시지'] = productOrder.shippingMemo ?? '';
   row['상품명'] = productOrder.productName ?? '';
   row['상품옵션'] = productOrder.productOption ?? '';
-  row['수량'] = productOrder.quantity != null ? String(productOrder.quantity) : '1';
+  row['수량'] = String(pickProcessingQuantity(productOrder));
+  row['상품코드'] = productOrder.sellerProductCode ?? '';
   row['판매처'] = '스마트스토어';
 
   return row;
+}
+
+/**
+ * 주문조회 UI 표시용 뷰(정규화 상태·발주상태·클레임 포함).
+ * 표준행 배열과 동일한 순서(index)로 정렬된다.
+ */
+export function mapSmartstoreOrdersToFetchViews(
+  orders: SmartstoreProductOrderDetail[],
+): OrderFetchView[] {
+  return orders.map((detail, index) => {
+    const order = detail.order ?? {};
+    const productOrder = detail.productOrder ?? {};
+    const shipping = productOrder.shippingAddress ?? {};
+    const status = normalizeSmartstoreOrderStatus(productOrder.productOrderStatus);
+    const address = [shipping.baseAddress ?? '', shipping.detailedAddress ?? '']
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const processingQuantity = pickProcessingQuantity(productOrder);
+    return {
+      rowIndex: index,
+      status,
+      statusLabel:
+        mapStatusLabel(productOrder.productOrderStatus) || EXCLOAD_ORDER_STATUS_LABEL[status],
+      placeOrderStatus: normalizeSmartstorePlaceOrderStatus(productOrder.placeOrderStatus),
+      orderNo: order.orderId ?? '',
+      productOrderNo: productOrder.productOrderId ?? order.orderId ?? '',
+      paidAt: order.paymentDate ?? '',
+      orderedAt: order.orderDate ?? '',
+      productName: productOrder.productName ?? '',
+      productOption: productOrder.productOption ?? '',
+      quantity: String(processingQuantity),
+      remainQuantity: productOrder.remainQuantity ?? processingQuantity,
+      initialQuantity: productOrder.initialQuantity,
+      receiverName: shipping.name ?? '',
+      paymentAmount: pickPaymentAmount(productOrder),
+      paymentMeans: order.paymentMeans ?? '',
+      hasTracking: false,
+      claimLabel: claimLabelOf(productOrder),
+      detail: {
+        ordererName: order.ordererName ?? '',
+        receiverPhone: normalizePhone(shipping.tel1 || shipping.tel2),
+        receiverAddress: address,
+        deliveryMemo: productOrder.shippingMemo ?? '',
+        sellerProductCode: productOrder.sellerProductCode ?? '',
+      },
+    };
+  });
 }
 
 export function mapSmartstoreOrdersToStandardRows(

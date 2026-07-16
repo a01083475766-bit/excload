@@ -181,13 +181,43 @@ export type SmartstoreProductOrderDetail = {
     paymentDate?: string;
     ordererName?: string;
     ordererTel?: string;
+    /** 결제 수단 (예: 신용카드, 무통장입금 등). */
+    paymentMeans?: string;
   };
   productOrder?: {
     productOrderId?: string;
     productName?: string;
     productOption?: string;
+    /** 레거시 수량(호환용 폴백). 처리 수량은 remain → quantity → initial 순으로 판단. */
     quantity?: number;
+    /** 주문 시점 수량(클레임 이후에도 불변). */
+    initialQuantity?: number;
+    /** API 호출 시점 잔여 수량(부분/전체 클레임 반영). */
+    remainQuantity?: number;
     productOrderStatus?: string;
+    /** 발주확인 상태 (NOT_YET / OK). 상세 조회로만 확인 가능. */
+    placeOrderStatus?: string;
+    placeOrderDate?: string;
+    /** 클레임(취소·반품·교환) 상태·유형. */
+    claimStatus?: string;
+    claimType?: string;
+    /** 진행 중 클레임 요청 수량. */
+    currentClaim?: {
+      cancel?: { requestQuantity?: number };
+      return?: { requestQuantity?: number };
+      exchange?: { requestQuantity?: number };
+    };
+    /** 완료된 클레임 내역(판정 참고용, 신규 처리 기능은 만들지 않음). */
+    completedClaims?: Array<{ claimType?: string; claimStatus?: string; claimQuantity?: number }>;
+    /** 판매자 상품코드. */
+    sellerProductCode?: string;
+    /**
+     * 결제 금액. 네이버 수량 클레임 확대 이후 initial-/remain- 필드로 세분화됨.
+     * 폐기 예정인 totalPaymentAmount 대비 remain(호출 시점) → initial(주문 시점) 순으로 사용.
+     */
+    totalPaymentAmount?: number;
+    initialPaymentAmount?: number;
+    remainPaymentAmount?: number;
     shippingMemo?: string;
     shippingAddress?: {
       name?: string;
@@ -350,7 +380,8 @@ export async function collectSmartstoreProductOrders(input: {
       detailResponse = await input.request<{ data?: SmartstoreProductOrderDetail[] }>({
         method: 'POST',
         pathWithQuery: '/external/v1/pay-order/seller/product-orders/query',
-        body: JSON.stringify({ productOrderIds: batchIds }),
+        // 수량 클레임(부분 취소·반품·교환) 확대 대응: initial-/remain- 필드를 받기 위해 필수.
+        body: JSON.stringify({ productOrderIds: batchIds, quantityClaimCompatibility: true }),
         contentType: 'application/json',
       });
     } catch (error) {

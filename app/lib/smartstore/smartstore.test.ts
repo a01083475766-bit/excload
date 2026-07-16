@@ -5,7 +5,11 @@ import {
 } from '@/app/lib/integration-proxy/allowed-domains';
 import { resolveIntegrationTransportMode } from '@/app/lib/integration-proxy/config';
 import { generateSmartstoreClientSecretSign } from '@/app/lib/smartstore/client';
-import { mapSmartstoreOrdersToPreviewRows } from '@/app/lib/smartstore/map-smartstore-orders';
+import {
+  mapSmartstoreOrdersToFetchViews,
+  mapSmartstoreOrdersToPreviewRows,
+} from '@/app/lib/smartstore/map-smartstore-orders';
+import { isShipmentTarget } from '@/app/lib/order-integration/order-status';
 
 describe('integration proxy allowed domains', () => {
   it('allows registered mall upstream hosts', () => {
@@ -80,5 +84,75 @@ describe('mapSmartstoreOrdersToPreviewRows', () => {
     expect(rows[0]?.['상품주문번호']).toBe('PO-1');
     expect(rows[0]?.['받는사람']).toBe('홍길동');
     expect(rows[0]?.['주문상태']).toBe('결제완료');
+  });
+});
+
+describe('수량 클레임 대응 매핑', () => {
+  it('일반 주문(initial 3 / remain 3)의 처리 수량은 3', () => {
+    const [view] = mapSmartstoreOrdersToFetchViews([
+      {
+        order: { orderId: 'ORD-1' },
+        productOrder: {
+          productOrderId: 'PO-1',
+          productOrderStatus: 'PAYED',
+          initialQuantity: 3,
+          remainQuantity: 3,
+        },
+      },
+    ]);
+    expect(view?.quantity).toBe('3');
+    expect(isShipmentTarget(view!)).toBe(true);
+  });
+
+  it('부분 취소(initial 3 / remain 2 / PAYED / CANCEL)는 전체 제외하지 않고 처리 수량 2', () => {
+    const [view] = mapSmartstoreOrdersToFetchViews([
+      {
+        order: { orderId: 'ORD-2' },
+        productOrder: {
+          productOrderId: 'PO-2',
+          productOrderStatus: 'PAYED',
+          claimType: 'CANCEL',
+          initialQuantity: 3,
+          remainQuantity: 2,
+        },
+      },
+    ]);
+    expect(view?.quantity).toBe('2');
+    expect(view?.initialQuantity).toBe(3);
+    expect(isShipmentTarget(view!)).toBe(true);
+  });
+
+  it('전체 취소(remain 0)는 송장 처리 대상이 아니다', () => {
+    const [view] = mapSmartstoreOrdersToFetchViews([
+      {
+        order: { orderId: 'ORD-3' },
+        productOrder: {
+          productOrderId: 'PO-3',
+          productOrderStatus: 'PAYED',
+          claimType: 'CANCEL',
+          initialQuantity: 2,
+          remainQuantity: 0,
+        },
+      },
+    ]);
+    expect(view?.quantity).toBe('0');
+    expect(isShipmentTarget(view!)).toBe(false);
+  });
+
+  it('결제금액은 remainPaymentAmount를 우선 사용한다', () => {
+    const [view] = mapSmartstoreOrdersToFetchViews([
+      {
+        order: { orderId: 'ORD-4', paymentMeans: '신용카드' },
+        productOrder: {
+          productOrderId: 'PO-4',
+          productOrderStatus: 'PAYED',
+          remainPaymentAmount: 20000,
+          initialPaymentAmount: 30000,
+          totalPaymentAmount: 30000,
+        },
+      },
+    ]);
+    expect(view?.paymentAmount).toBe('20000');
+    expect(view?.paymentMeans).toBe('신용카드');
   });
 });

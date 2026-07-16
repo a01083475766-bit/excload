@@ -127,6 +127,32 @@ describe('collectSmartstoreProductOrders', () => {
     expect(details).toHaveLength(350);
   });
 
+  it('모든 상세 조회 배치 요청에 quantityClaimCompatibility: true를 포함한다', async () => {
+    const ids = Array.from({ length: 350 }, (_, i) => `PO-${i}`);
+    const postBodies: Array<{ productOrderIds: string[]; quantityClaimCompatibility?: boolean }> = [];
+
+    const request = (async (req: { method: string; pathWithQuery: string; body?: string }) => {
+      if (req.method === 'GET') {
+        return { data: { lastChangeStatuses: ids.map((id) => ({ productOrderId: id })) } };
+      }
+      const body = JSON.parse(req.body ?? '{}') as {
+        productOrderIds: string[];
+        quantityClaimCompatibility?: boolean;
+      };
+      postBodies.push(body);
+      return { data: body.productOrderIds.map((id) => ({ productOrder: { productOrderId: id } })) };
+    }) as SmartstoreApiRequestFn;
+
+    await collectSmartstoreProductOrders({ request, days: 1, now: FIXED_NOW });
+
+    // 300개 초과 → 2배치, 각 배치 모두 플래그 포함
+    expect(postBodies).toHaveLength(2);
+    for (const body of postBodies) {
+      expect(body.quantityClaimCompatibility).toBe(true);
+      expect(body.productOrderIds.length).toBeGreaterThan(0);
+    }
+  });
+
   it('구간 경계에서 중복된 productOrderId를 최종적으로 제거한다', async () => {
     const postBatches: string[][] = [];
 

@@ -16,6 +16,7 @@ import {
   toUserFacingSmartstoreErrorMessage,
 } from '@/app/lib/smartstore/client';
 import {
+  mapSmartstoreOrdersToFetchViews,
   mapSmartstoreOrdersToOrderStandardFile,
   mapSmartstoreOrdersToPreviewRows,
   SMARTSTORE_PREVIEW_HEADERS,
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
     const orders = await fetchSmartstoreProductOrders({ credentials, days });
     const orderStandardFile = mapSmartstoreOrdersToOrderStandardFile(orders);
     const previewRows = mapSmartstoreOrdersToPreviewRows(orders);
+    const orderViews = mapSmartstoreOrdersToFetchViews(orders);
 
     await markSmartstoreAccountSyncResult({ accountId: account.id, success: true });
 
@@ -78,6 +80,7 @@ export async function POST(request: Request) {
       previewHeaders: SMARTSTORE_PREVIEW_HEADERS,
       previewRows,
       orderStandardFile,
+      orderViews,
       snapshotPersist,
       debug: {
         transport,
