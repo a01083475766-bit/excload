@@ -5,10 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { EXCLOAD_INTEGRATION_INFO } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
-import {
-  SHOPBY_PREVIEW_HEADERS,
-  type ShopbyPreviewRow,
-} from '@/app/lib/shopby/map-shopby-orders';
+import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
 
 type ShopbyAccountResponse = {
   id: string;
@@ -56,19 +53,20 @@ function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
   return 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100';
 }
 
-export function ShopbyIntegrationForm({ embedded = false }: { embedded?: boolean } = {}) {
+export function ShopbyIntegrationForm({
+  embedded = false,
+  onConnectionChange,
+}: { embedded?: boolean; onConnectionChange?: () => void } = {}) {
   const [loading, setLoading] = useState(true);
   const [savedAccount, setSavedAccount] = useState<ShopbyAccountResponse | null>(null);
   const [accountName, setAccountName] = useState('');
   const [mallDomain, setMallDomain] = useState('');
   const [mallKey, setMallKey] = useState('');
   const [systemKey, setSystemKey] = useState('');
-  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'fetch' | 'disconnect' | null>(null);
+  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'disconnect' | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(
     null,
   );
-  const [previewRows, setPreviewRows] = useState<ShopbyPreviewRow[]>([]);
-  const [fetchMeta, setFetchMeta] = useState<{ count: number } | null>(null);
   const [transportInfo, setTransportInfo] = useState<{
     mode: 'direct' | 'proxy';
     notes?: string;
@@ -154,6 +152,7 @@ export function ShopbyIntegrationForm({ embedded = false }: { embedded?: boolean
         kind: 'success',
         text: data.message ?? '샵바이 연동 정보가 저장되었습니다.',
       });
+      onConnectionChange?.();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
@@ -186,38 +185,6 @@ export function ShopbyIntegrationForm({ embedded = false }: { embedded?: boolean
     }
   }
 
-  async function handleFetchOrders() {
-    setBusyAction('fetch');
-    setStatusMessage(null);
-    setPreviewRows([]);
-    setFetchMeta(null);
-    try {
-      const res = await fetch('/api/order/integration/shopby/fetch-orders', { method: 'POST' });
-      const data = (await res.json()) as {
-        message?: string;
-        error?: string;
-        previewRows?: ShopbyPreviewRow[];
-        count?: number;
-      };
-      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
-
-      setPreviewRows(data.previewRows ?? []);
-      setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
-      setStatusMessage({
-        kind: 'success',
-        text: data.message ?? `샵바이 주문 ${data.count ?? 0}건을 불러왔습니다.`,
-      });
-      await loadSavedAccount();
-    } catch (error) {
-      setStatusMessage({
-        kind: 'error',
-        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
   async function handleDisconnect() {
     if (!window.confirm('저장된 샵바이 연동 정보를 삭제할까요?')) return;
 
@@ -233,12 +200,11 @@ export function ShopbyIntegrationForm({ embedded = false }: { embedded?: boolean
       setMallDomain('');
       setMallKey('');
       setSystemKey('');
-      setPreviewRows([]);
-      setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
         text: data.message ?? '샵바이 연동이 해제되었습니다.',
       });
+      onConnectionChange?.();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
@@ -281,8 +247,8 @@ export function ShopbyIntegrationForm({ embedded = false }: { embedded?: boolean
       )}
 {!embedded ? (
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        샵바이 Server API(mallKey 방식)로 연결 테스트와 주문 조회·수집을 진행할 수 있습니다. 발주확인·송장 전송·상태
-        변경·Webhook은 포함하지 않습니다.
+        샵바이 Server API(mallKey 방식)로 연결 테스트를 진행할 수 있습니다. 실제 주문 조회·수집은 주문연동 화면에서
+        진행합니다. 발주확인·송장 전송·상태 변경·Webhook은 포함하지 않습니다.
       </p>      ) : (
         <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
       )}
@@ -440,15 +406,6 @@ export function ShopbyIntegrationForm({ embedded = false }: { embedded?: boolean
           <button
             type="button"
             disabled={busyAction !== null || !savedAccount}
-            onClick={() => void handleFetchOrders()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
-          >
-            {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 수집
-          </button>
-          <button
-            type="button"
-            disabled={busyAction !== null || !savedAccount}
             onClick={() => void handleDisconnect()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
@@ -458,44 +415,7 @@ export function ShopbyIntegrationForm({ embedded = false }: { embedded?: boolean
         </div>
       </form>
 
-      {fetchMeta ? (
-        <section className="mt-8">
-          <h2 className="mb-3 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            수집 결과 미리보기 ({fetchMeta.count}건)
-          </h2>
-          {previewRows.length ? (
-            <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <table className="min-w-full text-left text-xs">
-                <thead className="bg-zinc-50 dark:bg-zinc-800">
-                  <tr>
-                    {SHOPBY_PREVIEW_HEADERS.map((header) => (
-                      <th
-                        key={header}
-                        className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-200"
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewRows.map((row, index) => (
-                    <tr key={index} className="border-t border-zinc-100 dark:border-zinc-800">
-                      {SHOPBY_PREVIEW_HEADERS.map((header) => (
-                        <td key={header} className="whitespace-nowrap px-3 py-2 text-zinc-600 dark:text-zinc-300">
-                          {row[header]}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-sm text-zinc-500">최근 7일 이내 조회 대상 주문이 없습니다.</p>
-          )}
-        </section>
-      ) : null}
+      {savedAccount ? <IntegrationConnectedNotice mallName="샵바이" /> : null}
     </div>
   );
 }

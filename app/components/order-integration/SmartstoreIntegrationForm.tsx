@@ -8,10 +8,7 @@ import {
   getExcloadOutboundIp,
 } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
-import {
-  SMARTSTORE_PREVIEW_HEADERS,
-  type SmartstorePreviewRow,
-} from '@/app/lib/smartstore/map-smartstore-orders';
+import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
 
 type SmartstoreAccountResponse = {
   id: string;
@@ -60,7 +57,13 @@ function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
   return 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100';
 }
 
-export function SmartstoreIntegrationForm({ embedded = false }: { embedded?: boolean } = {}) {
+export function SmartstoreIntegrationForm({
+  embedded = false,
+  onConnectionChange,
+}: {
+  embedded?: boolean;
+  onConnectionChange?: () => void;
+} = {}) {
   const outboundIp = getExcloadOutboundIp();
   const [loading, setLoading] = useState(true);
   const [savedAccount, setSavedAccount] = useState<SmartstoreAccountResponse | null>(null);
@@ -68,12 +71,10 @@ export function SmartstoreIntegrationForm({ embedded = false }: { embedded?: boo
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [authType] = useState<'SELF'>('SELF');
-  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'fetch' | 'disconnect' | null>(null);
+  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'disconnect' | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(
     null,
   );
-  const [previewRows, setPreviewRows] = useState<SmartstorePreviewRow[]>([]);
-  const [fetchMeta, setFetchMeta] = useState<{ count: number } | null>(null);
   const [transportInfo, setTransportInfo] = useState<{
     mode: 'direct' | 'proxy';
     notes?: string;
@@ -157,6 +158,7 @@ export function SmartstoreIntegrationForm({ embedded = false }: { embedded?: boo
         kind: 'success',
         text: data.message ?? '스마트스토어 연동 정보가 저장되었습니다.',
       });
+      onConnectionChange?.();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
@@ -189,38 +191,6 @@ export function SmartstoreIntegrationForm({ embedded = false }: { embedded?: boo
     }
   }
 
-  async function handleFetchOrders() {
-    setBusyAction('fetch');
-    setStatusMessage(null);
-    setPreviewRows([]);
-    setFetchMeta(null);
-    try {
-      const res = await fetch('/api/order/integration/smartstore/fetch-orders', { method: 'POST' });
-      const data = (await res.json()) as {
-        message?: string;
-        error?: string;
-        previewRows?: SmartstorePreviewRow[];
-        count?: number;
-      };
-      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
-
-      setPreviewRows(data.previewRows ?? []);
-      setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
-      setStatusMessage({
-        kind: 'success',
-        text: data.message ?? `스마트스토어 주문 ${data.count ?? 0}건을 불러왔습니다.`,
-      });
-      await loadSavedAccount();
-    } catch (error) {
-      setStatusMessage({
-        kind: 'error',
-        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
   async function handleDisconnect() {
     if (!window.confirm('저장된 스마트스토어 연동 정보를 삭제할까요?')) return;
 
@@ -235,12 +205,11 @@ export function SmartstoreIntegrationForm({ embedded = false }: { embedded?: boo
       setAccountName('');
       setClientId('');
       setClientSecret('');
-      setPreviewRows([]);
-      setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
         text: data.message ?? '스마트스토어 연동이 해제되었습니다.',
       });
+      onConnectionChange?.();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
@@ -433,15 +402,6 @@ export function SmartstoreIntegrationForm({ embedded = false }: { embedded?: boo
           <button
             type="button"
             disabled={busyAction !== null || !savedAccount}
-            onClick={() => void handleFetchOrders()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
-          >
-            {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 수집
-          </button>
-          <button
-            type="button"
-            disabled={busyAction !== null || !savedAccount}
             onClick={() => void handleDisconnect()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
@@ -451,37 +411,7 @@ export function SmartstoreIntegrationForm({ embedded = false }: { embedded?: boo
         </div>
       </form>
 
-      {previewRows.length > 0 ? (
-        <section className="mt-8">
-          <h2 className="mb-3 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            수집 미리보기 {fetchMeta ? `(${fetchMeta.count}건)` : ''}
-          </h2>
-          <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
-            <table className="min-w-full text-left text-xs">
-              <thead className="bg-zinc-100 dark:bg-zinc-800">
-                <tr>
-                  {SMARTSTORE_PREVIEW_HEADERS.map((header) => (
-                    <th key={header} className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-200">
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {previewRows.map((row, index) => (
-                  <tr key={`${row['상품주문번호']}-${index}`} className="border-t border-zinc-200 dark:border-zinc-700">
-                    {SMARTSTORE_PREVIEW_HEADERS.map((header) => (
-                      <td key={header} className="whitespace-nowrap px-3 py-2 text-zinc-700 dark:text-zinc-300">
-                        {row[header]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
+      {savedAccount ? <IntegrationConnectedNotice mallName="스마트스토어" /> : null}
     </div>
   );
 }

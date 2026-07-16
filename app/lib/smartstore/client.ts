@@ -162,6 +162,18 @@ export type SmartstoreLastChangedStatus = {
   paymentDate?: string;
 };
 
+export type SmartstoreMoreCursor = {
+  moreFrom?: string;
+  moreSequence?: string;
+};
+
+type SmartstoreLastChangedResponse = {
+  data?: {
+    lastChangeStatuses?: SmartstoreLastChangedStatus[];
+    more?: SmartstoreMoreCursor;
+  };
+};
+
 export type SmartstoreProductOrderDetail = {
   order?: {
     orderId?: string;
@@ -188,59 +200,183 @@ export type SmartstoreProductOrderDetail = {
   };
 };
 
-export async function fetchSmartstoreProductOrders(input: {
-  credentials: SmartstoreCredentials;
+/** 네이버 커머스API 변경 주문 조회는 한 요청당 최대 24시간 범위만 허용된다. */
+const SMARTSTORE_MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** 데이터 누락 방지를 위해 조회 종료 시각을 현재보다 5초 이전으로 둔다(네이버 권장). */
+const SMARTSTORE_FETCH_LAG_MS = 5 * 1000;
+/** 상세 조회(product-orders/query)는 한 번에 최대 300건. */
+const SMARTSTORE_DETAIL_BATCH_SIZE = 300;
+/** 무한 페이지네이션 방지용 구간별 최대 페이지 수(안전장치). */
+const SMARTSTORE_MAX_PAGES_PER_WINDOW = 1000;
+
+const MIN_FETCH_DAYS = 1;
+const MAX_FETCH_DAYS = 30;
+const DEFAULT_FETCH_DAYS = 7;
+
+export type SmartstoreQueryWindow = {
+  fromIso: string;
+  toIso: string;
+};
+
+/**
+ * 요청한 days 범위를 24시간 이하 구간으로 나눈다.
+ * - 각 구간은 최대 24시간
+ * - 마지막 구간의 종료 시각은 전체 종료 시각(now - 5초)을 넘지 않는다
+ */
+export function buildSmartstoreQueryWindows(input: {
+  now: Date;
+  days: number;
+}): SmartstoreQueryWindow[] {
+  const days = Math.min(
+    MAX_FETCH_DAYS,
+    Math.max(MIN_FETCH_DAYS, Math.floor(input.days) || DEFAULT_FETCH_DAYS),
+  );
+  const overallToMs = input.now.getTime() - SMARTSTORE_FETCH_LAG_MS;
+  const overallFromMs = input.now.getTime() - days * 24 * 60 * 60 * 1000;
+
+  const windows: SmartstoreQueryWindow[] = [];
+  let startMs = overallFromMs;
+  while (startMs < overallToMs) {
+    const endMs = Math.min(startMs + SMARTSTORE_MAX_WINDOW_MS, overallToMs);
+    windows.push({
+      fromIso: formatKstIsoWithMillis(new Date(startMs)),
+      toIso: formatKstIsoWithMillis(new Date(endMs)),
+    });
+    startMs = endMs;
+  }
+
+  return windows;
+}
+
+/** 크리덴셜에 묶이지 않은 스마트스토어 API 호출자(테스트 주입용). */
+export type SmartstoreApiRequestFn = <T>(input: {
+  method: string;
+  pathWithQuery: string;
+  body?: string;
+  contentType?: string;
+}) => Promise<T>;
+
+function toSafeErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return '알 수 없는 오류';
+}
+
+/**
+ * 변경 주문 조회 → 상세 조회까지 수행하는 핵심 수집 로직.
+ * 크리덴셜 대신 request 함수를 주입받아 단위 테스트가 가능하도록 분리했다.
+ */
+export async function collectSmartstoreProductOrders(input: {
+  request: SmartstoreApiRequestFn;
   days?: number;
+  now?: Date;
 }): Promise<SmartstoreProductOrderDetail[]> {
-  const days = input.days ?? 7;
-  const now = new Date();
-  const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  const to = new Date(now.getTime() - 5 * 1000);
+  const now = input.now ?? new Date();
+  const windows = buildSmartstoreQueryWindows({ now, days: input.days ?? DEFAULT_FETCH_DAYS });
 
-  const query = new URLSearchParams({
-    lastChangedFrom: formatKstIsoWithMillis(from),
-    lastChangedTo: formatKstIsoWithMillis(to),
-  });
+  const productOrderIdSet = new Set<string>();
 
-  const changedResponse = await smartstoreAuthorizedRequest<{
-    data?: { lastChangeStatuses?: SmartstoreLastChangedStatus[] };
-  }>({
-    credentials: input.credentials,
-    method: 'GET',
-    pathWithQuery: `/external/v1/pay-order/seller/product-orders/last-changed-statuses?${query.toString()}`,
-  });
+  for (let windowIndex = 0; windowIndex < windows.length; windowIndex += 1) {
+    const win = windows[windowIndex];
+    const windowLabel = `구간 ${windowIndex + 1}/${windows.length}`;
 
-  const productOrderIds = [
-    ...new Set(
-      (changedResponse.data?.lastChangeStatuses ?? [])
-        .map((item) => item.productOrderId?.trim())
-        .filter(Boolean) as string[],
-    ),
-  ];
+    let lastChangedFrom = win.fromIso;
+    let moreSequence: string | undefined;
+    let previousCursorKey: string | null = null;
 
+    for (let page = 1; ; page += 1) {
+      if (page > SMARTSTORE_MAX_PAGES_PER_WINDOW) {
+        throw new Error(
+          `스마트스토어 주문 변경내역이 너무 많은 페이지로 이어져 조회를 중단했습니다. (${windowLabel})`,
+        );
+      }
+
+      const params = new URLSearchParams({
+        lastChangedFrom,
+        lastChangedTo: win.toIso,
+      });
+      if (moreSequence) {
+        params.set('moreSequence', moreSequence);
+      }
+
+      let response: SmartstoreLastChangedResponse;
+      try {
+        response = await input.request<SmartstoreLastChangedResponse>({
+          method: 'GET',
+          pathWithQuery: `/external/v1/pay-order/seller/product-orders/last-changed-statuses?${params.toString()}`,
+        });
+      } catch (error) {
+        throw new Error(
+          `스마트스토어 주문 변경내역 조회에 실패했습니다. (${windowLabel}, 페이지 ${page}) 원인: ${toSafeErrorMessage(error)}`,
+        );
+      }
+
+      for (const item of response.data?.lastChangeStatuses ?? []) {
+        const id = item.productOrderId?.trim();
+        if (id) productOrderIdSet.add(id);
+      }
+
+      const more = response.data?.more;
+      if (!more?.moreFrom) break;
+
+      const nextMoreSequence = more.moreSequence;
+      const cursorKey = `${more.moreFrom}|${nextMoreSequence ?? ''}`;
+      // 커서가 직전과 동일하거나(진행 없음) 현재 요청과 동일하면 중단해 무한 루프를 막는다.
+      if (
+        cursorKey === previousCursorKey ||
+        (more.moreFrom === lastChangedFrom && (nextMoreSequence ?? '') === (moreSequence ?? ''))
+      ) {
+        break;
+      }
+
+      previousCursorKey = cursorKey;
+      lastChangedFrom = more.moreFrom;
+      moreSequence = nextMoreSequence;
+    }
+  }
+
+  const productOrderIds = [...productOrderIdSet];
   if (!productOrderIds.length) {
     return [];
   }
 
   const details: SmartstoreProductOrderDetail[] = [];
-  const batchSize = 300;
+  const batchCount = Math.ceil(productOrderIds.length / SMARTSTORE_DETAIL_BATCH_SIZE);
 
-  for (let index = 0; index < productOrderIds.length; index += batchSize) {
-    const batch = productOrderIds.slice(index, index + batchSize);
-    const detailResponse = await smartstoreAuthorizedRequest<{
-      data?: SmartstoreProductOrderDetail[];
-    }>({
-      credentials: input.credentials,
-      method: 'POST',
-      pathWithQuery: '/external/v1/pay-order/seller/product-orders/query',
-      body: JSON.stringify({ productOrderIds: batch }),
-      contentType: 'application/json',
-    });
+  for (let index = 0, batch = 1; index < productOrderIds.length; index += SMARTSTORE_DETAIL_BATCH_SIZE, batch += 1) {
+    const batchIds = productOrderIds.slice(index, index + SMARTSTORE_DETAIL_BATCH_SIZE);
+
+    let detailResponse: { data?: SmartstoreProductOrderDetail[] };
+    try {
+      detailResponse = await input.request<{ data?: SmartstoreProductOrderDetail[] }>({
+        method: 'POST',
+        pathWithQuery: '/external/v1/pay-order/seller/product-orders/query',
+        body: JSON.stringify({ productOrderIds: batchIds }),
+        contentType: 'application/json',
+      });
+    } catch (error) {
+      throw new Error(
+        `스마트스토어 주문 상세 조회에 실패했습니다. (상세 배치 ${batch}/${batchCount}) 원인: ${toSafeErrorMessage(error)}`,
+      );
+    }
 
     details.push(...(detailResponse.data ?? []));
   }
 
   return details;
+}
+
+export async function fetchSmartstoreProductOrders(input: {
+  credentials: SmartstoreCredentials;
+  days?: number;
+}): Promise<SmartstoreProductOrderDetail[]> {
+  const request: SmartstoreApiRequestFn = <T,>(req: {
+    method: string;
+    pathWithQuery: string;
+    body?: string;
+    contentType?: string;
+  }) => smartstoreAuthorizedRequest<T>({ credentials: input.credentials, ...req });
+
+  return collectSmartstoreProductOrders({ request, days: input.days });
 }
 
 export function toUserFacingSmartstoreErrorMessage(error: unknown): string {

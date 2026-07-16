@@ -29,48 +29,50 @@ type Props = {
   >;
   mallName: string;
   embedded?: boolean;
+  /** 저장/연결 해제 등으로 DB 연결 상태가 바뀌었을 때 상위 목록 갱신용 */
+  onConnectionChange?: () => void;
 };
 
-export function MallIntegrationForm({ mallId, embedded = false }: Props) {
+export function MallIntegrationForm({ mallId, embedded = false, onConnectionChange }: Props) {
   if (mallId === 'coupang') {
-    return <CoupangIntegrationForm embedded={embedded} />;
+    return <CoupangIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
   if (mallId === 'smartstore') {
-    return <SmartstoreIntegrationForm embedded={embedded} />;
+    return <SmartstoreIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
   if (mallId === 'cafe24') {
     return (
       <Suspense fallback={<p className="px-4 py-6 text-sm text-zinc-500">카페24 연동 화면 불러오는 중…</p>}>
-        <Cafe24IntegrationForm embedded={embedded} />
+        <Cafe24IntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />
       </Suspense>
     );
   }
 
   if (mallId === 'lotteon') {
-    return <LotteonIntegrationForm embedded={embedded} />;
+    return <LotteonIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
   if (mallId === 'ssg') {
-    return <SsgIntegrationForm embedded={embedded} />;
+    return <SsgIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
   if (mallId === 'cjonstyle') {
-    return <CjonstyleIntegrationForm embedded={embedded} />;
+    return <CjonstyleIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
   if (mallId === 'shopby') {
-    return <ShopbyIntegrationForm embedded={embedded} />;
+    return <ShopbyIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
   if (mallId === 'godomall') {
-    return <GodomallIntegrationForm embedded={embedded} />;
+    return <GodomallIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
   if (mallId === 'makeshop') {
-    return <MakeshopIntegrationForm embedded={embedded} />;
+    return <MakeshopIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
-  return <ElevenIntegrationForm embedded={embedded} />;
+  return <ElevenIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
 }

@@ -35,6 +35,7 @@ export async function GET() {
       provider: true,
       accountName: true,
       status: true,
+      lastTestedAt: true,
       updatedAt: true,
     },
     orderBy: { updatedAt: 'desc' },
@@ -51,6 +52,7 @@ export async function GET() {
     accountId: string;
     accountName: string;
     status: string;
+    lastCheckedAt: string | null;
   }[] = [];
 
   for (const account of accounts) {
@@ -65,6 +67,7 @@ export async function GET() {
       accountId: account.id,
       accountName: account.accountName,
       status: account.status,
+      lastCheckedAt: (account.lastTestedAt ?? account.updatedAt)?.toISOString() ?? null,
     });
   }
 

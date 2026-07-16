@@ -94,7 +94,7 @@ export default function MainNav() {
   };
   const landingTestMenuItem: MenuItem = {
     href: '/landing-test',
-    label: '랜딩페이지 테스트',
+    label: 'UI 디자인 공장',
     icon: FlaskConical,
   };
   const orderIntegrationMenuItem: MenuItem = {

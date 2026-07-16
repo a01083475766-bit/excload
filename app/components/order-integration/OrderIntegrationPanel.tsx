@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   EXCLOAD_INTEGRATION_INFO,
@@ -8,6 +8,11 @@ import {
   ORDER_INTEGRATION_MALLS,
   type OrderIntegrationMallId,
 } from '@/app/lib/order-integration/malls';
+import {
+  buildMallOverviewRows,
+  isMallConnected,
+  type ConnectedMallSummary,
+} from '@/app/lib/order-integration/connection-status-view';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { MallIntegrationForm } from '@/app/components/order-integration/MallIntegrationForm';
 import { MallSetupGuidePanel } from '@/app/components/order-integration/MallSetupGuidePanel';
@@ -69,6 +74,7 @@ function ExcloadInfoList({
 export default function OrderIntegrationPanel() {
   const outboundIp = getExcloadOutboundIp();
   const [selectedMallId, setSelectedMallId] = useState<AvailableMallId | 'all'>('all');
+  const [connectedMalls, setConnectedMalls] = useState<ConnectedMallSummary[]>([]);
 
   const availableMalls = useMemo(
     () => ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'available'),
@@ -77,6 +83,51 @@ export default function OrderIntegrationPanel() {
 
   const selectedMall =
     selectedMallId === 'all' ? null : availableMalls.find((m) => m.id === selectedMallId) ?? null;
+
+  const refreshConnectedMalls = useCallback(async () => {
+    try {
+      const res = await fetch('/api/order/integration/connected-malls');
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        malls?: {
+          mallId: string;
+          name: string;
+          accountName: string;
+          status: string;
+          lastCheckedAt: string | null;
+        }[];
+      };
+      setConnectedMalls(
+        (data.malls ?? []).map((m) => ({
+          mallId: m.mallId as ConnectedMallSummary['mallId'],
+          name: m.name,
+          accountName: m.accountName,
+          status: m.status,
+          lastCheckedAt: m.lastCheckedAt ?? null,
+        }))
+      );
+    } catch {
+      // 연결 상태 표시는 부가 기능 — 실패 시 조용히 무시
+    }
+  }, []);
+
+  // 최초 진입 + 탭 전환 시 서버의 실제 저장된 연결 상태를 다시 읽는다.
+  useEffect(() => {
+    void refreshConnectedMalls();
+  }, [refreshConnectedMalls, selectedMallId]);
+
+  // 다른 창/탭에서 저장·해제 후 돌아온 경우도 반영.
+  useEffect(() => {
+    const onFocus = () => void refreshConnectedMalls();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [refreshConnectedMalls]);
+
+  const overviewRows = useMemo(() => buildMallOverviewRows(connectedMalls), [connectedMalls]);
 
   return (
     <div className="mx-auto max-w-6xl px-3 pb-12 pt-1.5 sm:px-5 lg:px-8">
@@ -144,24 +195,46 @@ export default function OrderIntegrationPanel() {
           >
             전체
           </button>
-          {availableMalls.map((mall) => (
-            <button
-              key={mall.id}
-              type="button"
-              title={mall.badge === 'beta' ? `${mall.name} (베타)` : mall.name}
-              onClick={() => setSelectedMallId(mall.id as AvailableMallId)}
-              className={`flex h-11 w-full items-center justify-center gap-1 overflow-hidden rounded-lg px-2 text-sm font-medium transition ${chipClass(selectedMallId === mall.id)}`}
-            >
-              <span className="truncate">{mall.name}</span>
-              {mall.badge === 'beta' ? (
-                <span
-                  className={`shrink-0 text-[11px] ${selectedMallId === mall.id ? 'text-blue-100' : 'text-zinc-400'}`}
-                >
-                  베타
-                </span>
-              ) : null}
-            </button>
-          ))}
+          {availableMalls.map((mall) => {
+            const selected = selectedMallId === mall.id;
+            const connected = isMallConnected(mall.id, connectedMalls);
+            return (
+              <button
+                key={mall.id}
+                type="button"
+                title={
+                  connected
+                    ? `${mall.name} (연결됨)`
+                    : mall.badge === 'beta'
+                      ? `${mall.name} (베타)`
+                      : mall.name
+                }
+                onClick={() => setSelectedMallId(mall.id as AvailableMallId)}
+                className={`flex h-11 w-full items-center justify-center gap-1 overflow-hidden rounded-lg px-2 text-sm font-medium transition ${chipClass(selected)}`}
+              >
+                <span className="truncate">{mall.name}</span>
+                {connected ? (
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold ${
+                      selected ? 'text-emerald-100' : 'text-emerald-600'
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${selected ? 'bg-emerald-200' : 'bg-emerald-500'}`}
+                      aria-hidden
+                    />
+                    연결됨
+                  </span>
+                ) : mall.badge === 'beta' ? (
+                  <span
+                    className={`shrink-0 text-[11px] ${selected ? 'text-blue-100' : 'text-zinc-400'}`}
+                  >
+                    베타
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -198,6 +271,7 @@ export default function OrderIntegrationPanel() {
                   mallId={selectedMall.id}
                   mallName={selectedMall.name}
                   embedded
+                  onConnectionChange={() => void refreshConnectedMalls()}
                 />
               </div>
             </div>
@@ -209,6 +283,69 @@ export default function OrderIntegrationPanel() {
               />
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {selectedMallId === 'all' ? (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">쇼핑몰별 연결 상태</h2>
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-zinc-200 bg-zinc-50 text-xs text-zinc-500">
+                <tr>
+                  <th className="px-4 py-2.5 font-semibold">쇼핑몰</th>
+                  <th className="px-4 py-2.5 font-semibold">상태</th>
+                  <th className="px-4 py-2.5 font-semibold">계정명</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">작업</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {overviewRows.map((row) => (
+                  <tr key={row.mallId} className={row.isPreparing ? 'text-zinc-400' : ''}>
+                    <td className="px-4 py-2.5 font-medium text-zinc-900">
+                      <span className={row.isPreparing ? 'text-zinc-500' : ''}>{row.name}</span>
+                      {row.badge === 'beta' && !row.connected ? (
+                        <span className="ml-1.5 text-[11px] text-zinc-400">베타</span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {row.connected ? (
+                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+                          연결됨
+                        </span>
+                      ) : row.isPreparing ? (
+                        <span className="text-sm text-zinc-400">{row.statusLabel}</span>
+                      ) : (
+                        <span className="text-sm text-zinc-500">미연결</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-zinc-600">{row.accountName ?? '-'}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      {row.action === 'none' ? (
+                        <span className="text-xs text-zinc-400">준비 중</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMallId(row.mallId as AvailableMallId)}
+                          className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                            row.action === 'manage'
+                              ? 'border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {row.actionLabel}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-zinc-500">
+            파란 배경 버튼은 현재 선택된 쇼핑몰을 뜻하고, ‘연결됨’은 실제 저장된 연결 상태를 뜻합니다.
+          </p>
         </section>
       ) : null}
     </div>

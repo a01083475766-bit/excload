@@ -6,10 +6,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { EXCLOAD_INTEGRATION_INFO } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { EXCLOAD_MAKESHOP_OUTBOUND_IP } from '@/app/lib/makeshop/api-spec';
-import {
-  MAKESHOP_PREVIEW_HEADERS,
-  type MakeshopPreviewRow,
-} from '@/app/lib/makeshop/map-makeshop-orders';
+import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
 
 type MakeshopAccountResponse = {
   id: string;
@@ -57,7 +54,10 @@ function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
   return 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100';
 }
 
-export function MakeshopIntegrationForm({ embedded = false }: { embedded?: boolean } = {}) {
+export function MakeshopIntegrationForm({
+  embedded = false,
+  onConnectionChange,
+}: { embedded?: boolean; onConnectionChange?: () => void } = {}) {
   const [loading, setLoading] = useState(true);
   const [savedAccount, setSavedAccount] = useState<MakeshopAccountResponse | null>(null);
   const [accountName, setAccountName] = useState('');
@@ -67,12 +67,10 @@ export function MakeshopIntegrationForm({ embedded = false }: { embedded?: boole
   const [clientSecretOverride, setClientSecretOverride] = useState('');
   const [clearOAuthOverride, setClearOAuthOverride] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'fetch' | 'disconnect' | null>(null);
+  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'disconnect' | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(
     null,
   );
-  const [previewRows, setPreviewRows] = useState<MakeshopPreviewRow[]>([]);
-  const [fetchMeta, setFetchMeta] = useState<{ count: number } | null>(null);
   const [transportInfo, setTransportInfo] = useState<{
     mode: 'direct' | 'proxy';
     oauthConfigured?: boolean;
@@ -169,6 +167,7 @@ export function MakeshopIntegrationForm({ embedded = false }: { embedded?: boole
         kind: 'success',
         text: data.message ?? '메이크샵 연동 정보가 저장되었습니다.',
       });
+      onConnectionChange?.();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
@@ -201,38 +200,6 @@ export function MakeshopIntegrationForm({ embedded = false }: { embedded?: boole
     }
   }
 
-  async function handleFetchOrders() {
-    setBusyAction('fetch');
-    setStatusMessage(null);
-    setPreviewRows([]);
-    setFetchMeta(null);
-    try {
-      const res = await fetch('/api/order/integration/makeshop/fetch-orders', { method: 'POST' });
-      const data = (await res.json()) as {
-        message?: string;
-        error?: string;
-        previewRows?: MakeshopPreviewRow[];
-        count?: number;
-      };
-      if (!res.ok) throw new Error(data.error ?? '주문 수집에 실패했습니다.');
-
-      setPreviewRows(data.previewRows ?? []);
-      setFetchMeta({ count: data.count ?? data.previewRows?.length ?? 0 });
-      setStatusMessage({
-        kind: 'success',
-        text: data.message ?? `메이크샵 주문 ${data.count ?? 0}건을 불러왔습니다.`,
-      });
-      await loadSavedAccount();
-    } catch (error) {
-      setStatusMessage({
-        kind: 'error',
-        text: error instanceof Error ? error.message : '주문 수집에 실패했습니다.',
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
   async function handleDisconnect() {
     if (!window.confirm('저장된 메이크샵 연동 정보를 삭제할까요?')) return;
 
@@ -249,12 +216,11 @@ export function MakeshopIntegrationForm({ embedded = false }: { embedded?: boole
       setMallDomain('');
       setClientIdOverride('');
       setClientSecretOverride('');
-      setPreviewRows([]);
-      setFetchMeta(null);
       setStatusMessage({
         kind: 'info',
         text: data.message ?? '메이크샵 연동이 해제되었습니다.',
       });
+      onConnectionChange?.();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
@@ -289,8 +255,8 @@ export function MakeshopIntegrationForm({ embedded = false }: { embedded?: boole
       )}
 {!embedded ? (
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        메이크샵 신규 APP API(connect.makeshop.co.kr)로 연결 테스트와 주문 2.0 조회·수집을 진행할 수 있습니다.
-        레거시 상점도메인 Open API·발주·송장·Webhook은 포함하지 않습니다.
+        메이크샵 신규 APP API(connect.makeshop.co.kr)로 연결 테스트를 진행할 수 있습니다. 실제 주문 2.0 조회·수집은
+        주문연동 화면에서 진행합니다. 레거시 상점도메인 Open API·발주·송장·Webhook은 포함하지 않습니다.
       </p>      ) : (
         <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
       )}
@@ -485,15 +451,6 @@ export function MakeshopIntegrationForm({ embedded = false }: { embedded?: boole
           <button
             type="button"
             disabled={busyAction !== null || !savedAccount}
-            onClick={() => void handleFetchOrders()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
-          >
-            {busyAction === 'fetch' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            주문 수집
-          </button>
-          <button
-            type="button"
-            disabled={busyAction !== null || !savedAccount}
             onClick={() => void handleDisconnect()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
@@ -503,37 +460,7 @@ export function MakeshopIntegrationForm({ embedded = false }: { embedded?: boole
         </div>
       </form>
 
-      {fetchMeta ? (
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-bold text-zinc-900 dark:text-zinc-100">
-            수집 미리보기 ({fetchMeta.count}건)
-          </h2>
-          <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
-            <table className="min-w-full text-left text-xs">
-              <thead className="bg-zinc-100 dark:bg-zinc-800">
-                <tr>
-                  {MAKESHOP_PREVIEW_HEADERS.map((header) => (
-                    <th key={header} className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-200">
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {previewRows.map((row, index) => (
-                  <tr key={`${row['주문번호']}-${index}`} className="border-t border-zinc-200 dark:border-zinc-700">
-                    {MAKESHOP_PREVIEW_HEADERS.map((header) => (
-                      <td key={header} className="whitespace-nowrap px-3 py-2 text-zinc-700 dark:text-zinc-300">
-                        {row[header]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
+      {savedAccount ? <IntegrationConnectedNotice mallName="메이크샵" /> : null}
     </div>
   );
 }
