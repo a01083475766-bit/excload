@@ -9,6 +9,7 @@ import {
 } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
+import { SecretInput } from '@/app/components/order-integration/SecretInput';
 
 type LotteonAccountResponse = {
   id: string;
@@ -222,10 +223,6 @@ export function LotteonIntegrationForm({
     }
   }
 
-  const apiKeyPlaceholder = savedAccount?.hasApiKey
-    ? `저장됨: ${savedAccount.apiKeyMasked || '********'} (변경 시에만 입력)`
-    : 'OpenAPI 인증 KEY 입력 (Query Key 파라미터, 저장 후 전체 노출되지 않습니다)';
-
   return (
     <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
 {!embedded ? (
@@ -375,20 +372,18 @@ export function LotteonIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="apiKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            API 인증 KEY
-          </label>
-          <input
-            id="apiKey"
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            autoComplete="new-password"
-            placeholder={apiKeyPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="apiKey"
+          label="API 인증 KEY"
+          value={apiKey}
+          onChange={setApiKey}
+          hasSaved={Boolean(savedAccount?.hasApiKey)}
+          savedMasked={savedAccount?.apiKeyMasked}
+          newPlaceholder="OpenAPI 인증 KEY 입력 (Query Key 파라미터, 저장 후 전체 노출되지 않습니다)"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         {statusMessage ? (
           <p className={`rounded-lg border px-3 py-2 text-sm ${statusBannerClass(statusMessage.kind)}`}>

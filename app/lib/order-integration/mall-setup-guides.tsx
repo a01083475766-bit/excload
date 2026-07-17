@@ -82,7 +82,7 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
         title: 'API 호출 IP 등록',
         body: (
           <>
-            애플리케이션의 API 호출 IP에 왼쪽에 표시된 <strong>엑클로드 outbound IP</strong>를
+            애플리케이션의 API 호출 IP에 왼쪽에 표시된 <strong>엑클로드 IP 54.180.45.46</strong>를
             추가합니다. API 호출 IP는 한 애플리케이션에 최대 3개까지 등록할 수 있습니다.
           </>
         ),

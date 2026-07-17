@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { EXCLOAD_INTEGRATION_INFO } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
+import { SecretInput } from '@/app/components/order-integration/SecretInput';
 
 type ShopbyAccountResponse = {
   id: string;
@@ -215,14 +216,6 @@ export function ShopbyIntegrationForm({
     }
   }
 
-  const mallKeyPlaceholder = savedAccount?.hasMallKey
-    ? `저장됨: ${savedAccount.mallKeyMasked || '********'} (변경 시에만 입력)`
-    : 'mallKey(외부 연동키) 입력 (저장 후 전체 노출되지 않습니다)';
-
-  const systemKeyPlaceholder = savedAccount?.hasSystemKey
-    ? `저장됨: ${savedAccount.systemKeyMasked || '********'} (변경 시에만 입력)`
-    : 'systemKey(워크스페이스 앱) 입력 (저장 후 전체 노출되지 않습니다)';
-
   return (
     <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
 {!embedded ? (
@@ -348,35 +341,33 @@ export function ShopbyIntegrationForm({
           <p className="mt-1 text-xs text-zinc-500">계정 구분용입니다. API 호출에는 사용하지 않습니다.</p>
         </div>
 
-        <div>
-          <label htmlFor="systemKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            systemKey (워크스페이스 앱)
-          </label>
-          <input
-            id="systemKey"
-            type="password"
-            value={systemKey}
-            onChange={(e) => setSystemKey(e.target.value)}
-            autoComplete="new-password"
-            placeholder={systemKeyPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="systemKey"
+          label="systemKey (워크스페이스 앱)"
+          confirmLabel="systemKey"
+          value={systemKey}
+          onChange={setSystemKey}
+          hasSaved={Boolean(savedAccount?.hasSystemKey)}
+          savedMasked={savedAccount?.systemKeyMasked}
+          newPlaceholder="systemKey(워크스페이스 앱) 입력 (저장 후 전체 노출되지 않습니다)"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
-        <div>
-          <label htmlFor="mallKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            mallKey (외부 연동키)
-          </label>
-          <input
-            id="mallKey"
-            type="password"
-            value={mallKey}
-            onChange={(e) => setMallKey(e.target.value)}
-            autoComplete="new-password"
-            placeholder={mallKeyPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="mallKey"
+          label="mallKey (외부 연동키)"
+          confirmLabel="mallKey"
+          value={mallKey}
+          onChange={setMallKey}
+          hasSaved={Boolean(savedAccount?.hasMallKey)}
+          savedMasked={savedAccount?.mallKeyMasked}
+          newPlaceholder="mallKey(외부 연동키) 입력 (저장 후 전체 노출되지 않습니다)"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         {statusMessage ? (
           <p className={`rounded-lg border px-3 py-2 text-sm ${statusBannerClass(statusMessage.kind)}`}>

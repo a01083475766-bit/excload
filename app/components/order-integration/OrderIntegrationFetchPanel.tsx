@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
+import {
+  getOrderFetchRangeError,
+  isDateRangeSupportedMall,
+  kstTodayDateString,
+  MAX_FETCH_RANGE_DAYS,
+} from '@/app/lib/order-integration/order-fetch-range';
 import type { StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
 import { writeHubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 import { useUserStore } from '@/app/store/userStore';
@@ -39,16 +45,14 @@ type MallFetchResult = {
   views: OrderFetchView[];
 };
 
-/** 변경일 기준 조회기간 프리셋. days는 몰 fetch API가 실제로 받는 값. */
+/** 최근 기간(빠른 조회) 프리셋. days는 몰 fetch API가 실제로 받는 값. */
 const DAY_PRESETS = [
-  { days: 1, label: '오늘(1일)' },
-  { days: 3, label: '3일' },
-  { days: 7, label: '7일' },
-  { days: 30, label: '30일' },
+  { days: 1, label: '오늘' },
+  { days: 3, label: '최근 3일' },
+  { days: 7, label: '최근 7일' },
+  { days: 14, label: '최근 14일' },
+  { days: 30, label: '최근 30일' },
 ] as const;
-
-const MIN_CUSTOM_DAYS = 1;
-const MAX_CUSTOM_DAYS = 30;
 
 type DisplayRow = OrderFetchView & { mallId: OrderIntegrationMallId; mallName: string };
 
@@ -117,8 +121,9 @@ export default function OrderIntegrationFetchPanel() {
 
   const [selectedMallIds, setSelectedMallIds] = useState<Set<OrderIntegrationMallId>>(new Set());
   const [days, setDays] = useState(7);
-  const [customMode, setCustomMode] = useState(false);
-  const [customDays, setCustomDays] = useState(7);
+  const [rangeMode, setRangeMode] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [workTarget, setWorkTarget] = useState<OrderWorkTarget>('SHIPMENT_TARGET');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -132,8 +137,6 @@ export default function OrderIntegrationFetchPanel() {
   const [results, setResults] = useState<MallFetchResult[] | null>(null);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
-
-  const effectiveDays = customMode ? customDays : days;
 
   const allSelected =
     connectedMalls.length > 0 && selectedMallIds.size === connectedMalls.length;
@@ -187,8 +190,9 @@ export default function OrderIntegrationFetchPanel() {
   const resetFilters = () => {
     setSelectedMallIds(new Set(connectedMalls.map((m) => m.mallId)));
     setDays(7);
-    setCustomMode(false);
-    setCustomDays(7);
+    setRangeMode(false);
+    setStartDate('');
+    setEndDate('');
     setWorkTarget('SHIPMENT_TARGET');
     setSearchTerm('');
     setShowAdvanced(false);
@@ -206,11 +210,37 @@ export default function OrderIntegrationFetchPanel() {
     [connectedMalls, selectedMallIds],
   );
 
+  /**
+   * 선택된 모든 몰이 날짜 범위 조회를 지원할 때만 「기간 직접 선택」을 허용한다.
+   * 지원 여부가 불명확한 몰이 섞이면 기존 최근 N일 방식만 사용한다(임의 근사 금지).
+   */
+  const selectedSupportsRange =
+    selectedMalls.length > 0 && selectedMalls.every((m) => isDateRangeSupportedMall(m.mallId));
+
+  useEffect(() => {
+    if (!selectedSupportsRange && rangeMode) {
+      setRangeMode(false);
+    }
+  }, [selectedSupportsRange, rangeMode]);
+
+  const todayDateString = useMemo(() => kstTodayDateString(), []);
+  const rangeError = rangeMode ? getOrderFetchRangeError({ from: startDate, to: endDate }) : null;
+
   const onSearch = async () => {
     if (selectedMalls.length === 0) {
       setNotice('조회할 쇼핑몰을 선택해 주세요.');
       setResults(null);
       return;
+    }
+
+    const useRange = rangeMode && selectedSupportsRange;
+    if (useRange) {
+      const validationError = getOrderFetchRangeError({ from: startDate, to: endDate });
+      if (validationError) {
+        setNotice(validationError);
+        setResults(null);
+        return;
+      }
     }
 
     setFetching(true);
@@ -223,10 +253,14 @@ export default function OrderIntegrationFetchPanel() {
 
     for (const mall of selectedMalls) {
       try {
+        const requestBody =
+          useRange && isDateRangeSupportedMall(mall.mallId)
+            ? { from: startDate, to: endDate }
+            : { days };
         const res = await fetch(`/api/order/integration/${mall.mallId}/fetch-orders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ days: effectiveDays }),
+          body: JSON.stringify(requestBody),
           cache: 'no-store',
         });
         const data = (await res.json()) as {
@@ -535,46 +569,75 @@ export default function OrderIntegrationFetchPanel() {
             </div>
 
             <div className="flex border-b border-zinc-200">
-              <div className={labelCellClass}>변경일 기준 조회기간</div>
-              <div className={`${valueCellClass} flex flex-wrap items-center gap-2`}>
-                {DAY_PRESETS.map((preset) => (
-                  <button
-                    key={preset.days}
-                    type="button"
-                    onClick={() => {
-                      setCustomMode(false);
-                      setDays(preset.days);
-                    }}
-                    className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${mallChipClass(!customMode && days === preset.days)}`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setCustomMode(true)}
-                  className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${mallChipClass(customMode)}`}
-                >
-                  직접 선택
-                </button>
-                {customMode ? (
-                  <span className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
-                    최근
-                    <input
-                      type="number"
-                      min={MIN_CUSTOM_DAYS}
-                      max={MAX_CUSTOM_DAYS}
-                      value={customDays}
-                      onChange={(e) => {
-                        const next = Number(e.target.value);
-                        if (!Number.isFinite(next)) return;
-                        setCustomDays(Math.min(MAX_CUSTOM_DAYS, Math.max(MIN_CUSTOM_DAYS, Math.floor(next))));
+              <div className={labelCellClass}>조회 기간</div>
+              <div className={`${valueCellClass} space-y-2`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {DAY_PRESETS.map((preset) => (
+                    <button
+                      key={preset.days}
+                      type="button"
+                      onClick={() => {
+                        setRangeMode(false);
+                        setDays(preset.days);
                       }}
-                      className="h-9 w-16 rounded-lg border border-zinc-300 px-2 text-center text-sm"
-                    />
-                    일 (최대 {MAX_CUSTOM_DAYS}일)
-                  </span>
+                      className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${mallChipClass(!rangeMode && days === preset.days)}`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setRangeMode(true)}
+                    disabled={!selectedSupportsRange}
+                    title={!selectedSupportsRange ? '이 쇼핑몰은 현재 최근 기간 조회만 지원합니다.' : undefined}
+                    className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${mallChipClass(rangeMode)}`}
+                  >
+                    기간 직접 선택
+                  </button>
+                </div>
+
+                {rangeMode ? (
+                  <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
+                        시작일
+                        <input
+                          type="date"
+                          value={startDate}
+                          max={endDate || todayDateString}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="h-9 rounded-lg border border-zinc-300 px-2 text-sm"
+                        />
+                      </label>
+                      <span className="text-zinc-400">~</span>
+                      <label className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
+                        종료일
+                        <input
+                          type="date"
+                          value={endDate}
+                          min={startDate || undefined}
+                          max={todayDateString}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="h-9 rounded-lg border border-zinc-300 px-2 text-sm"
+                        />
+                      </label>
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      과거 주문을 다시 조회하려면 시작일과 종료일을 선택하세요. 한 번에 최대 {MAX_FETCH_RANGE_DAYS}일까지
+                      조회할 수 있습니다.
+                    </p>
+                    {rangeError ? <p className="text-xs font-medium text-red-600">{rangeError}</p> : null}
+                  </div>
                 ) : null}
+
+                <p className="text-xs text-zinc-500">
+                  쇼핑몰에 따라 주문일이 아닌 최종 변경일을 기준으로 조회될 수 있습니다.
+                  {!selectedSupportsRange ? (
+                    <span className="mt-0.5 block text-amber-700">
+                      이 쇼핑몰은 현재 최근 기간 조회만 지원합니다.
+                    </span>
+                  ) : null}
+                </p>
               </div>
             </div>
 

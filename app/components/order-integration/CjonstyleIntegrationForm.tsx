@@ -9,6 +9,7 @@ import {
 } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
+import { SecretInput } from '@/app/components/order-integration/SecretInput';
 import { CJONSTYLE_DEFAULT_DELIVERY_METHOD_CODES } from '@/app/lib/cjonstyle/api-spec';
 
 type CjonstyleAccountResponse = {
@@ -221,10 +222,6 @@ export function CjonstyleIntegrationForm({
     }
   }
 
-  const authKeyPlaceholder = savedAccount?.hasAuthenticationKey
-    ? `저장됨: ${savedAccount.authenticationKeyMasked || '********'} (변경 시에만 입력)`
-    : 'authenticationKey 입력 (Header, 저장 후 전체 노출되지 않습니다)';
-
   const defaultDeliveryCodes = CJONSTYLE_DEFAULT_DELIVERY_METHOD_CODES.join(',');
 
   return (
@@ -352,20 +349,18 @@ export function CjonstyleIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="authenticationKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            authenticationKey
-          </label>
-          <input
-            id="authenticationKey"
-            type="password"
-            value={authenticationKey}
-            onChange={(e) => setAuthenticationKey(e.target.value)}
-            autoComplete="new-password"
-            placeholder={authKeyPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="authenticationKey"
+          label="authenticationKey"
+          value={authenticationKey}
+          onChange={setAuthenticationKey}
+          hasSaved={Boolean(savedAccount?.hasAuthenticationKey)}
+          savedMasked={savedAccount?.authenticationKeyMasked}
+          newPlaceholder="authenticationKey 입력 (Header, 저장 후 전체 노출되지 않습니다)"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <div>
           <label

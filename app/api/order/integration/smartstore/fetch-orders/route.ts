@@ -25,13 +25,33 @@ import {
   isOrderSyncSnapshotPersistEnabled,
   maybePersistOrderFetchResult,
 } from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
-import { readFetchOrderDays } from '@/app/lib/order-integration/parse-fetch-order-days';
+import { parseFetchOrderDays } from '@/app/lib/order-integration/parse-fetch-order-days';
+import {
+  extractDateRangeInput,
+  OrderFetchRangeError,
+  resolveOrderFetchRange,
+  type ResolvedOrderFetchRange,
+} from '@/app/lib/order-integration/order-fetch-range';
 
 export async function POST(request: Request) {
   const auth = await requireOrderIntegrationUser();
   if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
-  const days = await readFetchOrderDays(request);
+  const body = await request.json().catch(() => null);
+  const rangeInput = extractDateRangeInput(body);
+  let range: ResolvedOrderFetchRange | undefined;
+  let days = 7;
+  if (rangeInput) {
+    try {
+      range = resolveOrderFetchRange({ from: rangeInput.from, to: rangeInput.to });
+    } catch (error) {
+      const message =
+        error instanceof OrderFetchRangeError ? error.message : '조회 기간이 올바르지 않습니다.';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  } else {
+    days = parseFetchOrderDays(body);
+  }
 
   if (!isIntegrationProxyConfigured()) {
     return NextResponse.json(
@@ -53,7 +73,9 @@ export async function POST(request: Request) {
 
   try {
     const credentials = toSmartstoreCredentials(account);
-    const orders = await fetchSmartstoreProductOrders({ credentials, days });
+    const orders = await fetchSmartstoreProductOrders(
+      range ? { credentials, range: { fromMs: range.fromMs, toMs: range.toMs } } : { credentials, days },
+    );
     const orderStandardFile = mapSmartstoreOrdersToOrderStandardFile(orders);
     const previewRows = mapSmartstoreOrdersToPreviewRows(orders);
     const orderViews = mapSmartstoreOrdersToFetchViews(orders);

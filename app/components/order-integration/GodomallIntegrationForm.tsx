@@ -7,6 +7,7 @@ import { EXCLOAD_INTEGRATION_INFO } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { EXCLOAD_GODOMALL_OUTBOUND_IP } from '@/app/lib/godomall/api-spec';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
+import { SecretInput } from '@/app/components/order-integration/SecretInput';
 
 type GodomallAccountResponse = {
   id: string;
@@ -232,10 +233,6 @@ export function GodomallIntegrationForm({
     }
   }
 
-  const userKeyPlaceholder = savedAccount?.hasUserKey
-    ? `저장됨: ${savedAccount.userKeyMasked || '********'} (변경 시에만 입력)`
-    : 'user key(사용자키) 입력 (저장 후 전체 노출되지 않습니다)';
-
   const partnerKeyOverridePlaceholder = savedAccount?.hasPartnerKeyOverride
     ? '저장됨 (변경 시에만 입력)'
     : '개발·테스트용 partner_key override (선택)';
@@ -363,20 +360,19 @@ export function GodomallIntegrationForm({
           <p className="mt-1 text-xs text-zinc-500">계정 구분용입니다. API XML에는 partner_key와 user key만 사용합니다.</p>
         </div>
 
-        <div>
-          <label htmlFor="userKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            user key (사용자키)
-          </label>
-          <input
-            id="userKey"
-            type="password"
-            value={userKey}
-            onChange={(e) => setUserKey(e.target.value)}
-            autoComplete="new-password"
-            placeholder={userKeyPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="userKey"
+          label="user key (사용자키)"
+          confirmLabel="user key(사용자키)"
+          value={userKey}
+          onChange={setUserKey}
+          hasSaved={Boolean(savedAccount?.hasUserKey)}
+          savedMasked={savedAccount?.userKeyMasked}
+          newPlaceholder="user key(사용자키) 입력 (저장 후 전체 노출되지 않습니다)"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <div>
           <label htmlFor="mallSno" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">

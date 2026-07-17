@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSmartstoreQueryWindows,
+  buildSmartstoreQueryWindowsFromRange,
   collectSmartstoreProductOrders,
   type SmartstoreApiRequestFn,
 } from '@/app/lib/smartstore/client';
@@ -43,7 +44,63 @@ describe('buildSmartstoreQueryWindows', () => {
   });
 });
 
+describe('buildSmartstoreQueryWindowsFromRange', () => {
+  it('명시적 범위를 24시간 이하 구간으로 나눈다', () => {
+    const fromMs = new Date('2026-07-10T00:00:00.000+09:00').getTime();
+    const toMs = new Date('2026-07-12T23:59:59.999+09:00').getTime();
+    const windows = buildSmartstoreQueryWindowsFromRange({ fromMs, toMs, now: FIXED_NOW });
+
+    // 3일 구간 → 24h 구간 2개 + 마지막 부분 구간 1개
+    expect(windows).toHaveLength(3);
+    for (const win of windows) {
+      const span = new Date(win.toIso).getTime() - new Date(win.fromIso).getTime();
+      expect(span).toBeGreaterThan(0);
+      expect(span).toBeLessThanOrEqual(DAY_MS);
+    }
+    expect(new Date(windows[0].fromIso).getTime()).toBe(fromMs);
+    expect(new Date(windows[windows.length - 1].toIso).getTime()).toBe(toMs);
+
+    // 구간이 서로 이어진다
+    for (let i = 1; i < windows.length; i += 1) {
+      expect(new Date(windows[i].fromIso).getTime()).toBe(new Date(windows[i - 1].toIso).getTime());
+    }
+  });
+
+  it('종료 시각이 now를 넘으면 now-5초로 제한한다', () => {
+    const fromMs = FIXED_NOW.getTime() - DAY_MS;
+    const toMs = FIXED_NOW.getTime() + DAY_MS; // 미래
+    const windows = buildSmartstoreQueryWindowsFromRange({ fromMs, toMs, now: FIXED_NOW });
+    expect(new Date(windows[windows.length - 1].toIso).getTime()).toBe(FIXED_NOW.getTime() - LAG_MS);
+  });
+
+  it('시작이 종료 이후면 빈 구간', () => {
+    const fromMs = new Date('2026-07-12T00:00:00.000+09:00').getTime();
+    const toMs = new Date('2026-07-10T00:00:00.000+09:00').getTime();
+    expect(buildSmartstoreQueryWindowsFromRange({ fromMs, toMs, now: FIXED_NOW })).toHaveLength(0);
+  });
+});
+
 describe('collectSmartstoreProductOrders', () => {
+  it('range가 주어지면 명시적 범위로 조회한다', async () => {
+    const lastChangedTos: string[] = [];
+    const request = (async (req: { method: string; pathWithQuery: string; body?: string }) => {
+      if (req.method === 'GET') {
+        const to = parseQuery(req.pathWithQuery).get('lastChangedTo');
+        if (to) lastChangedTos.push(to);
+        return { data: { lastChangeStatuses: [] } };
+      }
+      return { data: [] };
+    }) as SmartstoreApiRequestFn;
+
+    const fromMs = new Date('2026-07-01T00:00:00.000+09:00').getTime();
+    const toMs = new Date('2026-07-02T23:59:59.999+09:00').getTime();
+    await collectSmartstoreProductOrders({ request, range: { fromMs, toMs }, now: FIXED_NOW });
+
+    // 2일 범위 → 2구간, 마지막 종료가 지정한 toMs와 일치
+    expect(lastChangedTos).toHaveLength(2);
+    expect(new Date(lastChangedTos[lastChangedTos.length - 1]).getTime()).toBe(toMs);
+  });
+
   it('한 구간 안에서 more가 있으면 moreFrom/moreSequence로 페이지네이션한다', async () => {
     const getCalls: string[] = [];
     let getCount = 0;

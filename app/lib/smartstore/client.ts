@@ -264,6 +264,25 @@ export function buildSmartstoreQueryWindows(input: {
   const overallToMs = input.now.getTime() - SMARTSTORE_FETCH_LAG_MS;
   const overallFromMs = input.now.getTime() - days * 24 * 60 * 60 * 1000;
 
+  return splitWindows(overallFromMs, overallToMs);
+}
+
+/**
+ * 명시적인 시작·종료 시각(epoch ms)을 24시간 이하 구간으로 나눈다.
+ * 날짜 직접 선택(과거 특정 기간 조회)에서 사용하며, days 기반과 동일한 24시간 분할 로직을 재사용한다.
+ * 종료 시각은 데이터 누락 방지를 위해 now-5초를 넘지 않도록 제한한다.
+ */
+export function buildSmartstoreQueryWindowsFromRange(input: {
+  fromMs: number;
+  toMs: number;
+  now: Date;
+}): SmartstoreQueryWindow[] {
+  const overallToMs = Math.min(input.toMs, input.now.getTime() - SMARTSTORE_FETCH_LAG_MS);
+  const overallFromMs = input.fromMs;
+  return splitWindows(overallFromMs, overallToMs);
+}
+
+function splitWindows(overallFromMs: number, overallToMs: number): SmartstoreQueryWindow[] {
   const windows: SmartstoreQueryWindow[] = [];
   let startMs = overallFromMs;
   while (startMs < overallToMs) {
@@ -298,10 +317,14 @@ function toSafeErrorMessage(error: unknown): string {
 export async function collectSmartstoreProductOrders(input: {
   request: SmartstoreApiRequestFn;
   days?: number;
+  /** 날짜 직접 선택 시 명시적인 조회 범위(epoch ms). 지정되면 days 대신 사용한다. */
+  range?: { fromMs: number; toMs: number };
   now?: Date;
 }): Promise<SmartstoreProductOrderDetail[]> {
   const now = input.now ?? new Date();
-  const windows = buildSmartstoreQueryWindows({ now, days: input.days ?? DEFAULT_FETCH_DAYS });
+  const windows = input.range
+    ? buildSmartstoreQueryWindowsFromRange({ fromMs: input.range.fromMs, toMs: input.range.toMs, now })
+    : buildSmartstoreQueryWindows({ now, days: input.days ?? DEFAULT_FETCH_DAYS });
 
   const productOrderIdSet = new Set<string>();
 
@@ -399,6 +422,8 @@ export async function collectSmartstoreProductOrders(input: {
 export async function fetchSmartstoreProductOrders(input: {
   credentials: SmartstoreCredentials;
   days?: number;
+  /** 날짜 직접 선택 시 명시적인 조회 범위(epoch ms). 지정되면 days 대신 사용한다. */
+  range?: { fromMs: number; toMs: number };
 }): Promise<SmartstoreProductOrderDetail[]> {
   const request: SmartstoreApiRequestFn = <T,>(req: {
     method: string;
@@ -407,7 +432,7 @@ export async function fetchSmartstoreProductOrders(input: {
     contentType?: string;
   }) => smartstoreAuthorizedRequest<T>({ credentials: input.credentials, ...req });
 
-  return collectSmartstoreProductOrders({ request, days: input.days });
+  return collectSmartstoreProductOrders({ request, days: input.days, range: input.range });
 }
 
 export function toUserFacingSmartstoreErrorMessage(error: unknown): string {

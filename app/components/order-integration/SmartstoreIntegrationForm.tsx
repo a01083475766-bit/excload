@@ -9,6 +9,7 @@ import {
 } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
+import { SecretInput } from '@/app/components/order-integration/SecretInput';
 
 type SmartstoreAccountResponse = {
   id: string;
@@ -223,9 +224,6 @@ export function SmartstoreIntegrationForm({
   const clientIdPlaceholder = savedAccount?.hasClientId
     ? `저장됨: ${savedAccount.clientIdMasked || '****'}`
     : 'Client ID (애플리케이션 ID) 입력';
-  const clientSecretPlaceholder = savedAccount?.hasClientSecret
-    ? `저장됨: ${savedAccount.clientSecretMasked || '********'} (변경 시에만 입력)`
-    : 'Client Secret 입력 (저장 후 전체 노출되지 않습니다)';
 
   return (
     <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
@@ -351,20 +349,19 @@ export function SmartstoreIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="clientSecret" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Client Secret (애플리케이션 시크릿)
-          </label>
-          <input
-            id="clientSecret"
-            type="password"
-            value={clientSecret}
-            onChange={(e) => setClientSecret(e.target.value)}
-            autoComplete="new-password"
-            placeholder={clientSecretPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="clientSecret"
+          label="Client Secret (애플리케이션 시크릿)"
+          confirmLabel="Client Secret(애플리케이션 시크릿)"
+          value={clientSecret}
+          onChange={setClientSecret}
+          hasSaved={Boolean(savedAccount?.hasClientSecret)}
+          savedMasked={savedAccount?.clientSecretMasked}
+          newPlaceholder="Client Secret 입력 (저장 후 전체 노출되지 않습니다)"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <div>
           <label htmlFor="authType" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">

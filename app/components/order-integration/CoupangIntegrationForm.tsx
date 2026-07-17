@@ -9,6 +9,7 @@ import {
 } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
+import { SecretInput } from '@/app/components/order-integration/SecretInput';
 
 type CoupangAccountResponse = {
   id: string;
@@ -234,9 +235,6 @@ export function CoupangIntegrationForm({
   const accessKeyPlaceholder = savedAccount?.hasAccessKey
     ? `저장됨: ${savedAccount.accessKeyMasked || '****'}`
     : 'Access Key 입력';
-  const secretKeyPlaceholder = savedAccount?.hasSecretKey
-    ? `저장됨: ${savedAccount.secretKeyMasked || '********'} (변경 시에만 입력)`
-    : 'Secret Key 입력 (저장 후 전체 노출되지 않습니다)';
 
   return (
     <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
@@ -355,20 +353,18 @@ export function CoupangIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="secretKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Secret Key
-          </label>
-          <input
-            id="secretKey"
-            type="password"
-            value={secretKey}
-            onChange={(e) => setSecretKey(e.target.value)}
-            autoComplete="new-password"
-            placeholder={secretKeyPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="secretKey"
+          label="Secret Key"
+          value={secretKey}
+          onChange={setSecretKey}
+          hasSaved={Boolean(savedAccount?.hasSecretKey)}
+          savedMasked={savedAccount?.secretKeyMasked}
+          newPlaceholder="Secret Key 입력 (저장 후 전체 노출되지 않습니다)"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <div>
           <label htmlFor="apiKeyExpiry" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
