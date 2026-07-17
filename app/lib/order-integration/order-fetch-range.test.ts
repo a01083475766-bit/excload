@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   getOrderFetchRangeError,
   isDateRangeSupportedMall,
+  kstDateStringDaysAgo,
   kstTodayDateString,
   MAX_FETCH_RANGE_DAYS,
   OrderFetchRangeError,
+  presetRangeDates,
   resolveOrderFetchRange,
 } from '@/app/lib/order-integration/order-fetch-range';
 
@@ -31,6 +33,23 @@ describe('kstTodayDateString', () => {
     expect(kstTodayDateString(FIXED_NOW)).toBe('2026-07-16');
     // UTC 23:30 → KST 다음날 08:30
     expect(kstTodayDateString(new Date('2026-07-16T23:30:00.000Z'))).toBe('2026-07-17');
+  });
+});
+
+describe('kstDateStringDaysAgo', () => {
+  it('오늘 기준 N일 전 날짜(월 경계 포함)를 반환한다', () => {
+    expect(kstDateStringDaysAgo(0, FIXED_NOW)).toBe('2026-07-16');
+    expect(kstDateStringDaysAgo(6, FIXED_NOW)).toBe('2026-07-10');
+    // 월 경계
+    expect(kstDateStringDaysAgo(16, FIXED_NOW)).toBe('2026-06-30');
+  });
+});
+
+describe('presetRangeDates', () => {
+  it('오늘 포함 최근 N일의 시작·종료를 반환한다', () => {
+    expect(presetRangeDates(1, FIXED_NOW)).toEqual({ start: '2026-07-16', end: '2026-07-16' });
+    expect(presetRangeDates(7, FIXED_NOW)).toEqual({ start: '2026-07-10', end: '2026-07-16' });
+    expect(presetRangeDates(30, FIXED_NOW)).toEqual({ start: '2026-06-17', end: '2026-07-16' });
   });
 });
 

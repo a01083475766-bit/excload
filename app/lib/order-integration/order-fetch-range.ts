@@ -61,10 +61,36 @@ function kstDatePartsOf(now: Date): ParsedDate {
   return { year: kst.getUTCFullYear(), month: kst.getUTCMonth() + 1, day: kst.getUTCDate() };
 }
 
+function formatDateParts(year: number, month: number, day: number): string {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * 오늘(KST) 기준 daysAgo일 전의 날짜를 YYYY-MM-DD로 반환.
+ * KST 달력 날짜를 기준으로 순수 날짜 계산만 하므로 브라우저 타임존 영향을 받지 않는다.
+ */
+export function kstDateStringDaysAgo(daysAgo: number, now: Date = new Date()): string {
+  const { year, month, day } = kstDatePartsOf(now);
+  const anchorMs = Date.UTC(year, month - 1, day) - daysAgo * DAY_MS;
+  const d = new Date(anchorMs);
+  return formatDateParts(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+}
+
 /** 오늘(KST) 날짜를 YYYY-MM-DD로 반환. date input의 max 등에 사용. */
 export function kstTodayDateString(now: Date = new Date()): string {
-  const { year, month, day } = kstDatePartsOf(now);
-  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return kstDateStringDaysAgo(0, now);
+}
+
+/**
+ * 최근 N일 프리셋에 해당하는 시작·종료 날짜(YYYY-MM-DD, KST).
+ * 오늘을 포함하므로 시작일은 오늘로부터 (days-1)일 전이다. (예: 7일 → 오늘 포함 최근 7개 날짜)
+ */
+export function presetRangeDates(days: number, now: Date = new Date()): { start: string; end: string } {
+  const safeDays = Math.max(1, Math.floor(days) || 1);
+  return {
+    start: kstDateStringDaysAgo(safeDays - 1, now),
+    end: kstTodayDateString(now),
+  };
 }
 
 /** 포함 기준 일수 (같은 날이면 1일). */

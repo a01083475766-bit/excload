@@ -10,6 +10,7 @@ import {
   isDateRangeSupportedMall,
   kstTodayDateString,
   MAX_FETCH_RANGE_DAYS,
+  presetRangeDates,
 } from '@/app/lib/order-integration/order-fetch-range';
 import type { StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
 import { writeHubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
@@ -122,8 +123,8 @@ export default function OrderIntegrationFetchPanel() {
   const [selectedMallIds, setSelectedMallIds] = useState<Set<OrderIntegrationMallId>>(new Set());
   const [days, setDays] = useState(7);
   const [rangeMode, setRangeMode] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => presetRangeDates(7).start);
+  const [endDate, setEndDate] = useState(() => presetRangeDates(7).end);
   const [workTarget, setWorkTarget] = useState<OrderWorkTarget>('SHIPMENT_TARGET');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -187,12 +188,27 @@ export default function OrderIntegrationFetchPanel() {
     });
   };
 
+  const applyPreset = (presetDays: number) => {
+    const { start, end } = presetRangeDates(presetDays);
+    setDays(presetDays);
+    setRangeMode(false);
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+    setRangeMode(true);
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value);
+    setRangeMode(true);
+  };
+
   const resetFilters = () => {
     setSelectedMallIds(new Set(connectedMalls.map((m) => m.mallId)));
-    setDays(7);
-    setRangeMode(false);
-    setStartDate('');
-    setEndDate('');
+    applyPreset(7);
     setWorkTarget('SHIPMENT_TARGET');
     setSearchTerm('');
     setShowAdvanced(false);
@@ -576,65 +592,52 @@ export default function OrderIntegrationFetchPanel() {
                     <button
                       key={preset.days}
                       type="button"
-                      onClick={() => {
-                        setRangeMode(false);
-                        setDays(preset.days);
-                      }}
+                      onClick={() => applyPreset(preset.days)}
                       className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${mallChipClass(!rangeMode && days === preset.days)}`}
                     >
                       {preset.label}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => setRangeMode(true)}
-                    disabled={!selectedSupportsRange}
-                    title={!selectedSupportsRange ? '이 쇼핑몰은 현재 최근 기간 조회만 지원합니다.' : undefined}
-                    className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${mallChipClass(rangeMode)}`}
-                  >
-                    기간 직접 선택
-                  </button>
                 </div>
 
-                {rangeMode ? (
-                  <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <label className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
-                        시작일
-                        <input
-                          type="date"
-                          value={startDate}
-                          max={endDate || todayDateString}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          className="h-9 rounded-lg border border-zinc-300 px-2 text-sm"
-                        />
-                      </label>
-                      <span className="text-zinc-400">~</span>
-                      <label className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
-                        종료일
-                        <input
-                          type="date"
-                          value={endDate}
-                          min={startDate || undefined}
-                          max={todayDateString}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          className="h-9 rounded-lg border border-zinc-300 px-2 text-sm"
-                        />
-                      </label>
-                    </div>
-                    <p className="text-xs text-zinc-500">
-                      과거 주문을 다시 조회하려면 시작일과 종료일을 선택하세요. 한 번에 최대 {MAX_FETCH_RANGE_DAYS}일까지
-                      조회할 수 있습니다.
-                    </p>
-                    {rangeError ? <p className="text-xs font-medium text-red-600">{rangeError}</p> : null}
-                  </div>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
+                    시작일
+                    <input
+                      type="date"
+                      value={startDate}
+                      max={endDate || todayDateString}
+                      disabled={!selectedSupportsRange}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
+                      className="h-9 rounded-lg border border-zinc-300 px-2 text-sm disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                    />
+                  </label>
+                  <span className="text-zinc-400">~</span>
+                  <label className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
+                    종료일
+                    <input
+                      type="date"
+                      value={endDate}
+                      min={startDate || undefined}
+                      max={todayDateString}
+                      disabled={!selectedSupportsRange}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
+                      className="h-9 rounded-lg border border-zinc-300 px-2 text-sm disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                    />
+                  </label>
+                </div>
+
+                {rangeError ? <p className="text-xs font-medium text-red-600">{rangeError}</p> : null}
 
                 <p className="text-xs text-zinc-500">
-                  쇼핑몰에 따라 주문일이 아닌 최종 변경일을 기준으로 조회될 수 있습니다.
+                  {selectedSupportsRange
+                    ? `시작일·종료일을 직접 바꾸면 그 기간의 주문을 조회합니다. 한 번에 최대 ${MAX_FETCH_RANGE_DAYS}일까지 선택할 수 있습니다. `
+                    : ''}
+                  쇼핑몰에 따라 주문한 날짜가 아니라 주문이 마지막으로 바뀐 날짜를 기준으로 조회될 수 있습니다.
                   {!selectedSupportsRange ? (
                     <span className="mt-0.5 block text-amber-700">
-                      이 쇼핑몰은 현재 최근 기간 조회만 지원합니다.
+                      선택하신 쇼핑몰은 아직 날짜를 직접 지정하는 조회를 지원하지 않습니다. 위의 최근 기간 버튼(오늘·최근
+                      7일 등)으로만 조회되며, 위 날짜는 실제 조회되는 기간을 보여주는 표시입니다.
                     </span>
                   ) : null}
                 </p>
