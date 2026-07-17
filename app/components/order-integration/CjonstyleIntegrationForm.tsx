@@ -334,20 +334,20 @@ export function CjonstyleIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="vendorCode" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            vendorCode (협력업체코드, 6자)
-          </label>
-          <input
-            id="vendorCode"
-            type="text"
-            value={vendorCode}
-            onChange={(e) => setVendorCode(e.target.value.toUpperCase())}
-            maxLength={6}
-            placeholder="예: AB1234"
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="vendorCode"
+          label="vendorCode (협력업체코드, 6자)"
+          confirmLabel="vendorCode(협력업체코드)"
+          secret={false}
+          value={vendorCode}
+          onChange={(v) => setVendorCode(v.toUpperCase().slice(0, 6))}
+          hasSaved={Boolean(savedAccount?.vendorCode)}
+          savedMasked={savedAccount?.vendorCode}
+          newPlaceholder="예: AB1234"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <SecretInput
           id="authenticationKey"

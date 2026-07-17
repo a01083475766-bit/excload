@@ -232,10 +232,6 @@ export function CoupangIntegrationForm({
     }
   }
 
-  const accessKeyPlaceholder = savedAccount?.hasAccessKey
-    ? `저장됨: ${savedAccount.accessKeyMasked || '****'}`
-    : 'Access Key 입력';
-
   return (
     <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
 {!embedded ? (
@@ -325,33 +321,35 @@ export function CoupangIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="vendorCode" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            쿠팡 업체코드
-          </label>
-          <input
-            id="vendorCode"
-            type="text"
-            value={vendorCode}
-            onChange={(e) => setVendorCode(e.target.value)}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="vendorCode"
+          label="쿠팡 업체코드"
+          confirmLabel="쿠팡 업체코드"
+          secret={false}
+          value={vendorCode}
+          onChange={setVendorCode}
+          hasSaved={Boolean(savedAccount?.vendorId)}
+          savedMasked={savedAccount?.vendorId}
+          newPlaceholder="쿠팡 업체코드 입력"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
-        <div>
-          <label htmlFor="accessKey" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Access Key
-          </label>
-          <input
-            id="accessKey"
-            type="text"
-            value={accessKey}
-            onChange={(e) => setAccessKey(e.target.value)}
-            autoComplete="off"
-            placeholder={accessKeyPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="accessKey"
+          label="Access Key"
+          confirmLabel="Access Key"
+          secret={false}
+          value={accessKey}
+          onChange={setAccessKey}
+          hasSaved={Boolean(savedAccount?.hasAccessKey)}
+          savedMasked={savedAccount?.accessKeyMasked}
+          newPlaceholder="Access Key 입력"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <SecretInput
           id="secretKey"

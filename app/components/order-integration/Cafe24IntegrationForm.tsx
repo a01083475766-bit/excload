@@ -364,33 +364,35 @@ export function Cafe24IntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="mallId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            mallId (쇼핑몰 ID)
-          </label>
-          <input
-            id="mallId"
-            type="text"
-            value={mallId}
-            onChange={(e) => setMallId(e.target.value)}
-            placeholder="예: yourmall"
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="mallId"
+          label="mallId (쇼핑몰 ID)"
+          confirmLabel="mallId(쇼핑몰 ID)"
+          secret={false}
+          value={mallId}
+          onChange={setMallId}
+          hasSaved={Boolean(savedAccount?.mallId)}
+          savedMasked={savedAccount?.mallId}
+          newPlaceholder="예: yourmall"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
-        <div>
-          <label htmlFor="clientId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Client ID
-          </label>
-          <input
-            id="clientId"
-            type="text"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            placeholder="개발자센터 App Client ID"
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="clientId"
+          label="Client ID"
+          confirmLabel="Client ID"
+          secret={false}
+          value={clientId}
+          onChange={setClientId}
+          hasSaved={Boolean(savedAccount?.hasClientId)}
+          savedMasked={savedAccount?.clientIdMasked}
+          newPlaceholder="개발자센터 App Client ID"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <SecretInput
           id="clientSecret"

@@ -221,10 +221,6 @@ export function SmartstoreIntegrationForm({
     }
   }
 
-  const clientIdPlaceholder = savedAccount?.hasClientId
-    ? `저장됨: ${savedAccount.clientIdMasked || '****'}`
-    : 'Client ID (애플리케이션 ID) 입력';
-
   return (
     <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
 {!embedded ? (
@@ -335,19 +331,20 @@ export function SmartstoreIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="clientId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Client ID (애플리케이션 ID)
-          </label>
-          <input
-            id="clientId"
-            type="text"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            placeholder={clientIdPlaceholder}
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="clientId"
+          label="Client ID (애플리케이션 ID)"
+          confirmLabel="Client ID(애플리케이션 ID)"
+          secret={false}
+          value={clientId}
+          onChange={setClientId}
+          hasSaved={Boolean(savedAccount?.hasClientId)}
+          savedMasked={savedAccount?.clientId}
+          newPlaceholder="Client ID (애플리케이션 ID) 입력"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <SecretInput
           id="clientSecret"

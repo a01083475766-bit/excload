@@ -330,47 +330,50 @@ export function LotteonIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="sellerId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            판매자 ID
-          </label>
-          <input
-            id="sellerId"
-            type="text"
-            value={sellerId}
-            onChange={(e) => setSellerId(e.target.value)}
-            placeholder="스토어센터 판매자 ID"
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="sellerId"
+          label="판매자 ID"
+          confirmLabel="판매자 ID"
+          secret={false}
+          value={sellerId}
+          onChange={setSellerId}
+          hasSaved={Boolean(savedAccount?.sellerId)}
+          savedMasked={savedAccount?.sellerId}
+          newPlaceholder="스토어센터 판매자 ID"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
-        <div>
-          <label htmlFor="trNo" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            거래처번호 (tr_no)
-          </label>
-          <input
-            id="trNo"
-            type="text"
-            value={trNo}
-            onChange={(e) => setTrNo(e.target.value)}
-            placeholder="예: LO12345678"
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="trNo"
+          label="거래처번호 (tr_no)"
+          confirmLabel="거래처번호(tr_no)"
+          secret={false}
+          value={trNo}
+          onChange={setTrNo}
+          hasSaved={Boolean(savedAccount?.trNo)}
+          savedMasked={savedAccount?.trNo}
+          newPlaceholder="예: LO12345678"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
-        <div>
-          <label htmlFor="shopId" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Shop ID (선택)
-          </label>
-          <input
-            id="shopId"
-            type="text"
-            value={shopId}
-            onChange={(e) => setShopId(e.target.value)}
-            placeholder="필요 시 Shop ID / lrtr_no"
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="shopId"
+          label="Shop ID (선택)"
+          confirmLabel="Shop ID"
+          secret={false}
+          value={shopId}
+          onChange={setShopId}
+          hasSaved={Boolean(savedAccount?.shopId)}
+          savedMasked={savedAccount?.shopId}
+          newPlaceholder="필요 시 Shop ID / lrtr_no"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <SecretInput
           id="apiKey"

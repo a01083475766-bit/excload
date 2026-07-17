@@ -329,19 +329,20 @@ export function SsgIntegrationForm({
           />
         </div>
 
-        <div>
-          <label htmlFor="vendorCode" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            협력사코드 (로그인 ID)
-          </label>
-          <input
-            id="vendorCode"
-            type="text"
-            value={vendorCode}
-            onChange={(e) => setVendorCode(e.target.value)}
-            placeholder="파트너오피스 로그인 ID"
-            className={inputClass}
-          />
-        </div>
+        <SecretInput
+          id="vendorCode"
+          label="협력사코드 (로그인 ID)"
+          confirmLabel="협력사코드(로그인 ID)"
+          secret={false}
+          value={vendorCode}
+          onChange={setVendorCode}
+          hasSaved={Boolean(savedAccount?.vendorCode)}
+          savedMasked={savedAccount?.vendorCode}
+          newPlaceholder="파트너오피스 로그인 ID"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
 
         <SecretInput
           id="apiKey"

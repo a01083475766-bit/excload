@@ -25,11 +25,18 @@ type SecretInputProps = {
   resetSignal?: unknown;
   /** 확인창·안내 문구에 쓸 짧은 이름 (기본: label) */
   confirmLabel?: string;
+  /**
+   * 비밀값 여부 (기본 true).
+   * false면 Client ID처럼 민감하지 않은 값으로 취급해
+   * 입력을 마스킹(●)하지 않고, 잠금 상태에서 저장된 값을 그대로 보여준다.
+   */
+  secret?: boolean;
 };
 
 /**
- * 저장된 시크릿을 잠금(읽기 전용)으로 두고, 「변경」→확인을 거쳐야만 새 값을 입력하게 한다.
- * 실수 입력/붙여넣기로 기존 시크릿이 덮어써지는 것을 방지한다.
+ * 저장된 값을 잠금(읽기 전용)으로 두고, 「변경」→확인을 거쳐야만 새 값을 입력하게 한다.
+ * 실수 입력/붙여넣기로 기존 값이 덮어써지는 것을 방지한다.
+ * 시크릿(기본)은 마스킹하고, secret=false면 저장된 값을 그대로 노출한다.
  */
 export function SecretInput({
   id,
@@ -43,6 +50,7 @@ export function SecretInput({
   disabled = false,
   resetSignal,
   confirmLabel,
+  secret = true,
 }: SecretInputProps) {
   const [editing, setEditing] = useState(false);
 
@@ -52,6 +60,7 @@ export function SecretInput({
 
   const locked = hasSaved && !editing;
   const name = confirmLabel ?? label;
+  const lockedDisplay = secret ? `저장됨: ${savedMasked || '********'}` : savedMasked || '';
 
   const buttonClass =
     'inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800';
@@ -83,7 +92,7 @@ export function SecretInput({
           <input
             id={id}
             type="text"
-            value={`저장됨: ${savedMasked || '********'}`}
+            value={lockedDisplay}
             readOnly
             aria-label={`저장된 ${name} (잠금)`}
             className={`${inputClass} bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400`}
@@ -96,10 +105,10 @@ export function SecretInput({
         <div className="flex items-center gap-2">
           <input
             id={id}
-            type="password"
+            type={secret ? 'password' : 'text'}
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            autoComplete="new-password"
+            autoComplete={secret ? 'new-password' : 'off'}
             placeholder={hasSaved ? `새 ${name} 입력` : newPlaceholder}
             className={inputClass}
           />
@@ -112,10 +121,14 @@ export function SecretInput({
       )}
       <p className="mt-1 text-xs text-zinc-500">
         {locked
-          ? '저장된 값은 보호됩니다. 변경하려면 「변경」을 누르세요.'
+          ? secret
+            ? '저장된 값은 보호됩니다. 변경하려면 「변경」을 누르세요.'
+            : '저장된 값입니다. 변경하려면 「변경」을 누르세요.'
           : hasSaved
             ? '새 값을 입력한 뒤 저장하세요. 취소하면 기존 값이 그대로 유지됩니다.'
-            : '저장 후에는 전체가 노출되지 않습니다.'}
+            : secret
+              ? '저장 후에는 전체가 노출되지 않습니다.'
+              : '저장 후에는 「변경」을 눌러야 수정할 수 있습니다.'}
       </p>
     </div>
   );
