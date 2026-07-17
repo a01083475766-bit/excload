@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Check, ChevronDown, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
 import { getHealthMessage } from '@/app/lib/order-integration/connection-health/messages';
+import { buildConnectionHelp } from '@/app/lib/order-integration/connection-health/provider-connection-help';
 import { resolveConnectionHealthDisplay } from '@/app/lib/order-integration/connection-health/display-status';
 import type { HealthStatus } from '@/app/lib/order-integration/connection-health/types';
 import {
@@ -1063,6 +1064,8 @@ type ClientHealthEntry = {
   lastFailureAt: string | null;
   lastErrorCategory: string | null;
   consecutiveFailureCount: number;
+  /** 설정 오류 원인 구분(서버에서 정제). 원본 코드는 받지 않는다. */
+  configErrorScope: 'account' | 'server' | null;
   /** 사용자가 직접 등록한 인증기간(YYYY-MM-DD, KST). 연결 상태와 독립. */
   authorizationPeriodStart: string | null;
   authorizationPeriodEnd: string | null;
@@ -1077,6 +1080,7 @@ const EMPTY_HEALTH_ENTRY: ClientHealthEntry = {
   lastFailureAt: null,
   lastErrorCategory: null,
   consecutiveFailureCount: 0,
+  configErrorScope: null,
   authorizationPeriodStart: null,
   authorizationPeriodEnd: null,
 };
@@ -1120,6 +1124,7 @@ function useMallHealth(
           lastFailureAt?: string | null;
           lastErrorCategory?: string | null;
           consecutiveFailureCount?: number | null;
+          configErrorScope?: 'account' | 'server' | null;
         } | null;
         if (res.ok && data?.success) {
           patchEntry(accountId, {
@@ -1129,6 +1134,7 @@ function useMallHealth(
             lastFailureAt: data.lastFailureAt ?? null,
             lastErrorCategory: data.lastErrorCategory ?? null,
             consecutiveFailureCount: data.consecutiveFailureCount ?? 0,
+            configErrorScope: data.configErrorScope ?? null,
             checking: false,
           });
         } else {
@@ -1162,6 +1168,7 @@ function useMallHealth(
             lastFailureAt?: string | null;
             lastErrorCategory?: string | null;
             consecutiveFailureCount?: number | null;
+            configErrorScope?: 'account' | 'server' | null;
             authorizationPeriodStart?: string | null;
             authorizationPeriodEnd?: string | null;
           }>;
@@ -1184,6 +1191,7 @@ function useMallHealth(
                 lastFailureAt: a.lastFailureAt ?? current.lastFailureAt,
                 lastErrorCategory: a.lastErrorCategory ?? current.lastErrorCategory,
                 consecutiveFailureCount: a.consecutiveFailureCount ?? current.consecutiveFailureCount,
+                configErrorScope: a.configErrorScope ?? null,
                 authorizationPeriodStart: a.authorizationPeriodStart ?? null,
                 authorizationPeriodEnd: a.authorizationPeriodEnd ?? null,
                 checking: false,
@@ -1368,28 +1376,47 @@ function MallHealthNotice({
   const display = displayStatusOf(entry);
   if (!display || display === 'HEALTHY') return null;
 
-  const msg = getHealthMessage(display);
-  const isError = msg.tone === 'error';
+  const help = buildConnectionHelp({
+    mallId: mall.mallId,
+    status: display,
+    configErrorScope: entry?.configErrorScope ?? null,
+  });
+  if (!help) return null;
+
+  const accent =
+    help.tone === 'error' ? 'border-red-300' : help.tone === 'warn' ? 'border-amber-300' : 'border-zinc-300';
+  const titleClass =
+    help.tone === 'error' ? 'text-red-700' : help.tone === 'warn' ? 'text-amber-700' : 'text-zinc-700';
+  const linkClass =
+    'inline-flex items-center gap-1 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-50';
 
   return (
-    <div
-      className={`flex flex-wrap items-start gap-x-2 gap-y-1 border-l-2 py-1 pl-2 text-[12px] ${
-        isError ? 'border-red-300 text-red-700' : 'border-amber-300 text-amber-700'
-      }`}
-    >
-      <span className="font-medium">{mall.name}</span>
-      <span className="text-zinc-600">
-        {msg.title}
-        {msg.action ? ` ${msg.action}` : ''}
-      </span>
-      <button
-        type="button"
-        onClick={() => onRecheck(mall.accountId)}
-        className="inline-flex items-center gap-1 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-50"
-      >
-        <RefreshCw className="h-3 w-3" aria-hidden />
-        다시 확인
-      </button>
+    <div className={`border-l-2 py-1 pl-2 text-[12px] ${accent}`}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <span className={`font-medium ${titleClass}`}>{help.title}</span>
+        <span className="text-zinc-600">{help.description}</span>
+      </div>
+      {help.checks.length > 0 ? (
+        <p className="mt-0.5 text-zinc-500">확인: {help.checks.join(' · ')}</p>
+      ) : null}
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        {help.center ? (
+          <a href={help.center.url} target="_blank" rel="noreferrer" className={linkClass}>
+            {help.center.label}
+          </a>
+        ) : null}
+        {help.showSettings && help.settingsUrl ? (
+          <Link href={help.settingsUrl} className={linkClass}>
+            연동 정보 수정
+          </Link>
+        ) : null}
+        {help.showRecheck ? (
+          <button type="button" onClick={() => onRecheck(mall.accountId)} className={linkClass}>
+            <RefreshCw className="h-3 w-3" aria-hidden />
+            다시 확인
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   type OrderIntegrationMallId,
 } from '@/app/lib/order-integration/malls';
 import { getHealthMessageForStatus } from '@/app/lib/order-integration/connection-health/messages';
+import { configErrorScopeFromCode } from '@/app/lib/order-integration/connection-health/provider-connection-help';
 import { getProviderReadiness } from '@/app/lib/order-integration/connection-health/provider-health-registry';
 import { registerBuiltInHealthAdapters } from '@/app/lib/order-integration/connection-health/adapters';
 import { formatAuthorizationDate } from '@/app/lib/order-integration/authorization-period';
@@ -71,6 +72,7 @@ export async function GET() {
       lastSuccessAt: true,
       lastFailureAt: true,
       lastErrorCategory: true,
+      lastErrorCode: true,
       consecutiveFailureCount: true,
       authorizationPeriodStart: true,
       authorizationPeriodEnd: true,
@@ -101,6 +103,11 @@ export async function GET() {
       lastSuccessAt: account.lastSuccessAt?.toISOString() ?? null,
       lastFailureAt: account.lastFailureAt?.toISOString() ?? null,
       lastErrorCategory: account.lastErrorCategory,
+      // 설정 오류일 때만 안전한 원인 구분(server/account)을 전달. 원본 코드는 노출하지 않는다.
+      configErrorScope:
+        healthStatus === 'ACCOUNT_CONFIG_ERROR'
+          ? configErrorScopeFromCode(account.lastErrorCode)
+          : null,
       consecutiveFailureCount: account.consecutiveFailureCount,
       authorizationPeriodStart: formatAuthorizationDate(account.authorizationPeriodStart),
       authorizationPeriodEnd: formatAuthorizationDate(account.authorizationPeriodEnd),

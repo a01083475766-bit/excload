@@ -29,10 +29,10 @@ const MESSAGES: Record<ClientHealthState, HealthMessage> = {
     tone: 'ok',
   },
   AUTH_REQUIRED: {
-    label: '재인증 필요',
-    title: '인증정보를 확인해 주세요.',
-    description: '인증이 만료되었거나 인증정보가 올바르지 않습니다.',
-    action: 'Client ID·Client Secret 등 인증정보를 확인한 뒤 다시 연결해 주세요.',
+    label: '연결 정보 확인 필요',
+    title: '연결 정보를 확인해 주세요.',
+    description: '쇼핑몰 관리센터에서 앱·API 사용 상태와 등록된 인증정보를 확인해 주세요.',
+    action: '정보가 변경됐다면 엑클로드 연동 설정에서도 수정한 뒤 다시 확인해 주세요.',
     tone: 'error',
   },
   IP_NOT_ALLOWED: {
@@ -50,10 +50,10 @@ const MESSAGES: Record<ClientHealthState, HealthMessage> = {
     tone: 'error',
   },
   APPROVAL_REQUIRED: {
-    label: '승인·계약 확인 필요',
-    title: 'API 사용 승인을 확인해 주세요.',
-    description: 'API 사용 승인이 완료되지 않았거나 반영 대기 중입니다.',
-    action: '쇼핑몰에서 API 사용 승인·계약 상태를 확인한 뒤 다시 확인해 주세요.',
+    label: '앱·서비스 상태 확인 필요',
+    title: '앱·서비스 상태를 확인해 주세요.',
+    description: '앱 설치, 서비스 승인·계약 또는 사용 중지 상태를 확인해 주세요.',
+    action: '정상 상태로 변경된 뒤 다시 확인해 주세요.',
     tone: 'warn',
   },
   RATE_LIMITED: {

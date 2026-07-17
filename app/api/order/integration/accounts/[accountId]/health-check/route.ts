@@ -11,6 +11,7 @@ import {
 } from '@/app/lib/order-integration/connection-health/provider-health-registry';
 import { registerBuiltInHealthAdapters } from '@/app/lib/order-integration/connection-health/adapters';
 import { persistConnectionHealth } from '@/app/lib/order-integration/connection-health/persist-health-result';
+import { configErrorScopeFromCode } from '@/app/lib/order-integration/connection-health/provider-connection-help';
 import type {
   ConnectionHealthResult,
   HealthStatus,
@@ -116,6 +117,10 @@ export async function POST(
       lastSuccessAt: account.lastSuccessAt?.toISOString() ?? null,
       lastFailureAt: account.lastFailureAt?.toISOString() ?? null,
       lastErrorCategory: account.lastErrorCategory ?? null,
+      configErrorScope:
+        account.healthStatus === 'ACCOUNT_CONFIG_ERROR'
+          ? configErrorScopeFromCode(account.lastErrorCode)
+          : null,
       consecutiveFailureCount: account.consecutiveFailureCount ?? 0,
     });
 
@@ -151,6 +156,11 @@ export async function POST(
     lastSuccessAt: effective.lastSuccessAt,
     lastFailureAt: effective.lastFailureAt,
     lastErrorCategory: effective.lastErrorCategory,
+    // 설정 오류일 때만 안전한 원인 구분을 전달(원본 rawCode는 노출하지 않음).
+    configErrorScope:
+      effective.healthStatus === 'ACCOUNT_CONFIG_ERROR'
+        ? configErrorScopeFromCode(result.rawCode)
+        : null,
     consecutiveFailureCount: effective.consecutiveFailureCount,
   });
 }
