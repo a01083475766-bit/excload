@@ -61,10 +61,20 @@ function rowKey(mallId: string, rowIndex: number): string {
   return `${mallId}:${rowIndex}`;
 }
 
+/** 필터형 버튼 공통 스타일 — 작고 일정한 높이, 선택 시에만 파란색 강조. */
+const FILTER_BTN_BASE =
+  'inline-flex h-8 items-center justify-center rounded-md border px-2.5 text-[13px] font-medium transition';
+
 function mallChipClass(selected: boolean): string {
-  if (selected) return 'border-blue-600 bg-blue-600 text-white';
-  return 'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50';
+  return `${FILTER_BTN_BASE} ${
+    selected
+      ? 'border-blue-600 bg-blue-600 text-white'
+      : 'border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50'
+  }`;
 }
+
+/** 공통 입력창(검색어·날짜) 스타일 — 필터와 높이·테두리 통일. */
+const FIELD_INPUT_BASE = 'h-8 rounded-md border border-zinc-300 px-2.5 text-sm';
 
 function statusPillClass(view: OrderFetchView): string {
   if (isClaimStatus(view.status)) return 'bg-red-50 text-red-700 ring-red-200';
@@ -540,11 +550,11 @@ export default function OrderIntegrationFetchPanel() {
             <div className="flex border-b border-zinc-200">
               <div className={labelCellClass}>제휴몰</div>
               <div className={valueCellClass}>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={toggleAllMalls}
-                    className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition ${mallChipClass(allSelected)}`}
+                    className={`${mallChipClass(allSelected)} gap-1`}
                   >
                     {allSelected ? <Check className="h-3.5 w-3.5" aria-hidden /> : null}
                     전체
@@ -557,7 +567,7 @@ export default function OrderIntegrationFetchPanel() {
                         type="button"
                         title={mall.accountName}
                         onClick={() => toggleMall(mall.mallId)}
-                        className={`inline-flex h-9 min-w-[6.5rem] items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition ${mallChipClass(selected)}`}
+                        className={`${mallChipClass(selected)} min-w-[5rem] gap-1`}
                       >
                         {selected ? <Check className="h-3.5 w-3.5 shrink-0" aria-hidden /> : null}
                         <span className="truncate">{mall.name}</span>
@@ -570,13 +580,13 @@ export default function OrderIntegrationFetchPanel() {
 
             <div className="flex border-b border-zinc-200">
               <div className={labelCellClass}>작업 대상</div>
-              <div className={`${valueCellClass} flex flex-wrap gap-2`}>
+              <div className={`${valueCellClass} flex flex-wrap gap-1.5`}>
                 {ORDER_WORK_TARGET_ORDER.map((target) => (
                   <button
                     key={target}
                     type="button"
                     onClick={() => setWorkTarget(target)}
-                    className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${mallChipClass(workTarget === target)}`}
+                    className={mallChipClass(workTarget === target)}
                   >
                     {ORDER_WORK_TARGET_LABEL[target]}
                   </button>
@@ -587,21 +597,21 @@ export default function OrderIntegrationFetchPanel() {
             <div className="flex border-b border-zinc-200">
               <div className={labelCellClass}>조회 기간</div>
               <div className={`${valueCellClass} space-y-2`}>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {DAY_PRESETS.map((preset) => (
                     <button
                       key={preset.days}
                       type="button"
                       onClick={() => applyPreset(preset.days)}
-                      className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition ${mallChipClass(!rangeMode && days === preset.days)}`}
+                      className={mallChipClass(!rangeMode && days === preset.days)}
                     >
                       {preset.label}
                     </button>
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
+                <div className="flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-600">
+                  <label className="inline-flex items-center gap-1.5">
                     시작일
                     <input
                       type="date"
@@ -609,11 +619,11 @@ export default function OrderIntegrationFetchPanel() {
                       max={endDate || todayDateString}
                       disabled={!selectedSupportsRange}
                       onChange={(e) => handleStartDateChange(e.target.value)}
-                      className="h-9 rounded-lg border border-zinc-300 px-2 text-sm disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                      className={`${FIELD_INPUT_BASE} disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500`}
                     />
                   </label>
                   <span className="text-zinc-400">~</span>
-                  <label className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
+                  <label className="inline-flex items-center gap-1.5">
                     종료일
                     <input
                       type="date"
@@ -622,7 +632,7 @@ export default function OrderIntegrationFetchPanel() {
                       max={todayDateString}
                       disabled={!selectedSupportsRange}
                       onChange={(e) => handleEndDateChange(e.target.value)}
-                      className="h-9 rounded-lg border border-zinc-300 px-2 text-sm disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500"
+                      className={`${FIELD_INPUT_BASE} disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500`}
                     />
                   </label>
                 </div>
@@ -652,7 +662,7 @@ export default function OrderIntegrationFetchPanel() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="주문번호 · 상품주문번호 · 상품명 · 상품코드 · 주문자명 · 수취인명"
-                  className="h-9 w-full rounded-lg border border-zinc-300 px-3 text-sm"
+                  className={`${FIELD_INPUT_BASE} w-full`}
                 />
                 <button
                   type="button"
@@ -663,13 +673,13 @@ export default function OrderIntegrationFetchPanel() {
                   상세 조건
                 </button>
                 {showAdvanced ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <input
                       type="text"
                       value={advPaymentMeans}
                       onChange={(e) => setAdvPaymentMeans(e.target.value)}
                       placeholder="결제수단"
-                      className="h-9 w-32 rounded-lg border border-zinc-300 px-3 text-sm"
+                      className={`${FIELD_INPUT_BASE} w-32`}
                     />
                     <input
                       type="text"
@@ -678,12 +688,12 @@ export default function OrderIntegrationFetchPanel() {
                       value={advPhoneLast4}
                       onChange={(e) => setAdvPhoneLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
                       placeholder="전화 뒤 4자리"
-                      className="h-9 w-32 rounded-lg border border-zinc-300 px-3 text-sm"
+                      className={`${FIELD_INPUT_BASE} w-32`}
                     />
                     <select
                       value={advTracking}
                       onChange={(e) => setAdvTracking(e.target.value as 'ALL' | 'REGISTERED' | 'NONE')}
-                      className="h-9 rounded-lg border border-zinc-300 px-2 text-sm"
+                      className={FIELD_INPUT_BASE}
                     >
                       <option value="ALL">송장 전체</option>
                       <option value="REGISTERED">송장 등록됨</option>
@@ -695,12 +705,12 @@ export default function OrderIntegrationFetchPanel() {
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 border border-t-0 border-zinc-300 bg-sky-50/80 px-3 py-3">
+          <div className="flex flex-wrap items-center gap-2 border border-t-0 border-zinc-300 bg-zinc-50 px-3 py-2.5">
             <button
               type="button"
               disabled={fetching}
               onClick={() => void onSearch()}
-              className="inline-flex h-10 min-w-[7rem] items-center justify-center gap-1.5 rounded bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {fetching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               검색
@@ -709,7 +719,7 @@ export default function OrderIntegrationFetchPanel() {
               type="button"
               disabled={fetching}
               onClick={resetFilters}
-              className="inline-flex h-10 min-w-[7rem] items-center justify-center rounded bg-zinc-600 px-5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50"
+              className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
             >
               검색초기화
             </button>
