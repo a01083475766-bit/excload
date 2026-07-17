@@ -10,6 +10,10 @@ import {
   type EncryptedField,
 } from '@/app/lib/order-integration/encryption';
 import { maskIntegrationSecret } from '@/app/lib/order-integration/mask-secret';
+import {
+  recordConnectionSyncResult,
+  recordConnectionTestResult,
+} from '@/app/lib/order-integration/connection-health/persist-health-result';
 import type { LotteonCredentials } from '@/app/lib/lotteon/client';
 
 export type LotteonAccountPublic = {
@@ -224,16 +228,7 @@ export async function markLotteonAccountTestResult(input: {
   success: boolean;
   errorMessage?: string | null;
 }): Promise<void> {
-  await prisma.orderIntegrationAccount.update({
-    where: { id: input.accountId },
-    data: {
-      lastTestedAt: new Date(),
-      status: input.success
-        ? OrderIntegrationAccountStatus.ACTIVE
-        : OrderIntegrationAccountStatus.ERROR,
-      lastErrorMessage: input.success ? null : (input.errorMessage ?? '연결 테스트에 실패했습니다.'),
-    },
-  });
+  await recordConnectionTestResult(input);
 }
 
 export async function markLotteonAccountSyncResult(input: {
@@ -241,16 +236,7 @@ export async function markLotteonAccountSyncResult(input: {
   success: boolean;
   errorMessage?: string | null;
 }): Promise<void> {
-  await prisma.orderIntegrationAccount.update({
-    where: { id: input.accountId },
-    data: {
-      lastSyncedAt: input.success ? new Date() : undefined,
-      status: input.success
-        ? OrderIntegrationAccountStatus.ACTIVE
-        : OrderIntegrationAccountStatus.ERROR,
-      lastErrorMessage: input.success ? null : (input.errorMessage ?? '주문 수집에 실패했습니다.'),
-    },
-  });
+  await recordConnectionSyncResult(input);
 }
 
 export function toLotteonCredentials(account: OrderIntegrationAccount): LotteonCredentials {

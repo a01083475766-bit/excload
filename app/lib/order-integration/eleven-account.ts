@@ -11,6 +11,10 @@ import {
 } from '@/app/lib/order-integration/encryption';
 import { maskIntegrationSecret } from '@/app/lib/order-integration/mask-secret';
 import { ELEVEN_DEFAULT_VENDOR_ID, type ElevenCredentials } from '@/app/lib/eleven/client';
+import {
+  recordConnectionSyncResult,
+  recordConnectionTestResult,
+} from '@/app/lib/order-integration/connection-health/persist-health-result';
 
 export type ElevenAccountPublic = {
   id: string;
@@ -166,16 +170,7 @@ export async function markElevenAccountTestResult(input: {
   success: boolean;
   errorMessage?: string | null;
 }): Promise<void> {
-  await prisma.orderIntegrationAccount.update({
-    where: { id: input.accountId },
-    data: {
-      lastTestedAt: new Date(),
-      status: input.success
-        ? OrderIntegrationAccountStatus.ACTIVE
-        : OrderIntegrationAccountStatus.ERROR,
-      lastErrorMessage: input.success ? null : (input.errorMessage ?? '연결 테스트에 실패했습니다.'),
-    },
-  });
+  await recordConnectionTestResult(input);
 }
 
 export async function markElevenAccountSyncResult(input: {
@@ -183,16 +178,7 @@ export async function markElevenAccountSyncResult(input: {
   success: boolean;
   errorMessage?: string | null;
 }): Promise<void> {
-  await prisma.orderIntegrationAccount.update({
-    where: { id: input.accountId },
-    data: {
-      lastSyncedAt: input.success ? new Date() : undefined,
-      status: input.success
-        ? OrderIntegrationAccountStatus.ACTIVE
-        : OrderIntegrationAccountStatus.ERROR,
-      lastErrorMessage: input.success ? null : (input.errorMessage ?? '주문 수집에 실패했습니다.'),
-    },
-  });
+  await recordConnectionSyncResult(input);
 }
 
 export function toElevenCredentials(account: OrderIntegrationAccount): ElevenCredentials {

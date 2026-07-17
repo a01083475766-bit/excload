@@ -1,10 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
+import { getHealthMessage } from '@/app/lib/order-integration/connection-health/messages';
+import { resolveConnectionHealthDisplay } from '@/app/lib/order-integration/connection-health/display-status';
+import type { HealthStatus } from '@/app/lib/order-integration/connection-health/types';
+import {
+  DEFAULT_HEALTH_CHECK_CONCURRENCY,
+  MANUAL_RECHECK_MIN_INTERVAL_MS,
+  orderAccountIdsForCheck,
+  runWithConcurrency,
+} from '@/app/lib/order-integration/connection-health/health-check-client';
 import {
   getOrderFetchRangeError,
   isDateRangeSupportedMall,
@@ -12,6 +21,11 @@ import {
   MAX_FETCH_RANGE_DAYS,
   presetRangeDates,
 } from '@/app/lib/order-integration/order-fetch-range';
+import {
+  parseAuthorizationPeriodInput,
+  resolveAuthorizationPeriodNotice,
+  type AuthorizationPeriodLevel,
+} from '@/app/lib/order-integration/authorization-period';
 import type { StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
 import { writeHubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 import { useUserStore } from '@/app/store/userStore';
@@ -148,6 +162,12 @@ export default function OrderIntegrationFetchPanel() {
   const [results, setResults] = useState<MallFetchResult[] | null>(null);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
+
+  const selectedMallIdsRef = useRef(selectedMallIds);
+  useEffect(() => {
+    selectedMallIdsRef.current = selectedMallIds;
+  }, [selectedMallIds]);
+  const { healthByAccount, recheck } = useMallHealth(connectedMalls, selectedMallIdsRef);
 
   const allSelected =
     connectedMalls.length > 0 && selectedMallIds.size === connectedMalls.length;
@@ -575,6 +595,40 @@ export default function OrderIntegrationFetchPanel() {
                     );
                   })}
                 </div>
+                <div className="mt-2 space-y-1 border-t border-zinc-100 pt-2">
+                  {connectedMalls.map((mall) => (
+                    <MallHealthRow
+                      key={mall.accountId}
+                      mall={mall}
+                      entry={healthByAccount[mall.accountId]}
+                      onRecheck={recheck}
+                    />
+                  ))}
+                </div>
+                {connectedMalls.some((mall) => selectedMallIds.has(mall.mallId)) ? (
+                  <div className="mt-1 space-y-1">
+                    {connectedMalls
+                      .filter((mall) => selectedMallIds.has(mall.mallId))
+                      .map((mall) => (
+                        <MallHealthNotice
+                          key={mall.accountId}
+                          mall={mall}
+                          entry={healthByAccount[mall.accountId]}
+                          onRecheck={recheck}
+                        />
+                      ))}
+                  </div>
+                ) : null}
+                {connectedMalls
+                  .filter((mall) => mall.mallId === 'smartstore')
+                  .map((mall) => (
+                    <SmartstoreAuthorizationNotice
+                      key={`authp-${mall.accountId}`}
+                      mall={mall}
+                      entry={healthByAccount[mall.accountId]}
+                      selected={selectedMallIds.has(mall.mallId)}
+                    />
+                  ))}
               </div>
             </div>
 
@@ -991,6 +1045,422 @@ function DetailItem({ label, value }: { label: string; value: string }) {
     <div className="flex gap-1.5">
       <dt className="shrink-0 font-medium text-zinc-500">{label}</dt>
       <dd className="min-w-0 break-words text-zinc-800">{value || '-'}</dd>
+    </div>
+  );
+}
+
+type ProviderReadiness = 'VERIFIED' | 'PROVISIONAL' | 'DISABLED';
+
+type ClientHealthEntry = {
+  /** 마지막으로 확인된 저장 상태(null = 아직 미확인). CHECKING은 저장하지 않는다. */
+  status: HealthStatus | null;
+  /** 클라이언트 전용 "확인 중" 상태. */
+  checking: boolean;
+  /** 공급자 준비 상태. VERIFIED만 자동/수동 확인, PROVISIONAL은 '연결 확인 준비 중' 표시. */
+  readiness: ProviderReadiness | null;
+  lastCheckedAt: string | null;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastErrorCategory: string | null;
+  consecutiveFailureCount: number;
+  /** 사용자가 직접 등록한 인증기간(YYYY-MM-DD, KST). 연결 상태와 독립. */
+  authorizationPeriodStart: string | null;
+  authorizationPeriodEnd: string | null;
+};
+
+const EMPTY_HEALTH_ENTRY: ClientHealthEntry = {
+  status: null,
+  checking: false,
+  readiness: null,
+  lastCheckedAt: null,
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  lastErrorCategory: null,
+  consecutiveFailureCount: 0,
+  authorizationPeriodStart: null,
+  authorizationPeriodEnd: null,
+};
+
+/**
+ * 연결 상태 자동 확인 훅.
+ * - 화면 최초 렌더를 막지 않도록 useEffect에서 비동기로 실행
+ * - 저장된 상태를 먼저 시드 → status !== INACTIVE 계정만, 선택 몰 우선, 최대 3개 동시, 중복 방지
+ * - 서버가 최근 10분 결과를 재사용하므로 자동 확인은 force 없이 호출
+ */
+function useMallHealth(
+  connectedMalls: ConnectedMall[],
+  selectedMallIdsRef: { current: Set<OrderIntegrationMallId> },
+) {
+  const [healthByAccount, setHealthByAccount] = useState<Record<string, ClientHealthEntry>>({});
+  const inFlight = useRef<Set<string>>(new Set());
+  const lastManualAt = useRef<Record<string, number>>({});
+
+  const patchEntry = useCallback((accountId: string, patch: Partial<ClientHealthEntry>) => {
+    setHealthByAccount((prev) => {
+      const current = prev[accountId] ?? EMPTY_HEALTH_ENTRY;
+      return { ...prev, [accountId]: { ...current, ...patch } };
+    });
+  }, []);
+
+  const checkOne = useCallback(
+    async (accountId: string, force: boolean) => {
+      if (inFlight.current.has(accountId)) return; // 중복 호출 방지
+      inFlight.current.add(accountId);
+      patchEntry(accountId, { checking: true });
+      try {
+        const res = await fetch(
+          `/api/order/integration/accounts/${accountId}/health-check${force ? '?force=1' : ''}`,
+          { method: 'POST', cache: 'no-store' },
+        );
+        const data = (await res.json().catch(() => null)) as {
+          success?: boolean;
+          healthStatus?: HealthStatus | null;
+          lastCheckedAt?: string | null;
+          lastSuccessAt?: string | null;
+          lastFailureAt?: string | null;
+          lastErrorCategory?: string | null;
+          consecutiveFailureCount?: number | null;
+        } | null;
+        if (res.ok && data?.success) {
+          patchEntry(accountId, {
+            status: data.healthStatus ?? null,
+            lastCheckedAt: data.lastCheckedAt ?? null,
+            lastSuccessAt: data.lastSuccessAt ?? null,
+            lastFailureAt: data.lastFailureAt ?? null,
+            lastErrorCategory: data.lastErrorCategory ?? null,
+            consecutiveFailureCount: data.consecutiveFailureCount ?? 0,
+            checking: false,
+          });
+        } else {
+          // INACTIVE 스킵/어댑터 준비 중 등: 기존 상태 유지하고 확인 중만 해제
+          patchEntry(accountId, { checking: false });
+        }
+      } catch {
+        patchEntry(accountId, { checking: false });
+      } finally {
+        inFlight.current.delete(accountId);
+      }
+    },
+    [patchEntry],
+  );
+
+  useEffect(() => {
+    if (connectedMalls.length === 0) return;
+    let cancelled = false;
+    const autoCheckAccountIds = new Set<string>();
+    void (async () => {
+      try {
+        const res = await fetch('/api/order/integration/connection-health', { cache: 'no-store' });
+        const data = (await res.json().catch(() => null)) as {
+          accounts?: Array<{
+            accountId: string;
+            readiness?: ProviderReadiness | null;
+            checkable?: boolean;
+            healthStatus?: HealthStatus | null;
+            lastCheckedAt?: string | null;
+            lastSuccessAt?: string | null;
+            lastFailureAt?: string | null;
+            lastErrorCategory?: string | null;
+            consecutiveFailureCount?: number | null;
+            authorizationPeriodStart?: string | null;
+            authorizationPeriodEnd?: string | null;
+          }>;
+        } | null;
+        if (!cancelled && res.ok && Array.isArray(data?.accounts)) {
+          for (const a of data.accounts) {
+            if (a.readiness === 'VERIFIED' && a.checkable !== false) {
+              autoCheckAccountIds.add(a.accountId);
+            }
+          }
+          setHealthByAccount((prev) => {
+            const next = { ...prev };
+            for (const a of data.accounts!) {
+              const current = next[a.accountId] ?? EMPTY_HEALTH_ENTRY;
+              next[a.accountId] = {
+                status: a.healthStatus ?? current.status,
+                readiness: a.readiness ?? current.readiness,
+                lastCheckedAt: a.lastCheckedAt ?? current.lastCheckedAt,
+                lastSuccessAt: a.lastSuccessAt ?? current.lastSuccessAt,
+                lastFailureAt: a.lastFailureAt ?? current.lastFailureAt,
+                lastErrorCategory: a.lastErrorCategory ?? current.lastErrorCategory,
+                consecutiveFailureCount: a.consecutiveFailureCount ?? current.consecutiveFailureCount,
+                authorizationPeriodStart: a.authorizationPeriodStart ?? null,
+                authorizationPeriodEnd: a.authorizationPeriodEnd ?? null,
+                checking: false,
+              };
+            }
+            return next;
+          });
+        }
+      } catch {
+        // 시드 실패는 무시(자동 확인이 이어서 상태를 채운다).
+      }
+      if (cancelled) return;
+
+      // 자동 확인 대상: 시드에서 VERIFIED 공급자로 확인된 계정만(PROVISIONAL/미등록 제외).
+      const checkable = connectedMalls.filter(
+        (m) => m.status !== 'INACTIVE' && autoCheckAccountIds.has(m.accountId),
+      );
+      const selected = selectedMallIdsRef.current;
+      const selectedAccountIds = new Set(
+        checkable.filter((m) => selected.has(m.mallId)).map((m) => m.accountId),
+      );
+      const orderedIds = orderAccountIdsForCheck(
+        checkable.map((m) => m.accountId),
+        selectedAccountIds,
+      );
+      void runWithConcurrency(orderedIds, DEFAULT_HEALTH_CHECK_CONCURRENCY, (id) => checkOne(id, false));
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // 몰 목록 로드/변경 시에만 자동 확인. 선택 몰은 ref로 최신값을 참조한다.
+  }, [connectedMalls, checkOne]);
+
+  const recheck = useCallback(
+    (accountId: string) => {
+      if (inFlight.current.has(accountId)) return; // 확인 중 비활성
+      const now = Date.now();
+      if (now - (lastManualAt.current[accountId] ?? 0) < MANUAL_RECHECK_MIN_INTERVAL_MS) return; // 연타 방지
+      lastManualAt.current[accountId] = now;
+      void checkOne(accountId, true);
+    },
+    [checkOne],
+  );
+
+  return { healthByAccount, recheck };
+}
+
+const HEALTH_TONE_DOT: Record<'ok' | 'info' | 'warn' | 'error', string> = {
+  ok: 'bg-emerald-500',
+  info: 'bg-zinc-400',
+  warn: 'bg-amber-500',
+  error: 'bg-red-500',
+};
+const HEALTH_TONE_TEXT: Record<'ok' | 'info' | 'warn' | 'error', string> = {
+  ok: 'text-emerald-600',
+  info: 'text-zinc-600',
+  warn: 'text-amber-600',
+  error: 'text-red-600',
+};
+
+function formatCheckedTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Seoul',
+  });
+}
+
+/** 저장 필드로부터 화면 표시 상태를 계산한다(정상 복귀·일시 경고 규칙 포함). */
+function displayStatusOf(entry?: ClientHealthEntry): HealthStatus | null {
+  if (!entry) return null;
+  return resolveConnectionHealthDisplay({
+    healthStatus: entry.status,
+    lastErrorCategory: entry.lastErrorCategory,
+    lastSuccessAt: entry.lastSuccessAt,
+    lastFailureAt: entry.lastFailureAt,
+    consecutiveFailureCount: entry.consecutiveFailureCount,
+  }).status;
+}
+
+/** 몰별 연결 상태 배지 한 줄. 정상은 절제된 초록 점, 문제는 최소한의 색으로 표시. */
+function MallHealthRow({
+  mall,
+  entry,
+  onRecheck,
+}: {
+  mall: ConnectedMall;
+  entry?: ClientHealthEntry;
+  onRecheck: (accountId: string) => void;
+}) {
+  const checking = entry?.checking ?? false;
+  const isInactive = mall.status === 'INACTIVE';
+  // 준비 상태가 시드된 뒤에만 준비 중 판정(초기 null은 VERIFIED 흐름을 막지 않음).
+  const isProvisional = entry?.readiness === 'PROVISIONAL' || entry?.readiness === 'DISABLED';
+  const display = displayStatusOf(entry);
+
+  let label: string;
+  let dotClass: string;
+  let textClass = 'text-zinc-600';
+  let showRecheck = false;
+
+  if (isInactive) {
+    label = '미사용';
+    dotClass = 'bg-zinc-300';
+  } else if (isProvisional) {
+    // PROVISIONAL: 공식 사양/실계정 검증 전 → 자동 확인하지 않고 준비 중으로만 표시.
+    label = '연결 확인 준비 중';
+    dotClass = 'bg-zinc-300';
+  } else if (checking) {
+    label = getHealthMessage('CHECKING').label;
+    dotClass = 'bg-zinc-400';
+  } else if (display == null) {
+    label = '상태 미확인';
+    dotClass = 'bg-zinc-300';
+    showRecheck = true;
+  } else {
+    const msg = getHealthMessage(display);
+    label = msg.label;
+    dotClass = HEALTH_TONE_DOT[msg.tone];
+    textClass = HEALTH_TONE_TEXT[msg.tone];
+    showRecheck = display !== 'HEALTHY';
+  }
+
+  const checkedTime = entry?.lastCheckedAt && !isProvisional ? formatCheckedTime(entry.lastCheckedAt) : null;
+  const detail =
+    !isInactive && !isProvisional && !checking && display && display !== 'HEALTHY'
+      ? getHealthMessage(display)
+      : null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-zinc-600">
+      <span className="font-medium text-zinc-700">{mall.name}</span>
+      <span className="text-zinc-300" aria-hidden>·</span>
+      <span className="inline-flex items-center gap-1" title={detail ? `${detail.title} ${detail.action}` : undefined}>
+        {checking ? (
+          <Loader2 className="h-3 w-3 animate-spin text-zinc-400" aria-hidden />
+        ) : (
+          <span className={`inline-block h-2 w-2 rounded-full ${dotClass}`} aria-hidden />
+        )}
+        <span className={textClass}>{label}</span>
+      </span>
+      {checkedTime ? (
+        <>
+          <span className="text-zinc-300" aria-hidden>·</span>
+          <span className="text-zinc-400">마지막 확인 {checkedTime}</span>
+        </>
+      ) : null}
+      {showRecheck ? (
+        <button
+          type="button"
+          onClick={() => onRecheck(mall.accountId)}
+          disabled={checking}
+          className="inline-flex items-center gap-1 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${checking ? 'animate-spin' : ''}`} aria-hidden />
+          다시 확인
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 현재 선택된 문제 몰에 대한 인라인 안내(1~2줄). 정상/미확인이면 아무것도 렌더하지 않는다.
+ * 해결 방법을 툴팁에만 숨기지 않고 선택 몰 아래에 짧게 노출한다.
+ */
+function MallHealthNotice({
+  mall,
+  entry,
+  onRecheck,
+}: {
+  mall: ConnectedMall;
+  entry?: ClientHealthEntry;
+  onRecheck: (accountId: string) => void;
+}) {
+  if (mall.status === 'INACTIVE' || entry?.checking) return null;
+  // PROVISIONAL/DISABLED 공급자는 준비 중이므로 문제 안내를 띄우지 않는다.
+  if (entry?.readiness === 'PROVISIONAL' || entry?.readiness === 'DISABLED') return null;
+  const display = displayStatusOf(entry);
+  if (!display || display === 'HEALTHY') return null;
+
+  const msg = getHealthMessage(display);
+  const isError = msg.tone === 'error';
+
+  return (
+    <div
+      className={`flex flex-wrap items-start gap-x-2 gap-y-1 border-l-2 py-1 pl-2 text-[12px] ${
+        isError ? 'border-red-300 text-red-700' : 'border-amber-300 text-amber-700'
+      }`}
+    >
+      <span className="font-medium">{mall.name}</span>
+      <span className="text-zinc-600">
+        {msg.title}
+        {msg.action ? ` ${msg.action}` : ''}
+      </span>
+      <button
+        type="button"
+        onClick={() => onRecheck(mall.accountId)}
+        className="inline-flex items-center gap-1 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-50"
+      >
+        <RefreshCw className="h-3 w-3" aria-hidden />
+        다시 확인
+      </button>
+    </div>
+  );
+}
+
+const AUTH_PERIOD_ACCENT: Record<AuthorizationPeriodLevel, string> = {
+  none: 'border-zinc-300 text-zinc-600',
+  info: 'border-zinc-300 text-zinc-600',
+  notice: 'border-amber-300 text-amber-700',
+  important: 'border-amber-400 text-amber-800',
+  check: 'border-red-300 text-red-700',
+};
+
+/** 인증기간까지 남은 일수를 사람이 읽기 쉬운 문구로. */
+function authPeriodDaysLabel(state: string, daysUntilStart: number | null, daysUntilEnd: number | null): string | null {
+  if (state === 'UPCOMING' && daysUntilStart != null) {
+    return daysUntilStart <= 0 ? '오늘 시작' : `시작 ${daysUntilStart}일 전`;
+  }
+  if (state === 'IN_PERIOD' && daysUntilEnd != null) {
+    return daysUntilEnd <= 0 ? '오늘 종료' : `종료 ${daysUntilEnd}일 전`;
+  }
+  if (state === 'ENDED' && daysUntilEnd != null) {
+    return `${Math.abs(daysUntilEnd)}일 지남`;
+  }
+  return null;
+}
+
+/**
+ * 스마트스토어 인증기간 인라인 안내(작은 한두 줄). 연결 상태 배지와 혼합하지 않는다.
+ * - 등록된 기간이 없으면(NONE) 아무것도 표시하지 않는다(불필요한 경고 방지).
+ * - 스마트스토어가 선택됐거나 알림이 있을 때만 상세 표시.
+ * - 기간이 지났다는 이유만으로 연결 오류로 단정하지 않는다.
+ */
+function SmartstoreAuthorizationNotice({
+  mall,
+  entry,
+  selected,
+}: {
+  mall: ConnectedMall;
+  entry?: ClientHealthEntry;
+  selected: boolean;
+}) {
+  const start = entry?.authorizationPeriodStart ?? null;
+  const end = entry?.authorizationPeriodEnd ?? null;
+  if (!start || !end) return null;
+
+  const parsed = parseAuthorizationPeriodInput({ start, end });
+  if (!parsed.ok || parsed.value.clear) return null;
+  const notice = resolveAuthorizationPeriodNotice({
+    periodStart: parsed.value.start,
+    periodEnd: parsed.value.end,
+  });
+  // 등록됐지만 아직 안내 시점이 아니고(선택되지 않았으면) 표시하지 않는다.
+  if (notice.state === 'NONE' && !selected) return null;
+
+  const daysLabel = authPeriodDaysLabel(notice.state, notice.daysUntilStart, notice.daysUntilEnd);
+  const accent = notice.state === 'NONE' ? AUTH_PERIOD_ACCENT.none : AUTH_PERIOD_ACCENT[notice.level];
+
+  return (
+    <div className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-l-2 py-1 pl-2 text-[12px] ${accent}`}>
+      <span className="font-medium">{mall.name} 인증기간</span>
+      <span className="text-zinc-600">
+        {start} ~ {end}
+        {daysLabel ? ` · ${daysLabel}` : ''}
+      </span>
+      {notice.state !== 'NONE' ? <span className="text-zinc-600">{notice.title}</span> : null}
+      <Link
+        href={`/order/integration/${mall.mallId}`}
+        className="inline-flex items-center rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-50"
+      >
+        기간 수정
+      </Link>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
 import { SecretInput } from '@/app/components/order-integration/SecretInput';
+import { parseAuthorizationPeriodInput } from '@/app/lib/order-integration/authorization-period';
 
 type SmartstoreAccountResponse = {
   id: string;
@@ -24,6 +25,8 @@ type SmartstoreAccountResponse = {
   lastTestedAt: string | null;
   lastSyncedAt: string | null;
   lastErrorMessage: string | null;
+  authorizationPeriodStart: string | null;
+  authorizationPeriodEnd: string | null;
 };
 
 function CollapsibleGuide({ title, children }: { title: string; children: ReactNode }) {
@@ -72,7 +75,11 @@ export function SmartstoreIntegrationForm({
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [authType] = useState<'SELF'>('SELF');
-  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'disconnect' | null>(null);
+  const [authStart, setAuthStart] = useState('');
+  const [authEnd, setAuthEnd] = useState('');
+  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'disconnect' | 'authPeriod' | null>(
+    null,
+  );
   const [statusMessage, setStatusMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(
     null,
   );
@@ -98,6 +105,8 @@ export function SmartstoreIntegrationForm({
         setAccountName(account.accountName);
         setClientId(account.clientId);
         setClientSecret('');
+        setAuthStart(account.authorizationPeriodStart ?? '');
+        setAuthEnd(account.authorizationPeriodEnd ?? '');
       }
     } catch (error) {
       setStatusMessage({
@@ -215,6 +224,62 @@ export function SmartstoreIntegrationForm({
       setStatusMessage({
         kind: 'error',
         text: error instanceof Error ? error.message : '연동 해제에 실패했습니다.',
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function submitAuthorizationPeriod(start: string, end: string) {
+    if (!savedAccount) {
+      setStatusMessage({ kind: 'error', text: '먼저 연동 정보를 저장한 뒤 인증기간을 등록할 수 있습니다.' });
+      return;
+    }
+    // 등록 시(둘 중 하나라도 값이 있을 때)만 클라이언트 사전 검증. 삭제(둘 다 공란)는 통과.
+    if (start || end) {
+      const parsed = parseAuthorizationPeriodInput({ start, end });
+      if (!parsed.ok) {
+        setStatusMessage({ kind: 'error', text: parsed.error });
+        return;
+      }
+    }
+    setBusyAction('authPeriod');
+    setStatusMessage(null);
+    try {
+      const res = await fetch(
+        `/api/order/integration/accounts/${savedAccount.id}/authorization-period`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ periodStart: start, periodEnd: end }),
+        },
+      );
+      const data = (await res.json()) as {
+        success?: boolean;
+        authorizationPeriodStart?: string | null;
+        authorizationPeriodEnd?: string | null;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? '인증기간 저장에 실패했습니다.');
+
+      const nextStart = data.authorizationPeriodStart ?? '';
+      const nextEnd = data.authorizationPeriodEnd ?? '';
+      setAuthStart(nextStart);
+      setAuthEnd(nextEnd);
+      setSavedAccount((prev) =>
+        prev
+          ? { ...prev, authorizationPeriodStart: data.authorizationPeriodStart ?? null, authorizationPeriodEnd: data.authorizationPeriodEnd ?? null }
+          : prev,
+      );
+      setStatusMessage({
+        kind: 'success',
+        text: nextStart ? '네이버 인증기간을 저장했습니다.' : '등록된 인증기간을 삭제했습니다.',
+      });
+      onConnectionChange?.();
+    } catch (error) {
+      setStatusMessage({
+        kind: 'error',
+        text: error instanceof Error ? error.message : '인증기간 저장에 실패했습니다.',
       });
     } finally {
       setBusyAction(null);
@@ -366,6 +431,62 @@ export function SmartstoreIntegrationForm({
           </label>
           <input id="authType" type="text" value={authType} readOnly className={`${inputClass} bg-zinc-50 dark:bg-zinc-800`} />
           <p className="mt-1 text-xs text-zinc-500">직접 운영(SELF) 방식 — 판매자 본인 스토어 애플리케이션 연동</p>
+        </div>
+
+        <div className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+          <div className="mb-1 text-sm font-medium text-zinc-800 dark:text-zinc-200">네이버 인증기간 <span className="font-normal text-zinc-400">(선택)</span></div>
+          <p className="mb-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+            네이버 커머스API센터의 내 스토어 애플리케이션에 표시된 인증기간을 입력해 주세요. 기간을 등록하면 인증 시기를
+            놓치지 않도록 엑클로드에서 미리 안내합니다. (자동으로 가져온 값이 아니라 직접 입력하는 정보입니다.)
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label htmlFor="authStart" className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">시작일</label>
+              <input
+                id="authStart"
+                type="date"
+                value={authStart}
+                max={authEnd || undefined}
+                onChange={(e) => setAuthStart(e.target.value)}
+                disabled={busyAction !== null || !savedAccount}
+                className={`${inputClass} w-[9.5rem]`}
+              />
+            </div>
+            <div>
+              <label htmlFor="authEnd" className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">종료일</label>
+              <input
+                id="authEnd"
+                type="date"
+                value={authEnd}
+                min={authStart || undefined}
+                onChange={(e) => setAuthEnd(e.target.value)}
+                disabled={busyAction !== null || !savedAccount}
+                className={`${inputClass} w-[9.5rem]`}
+              />
+            </div>
+            <button
+              type="button"
+              disabled={busyAction !== null || !savedAccount}
+              onClick={() => void submitAuthorizationPeriod(authStart, authEnd)}
+              className="inline-flex h-[38px] items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              {busyAction === 'authPeriod' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              기간 저장
+            </button>
+            {(authStart || authEnd || savedAccount?.authorizationPeriodStart) ? (
+              <button
+                type="button"
+                disabled={busyAction !== null || !savedAccount}
+                onClick={() => void submitAuthorizationPeriod('', '')}
+                className="inline-flex h-[38px] items-center px-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-700 disabled:opacity-60 dark:text-zinc-400 dark:hover:text-zinc-200"
+              >
+                삭제
+              </button>
+            ) : null}
+          </div>
+          {!savedAccount ? (
+            <p className="mt-2 text-xs text-zinc-400">먼저 연동 정보를 저장하면 인증기간을 등록할 수 있습니다.</p>
+          ) : null}
         </div>
 
         {statusMessage ? (

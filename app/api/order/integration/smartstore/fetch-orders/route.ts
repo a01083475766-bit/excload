@@ -8,13 +8,14 @@ import {
 } from '@/app/lib/order-integration/user-api-auth';
 import {
   getSmartstoreAccountForUser,
-  markSmartstoreAccountSyncResult,
   toSmartstoreCredentials,
 } from '@/app/lib/order-integration/smartstore-account';
 import {
   fetchSmartstoreProductOrders,
   toUserFacingSmartstoreErrorMessage,
 } from '@/app/lib/smartstore/client';
+import { persistConnectionHealth } from '@/app/lib/order-integration/connection-health/persist-health-result';
+import { categorizeSmartstoreError } from '@/app/lib/order-integration/connection-health/adapters/smartstore';
 import {
   mapSmartstoreOrdersToFetchViews,
   mapSmartstoreOrdersToOrderStandardFile,
@@ -80,7 +81,10 @@ export async function POST(request: Request) {
     const previewRows = mapSmartstoreOrdersToPreviewRows(orders);
     const orderViews = mapSmartstoreOrdersToFetchViews(orders);
 
-    await markSmartstoreAccountSyncResult({ accountId: account.id, success: true });
+    await persistConnectionHealth({
+      accountId: account.id,
+      result: { status: 'HEALTHY', checkedAt: new Date() },
+    });
 
     const snapshotPersist = await maybePersistOrderFetchResult({
       client: prisma,
@@ -112,10 +116,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = toUserFacingSmartstoreErrorMessage(error);
     console.error('[Smartstore Integration Fetch] failed:', error instanceof Error ? error.message : error);
-    await markSmartstoreAccountSyncResult({
+    await persistConnectionHealth({
       accountId: account.id,
-      success: false,
-      errorMessage: message,
+      result: categorizeSmartstoreError(error),
+      userMessage: message,
     });
     return NextResponse.json({ error: message }, { status: 400 });
   }

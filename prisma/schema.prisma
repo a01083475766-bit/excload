@@ -251,6 +251,20 @@ model OrderIntegrationAccount {
   lastSyncedAt     DateTime?
   lastErrorMessage String?                       @db.Text
 
+  /// 실제 외부 API 연결 상태(HealthStatus). status(계정 활성/비활성)와 별개.
+  healthStatus            String?
+  lastCheckedAt           DateTime?
+  lastSuccessAt           DateTime?
+  lastFailureAt           DateTime?
+  lastErrorCategory       String?
+  lastErrorCode           String?
+  consecutiveFailureCount Int       @default(0)
+  /// 네이버 커머스API센터 등에 표시된 "인증기간"을 사용자가 직접 등록하는 값(선택).
+  /// 자동 조회 값이 아니며, 토큰/키 만료(expiresAt)와 혼용 금지.
+  /// 시간대 변환으로 날짜가 밀리지 않도록 시간 없는 DATE(@db.Date)로 저장한다.
+  authorizationPeriodStart DateTime? @db.Date
+  authorizationPeriodEnd   DateTime? @db.Date
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

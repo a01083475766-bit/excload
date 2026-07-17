@@ -11,6 +11,10 @@ import {
   type EncryptedField,
 } from '@/app/lib/order-integration/encryption';
 import { isMakeshopOAuthConfigured } from '@/app/lib/makeshop/oauth-credentials';
+import {
+  recordConnectionSyncResult,
+  recordConnectionTestResult,
+} from '@/app/lib/order-integration/connection-health/persist-health-result';
 
 export type MakeshopAccountPublic = {
   id: string;
@@ -240,16 +244,7 @@ export async function markMakeshopAccountTestResult(input: {
   success: boolean;
   errorMessage?: string | null;
 }): Promise<void> {
-  await prisma.orderIntegrationAccount.update({
-    where: { id: input.accountId },
-    data: {
-      lastTestedAt: new Date(),
-      status: input.success
-        ? OrderIntegrationAccountStatus.ACTIVE
-        : OrderIntegrationAccountStatus.ERROR,
-      lastErrorMessage: input.success ? null : (input.errorMessage ?? '연결 테스트에 실패했습니다.'),
-    },
-  });
+  await recordConnectionTestResult(input);
 }
 
 export async function markMakeshopAccountSyncResult(input: {
@@ -257,16 +252,7 @@ export async function markMakeshopAccountSyncResult(input: {
   success: boolean;
   errorMessage?: string | null;
 }): Promise<void> {
-  await prisma.orderIntegrationAccount.update({
-    where: { id: input.accountId },
-    data: {
-      lastSyncedAt: input.success ? new Date() : undefined,
-      status: input.success
-        ? OrderIntegrationAccountStatus.ACTIVE
-        : OrderIntegrationAccountStatus.ERROR,
-      lastErrorMessage: input.success ? null : (input.errorMessage ?? '주문 수집에 실패했습니다.'),
-    },
-  });
+  await recordConnectionSyncResult(input);
 }
 
 export function toMakeshopCredentials(account: OrderIntegrationAccount): MakeshopCredentials {
