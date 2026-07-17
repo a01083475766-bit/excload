@@ -36,7 +36,7 @@
 
 | 출처 문서명 | URL | 구분 | 핵심 근거 | 등급 |
 |-------------|-----|------|-----------|:---:|
-| 커머스API센터 공지 — 내스토어 애플리케이션 안내 | notice.naver.com/notices/cac/16929 | 공식-공개 | 내스토어 앱 등록 필수, 통합매니저 권한, 스토어당 앱 최대 3개, ID/시크릿 발급 | 확정 |
+| 커머스API센터 공지 — 내스토어 애플리케이션 안내 | notice.naver.com/notices/cac/16929 | 공식-공개 | 내스토어 앱 등록 필수, 통합매니저 권한, ID/시크릿 발급 (공지 문구는 "스토어별 앱 최대 3개"이나 **화면 직접 확인 결과 최대 3개는 API 호출 IP 개수** — 재확인 권장) | 조건부 |
 | 커머스API — 인증(전자서명) | apicenter.commerce.naver.com/docs/auth | 공식-공개 | OAuth2 client_credentials, 전자서명 bcrypt(client_id_timestamp, salt=client_secret)→Base64 | 확정 |
 | 커머스API — 인증 토큰 발급 요청 | apicenter.commerce.naver.com/docs/commerce-api/current/exchange-sellers-auth | 공식-공개 | 토큰 3시간, 리소스별 1토큰 | 확정 |
 | GitHub Discussion #3460 | github.com/commerce-api-naver/commerce-api/discussions/3460 | 공식-공개(운영팀 답변) | Content-Type은 x-www-form-urlencoded, API 호출 IP 등록 사례, SELF/SELLER | 조건부 |
@@ -150,7 +150,7 @@
 
 ## 재조사 필요 항목 요약 (다음 라운드)
 
-1. 스마트스토어 API 호출 IP **필수 여부**, 주문 판매자 API 정확 권한명 (커머스API센터 로그인)
+1. 스마트스토어 API 호출 IP **필수 여부**, 주문 판매자 API 정확 권한명 (커머스API센터 로그인). **애플리케이션 수 vs API 호출 IP 수(각 최대 3개?)** — 공지 문구와 화면 직접 확인이 상충하므로 재확인
 2. 11번가 셀링툴 업체 선택 필수 여부·IP 요건 (셀러오피스)
 3. SSG eAPI 엔드포인트·조회기간·MD 승인 절차 (파트너오피스)
 4. CJ온스타일 표준 API Path 확정 (파트너 Docs 로그인)
