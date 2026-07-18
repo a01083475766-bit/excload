@@ -204,7 +204,7 @@ export default function OrderIntegrationPanel() {
                 type="button"
                 title={
                   connected
-                    ? `${mall.name} (연결됨)`
+                    ? `${mall.name} (설정됨)`
                     : mall.badge === 'beta'
                       ? `${mall.name} (베타)`
                       : mall.name
@@ -223,7 +223,7 @@ export default function OrderIntegrationPanel() {
                       className={`h-1.5 w-1.5 rounded-full ${selected ? 'bg-emerald-200' : 'bg-emerald-500'}`}
                       aria-hidden
                     />
-                    연결됨
+                    설정됨
                   </span>
                 ) : mall.badge === 'beta' ? (
                   <span
@@ -288,7 +288,7 @@ export default function OrderIntegrationPanel() {
 
       {selectedMallId === 'all' ? (
         <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold text-gray-900">쇼핑몰별 연결 상태</h2>
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">쇼핑몰별 설정 상태</h2>
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-zinc-200 bg-zinc-50 text-xs text-zinc-500">
@@ -312,12 +312,12 @@ export default function OrderIntegrationPanel() {
                       {row.connected ? (
                         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                          연결됨
+                          {row.statusLabel}
                         </span>
                       ) : row.isPreparing ? (
                         <span className="text-sm text-zinc-400">{row.statusLabel}</span>
                       ) : (
-                        <span className="text-sm text-zinc-500">미연결</span>
+                        <span className="text-sm text-zinc-500">{row.statusLabel}</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-zinc-600">{row.accountName ?? '-'}</td>
@@ -344,7 +344,7 @@ export default function OrderIntegrationPanel() {
             </table>
           </div>
           <p className="mt-2 text-xs text-zinc-500">
-            파란 배경 버튼은 현재 선택된 쇼핑몰을 뜻하고, ‘연결됨’은 실제 저장된 연결 상태를 뜻합니다.
+            파란 배경 버튼은 현재 선택된 쇼핑몰을 뜻하고, ‘설정됨’은 연동 정보가 저장된 상태를 뜻합니다. 실제 API 연결은 주문조회에서 확인합니다.
           </p>
         </section>
       ) : null}

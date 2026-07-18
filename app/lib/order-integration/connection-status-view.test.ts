@@ -36,13 +36,13 @@ describe('toConnectedMallMap', () => {
 });
 
 describe('buildMallOverviewRows', () => {
-  it('연결된 몰은 연결됨 + 설정 관리 + 계정명/확인시각을 노출한다', () => {
+  it('설정된 몰은 설정됨 + 설정 관리 + 계정명/확인시각을 노출한다', () => {
     const rows = buildMallOverviewRows(connected);
     const ss = rows.find((r) => r.mallId === 'smartstore');
 
     expect(ss).toBeDefined();
     expect(ss?.connected).toBe(true);
-    expect(ss?.statusLabel).toBe('연결됨');
+    expect(ss?.statusLabel).toBe('설정됨');
     expect(ss?.action).toBe('manage');
     expect(ss?.actionLabel).toBe('설정 관리');
     expect(ss?.accountName).toBe('원클Excload');
