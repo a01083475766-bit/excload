@@ -5,7 +5,7 @@ import {
   ensureCafe24AccessToken,
   toCafe24Credentials,
 } from '@/app/lib/order-integration/cafe24-account';
-import type { ConnectionHealthAdapter, ConnectionHealthResult, HealthStatus } from '../types';
+import type { ConnectionHealthAdapter, ConnectionHealthResult, HealthErrorCategory } from '../types';
 
 const RAW_MESSAGE_MAX = 200;
 function truncate(message: string | undefined): string | undefined {
@@ -17,7 +17,7 @@ function truncate(message: string | undefined): string | undefined {
  * 카페24 오류 메시지를 공통 헬스 상태로 분류한다.
  * (client가 httpStatus를 숨기고 한글 메시지만 throw하므로 메시지 신호를 사용한다.)
  */
-export function classifyCafe24Error(error: unknown): HealthStatus {
+export function classifyCafe24Error(error: unknown): HealthErrorCategory {
   const msg = (error instanceof Error ? error.message : String(error ?? '')).toLowerCase();
   if (msg.includes('mall.read_order') || msg.includes('scope') || msg.includes('권한')) {
     return 'PERMISSION_DENIED';

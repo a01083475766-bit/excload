@@ -66,11 +66,11 @@ describe('buildSmartstoreQueryWindowsFromRange', () => {
     }
   });
 
-  it('종료 시각이 now를 넘으면 now-5초로 제한한다', () => {
+  it('명시적 종료 시각이 now를 넘으면 화면 기준 현재 시각으로 제한한다', () => {
     const fromMs = FIXED_NOW.getTime() - DAY_MS;
     const toMs = FIXED_NOW.getTime() + DAY_MS; // 미래
     const windows = buildSmartstoreQueryWindowsFromRange({ fromMs, toMs, now: FIXED_NOW });
-    expect(new Date(windows[windows.length - 1].toIso).getTime()).toBe(FIXED_NOW.getTime() - LAG_MS);
+    expect(new Date(windows[windows.length - 1].toIso).getTime()).toBe(FIXED_NOW.getTime());
   });
 
   it('시작이 종료 이후면 빈 구간', () => {

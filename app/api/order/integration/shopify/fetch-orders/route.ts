@@ -87,11 +87,6 @@ export async function POST() {
       previewRows,
       orderStandardFile,
       snapshotPersist,
-      debug: {
-        transport: { mode: 'direct' as const },
-        rawOrderCount: orders.length,
-        shopDomain: credentials.shopDomain,
-      },
     });
   } catch (error) {
     const message = toUserFacingShopifyErrorMessage(error);

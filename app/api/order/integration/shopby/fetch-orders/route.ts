@@ -1,6 +1,6 @@
 import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
-import { getIntegrationTransportInfo, isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
+import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
 import { prisma } from '@/app/lib/prisma';
 import {
   isOrderIntegrationUserAuthFailure,
@@ -22,6 +22,10 @@ import {
   maybePersistOrderFetchResult,
 } from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 import { readFetchOrderDays } from '@/app/lib/order-integration/parse-fetch-order-days';
+import { classifyMallErrorMessage } from '@/app/lib/order-integration/connection-health/adapters/probe-health';
+import { connectionOperationFailure } from '@/app/lib/order-integration/connection-health/operation-result';
+import { beginConnectionHealthOperation } from '@/app/lib/order-integration/connection-health/concurrency';
+import { sanitizePublicIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 
 export async function POST(request: Request) {
   const auth = await requireOrderIntegrationUser();
@@ -32,7 +36,7 @@ export async function POST(request: Request) {
   if (!isIntegrationProxyConfigured()) {
     return NextResponse.json(
       {
-        error: '샵바이 API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.',
+        error: '샵바이 API 연결을 위한 서버 설정이 필요합니다. 관리자에게 문의해 주세요.',
       },
       { status: 400 },
     );
@@ -46,13 +50,35 @@ export async function POST(request: Request) {
     );
   }
 
+  const operation = await beginConnectionHealthOperation({
+    accountId: account.id,
+    userId: auth.userId,
+    source: 'fetch_orders',
+  });
+  if (!operation.started) {
+    return NextResponse.json(
+      {
+        error:
+          operation.reason === 'NOT_FOUND'
+            ? '저장된 샵바이 연동 정보가 없습니다. 먼저 저장해 주세요.'
+            : '비활성화된 샵바이 연동 계정입니다. 계정을 활성화한 후 다시 시도해 주세요.',
+      },
+      { status: operation.reason === 'NOT_FOUND' ? 404 : 409 },
+    );
+  }
+
   try {
     const credentials = toShopbyCredentials(account);
     const orders = await fetchShopbyOrders({ credentials, days });
     const orderStandardFile = mapShopbyOrdersToOrderStandardFile(orders);
     const previewRows = mapShopbyOrdersToPreviewRows(orders);
 
-    await markShopbyAccountSyncResult({ accountId: account.id, success: true });
+    await markShopbyAccountSyncResult({
+      accountId: account.id,
+      userId: auth.userId,
+      operationSequence: operation.operationSequence,
+      result: { success: true },
+    });
 
     const snapshotPersist = await maybePersistOrderFetchResult({
       client: prisma,
@@ -65,8 +91,6 @@ export async function POST(request: Request) {
       fetchedAt: new Date(),
     });
 
-    const transport = getIntegrationTransportInfo();
-
     return NextResponse.json({
       success: true,
       message: `샵바이 주문 ${previewRows.length}건을 불러왔습니다.`,
@@ -75,18 +99,19 @@ export async function POST(request: Request) {
       previewRows,
       orderStandardFile,
       snapshotPersist,
-      debug: {
-        transport,
-        rawOrderCount: orders.length,
-      },
     });
   } catch (error) {
-    const message = toUserFacingShopbyErrorMessage(error);
-    console.error('[Shopby Integration Fetch] failed:', error instanceof Error ? error.message : error);
+    const message = sanitizePublicIntegrationErrorMessage(toUserFacingShopbyErrorMessage(error));
+    console.error('[Shopby Integration Fetch] failed');
     await markShopbyAccountSyncResult({
       accountId: account.id,
-      success: false,
-      errorMessage: message,
+      userId: auth.userId,
+      operationSequence: operation.operationSequence,
+      result: connectionOperationFailure({
+        error,
+        category: classifyMallErrorMessage(error),
+        userMessage: message,
+      }),
     });
     return NextResponse.json({ error: message }, { status: 400 });
   }

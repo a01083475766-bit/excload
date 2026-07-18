@@ -5,10 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, ChevronDown, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
-import { getHealthMessage } from '@/app/lib/order-integration/connection-health/messages';
-import { buildConnectionHelp } from '@/app/lib/order-integration/connection-health/provider-connection-help';
-import { resolveConnectionHealthDisplay } from '@/app/lib/order-integration/connection-health/display-status';
-import type { HealthStatus } from '@/app/lib/order-integration/connection-health/types';
+import type { PublicConnectionHealthView } from '@/app/lib/order-integration/connection-health/public-health-view';
 import {
   DEFAULT_HEALTH_CHECK_CONCURRENCY,
   MANUAL_RECHECK_MIN_INTERVAL_MS,
@@ -22,6 +19,7 @@ import {
   MAX_FETCH_RANGE_DAYS,
   presetRangeDates,
 } from '@/app/lib/order-integration/order-fetch-range';
+import { buildOrderFetchRequestBody } from '@/app/lib/order-integration/order-fetch-request';
 import {
   parseAuthorizationPeriodInput,
   resolveAuthorizationPeriodNotice,
@@ -61,7 +59,7 @@ type MallFetchResult = {
   views: OrderFetchView[];
 };
 
-/** 최근 기간(빠른 조회) 프리셋. days는 몰 fetch API가 실제로 받는 값. */
+/** 최근 기간(빠른 조회) 프리셋. 스마트스토어는 이 값으로 계산한 표시 날짜를 그대로 전송한다. */
 const DAY_PRESETS = [
   { days: 1, label: '오늘' },
   { days: 3, label: '최근 3일' },
@@ -266,9 +264,12 @@ export default function OrderIntegrationFetchPanel() {
 
   useEffect(() => {
     if (!selectedSupportsRange && rangeMode) {
+      const { start, end } = presetRangeDates(days);
+      setStartDate(start);
+      setEndDate(end);
       setRangeMode(false);
     }
-  }, [selectedSupportsRange, rangeMode]);
+  }, [selectedSupportsRange, rangeMode, days]);
 
   const todayDateString = useMemo(() => kstTodayDateString(), []);
   const rangeError = rangeMode ? getOrderFetchRangeError({ from: startDate, to: endDate }) : null;
@@ -281,7 +282,8 @@ export default function OrderIntegrationFetchPanel() {
     }
 
     const useRange = rangeMode && selectedSupportsRange;
-    if (useRange) {
+    const sendsExactRange = selectedMalls.some((mall) => mall.mallId === 'smartstore');
+    if (useRange || sendsExactRange) {
       const validationError = getOrderFetchRangeError({ from: startDate, to: endDate });
       if (validationError) {
         setNotice(validationError);
@@ -300,10 +302,12 @@ export default function OrderIntegrationFetchPanel() {
 
     for (const mall of selectedMalls) {
       try {
-        const requestBody =
-          useRange && isDateRangeSupportedMall(mall.mallId)
-            ? { from: startDate, to: endDate }
-            : { days };
+        const requestBody = buildOrderFetchRequestBody({
+          mallId: mall.mallId,
+          days,
+          from: startDate,
+          to: endDate,
+        });
         const res = await fetch(`/api/order/integration/${mall.mallId}/fetch-orders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1050,37 +1054,22 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-type ProviderReadiness = 'VERIFIED' | 'PROVISIONAL' | 'DISABLED';
-
-type ClientHealthEntry = {
-  /** 마지막으로 확인된 저장 상태(null = 아직 미확인). CHECKING은 저장하지 않는다. */
-  status: HealthStatus | null;
+type ClientHealthEntry = PublicConnectionHealthView & {
   /** 클라이언트 전용 "확인 중" 상태. */
   checking: boolean;
-  /** 공급자 준비 상태. VERIFIED만 자동/수동 확인, PROVISIONAL은 '연결 확인 준비 중' 표시. */
-  readiness: ProviderReadiness | null;
-  lastCheckedAt: string | null;
-  lastSuccessAt: string | null;
-  lastFailureAt: string | null;
-  lastErrorCategory: string | null;
-  consecutiveFailureCount: number;
-  /** 설정 오류 원인 구분(서버에서 정제). 원본 코드는 받지 않는다. */
-  configErrorScope: 'account' | 'server' | null;
   /** 사용자가 직접 등록한 인증기간(YYYY-MM-DD, KST). 연결 상태와 독립. */
   authorizationPeriodStart: string | null;
   authorizationPeriodEnd: string | null;
 };
 
 const EMPTY_HEALTH_ENTRY: ClientHealthEntry = {
-  status: null,
+  displayState: 'NOT_CHECKED',
+  label: '상태 미확인',
+  tone: 'neutral',
+  checkedAt: null,
+  checkable: false,
+  help: null,
   checking: false,
-  readiness: null,
-  lastCheckedAt: null,
-  lastSuccessAt: null,
-  lastFailureAt: null,
-  lastErrorCategory: null,
-  consecutiveFailureCount: 0,
-  configErrorScope: null,
   authorizationPeriodStart: null,
   authorizationPeriodEnd: null,
 };
@@ -1116,25 +1105,17 @@ function useMallHealth(
           `/api/order/integration/accounts/${accountId}/health-check${force ? '?force=1' : ''}`,
           { method: 'POST', cache: 'no-store' },
         );
-        const data = (await res.json().catch(() => null)) as {
-          success?: boolean;
-          healthStatus?: HealthStatus | null;
-          lastCheckedAt?: string | null;
-          lastSuccessAt?: string | null;
-          lastFailureAt?: string | null;
-          lastErrorCategory?: string | null;
-          consecutiveFailureCount?: number | null;
-          configErrorScope?: 'account' | 'server' | null;
-        } | null;
+        const data = (await res.json().catch(() => null)) as
+          | ({ success?: boolean } & Partial<PublicConnectionHealthView>)
+          | null;
         if (res.ok && data?.success) {
           patchEntry(accountId, {
-            status: data.healthStatus ?? null,
-            lastCheckedAt: data.lastCheckedAt ?? null,
-            lastSuccessAt: data.lastSuccessAt ?? null,
-            lastFailureAt: data.lastFailureAt ?? null,
-            lastErrorCategory: data.lastErrorCategory ?? null,
-            consecutiveFailureCount: data.consecutiveFailureCount ?? 0,
-            configErrorScope: data.configErrorScope ?? null,
+            displayState: data.displayState ?? 'NOT_CHECKED',
+            label: data.label ?? '상태 미확인',
+            tone: data.tone ?? 'neutral',
+            checkedAt: data.checkedAt ?? null,
+            checkable: data.checkable ?? false,
+            help: data.help ?? null,
             checking: false,
           });
         } else {
@@ -1160,38 +1141,26 @@ function useMallHealth(
         const data = (await res.json().catch(() => null)) as {
           accounts?: Array<{
             accountId: string;
-            readiness?: ProviderReadiness | null;
-            checkable?: boolean;
-            healthStatus?: HealthStatus | null;
-            lastCheckedAt?: string | null;
-            lastSuccessAt?: string | null;
-            lastFailureAt?: string | null;
-            lastErrorCategory?: string | null;
-            consecutiveFailureCount?: number | null;
-            configErrorScope?: 'account' | 'server' | null;
             authorizationPeriodStart?: string | null;
             authorizationPeriodEnd?: string | null;
-          }>;
+          } & PublicConnectionHealthView>;
         } | null;
         if (!cancelled && res.ok && Array.isArray(data?.accounts)) {
           for (const a of data.accounts) {
-            if (a.readiness === 'VERIFIED' && a.checkable !== false) {
+            if (a.checkable) {
               autoCheckAccountIds.add(a.accountId);
             }
           }
           setHealthByAccount((prev) => {
             const next = { ...prev };
             for (const a of data.accounts!) {
-              const current = next[a.accountId] ?? EMPTY_HEALTH_ENTRY;
               next[a.accountId] = {
-                status: a.healthStatus ?? current.status,
-                readiness: a.readiness ?? current.readiness,
-                lastCheckedAt: a.lastCheckedAt ?? current.lastCheckedAt,
-                lastSuccessAt: a.lastSuccessAt ?? current.lastSuccessAt,
-                lastFailureAt: a.lastFailureAt ?? current.lastFailureAt,
-                lastErrorCategory: a.lastErrorCategory ?? current.lastErrorCategory,
-                consecutiveFailureCount: a.consecutiveFailureCount ?? current.consecutiveFailureCount,
-                configErrorScope: a.configErrorScope ?? null,
+                displayState: a.displayState,
+                label: a.label,
+                tone: a.tone,
+                checkedAt: a.checkedAt,
+                checkable: a.checkable,
+                help: a.help,
                 authorizationPeriodStart: a.authorizationPeriodStart ?? null,
                 authorizationPeriodEnd: a.authorizationPeriodEnd ?? null,
                 checking: false,
@@ -1239,17 +1208,17 @@ function useMallHealth(
   return { healthByAccount, recheck };
 }
 
-const HEALTH_TONE_DOT: Record<'ok' | 'info' | 'warn' | 'error', string> = {
-  ok: 'bg-emerald-500',
-  info: 'bg-zinc-400',
-  warn: 'bg-amber-500',
-  error: 'bg-red-500',
+const HEALTH_TONE_DOT: Record<PublicConnectionHealthView['tone'], string> = {
+  success: 'bg-emerald-500',
+  neutral: 'bg-zinc-400',
+  warning: 'bg-amber-500',
+  danger: 'bg-red-500',
 };
-const HEALTH_TONE_TEXT: Record<'ok' | 'info' | 'warn' | 'error', string> = {
-  ok: 'text-emerald-600',
-  info: 'text-zinc-600',
-  warn: 'text-amber-600',
-  error: 'text-red-600',
+const HEALTH_TONE_TEXT: Record<PublicConnectionHealthView['tone'], string> = {
+  success: 'text-emerald-600',
+  neutral: 'text-zinc-600',
+  warning: 'text-amber-600',
+  danger: 'text-red-600',
 };
 
 function formatCheckedTime(iso: string): string {
@@ -1263,18 +1232,6 @@ function formatCheckedTime(iso: string): string {
   });
 }
 
-/** 저장 필드로부터 화면 표시 상태를 계산한다(정상 복귀·일시 경고 규칙 포함). */
-function displayStatusOf(entry?: ClientHealthEntry): HealthStatus | null {
-  if (!entry) return null;
-  return resolveConnectionHealthDisplay({
-    healthStatus: entry.status,
-    lastErrorCategory: entry.lastErrorCategory,
-    lastSuccessAt: entry.lastSuccessAt,
-    lastFailureAt: entry.lastFailureAt,
-    consecutiveFailureCount: entry.consecutiveFailureCount,
-  }).status;
-}
-
 /** 몰별 연결 상태 배지 한 줄. 정상은 절제된 초록 점, 문제는 최소한의 색으로 표시. */
 function MallHealthRow({
   mall,
@@ -1286,10 +1243,8 @@ function MallHealthRow({
   onRecheck: (accountId: string) => void;
 }) {
   const checking = entry?.checking ?? false;
-  const isInactive = mall.status === 'INACTIVE';
-  // 준비 상태가 시드된 뒤에만 준비 중 판정(초기 null은 VERIFIED 흐름을 막지 않음).
-  const isProvisional = entry?.readiness === 'PROVISIONAL' || entry?.readiness === 'DISABLED';
-  const display = displayStatusOf(entry);
+  const isInactive = mall.status === 'INACTIVE' || entry?.displayState === 'NOT_IN_USE';
+  const isUnavailable = entry?.displayState === 'CHECK_UNAVAILABLE';
 
   let label: string;
   let dotClass: string;
@@ -1299,36 +1254,31 @@ function MallHealthRow({
   if (isInactive) {
     label = '미사용';
     dotClass = 'bg-zinc-300';
-  } else if (isProvisional) {
-    // PROVISIONAL: 공식 사양/실계정 검증 전 → 자동 확인하지 않고 준비 중으로만 표시.
-    label = '연결 확인 준비 중';
+  } else if (isUnavailable) {
+    label = entry?.label ?? '연결 확인 준비 중';
     dotClass = 'bg-zinc-300';
   } else if (checking) {
-    label = getHealthMessage('CHECKING').label;
+    label = '확인 중';
     dotClass = 'bg-zinc-400';
-  } else if (display == null) {
-    label = '상태 미확인';
-    dotClass = 'bg-zinc-300';
-    showRecheck = true;
   } else {
-    const msg = getHealthMessage(display);
-    label = msg.label;
-    dotClass = HEALTH_TONE_DOT[msg.tone];
-    textClass = HEALTH_TONE_TEXT[msg.tone];
-    showRecheck = display !== 'HEALTHY';
+    const tone = entry?.tone ?? 'neutral';
+    label = entry?.label ?? '상태 미확인';
+    dotClass = HEALTH_TONE_DOT[tone];
+    textClass = HEALTH_TONE_TEXT[tone];
+    showRecheck = Boolean(entry?.checkable && entry.displayState !== 'CONNECTED');
   }
 
-  const checkedTime = entry?.lastCheckedAt && !isProvisional ? formatCheckedTime(entry.lastCheckedAt) : null;
-  const detail =
-    !isInactive && !isProvisional && !checking && display && display !== 'HEALTHY'
-      ? getHealthMessage(display)
-      : null;
+  const checkedTime = entry?.checkedAt && !isUnavailable ? formatCheckedTime(entry.checkedAt) : null;
+  const detail = !isInactive && !isUnavailable && !checking ? entry?.help : null;
 
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-zinc-600">
       <span className="font-medium text-zinc-700">{mall.name}</span>
       <span className="text-zinc-300" aria-hidden>·</span>
-      <span className="inline-flex items-center gap-1" title={detail ? `${detail.title} ${detail.action}` : undefined}>
+      <span
+        className="inline-flex items-center gap-1"
+        title={detail ? `${detail.title} ${detail.description}` : undefined}
+      >
         {checking ? (
           <Loader2 className="h-3 w-3 animate-spin text-zinc-400" aria-hidden />
         ) : (
@@ -1371,16 +1321,7 @@ function MallHealthNotice({
   onRecheck: (accountId: string) => void;
 }) {
   if (mall.status === 'INACTIVE' || entry?.checking) return null;
-  // PROVISIONAL/DISABLED 공급자는 준비 중이므로 문제 안내를 띄우지 않는다.
-  if (entry?.readiness === 'PROVISIONAL' || entry?.readiness === 'DISABLED') return null;
-  const display = displayStatusOf(entry);
-  if (!display || display === 'HEALTHY') return null;
-
-  const help = buildConnectionHelp({
-    mallId: mall.mallId,
-    status: display,
-    configErrorScope: entry?.configErrorScope ?? null,
-  });
+  const help = entry?.help ?? null;
   if (!help) return null;
 
   const accent =

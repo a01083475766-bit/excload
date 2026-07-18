@@ -328,7 +328,7 @@ export function SmartstoreIntegrationForm({
             </span>
           ) : (
             <span className="mt-1 block text-xs opacity-90">
-              스마트스토어 API는 Vercel 직접 호출을 지원하지 않습니다. INTEGRATION_PROXY_BASE_URL을 설정해 주세요.
+              스마트스토어 API 서버 연결 준비가 완료되지 않았습니다. 관리자에게 문의해 주세요.
             </span>
           )}
         </p>

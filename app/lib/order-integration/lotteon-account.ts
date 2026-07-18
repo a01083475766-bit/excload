@@ -14,6 +14,8 @@ import {
   recordConnectionSyncResult,
   recordConnectionTestResult,
 } from '@/app/lib/order-integration/connection-health/persist-health-result';
+import type { ConnectionOperationResult } from '@/app/lib/order-integration/connection-health/types';
+import { sanitizePublicOptionalIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 import type { LotteonCredentials } from '@/app/lib/lotteon/client';
 
 export type LotteonAccountPublic = {
@@ -106,7 +108,7 @@ export function toLotteonAccountPublic(account: OrderIntegrationAccount): Lotteo
     status: mapStatus(account.status),
     lastTestedAt: account.lastTestedAt?.toISOString() ?? null,
     lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
-    lastErrorMessage: account.lastErrorMessage,
+    lastErrorMessage: sanitizePublicOptionalIntegrationErrorMessage(account.lastErrorMessage),
   };
 }
 
@@ -225,16 +227,18 @@ export async function deleteLotteonAccount(userId: string): Promise<boolean> {
 
 export async function markLotteonAccountTestResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionTestResult(input);
 }
 
 export async function markLotteonAccountSyncResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionSyncResult(input);
 }

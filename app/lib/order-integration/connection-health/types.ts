@@ -22,6 +22,23 @@ export type HealthStatus =
 /** 오류 카테고리 = HEALTHY를 제외한 HealthStatus. lastErrorCategory에 저장한다. */
 export type HealthErrorCategory = Exclude<HealthStatus, 'HEALTHY'>;
 
+/**
+ * 연결 테스트와 실제 주문 수집이 공통 저장 경로에 전달하는 구조화된 결과.
+ * 오류 분류는 공급자별 API 응답을 알고 있는 호출부에서 끝내며, 저장 계층은
+ * 사용자용 문자열을 다시 분석해 카테고리를 추측하지 않는다.
+ */
+export type ConnectionOperationResult =
+  | {
+      success: true;
+    }
+  | {
+      success: false;
+      category: HealthErrorCategory;
+      errorCode?: string;
+      userMessage: string;
+      rawMessage?: string;
+    };
+
 /** 클라이언트 전용 UI 상태(저장하지 않음). */
 export const CLIENT_ONLY_HEALTH_STATE = 'CHECKING' as const;
 export type ClientHealthState = HealthStatus | typeof CLIENT_ONLY_HEALTH_STATE;

@@ -1,28 +1,70 @@
 import { describe, expect, it } from 'vitest';
 import {
-  categorizeSmartstoreError,
+  categorizeSmartstoreOperationError,
+  classifySmartstoreApiFailure,
   runSmartstoreHealthCheck,
+  smartstoreHealthResultToOperationResult,
   type SmartstoreHealthHttpFn,
 } from './smartstore';
-import type { SmartstoreCredentials } from '@/app/lib/smartstore/client';
+import {
+  collectSmartstoreProductOrders,
+  SmartstoreApiError,
+  type SmartstoreCredentials,
+} from '@/app/lib/smartstore/client';
 
-describe('categorizeSmartstoreError (실제 주문조회 오류 → 공통 카테고리)', () => {
-  it('GW.AUTHN 메시지 → AUTH_REQUIRED', () => {
-    const res = categorizeSmartstoreError(
-      new Error('스마트스토어 주문 조회 실패. 원인: 스마트스토어 API 오류 (GW.AUTHN)'),
-    );
-    expect(res.status).toBe('AUTH_REQUIRED');
-    expect(res.rawCode).toBe('GW.AUTHN');
+describe('스마트스토어 구조화 오류 분류', () => {
+  it.each([
+    { code: 'invalid_client', message: 'invalid client', httpStatus: 400 },
+    { code: undefined, message: 'Client ID 또는 Client Secret 오류', httpStatus: 400 },
+    { code: undefined, message: '전자서명 실패', httpStatus: 400 },
+    { code: 'GW.AUTHN', message: 'authentication failed', httpStatus: 401 },
+  ])('토큰 인증 오류 $code/$httpStatus → AUTH_REQUIRED', (failure) => {
+    expect(classifySmartstoreApiFailure({ ...failure, stage: 'TOKEN' })).toBe('AUTH_REQUIRED');
   });
 
-  it('IP 미등록 메시지 → IP_NOT_ALLOWED', () => {
-    const res = categorizeSmartstoreError(new Error('허용되지 않은 IP입니다.'));
-    expect(res.status).toBe('IP_NOT_ALLOWED');
+  it('invalid_client를 포함해도 REQUEST_INVALID로 분류하지 않는다', () => {
+    const error = new SmartstoreApiError({
+      stage: 'TOKEN',
+      httpStatus: 400,
+      code: 'invalid_client',
+      rawMessage: 'invalid client credentials',
+    });
+    expect(categorizeSmartstoreOperationError(error).category).toBe('AUTH_REQUIRED');
   });
 
-  it('조회 조건/날짜 오류 → REQUEST_INVALID (연결 상태 중립)', () => {
-    const res = categorizeSmartstoreError(new Error('조회 기간이 올바르지 않습니다.'));
-    expect(res.status).toBe('REQUEST_INVALID');
+  it('주문 날짜 파라미터 400은 REQUEST_INVALID', () => {
+    expect(
+      classifySmartstoreApiFailure({
+        stage: 'ORDER',
+        httpStatus: 400,
+        code: 'INVALID_PARAMETER',
+        message: 'lastChangedFrom 날짜 파라미터가 올바르지 않습니다.',
+      }),
+    ).toBe('REQUEST_INVALID');
+  });
+
+  it('승인·계약 신호가 있는 403은 일반 권한 오류보다 APPROVAL_REQUIRED를 우선한다', () => {
+    expect(
+      classifySmartstoreApiFailure({
+        stage: 'ORDER',
+        httpStatus: 403,
+        code: 'CONTRACT_PENDING',
+        message: 'API 계약 승인 대기',
+      }),
+    ).toBe('APPROVAL_REQUIRED');
+  });
+
+  it('조회 조건 근거 없이 invalid 단어만 있는 오류는 REQUEST_INVALID로 단정하지 않는다', () => {
+    expect(
+      classifySmartstoreApiFailure({ stage: 'ORDER', message: 'invalid response' }),
+    ).toBe('UNKNOWN');
+  });
+
+  it('구조화 정보가 없는 사용자 문자열은 다시 분석하지 않고 UNKNOWN으로 둔다', () => {
+    expect(categorizeSmartstoreOperationError(new Error('GW.AUTHN invalid_client'))).toMatchObject({
+      success: false,
+      category: 'UNKNOWN',
+    });
   });
 });
 
@@ -93,6 +135,48 @@ describe('runSmartstoreHealthCheck', () => {
     });
     const result = await runSmartstoreHealthCheck({ credentials: CREDENTIALS, http, now: NOW });
     expect(result.status).toBe('AUTH_REQUIRED');
+    expect(orderCalls()).toBe(2);
+  });
+
+  it.each([
+    {
+      label: '429',
+      response: { httpStatus: 429, bodyText: JSON.stringify({ code: 'GW.RATE_LIMIT', message: 'too many' }) },
+      expected: 'RATE_LIMITED',
+    },
+    {
+      label: 'IP 오류',
+      response: {
+        httpStatus: 403,
+        bodyText: JSON.stringify({ code: 'GW.IP_NOT_ALLOWED', message: 'not allowed ip' }),
+      },
+      expected: 'IP_NOT_ALLOWED',
+    },
+    {
+      label: '권한 오류',
+      response: {
+        httpStatus: 403,
+        bodyText: JSON.stringify({ code: 'GW.AUTHZ', message: 'permission denied' }),
+      },
+      expected: 'PERMISSION_DENIED',
+    },
+    {
+      label: '5xx',
+      response: { httpStatus: 503, bodyText: JSON.stringify({ code: 'GW.SERVER', message: 'unavailable' }) },
+      expected: 'TEMPORARY_ERROR',
+    },
+  ])('인증 재시도 두 번째 응답 $label도 다시 분류한다', async ({ response, expected }) => {
+    const { http, tokenCalls, orderCalls } = makeHttp({
+      token: [TOKEN_OK, TOKEN_OK],
+      order: [
+        { httpStatus: 401, bodyText: JSON.stringify({ code: 'GW.AUTHN', message: '인증 실패' }) },
+        response,
+      ],
+    });
+
+    const result = await runSmartstoreHealthCheck({ credentials: CREDENTIALS, http, now: NOW });
+    expect(result.status).toBe(expected);
+    expect(tokenCalls()).toBe(2);
     expect(orderCalls()).toBe(2);
   });
 
@@ -179,5 +263,61 @@ describe('runSmartstoreHealthCheck', () => {
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain('tok-123');
     expect(serialized).not.toContain('Bearer');
+  });
+
+  it('자동 헬스체크·수동 테스트 변환·실제 주문조회가 같은 인증 오류를 동일 분류한다', async () => {
+    const auto = await runSmartstoreHealthCheck({
+      credentials: CREDENTIALS,
+      http: makeHttp({
+        token: [TOKEN_OK, TOKEN_OK],
+        order: [
+          { httpStatus: 401, bodyText: JSON.stringify({ code: 'GW.AUTHN', message: '인증 실패' }) },
+          { httpStatus: 401, bodyText: JSON.stringify({ code: 'GW.AUTHN', message: '인증 실패' }) },
+        ],
+      }).http,
+      now: NOW,
+    });
+    const manual = smartstoreHealthResultToOperationResult(auto);
+    const actual = categorizeSmartstoreOperationError(
+      new SmartstoreApiError({
+        stage: 'ORDER',
+        httpStatus: 401,
+        code: 'GW.AUTHN',
+        rawMessage: '인증 실패',
+      }),
+    );
+
+    expect(auto.status).toBe('AUTH_REQUIRED');
+    expect(manual).toMatchObject({ success: false, category: 'AUTH_REQUIRED' });
+    expect(actual).toMatchObject({ success: false, category: 'AUTH_REQUIRED' });
+  });
+
+  it('실제 수집 래퍼가 원인 객체를 보존해 사용자 문자열 재분석 없이 분류한다', async () => {
+    let caught: unknown;
+    try {
+      await collectSmartstoreProductOrders({
+        request: async () => {
+          throw new SmartstoreApiError({
+            stage: 'ORDER',
+            httpStatus: 429,
+            code: 'GW.RATE_LIMIT',
+            rawMessage: 'too many requests',
+          });
+        },
+        range: {
+          fromMs: NOW.getTime() - 60_000,
+          toMs: NOW.getTime() - 10_000,
+        },
+        now: NOW,
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(categorizeSmartstoreOperationError(caught)).toMatchObject({
+      success: false,
+      category: 'RATE_LIMITED',
+      errorCode: 'GW.RATE_LIMIT',
+    });
   });
 });

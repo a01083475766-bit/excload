@@ -17,7 +17,7 @@ import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfo
 import { MallIntegrationForm } from '@/app/components/order-integration/MallIntegrationForm';
 import { MallSetupGuidePanel } from '@/app/components/order-integration/MallSetupGuidePanel';
 import { MALL_SETUP_GUIDES } from '@/app/lib/order-integration/mall-setup-guides';
-import { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/client';
+import { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
 import { EXCLOAD_MAKESHOP_OUTBOUND_IP } from '@/app/lib/makeshop/api-spec';
 
 type AvailableMallId = Exclude<OrderIntegrationMallId, 'gmarket'>;

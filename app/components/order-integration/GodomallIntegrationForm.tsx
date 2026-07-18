@@ -283,8 +283,7 @@ export function GodomallIntegrationForm({
           <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
           {transportInfo.partnerKeyConfigured === false ? (
             <span className="mt-1 block text-xs font-semibold text-amber-800 dark:text-amber-200">
-              GODOMALL_PARTNER_KEY가 아직 서버에 설정되지 않았습니다. 실연동 전 Vercel env 등록 또는 개발용 override가
-              필요합니다.
+              고도몰 서버 인증정보가 아직 준비되지 않았습니다. 실연동 전 관리자에게 문의해 주세요.
             </span>
           ) : null}
           {transportInfo.notes ? <span className="mt-1 block text-xs opacity-90">{transportInfo.notes}</span> : null}
@@ -400,8 +399,8 @@ export function GodomallIntegrationForm({
           {showAdvanced ? (
             <div className="space-y-3 border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
               <p className="text-xs text-zinc-500">
-                운영 환경에서는 Vercel env <code>GODOMALL_PARTNER_KEY</code>를 사용합니다. 로컬·스테이징 테스트 시에만
-                override를 입력하세요.
+                운영 환경에서는 서버에 안전하게 저장된 인증정보를 사용합니다. 로컬·스테이징 테스트 시에만
+                개발용 override를 입력하세요.
               </p>
               <input
                 id="partnerKeyOverride"

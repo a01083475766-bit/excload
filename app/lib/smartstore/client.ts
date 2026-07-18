@@ -14,6 +14,48 @@ export type SmartstoreCredentials = {
   authType: SmartstoreAuthType;
 };
 
+export type SmartstoreApiErrorStage = 'TOKEN' | 'ORDER';
+
+/** 스마트스토어 원본 응답의 구조를 보존하되 브라우저용 message에는 내부 코드를 넣지 않는다. */
+export class SmartstoreApiError extends Error {
+  readonly stage: SmartstoreApiErrorStage;
+  readonly httpStatus?: number;
+  readonly code?: string;
+  readonly rawMessage?: string;
+  readonly networkFailure: boolean;
+
+  constructor(input: {
+    stage: SmartstoreApiErrorStage;
+    httpStatus?: number;
+    code?: string;
+    rawMessage?: string;
+    networkFailure?: boolean;
+    cause?: unknown;
+  }) {
+    super(
+      input.stage === 'TOKEN'
+        ? '스마트스토어 연결 정보를 확인해 주세요.'
+        : '스마트스토어 주문 조회에 실패했습니다.',
+      input.cause === undefined ? undefined : { cause: input.cause },
+    );
+    this.name = 'SmartstoreApiError';
+    this.stage = input.stage;
+    this.httpStatus = input.httpStatus;
+    this.code = input.code;
+    this.rawMessage = input.rawMessage;
+    this.networkFailure = input.networkFailure === true;
+  }
+}
+
+function parseSmartstoreError(bodyText: string): { code?: string; message?: string } {
+  try {
+    const parsed = JSON.parse(bodyText) as { message?: string; code?: string };
+    return { code: parsed.code, message: parsed.message };
+  } catch {
+    return {};
+  }
+}
+
 export function generateSmartstoreClientSecretSign(input: {
   clientId: string;
   clientSecret: string;
@@ -56,49 +98,67 @@ export async function requestSmartstoreAccessToken(
     throw new Error('스마트스토어 API는 고정 IP 프록시 설정이 필요합니다.');
   }
 
-  assertIntegrationProxyConfigReady();
+  try {
+    assertIntegrationProxyConfigReady();
+  } catch (cause) {
+    throw new SmartstoreApiError({
+      stage: 'TOKEN',
+      code: 'CLIENT_CONFIGURATION',
+      cause,
+    });
+  }
 
   const { body } = buildSmartstoreTokenRequestBody(credentials);
 
-  const { httpStatus, bodyText } = await invokeIntegrationHttp({
-    method: 'POST',
-    url: SMARTSTORE_TOKEN_URL,
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body,
-  });
+  let response: { httpStatus: number; bodyText: string };
+  try {
+    response = await invokeIntegrationHttp({
+      method: 'POST',
+      url: SMARTSTORE_TOKEN_URL,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body,
+    });
+  } catch (cause) {
+    throw new SmartstoreApiError({ stage: 'TOKEN', networkFailure: true, cause });
+  }
+
+  const { httpStatus, bodyText } = response;
 
   if (httpStatus < 200 || httpStatus >= 300) {
-    throw new Error(parseSmartstoreErrorMessage(bodyText) ?? '스마트스토어 인증 토큰 발급에 실패했습니다.');
+    const parsed = parseSmartstoreError(bodyText);
+    throw new SmartstoreApiError({
+      stage: 'TOKEN',
+      httpStatus,
+      code: parsed.code,
+      rawMessage: parsed.message,
+    });
   }
 
   let parsed: { access_token?: string; expires_in?: number };
   try {
     parsed = JSON.parse(bodyText) as { access_token?: string; expires_in?: number };
   } catch {
-    throw new Error('스마트스토어 인증 응답을 해석하지 못했습니다.');
+    throw new SmartstoreApiError({
+      stage: 'TOKEN',
+      httpStatus,
+      code: 'TOKEN_RESPONSE_INVALID',
+    });
   }
 
   if (!parsed.access_token) {
-    throw new Error('스마트스토어 access_token이 응답에 없습니다.');
+    throw new SmartstoreApiError({
+      stage: 'TOKEN',
+      httpStatus,
+      code: 'TOKEN_RESPONSE_INVALID',
+    });
   }
 
   return {
     accessToken: parsed.access_token,
     expiresIn: parsed.expires_in,
   };
-}
-
-function parseSmartstoreErrorMessage(bodyText: string): string | null {
-  try {
-    const parsed = JSON.parse(bodyText) as { message?: string; code?: string };
-    if (parsed.message) return parsed.message;
-    if (parsed.code) return `스마트스토어 API 오류 (${parsed.code})`;
-  } catch {
-    // ignore
-  }
-  return null;
 }
 
 export async function smartstoreAuthorizedRequest<T>(input: {
@@ -118,27 +178,39 @@ export async function smartstoreAuthorizedRequest<T>(input: {
     headers['Content-Type'] = input.contentType ?? 'application/json';
   }
 
-  const { httpStatus, bodyText } = await invokeIntegrationHttp({
-    method: input.method,
-    url,
-    headers,
-    body: input.body ?? null,
-  });
+  let response: { httpStatus: number; bodyText: string };
+  try {
+    response = await invokeIntegrationHttp({
+      method: input.method,
+      url,
+      headers,
+      body: input.body ?? null,
+    });
+  } catch (cause) {
+    throw new SmartstoreApiError({ stage: 'ORDER', networkFailure: true, cause });
+  }
+
+  const { httpStatus, bodyText } = response;
 
   if (httpStatus < 200 || httpStatus >= 300) {
-    throw new Error(parseSmartstoreErrorMessage(bodyText) ?? '스마트스토어 API 호출에 실패했습니다.');
+    const parsed = parseSmartstoreError(bodyText);
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      httpStatus,
+      code: parsed.code,
+      rawMessage: parsed.message,
+    });
   }
 
   try {
     return JSON.parse(bodyText) as T;
   } catch {
-    throw new Error('스마트스토어 API 응답을 해석하지 못했습니다.');
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      httpStatus,
+      code: 'RESPONSE_INVALID',
+    });
   }
-}
-
-export async function testSmartstoreConnection(credentials: SmartstoreCredentials): Promise<{ ok: true }> {
-  await requestSmartstoreAccessToken(credentials);
-  return { ok: true };
 }
 
 function formatKstIsoWithMillis(date: Date): string {
@@ -270,14 +342,15 @@ export function buildSmartstoreQueryWindows(input: {
 /**
  * 명시적인 시작·종료 시각(epoch ms)을 24시간 이하 구간으로 나눈다.
  * 날짜 직접 선택(과거 특정 기간 조회)에서 사용하며, days 기반과 동일한 24시간 분할 로직을 재사용한다.
- * 종료 시각은 데이터 누락 방지를 위해 now-5초를 넘지 않도록 제한한다.
+ * 종료 시각은 현재 시각(now)을 넘지 않도록 제한한다. 프리셋/직접 선택 화면에서 표시한
+ * "현재까지" 범위를 그대로 사용하며, days 기반 롤링 조회의 5초 지연과 명확히 분리한다.
  */
 export function buildSmartstoreQueryWindowsFromRange(input: {
   fromMs: number;
   toMs: number;
   now: Date;
 }): SmartstoreQueryWindow[] {
-  const overallToMs = Math.min(input.toMs, input.now.getTime() - SMARTSTORE_FETCH_LAG_MS);
+  const overallToMs = Math.min(input.toMs, input.now.getTime());
   const overallFromMs = input.fromMs;
   return splitWindows(overallFromMs, overallToMs);
 }
@@ -308,6 +381,10 @@ export type SmartstoreApiRequestFn = <T>(input: {
 function toSafeErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   return '알 수 없는 오류';
+}
+
+function collectionError(message: string, cause: unknown): Error {
+  return new Error(message, { cause });
 }
 
 /**
@@ -358,8 +435,9 @@ export async function collectSmartstoreProductOrders(input: {
           pathWithQuery: `/external/v1/pay-order/seller/product-orders/last-changed-statuses?${params.toString()}`,
         });
       } catch (error) {
-        throw new Error(
+        throw collectionError(
           `스마트스토어 주문 변경내역 조회에 실패했습니다. (${windowLabel}, 페이지 ${page}) 원인: ${toSafeErrorMessage(error)}`,
+          error,
         );
       }
 
@@ -408,8 +486,9 @@ export async function collectSmartstoreProductOrders(input: {
         contentType: 'application/json',
       });
     } catch (error) {
-      throw new Error(
+      throw collectionError(
         `스마트스토어 주문 상세 조회에 실패했습니다. (상세 배치 ${batch}/${batchCount}) 원인: ${toSafeErrorMessage(error)}`,
+        error,
       );
     }
 

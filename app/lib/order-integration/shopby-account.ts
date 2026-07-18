@@ -15,6 +15,8 @@ import {
   recordConnectionSyncResult,
   recordConnectionTestResult,
 } from '@/app/lib/order-integration/connection-health/persist-health-result';
+import type { ConnectionOperationResult } from '@/app/lib/order-integration/connection-health/types';
+import { sanitizePublicOptionalIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 
 export type ShopbyAccountPublic = {
   id: string;
@@ -120,7 +122,7 @@ export function toShopbyAccountPublic(account: OrderIntegrationAccount): ShopbyA
     status: mapStatus(account.status),
     lastTestedAt: account.lastTestedAt?.toISOString() ?? null,
     lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
-    lastErrorMessage: account.lastErrorMessage,
+    lastErrorMessage: sanitizePublicOptionalIntegrationErrorMessage(account.lastErrorMessage),
   };
 }
 
@@ -233,16 +235,18 @@ export async function deleteShopbyAccount(userId: string): Promise<boolean> {
 
 export async function markShopbyAccountTestResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionTestResult(input);
 }
 
 export async function markShopbyAccountSyncResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionSyncResult(input);
 }

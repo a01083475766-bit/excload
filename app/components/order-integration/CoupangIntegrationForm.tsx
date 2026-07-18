@@ -264,7 +264,7 @@ export function CoupangIntegrationForm({
           API 호출 경로: <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : 'Vercel 직접 호출'}</strong>
           {transportInfo.mode === 'direct' ? (
             <span className="mt-1 block text-xs opacity-90">
-              고정 IP 확보 전 관리자 테스트 전용입니다. 운영 시 COUPANG_PROXY_BASE_URL 프록시를 설정하세요.
+              고정 IP 연결 준비 전에는 관리자 테스트 용도로만 사용할 수 있습니다.
             </span>
           ) : (
             <span className="mt-1 block text-xs opacity-90">

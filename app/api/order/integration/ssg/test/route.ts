@@ -10,6 +10,10 @@ import {
 } from '@/app/lib/order-integration/ssg-account';
 import { testSsgConnection, toUserFacingSsgErrorMessage } from '@/app/lib/ssg/client';
 import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
+import { classifyMallErrorMessage } from '@/app/lib/order-integration/connection-health/adapters/probe-health';
+import { connectionOperationFailure } from '@/app/lib/order-integration/connection-health/operation-result';
+import { beginConnectionHealthOperation } from '@/app/lib/order-integration/connection-health/concurrency';
+import { sanitizePublicIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 
 export async function POST() {
   const auth = await requireOrderIntegrationUser();
@@ -18,7 +22,7 @@ export async function POST() {
   if (!isIntegrationProxyConfigured()) {
     return NextResponse.json(
       {
-        error: 'SSG API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.',
+        error: 'SSG API 연결을 위한 서버 설정이 필요합니다. 관리자에게 문의해 주세요.',
       },
       { status: 400 },
     );
@@ -32,22 +36,49 @@ export async function POST() {
     );
   }
 
+  const operation = await beginConnectionHealthOperation({
+    accountId: account.id,
+    userId: auth.userId,
+    source: 'connection_test',
+  });
+  if (!operation.started) {
+    return NextResponse.json(
+      {
+        error:
+          operation.reason === 'NOT_FOUND'
+            ? '저장된 SSG 연동 정보가 없습니다. 먼저 저장해 주세요.'
+            : '비활성화된 SSG 연동 계정입니다. 계정을 활성화한 후 다시 시도해 주세요.',
+      },
+      { status: operation.reason === 'NOT_FOUND' ? 404 : 409 },
+    );
+  }
+
   try {
     const credentials = toSsgCredentials(account);
     await testSsgConnection(credentials);
-    await markSsgAccountTestResult({ accountId: account.id, success: true });
+    await markSsgAccountTestResult({
+      accountId: account.id,
+      userId: auth.userId,
+      operationSequence: operation.operationSequence,
+      result: { success: true },
+    });
 
     return NextResponse.json({
       success: true,
       message: 'SSG API 연결이 정상 확인되었습니다.',
     });
   } catch (error) {
-    const message = toUserFacingSsgErrorMessage(error);
-    console.error('[SSG Integration Test] failed:', error instanceof Error ? error.message : error);
+    const message = sanitizePublicIntegrationErrorMessage(toUserFacingSsgErrorMessage(error));
+    console.error('[SSG Integration Test] failed');
     await markSsgAccountTestResult({
       accountId: account.id,
-      success: false,
-      errorMessage: message,
+      userId: auth.userId,
+      operationSequence: operation.operationSequence,
+      result: connectionOperationFailure({
+        error,
+        category: classifyMallErrorMessage(error),
+        userMessage: message,
+      }),
     });
     return NextResponse.json({ error: message }, { status: 400 });
   }

@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { Mail, Lock, LogIn, UserPlus, Loader2, Eye, EyeOff, Smartphone, X, Search } from 'lucide-react';
 import { useUserStore } from '@/app/store/userStore';
 import { formatPhoneForInput } from '@/app/utils/format-phone';
+import { shouldRenderAuthForm } from '@/app/lib/auth/session-ui';
 
 type AuthMode = 'login' | 'signup';
 
@@ -416,6 +417,10 @@ function AuthPageContent() {
     // URL 쿼리 파라미터 업데이트
     router.replace(`/auth?mode=${newMode}`, { scroll: false });
   };
+
+  if (!shouldRenderAuthForm(status)) {
+    return <AuthPageSuspenseFallback />;
+  }
 
   return (
     <>

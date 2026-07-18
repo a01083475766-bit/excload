@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizePublicIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 import {
   isOrderIntegrationUserAuthFailure,
   requireOrderIntegrationUser,
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
 
   if (!isIntegrationEncryptionConfigured()) {
     return NextResponse.json(
-      { error: '서버 암호화 키(EXCLOAD_INTEGRATION_ENCRYPTION_KEY)가 설정되지 않았습니다.' },
+      { error: '연동 정보를 안전하게 저장하기 위한 서버 설정이 필요합니다. 관리자에게 문의해 주세요.' },
       { status: 500 },
     );
   }
@@ -42,10 +43,11 @@ export async function POST(request: NextRequest) {
       account: toShopbyAccountPublic(account),
     });
   } catch (error) {
-    console.error('[Shopby Integration Save] error:', error instanceof Error ? error.message : error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '샵바이 연동 정보 저장에 실패했습니다.' },
-      { status: 400 },
+    const message = sanitizePublicIntegrationErrorMessage(
+      error instanceof Error ? error.message : '',
+      '샵바이 연동 정보 저장에 실패했습니다.',
     );
+    console.error('[Shopby Integration Save] failed');
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

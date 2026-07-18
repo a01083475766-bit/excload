@@ -9,7 +9,7 @@ import {
   getExcloadOutboundIp,
 } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
-import { CAFE24_OAUTH_REDIRECT_URI } from '@/app/lib/cafe24/client';
+import { CAFE24_OAUTH_REDIRECT_URI } from '@/app/lib/cafe24/constants';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
 import { SecretInput } from '@/app/components/order-integration/SecretInput';
 

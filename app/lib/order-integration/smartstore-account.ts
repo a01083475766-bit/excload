@@ -14,6 +14,8 @@ import {
   recordConnectionSyncResult,
   recordConnectionTestResult,
 } from '@/app/lib/order-integration/connection-health/persist-health-result';
+import type { ConnectionOperationResult } from '@/app/lib/order-integration/connection-health/types';
+import { sanitizePublicOptionalIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 import type { SmartstoreAuthType, SmartstoreCredentials } from '@/app/lib/smartstore/client';
 import { formatAuthorizationDate } from '@/app/lib/order-integration/authorization-period';
 
@@ -122,7 +124,7 @@ export function toSmartstoreAccountPublic(account: OrderIntegrationAccount): Sma
     status: mapStatus(account.status),
     lastTestedAt: account.lastTestedAt?.toISOString() ?? null,
     lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
-    lastErrorMessage: account.lastErrorMessage,
+    lastErrorMessage: sanitizePublicOptionalIntegrationErrorMessage(account.lastErrorMessage),
     authorizationPeriodStart: formatAuthorizationDate(account.authorizationPeriodStart),
     authorizationPeriodEnd: formatAuthorizationDate(account.authorizationPeriodEnd),
   };
@@ -256,16 +258,18 @@ export async function deleteSmartstoreAccount(userId: string): Promise<boolean> 
 
 export async function markSmartstoreAccountTestResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionTestResult(input);
 }
 
 export async function markSmartstoreAccountSyncResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionSyncResult(input);
 }

@@ -14,6 +14,8 @@ import {
   recordConnectionSyncResult,
   recordConnectionTestResult,
 } from '@/app/lib/order-integration/connection-health/persist-health-result';
+import type { ConnectionOperationResult } from '@/app/lib/order-integration/connection-health/types';
+import { sanitizePublicOptionalIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 import { assertValidCafe24MallId } from '@/app/lib/cafe24/mall-id';
 import {
   isCafe24AccessTokenExpired,
@@ -160,7 +162,7 @@ export function toCafe24AccountPublic(account: OrderIntegrationAccount): Cafe24A
     status: mapStatus(account.status),
     lastTestedAt: account.lastTestedAt?.toISOString() ?? null,
     lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
-    lastErrorMessage: account.lastErrorMessage,
+    lastErrorMessage: sanitizePublicOptionalIntegrationErrorMessage(account.lastErrorMessage),
   };
 }
 
@@ -329,16 +331,18 @@ export async function deleteCafe24Account(userId: string): Promise<boolean> {
 
 export async function markCafe24AccountTestResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionTestResult(input);
 }
 
 export async function markCafe24AccountSyncResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionSyncResult(input);
 }

@@ -4,13 +4,20 @@ import { invokeIntegrationHttp } from '@/app/lib/integration-proxy/http-transpor
 import {
   SMARTSTORE_API_ORIGIN,
   SMARTSTORE_TOKEN_URL,
+  SmartstoreApiError,
   buildSmartstoreQueryWindowsFromRange,
   buildSmartstoreTokenRequestBody,
   type SmartstoreCredentials,
 } from '@/app/lib/smartstore/client';
 import { toSmartstoreCredentials } from '@/app/lib/order-integration/smartstore-account';
 import { categorizeApiError } from '../error-categories';
-import type { ConnectionHealthAdapter, ConnectionHealthResult, HealthStatus } from '../types';
+import type {
+  ConnectionHealthAdapter,
+  ConnectionHealthResult,
+  ConnectionOperationResult,
+  HealthErrorCategory,
+  HealthStatus,
+} from '../types';
 
 /** 헬스체크에서 사용하는 최소 읽기 조회 범위(분). 짧은 단일 구간만 사용한다. */
 const HEALTH_CHECK_WINDOW_MS = 10 * 60 * 1000;
@@ -36,35 +43,128 @@ function parseNaverError(bodyText: string): { code?: string; message?: string } 
  * IP/호출제한/일시오류가 아닌 인증정보·전자서명·invalid_client 계열은 AUTH_REQUIRED로 본다.
  * (엑클로드 서버 설정 누락은 이 단계 이전 프록시 점검에서 ACCOUNT_CONFIG_ERROR로 처리된다.)
  */
+export type SmartstoreApiFailureInput = {
+  httpStatus?: number;
+  code?: string;
+  message?: string;
+  stage: 'TOKEN' | 'ORDER';
+  networkFailure?: boolean;
+};
+
+/**
+ * 스마트스토어가 돌려준 구조화된 HTTP 정보로 오류를 한 번만 분류한다.
+ * 토큰 단계의 `invalid_client`를 일반적인 `invalid` 요청 오류보다 먼저 처리하는 것이 중요하다.
+ */
+export function classifySmartstoreApiFailure(
+  input: SmartstoreApiFailureInput,
+): HealthErrorCategory {
+  const code = (input.code ?? '').trim().toLowerCase();
+  const message = (input.message ?? '').trim().toLowerCase();
+  const status = input.httpStatus;
+
+  if (
+    input.networkFailure ||
+    status === 408 ||
+    (typeof status === 'number' && status >= 500) ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('network error') ||
+    message.includes('connection reset')
+  ) {
+    return 'TEMPORARY_ERROR';
+  }
+  if (status === 429 || code.includes('rate_limit') || code.includes('quota')) {
+    return 'RATE_LIMITED';
+  }
+  if (
+    code.includes('ip_not_allowed') ||
+    code.includes('gw.ip') ||
+    message.includes('not allowed ip') ||
+    message.includes('ip is not') ||
+    message.includes('ip address') ||
+    message.includes('허용되지 않은 ip') ||
+    message.includes('ip 미등록') ||
+    message.includes('아이피')
+  ) {
+    return 'IP_NOT_ALLOWED';
+  }
+
+  const looksLikeAuth =
+    code.includes('gw.authn') ||
+    code.includes('invalid_client') ||
+    code.includes('unauthorized') ||
+    code.includes('unauthenticated') ||
+    message.includes('invalid_client') ||
+    message.includes('invalid client') ||
+    message.includes('client id') ||
+    message.includes('clientid') ||
+    message.includes('client_id') ||
+    message.includes('client secret') ||
+    message.includes('clientsecret') ||
+    message.includes('client_secret') ||
+    message.includes('전자서명') ||
+    message.includes('전자 서명') ||
+    message.includes('서명 실패') ||
+    message.includes('signature') ||
+    message.includes('authentication failed') ||
+    message.includes('인증 실패');
+  if (looksLikeAuth || status === 401) return 'AUTH_REQUIRED';
+
+  if (
+    code.includes('approval') ||
+    code.includes('contract') ||
+    message.includes('approval') ||
+    message.includes('pending') ||
+    message.includes('승인') ||
+    message.includes('계약')
+  ) {
+    return 'APPROVAL_REQUIRED';
+  }
+
+  if (
+    code.includes('authz') ||
+    code.includes('forbidden') ||
+    message.includes('permission') ||
+    message.includes('forbidden') ||
+    message.includes('scope') ||
+    message.includes('권한') ||
+    status === 403
+  ) {
+    return 'PERMISSION_DENIED';
+  }
+
+  if (code.includes('client_configuration')) return 'ACCOUNT_CONFIG_ERROR';
+
+  // 토큰 엔드포인트에는 주문 조회 날짜/조건 파라미터가 없다. 따라서 이 단계의
+  // 400은 조회 조건 오류가 아니라 클라이언트 인증정보/서명 실패로 취급한다.
+  if (input.stage === 'TOKEN' && status === 400) return 'AUTH_REQUIRED';
+
+  if (
+    message.includes('parameter') ||
+    message.includes('lastchangedfrom') ||
+    message.includes('lastchangedto') ||
+    message.includes('조회 조건') ||
+    message.includes('조회 기간') ||
+    message.includes('날짜') ||
+    message.includes('시작일') ||
+    message.includes('종료일') ||
+    status === 400
+  ) {
+    return 'REQUEST_INVALID';
+  }
+
+  const fallback = categorizeApiError(input);
+  // 공통 분류기의 광범위한 `invalid` 규칙은 스마트스토어에는 적용하지 않는다.
+  // 조회 날짜/조건 오류는 위에서 명시적으로 확인한 경우에만 REQUEST_INVALID이다.
+  return fallback === 'REQUEST_INVALID' ? 'UNKNOWN' : fallback;
+}
+
 function classifyTokenFailure(input: {
   httpStatus?: number;
   code?: string;
   message?: string;
 }): HealthStatus {
-  const category = categorizeApiError(input);
-  switch (category) {
-    case 'IP_NOT_ALLOWED':
-      return 'IP_NOT_ALLOWED';
-    case 'RATE_LIMITED':
-      return 'RATE_LIMITED';
-    case 'TEMPORARY_ERROR':
-      return 'TEMPORARY_ERROR';
-    case 'UNKNOWN': {
-      const code = (input.code ?? '').toLowerCase();
-      const msg = (input.message ?? '').toLowerCase();
-      const looksLikeAuth =
-        code.includes('invalid_client') ||
-        code.includes('unauthorized') ||
-        msg.includes('sign') ||
-        msg.includes('서명') ||
-        input.httpStatus === 401 ||
-        input.httpStatus === 400;
-      return looksLikeAuth ? 'AUTH_REQUIRED' : 'UNKNOWN';
-    }
-    default:
-      // AUTH_REQUIRED / ACCOUNT_CONFIG_ERROR / PERMISSION_DENIED / APPROVAL_REQUIRED / REQUEST_INVALID
-      return 'AUTH_REQUIRED';
-  }
+  return classifySmartstoreApiFailure({ ...input, stage: 'TOKEN' });
 }
 
 /** 프록시 저수준 HTTP 호출자(테스트 주입 가능). */
@@ -201,7 +301,8 @@ export async function runSmartstoreHealthCheck(input: {
   if (first.kind === 'ok') return { status: 'HEALTHY', checkedAt: now };
   if (first.kind === 'network') return { status: 'TEMPORARY_ERROR', rawCode: 'NETWORK', checkedAt: now };
 
-  const category = categorizeApiError({
+  const category = classifySmartstoreApiFailure({
+    stage: 'ORDER',
     httpStatus: first.httpStatus,
     code: first.code,
     message: first.message,
@@ -217,10 +318,16 @@ export async function runSmartstoreHealthCheck(input: {
     if (second.kind === 'network') {
       return { status: 'TEMPORARY_ERROR', rawCode: 'NETWORK', checkedAt: now };
     }
+    const secondCategory = classifySmartstoreApiFailure({
+      stage: 'ORDER',
+      httpStatus: second.httpStatus,
+      code: second.code,
+      message: second.message,
+    });
     return {
-      status: 'AUTH_REQUIRED',
-      rawCode: second.code ?? first.code ?? '401',
-      rawMessage: truncate(second.message ?? first.message),
+      status: secondCategory,
+      rawCode: second.code ?? String(second.httpStatus),
+      rawMessage: truncate(second.message),
       checkedAt: now,
     };
   }
@@ -233,21 +340,88 @@ export async function runSmartstoreHealthCheck(input: {
   };
 }
 
-/**
- * 실제 스마트스토어 주문조회 등에서 던져진 오류(문자열 메시지)를 공통 헬스 결과로 분류한다.
- * 클라이언트가 httpStatus를 숨기므로 메시지에 담긴 게이트웨이 코드(GW.*)와 키워드를 활용한다.
- * REQUEST_INVALID(조회 조건 오류)는 호출 전에 검증되어 이 경로로 오지 않는다.
- */
-export function categorizeSmartstoreError(error: unknown, now: Date = new Date()): ConnectionHealthResult {
+/** 실제 주문조회가 보존한 SmartstoreApiError를 저장용 구조화 결과로 변환한다. */
+export function categorizeSmartstoreOperationError(
+  error: unknown,
+): Extract<ConnectionOperationResult, { success: false }> {
+  const structured = findSmartstoreApiError(error);
+  if (structured) {
+    const category = classifySmartstoreApiFailure({
+      stage: structured.stage,
+      httpStatus: structured.httpStatus,
+      code: structured.code,
+      message: structured.rawMessage,
+      networkFailure: structured.networkFailure,
+    });
+    return {
+      success: false,
+      category,
+      errorCode: structured.code ?? (structured.httpStatus ? String(structured.httpStatus) : undefined),
+      userMessage: smartstoreUserMessage(category),
+      rawMessage: truncate(structured.rawMessage),
+    };
+  }
+
+  // 구조화 정보가 없는 예상 밖 오류는 문자열로 원인을 추측하지 않는다.
   const message = error instanceof Error ? error.message : String(error ?? '');
-  const codeMatch = message.match(/GW\.[A-Z_]+/i);
-  const code = codeMatch?.[0];
   return {
-    status: categorizeApiError({ code, message }),
-    rawCode: code,
+    success: false,
+    category: 'UNKNOWN',
+    userMessage: smartstoreUserMessage('UNKNOWN'),
     rawMessage: truncate(message),
-    checkedAt: now,
   };
+}
+
+export function smartstoreHealthResultToOperationResult(
+  result: ConnectionHealthResult,
+): ConnectionOperationResult {
+  if (result.status === 'HEALTHY') return { success: true };
+  return {
+    success: false,
+    category: result.status,
+    errorCode: result.rawCode,
+    userMessage: smartstoreUserMessage(result.status),
+    rawMessage: result.rawMessage,
+  };
+}
+
+function smartstoreUserMessage(category: HealthErrorCategory): string {
+  switch (category) {
+    case 'AUTH_REQUIRED':
+      return '스마트스토어 연결 정보를 확인해 주세요.';
+    case 'IP_NOT_ALLOWED':
+      return '스마트스토어에 등록한 접근 IP를 확인해 주세요.';
+    case 'PERMISSION_DENIED':
+      return '스마트스토어 주문 조회 권한을 확인해 주세요.';
+    case 'APPROVAL_REQUIRED':
+      return '스마트스토어 API 이용 승인 또는 계약 상태를 확인해 주세요.';
+    case 'RATE_LIMITED':
+      return '스마트스토어 호출이 많습니다. 잠시 후 다시 시도해 주세요.';
+    case 'TEMPORARY_ERROR':
+      return '스마트스토어 연결이 일시적으로 원활하지 않습니다. 잠시 후 다시 시도해 주세요.';
+    case 'ACCOUNT_CONFIG_ERROR':
+      return '스마트스토어 연결 설정을 확인해 주세요.';
+    case 'REQUEST_INVALID':
+      return '스마트스토어 주문 조회 조건을 확인해 주세요.';
+    case 'UNKNOWN':
+      return '스마트스토어 연결 상태를 확인하지 못했습니다.';
+  }
+}
+
+function findSmartstoreApiError(error: unknown): SmartstoreApiError | null {
+  let current = error;
+  const seen = new Set<unknown>();
+
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    if (current instanceof SmartstoreApiError) return current;
+    if (current instanceof Error && 'cause' in current) {
+      current = current.cause;
+      continue;
+    }
+    break;
+  }
+  return null;
 }
 
 export const smartstoreHealthAdapter: ConnectionHealthAdapter<OrderIntegrationAccount> = {

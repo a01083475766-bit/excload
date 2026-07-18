@@ -2,7 +2,7 @@ import type { OrderIntegrationAccount } from '@prisma/client';
 import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
 import { testMakeshopConnection } from '@/app/lib/makeshop/client';
 import { toMakeshopCredentials } from '@/app/lib/order-integration/makeshop-account';
-import type { ConnectionHealthAdapter, HealthStatus } from '../types';
+import type { ConnectionHealthAdapter, HealthErrorCategory } from '../types';
 import { runProbeHealthCheck, truncateRaw } from './probe-health';
 
 /**
@@ -10,7 +10,7 @@ import { runProbeHealthCheck, truncateRaw } from './probe-health';
  * OAuth 인증(Client ID/Secret) 실패는 env 언급이 함께 있어도 AUTH_REQUIRED로 본다.
  * 서버 OAuth env 자체가 누락된 경우("... 환경 변수가 설정되지 않았습니다")만 ACCOUNT_CONFIG_ERROR.
  */
-export function classifyMakeshopError(error: unknown): HealthStatus {
+export function classifyMakeshopError(error: unknown): HealthErrorCategory {
   const raw = error instanceof Error ? error.message : String(error ?? '');
   const t = raw.toLowerCase();
 

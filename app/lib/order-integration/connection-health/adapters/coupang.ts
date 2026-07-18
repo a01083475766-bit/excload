@@ -6,7 +6,7 @@ import {
   toCoupangCredentials,
 } from '@/app/lib/order-integration/coupang-account';
 import { categorizeApiError } from '../error-categories';
-import type { ConnectionHealthAdapter, ConnectionHealthResult, HealthStatus } from '../types';
+import type { ConnectionHealthAdapter, ConnectionHealthResult, HealthErrorCategory } from '../types';
 
 const RAW_MESSAGE_MAX = 200;
 function truncate(message: string | undefined): string | undefined {
@@ -15,7 +15,7 @@ function truncate(message: string | undefined): string | undefined {
 }
 
 /** 쿠팡 CoupangApiError.code(및 httpStatus)를 공통 헬스 상태로 매핑한다. */
-export function classifyCoupangError(error: unknown): HealthStatus {
+export function classifyCoupangError(error: unknown): HealthErrorCategory {
   if (error instanceof CoupangApiError) {
     switch (error.code) {
       case 'INVALID_CREDENTIALS':

@@ -277,8 +277,7 @@ export function MakeshopIntegrationForm({
           <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
           {transportInfo.oauthConfigured === false ? (
             <span className="mt-1 block text-xs font-semibold text-amber-800 dark:text-amber-200">
-              MAKESHOP_CLIENT_ID/MAKESHOP_CLIENT_SECRET이 아직 서버에 설정되지 않았습니다. 실연동 전 Vercel env 등록
-              또는 개발용 override가 필요합니다.
+              메이크샵 서버 인증정보가 아직 준비되지 않았습니다. 실연동 전 관리자에게 문의해 주세요.
             </span>
           ) : null}
           {transportInfo.notes ? <span className="mt-1 block text-xs opacity-90">{transportInfo.notes}</span> : null}
@@ -317,7 +316,7 @@ export function MakeshopIntegrationForm({
             · partner.makeshop.co.kr에서 APP 등록
           </li>
           <li>개발 정보 → 접근 허용 IP에 {EXCLOAD_MAKESHOP_OUTBOUND_IP} 등록, 주문 Read scope 선택</li>
-          <li>MAKESHOP_CLIENT_ID / MAKESHOP_CLIENT_SECRET을 Vercel env에 등록</li>
+          <li>서버 OAuth 인증정보 준비 상태 확인</li>
           <li>판매자 샵스토어에서 엑클로드 APP 설치 후 shop_uid 확인</li>
         </ol>
       </CollapsibleGuide>
@@ -380,8 +379,8 @@ export function MakeshopIntegrationForm({
           {showAdvanced ? (
             <div className="space-y-3 border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
               <p className="text-xs text-zinc-500">
-                운영 환경에서는 Vercel env <code>MAKESHOP_CLIENT_ID</code>, <code>MAKESHOP_CLIENT_SECRET</code>을
-                사용합니다. 로컬·스테이징 테스트 시에만 override를 입력하세요.
+                운영 환경에서는 서버에 안전하게 저장된 OAuth 인증정보를 사용합니다. 로컬·스테이징 테스트 시에만
+                개발용 override를 입력하세요.
               </p>
               <input
                 id="clientIdOverride"

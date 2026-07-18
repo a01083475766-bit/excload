@@ -22,7 +22,7 @@ import {
   FlaskConical,
   Link2,
 } from 'lucide-react';
-import { useUserStore } from '@/app/store/userStore';
+import { getNavAuthVisibility } from '@/app/lib/auth/session-ui';
 
 interface MenuItem {
   href: string;
@@ -81,9 +81,8 @@ const logoLinkClass = `
 export default function MainNav() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const user = useUserStore((state) => state.user);
 
-  const isLoggedIn = status === 'authenticated' || !!user;
+  const { showLoginLink, showAccountLink: isLoggedIn } = getNavAuthVisibility(status);
   const isAdmin = session?.user?.isAdmin === true;
 
   const adminMenuItem: MenuItem = { href: '/akman', label: '관리자페이지', icon: Shield };
@@ -226,7 +225,7 @@ export default function MainNav() {
             |
           </span>
 
-          {!isLoggedIn && (
+          {showLoginLink && (
             <Link
               href="/auth"
               className={`

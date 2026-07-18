@@ -1,11 +1,9 @@
 import { assertIntegrationProxyConfigReady, isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
 import { invokeIntegrationHttp } from '@/app/lib/integration-proxy/http-transport';
 import { assertValidCafe24MallId, buildCafe24ApiOrigin } from '@/app/lib/cafe24/mall-id';
+import { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
 
-export const CAFE24_OAUTH_REDIRECT_URI =
-  'https://www.excload.com/api/order/integration/cafe24/callback';
-
-export const CAFE24_OAUTH_SCOPES = 'mall.read_order';
+export { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
 
 export type Cafe24ClientCredentials = {
   mallId: string;

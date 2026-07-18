@@ -14,6 +14,8 @@ import {
   recordConnectionSyncResult,
   recordConnectionTestResult,
 } from '@/app/lib/order-integration/connection-health/persist-health-result';
+import type { ConnectionOperationResult } from '@/app/lib/order-integration/connection-health/types';
+import { sanitizePublicOptionalIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 import type { SsgCredentials } from '@/app/lib/ssg/client';
 
 export type SsgAccountPublic = {
@@ -79,7 +81,7 @@ export function toSsgAccountPublic(account: OrderIntegrationAccount): SsgAccount
     status: mapStatus(account.status),
     lastTestedAt: account.lastTestedAt?.toISOString() ?? null,
     lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
-    lastErrorMessage: account.lastErrorMessage,
+    lastErrorMessage: sanitizePublicOptionalIntegrationErrorMessage(account.lastErrorMessage),
   };
 }
 
@@ -174,16 +176,18 @@ export async function deleteSsgAccount(userId: string): Promise<boolean> {
 
 export async function markSsgAccountTestResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionTestResult(input);
 }
 
 export async function markSsgAccountSyncResult(input: {
   accountId: string;
-  success: boolean;
-  errorMessage?: string | null;
+  userId: string;
+  operationSequence: bigint;
+  result: ConnectionOperationResult;
 }): Promise<void> {
   await recordConnectionSyncResult(input);
 }

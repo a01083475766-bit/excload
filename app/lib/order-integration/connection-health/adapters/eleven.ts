@@ -9,7 +9,7 @@ import {
 import { parseElevenApiError } from '@/app/lib/eleven/xml-parser';
 import { toElevenCredentials } from '@/app/lib/order-integration/eleven-account';
 import { categorizeApiError } from '../error-categories';
-import type { ConnectionHealthAdapter, ConnectionHealthResult, HealthStatus } from '../types';
+import type { ConnectionHealthAdapter, ConnectionHealthResult, HealthErrorCategory } from '../types';
 
 const RAW_MESSAGE_MAX = 200;
 function truncate(message: string | undefined): string | undefined {
@@ -24,7 +24,7 @@ export type ElevenHealthHttpFn = (input: {
   body?: string | null;
 }) => Promise<{ httpStatus: number; bodyText: string }>;
 
-function classifyElevenError(input: { httpStatus?: number; message?: string }): HealthStatus {
+function classifyElevenError(input: { httpStatus?: number; message?: string }): HealthErrorCategory {
   const msg = (input.message ?? '').toLowerCase();
   // openapikey/인증 키워드는 11번가의 대표적인 인증 오류 신호
   if (msg.includes('openapikey') || msg.includes('인증') || msg.includes('api key') || msg.includes('인증키')) {
@@ -35,6 +35,13 @@ function classifyElevenError(input: { httpStatus?: number; message?: string }): 
   if (input.httpStatus === 401) return 'AUTH_REQUIRED';
   if (input.httpStatus === 403) return 'IP_NOT_ALLOWED';
   return 'UNKNOWN';
+}
+
+/** 수동 테스트·실제 주문조회도 자동 확인과 동일한 11번가 분류기를 사용한다. */
+export function classifyElevenOperationError(error: unknown): HealthErrorCategory {
+  return classifyElevenError({
+    message: error instanceof Error ? error.message : String(error ?? ''),
+  });
 }
 
 /**

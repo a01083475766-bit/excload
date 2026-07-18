@@ -151,13 +151,21 @@ export function resolveOrderFetchRange(input: {
   return { fromMs, toMs };
 }
 
-/** 요청 body에서 날짜 범위 입력({from,to})을 추출. 없으면 null. */
+/**
+ * 요청 body에서 날짜 범위 입력({from,to})을 추출한다.
+ * 둘 다 없으면 프리셋/기본값 처리를 위해 null을 반환하고, 한쪽만 있으면 명시적으로 거부한다.
+ */
 export function extractDateRangeInput(body: unknown): { from: string; to: string } | null {
   if (!body || typeof body !== 'object') return null;
   const from = (body as { from?: unknown }).from;
   const to = (body as { to?: unknown }).to;
-  if (typeof from === 'string' && typeof to === 'string' && from && to) {
-    return { from, to };
+  const hasFrom = typeof from === 'string' ? from.trim().length > 0 : from !== undefined && from !== null;
+  const hasTo = typeof to === 'string' ? to.trim().length > 0 : to !== undefined && to !== null;
+
+  if (!hasFrom && !hasTo) return null;
+  if (!hasFrom || !hasTo) {
+    throw new OrderFetchRangeError('시작일과 종료일을 모두 입력해 주세요.');
   }
-  return null;
+
+  return { from: String(from).trim(), to: String(to).trim() };
 }

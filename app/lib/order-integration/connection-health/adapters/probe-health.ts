@@ -1,4 +1,4 @@
-import type { ConnectionHealthResult, HealthStatus } from '../types';
+import type { ConnectionHealthResult, HealthErrorCategory, HealthStatus } from '../types';
 
 const RAW_MESSAGE_MAX = 200;
 export function truncateRaw(message: string | undefined): string | undefined {
@@ -19,7 +19,7 @@ export function truncateRaw(message: string | undefined): string | undefined {
  * 사용자 조치 문구는 healthStatus와 분리해 messages.ts가 담당한다(가능한 원인을 함께 안내).
  * 이 공통 분류를 무리하게 확장하지 말고, 몰별로 신뢰할 신호가 있으면 classify 주입을 사용한다.
  */
-export function classifyMallErrorMessage(error: unknown): HealthStatus {
+export function classifyMallErrorMessage(error: unknown): HealthErrorCategory {
   const raw = error instanceof Error ? error.message : String(error ?? '');
   const t = raw.toLowerCase();
 
@@ -49,7 +49,7 @@ export function classifyMallErrorMessage(error: unknown): HealthStatus {
     t.includes('필수') || t.includes('환경') || t.includes('env') || t.includes('파싱');
 
   // 조치가 필요한 원인들(서로 다른 원인이 2개 이상이면 특정하지 않음)
-  const causes = new Set<HealthStatus>();
+  const causes = new Set<HealthErrorCategory>();
   if (approvalSignal) causes.add('APPROVAL_REQUIRED');
   if (permissionSignal) causes.add('PERMISSION_DENIED');
   if (ipSignal) causes.add('IP_NOT_ALLOWED');

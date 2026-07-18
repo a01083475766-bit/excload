@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getOrderFetchRangeError,
+  extractDateRangeInput,
   isDateRangeSupportedMall,
   kstDateStringDaysAgo,
   kstTodayDateString,
@@ -100,5 +101,32 @@ describe('resolveOrderFetchRange', () => {
     expect(() => resolveOrderFetchRange({ from: '2026-07-05', to: '2026-07-01', now: FIXED_NOW })).toThrow(
       OrderFetchRangeError,
     );
+  });
+});
+
+describe('extractDateRangeInput', () => {
+  it('둘 다 없으면 기본 프리셋 처리를 위해 null을 반환한다', () => {
+    expect(extractDateRangeInput(null)).toBeNull();
+    expect(extractDateRangeInput({ days: 7 })).toBeNull();
+    expect(extractDateRangeInput({ from: '', to: '' })).toBeNull();
+  });
+
+  it('시작일 또는 종료일만 있으면 기본 조회로 전환하지 않고 거부한다', () => {
+    expect(() => extractDateRangeInput({ from: '2026-07-16' })).toThrow(
+      '시작일과 종료일을 모두 입력해 주세요.',
+    );
+    expect(() => extractDateRangeInput({ to: '2026-07-16' })).toThrow(
+      '시작일과 종료일을 모두 입력해 주세요.',
+    );
+    expect(() => extractDateRangeInput({ from: '2026-07-16', to: '' })).toThrow(
+      OrderFetchRangeError,
+    );
+  });
+
+  it('둘 다 있으면 공백을 제거해 반환한다', () => {
+    expect(extractDateRangeInput({ from: ' 2026-07-10 ', to: ' 2026-07-16 ' })).toEqual({
+      from: '2026-07-10',
+      to: '2026-07-16',
+    });
   });
 });
