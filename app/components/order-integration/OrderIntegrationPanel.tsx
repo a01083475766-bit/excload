@@ -280,6 +280,7 @@ export default function OrderIntegrationPanel() {
               <MallSetupGuidePanel
                 guide={MALL_SETUP_GUIDES[selectedMall.id]}
                 mallName={selectedMall.name}
+                mallId={selectedMall.id}
               />
             </div>
           </div>
