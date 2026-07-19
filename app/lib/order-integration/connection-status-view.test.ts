@@ -79,9 +79,9 @@ describe('buildMallOverviewRows', () => {
     const idxSmart = rows.findIndex((r) => r.mallId === 'smartstore');
     const idxGmarket = rows.findIndex((r) => r.mallId === 'gmarket');
 
-    expect(idxCoupang).toBeGreaterThanOrEqual(0);
-    expect(idxCoupang).toBeLessThan(idxSmart);
-    expect(idxSmart).toBeLessThan(idxGmarket);
+    expect(idxSmart).toBeGreaterThanOrEqual(0);
+    expect(idxSmart).toBeLessThan(idxCoupang);
+    expect(idxCoupang).toBeLessThan(idxGmarket);
   });
 
   it('연결이 하나도 없으면 available 몰은 모두 미연결이다', () => {

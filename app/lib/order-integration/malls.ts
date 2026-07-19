@@ -28,25 +28,25 @@ export type OrderIntegrationMall = {
 
 export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
   {
+    id: 'smartstore',
+    name: '스마트스토어',
+    description: '네이버 커머스API(Smart Store Center)로 주문을 조회·수집합니다. (베타)',
+    status: 'available',
+    badge: 'beta',
+    priority: 1,
+  },
+  {
     id: 'coupang',
     name: '쿠팡',
     description: '쿠팡 Wing Open API로 주문을 자동 수집합니다.',
     status: 'available',
     badge: 'live',
-    priority: 1,
+    priority: 2,
   },
   {
     id: 'eleven',
     name: '11번가',
     description: '11ST OPEN API로 결제완료·배송준비 주문을 조회·수집합니다. (베타)',
-    status: 'available',
-    badge: 'beta',
-    priority: 2,
-  },
-  {
-    id: 'smartstore',
-    name: '스마트스토어',
-    description: '네이버 커머스API(Smart Store Center)로 주문을 조회·수집합니다. (베타)',
     status: 'available',
     badge: 'beta',
     priority: 3,
