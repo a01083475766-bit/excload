@@ -10,6 +10,11 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['인수자']).toBe('받는사람');
     expect(ALIAS_DICTIONARY['수하인']).toBe('받는사람');
     expect(ALIAS_DICTIONARY['인수자 HP']).toBe('받는사람전화1');
+    expect(ALIAS_DICTIONARY['수하인연락처1']).toBe('받는사람전화1');
+    expect(ALIAS_DICTIONARY['수하인핸드폰번호']).toBe('받는사람전화1');
+    expect(ALIAS_DICTIONARY['수하인전화번호']).toBe('받는사람전화2');
+    expect(ALIAS_DICTIONARY['택배운임']).toBe('운임');
+    expect(ALIAS_DICTIONARY['택배수량']).toBe('박스수량');
     expect(ALIAS_DICTIONARY['수령인휴대전화']).toBe('받는사람전화1');
     expect(ALIAS_DICTIONARY['인수자 주소']).toBe('받는사람주소1');
     expect(ALIAS_DICTIONARY['해외배송지']).toBe('받는사람주소1');
