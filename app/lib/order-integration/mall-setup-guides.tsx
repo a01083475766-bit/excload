@@ -18,20 +18,29 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     steps: [
       {
         title: 'Open API 메뉴',
-        body: '쿠팡 Wing 판매자센터 → Open API 메뉴로 이동합니다.',
+        body: '쿠팡 Wing → 판매자정보 → 추가판매정보에서 Open API로 이동합니다.',
       },
       {
         title: '엑클로드 정보 등록',
-        body: '업체명·URL·IP에 왼쪽(또는 상단)의 엑클로드 정보를 등록합니다.',
+        body: (
+          <>
+            업체명·URL·IP에 왼쪽(또는 상단)의 엑클로드 정보를 등록합니다. IP는 「추가」 후
+            「확인」까지 완료하세요.
+          </>
+        ),
       },
       {
         title: '키 발급',
-        body: 'Access Key, Secret Key를 발급받아 왼쪽 입력란에 붙여넣습니다.',
+        body: '업체코드·Access Key·Secret Key를 확인한 뒤 왼쪽 입력란에 붙여넣습니다.',
       },
       {
-        title: '테스트 후 저장',
-        body: '연결 테스트가 성공하면 저장합니다. 만료일을 넣으면 갱신 관리에 도움이 됩니다.',
+        title: '저장·연결 테스트',
+        body: '「저장」을 먼저 누른 뒤 「연결 테스트」를 합니다. 만료일을 넣으면 갱신 관리에 도움이 됩니다.',
       },
+    ],
+    notes: [
+      '이미 API가 있으면 새 키보다 「연동정보 수정」으로 엑클로드 IP를 추가하는 방식을 권장합니다.',
+      '처음이시면 「설정 따라하기」로 화면을 따라 진행하는 것을 권장합니다.',
     ],
   },
   eleven: {

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ExternalLink, Images } from 'lucide-react';
 import type { MallSetupGuide } from '@/app/lib/order-integration/mall-setup-guides';
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
+import { CoupangVisualGuideModal } from '@/app/components/order-integration/CoupangVisualGuideModal';
 import { SmartstoreVisualGuideModal } from '@/app/components/order-integration/SmartstoreVisualGuideModal';
 
 type Props = {
@@ -12,10 +13,12 @@ type Props = {
   mallId?: OrderIntegrationMallId;
 };
 
-/** 오른쪽: 요약 안내 유지 + 「설정 따라하기」 */
+/** 오른쪽: 요약 안내 유지 + 「설정 따라하기」(스마트스토어·쿠팡) */
 export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
   const [visualGuideOpen, setVisualGuideOpen] = useState(false);
   const showSmartstoreVisualGuide = mallId === 'smartstore';
+  const showCoupangVisualGuide = mallId === 'coupang';
+  const showVisualGuide = showSmartstoreVisualGuide || showCoupangVisualGuide;
 
   if (!guide) {
     return (
@@ -29,14 +32,16 @@ export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
     );
   }
 
+  const introText = showSmartstoreVisualGuide
+    ? '네이버에서 키를 발급한 뒤, 왼쪽 칸에 넣고 저장·연결 테스트를 하면 됩니다. 처음이시면 「설정 따라하기」를 눌러 화면을 따라 진행해 주세요.'
+    : showCoupangVisualGuide
+      ? '쿠팡 Wing에서 Open API 키를 발급한 뒤, 왼쪽 칸에 넣고 저장·연결 테스트를 하면 됩니다. 처음이시면 「설정 따라하기」를 눌러 화면을 따라 진행해 주세요.'
+      : '판매자센터에서 API(또는 앱)를 발급한 뒤, 엑클로드 정보를 등록하고 왼쪽 입력란에 키를 넣습니다.';
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
       <h3 className="text-lg font-bold text-zinc-950">{guide.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-        {showSmartstoreVisualGuide
-          ? '네이버에서 키를 발급한 뒤, 왼쪽 칸에 넣고 저장·연결 테스트를 하면 됩니다. 처음이시면 「설정 따라하기」를 눌러 화면을 따라 진행해 주세요.'
-          : '판매자센터에서 API(또는 앱)를 발급한 뒤, 엑클로드 정보를 등록하고 왼쪽 입력란에 키를 넣습니다.'}
-      </p>
+      <p className="mt-2 text-sm leading-relaxed text-zinc-600">{introText}</p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {guide.sellerCenterHref ? (
@@ -51,7 +56,7 @@ export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
           </a>
         ) : null}
 
-        {showSmartstoreVisualGuide ? (
+        {showVisualGuide ? (
           <button
             type="button"
             onClick={() => setVisualGuideOpen(true)}
@@ -90,6 +95,10 @@ export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
           open={visualGuideOpen}
           onClose={() => setVisualGuideOpen(false)}
         />
+      ) : null}
+
+      {showCoupangVisualGuide ? (
+        <CoupangVisualGuideModal open={visualGuideOpen} onClose={() => setVisualGuideOpen(false)} />
       ) : null}
     </div>
   );
