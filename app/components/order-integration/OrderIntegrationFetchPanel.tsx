@@ -134,7 +134,7 @@ function extractOrderViews(data: unknown, rows: StandardOrderRow[]): OrderFetchV
 
 /**
  * 주문조회 — 연동된 몰만 표시.
- * 검색 조건(작업 대상·변경일 기준 기간·검색어) → 요약 → 실무형 표(행 상세) → 선택 흐름.
+ * 검색 조건(작업 대상·변경일 기준 기간·검색어) → 조건에 맞는 요약·표 → 선택 흐름.
  */
 export default function OrderIntegrationFetchPanel() {
   const router = useRouter();
@@ -404,18 +404,26 @@ export default function OrderIntegrationFetchPanel() {
     [allDisplayRows, matchesAllFilters],
   );
 
+  /** 요약은 검색 조건(작업 대상·검색어·상세조건)이 반영된 filteredRows 기준. */
   const summary = useMemo(() => {
     const okMalls = results ? results.filter((r) => r.ok).length : 0;
     let shipment = 0;
     let delivering = 0;
     let claim = 0;
-    for (const row of allDisplayRows) {
+    for (const row of filteredRows) {
       if (isShipmentTarget(row)) shipment += 1;
       if (row.status === 'DELIVERING') delivering += 1;
       if (isClaimStatus(row.status)) claim += 1;
     }
-    return { okMalls, total: allDisplayRows.length, shipment, delivering, claim };
-  }, [results, allDisplayRows]);
+    return {
+      okMalls,
+      total: filteredRows.length,
+      shipment,
+      delivering,
+      claim,
+      workTargetLabel: ORDER_WORK_TARGET_LABEL[workTarget],
+    };
+  }, [results, filteredRows, workTarget]);
 
   const filteredKeys = useMemo(
     () => filteredRows.map((row) => rowKey(row.mallId, row.rowIndex)),
@@ -797,12 +805,34 @@ export default function OrderIntegrationFetchPanel() {
 
       {results ? (
         <>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div
+            className={`mt-4 grid gap-2 ${
+              workTarget === 'ALL' ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-2'
+            }`}
+          >
             <SummaryCard label="조회 연결몰" value={`${summary.okMalls}개`} />
-            <SummaryCard label="전체 주문" value={`${summary.total.toLocaleString()}건`} />
-            <SummaryCard label="송장 처리 대상" value={`${summary.shipment.toLocaleString()}건`} tone="emerald" />
-            <SummaryCard label="배송 중" value={`${summary.delivering.toLocaleString()}건`} tone="amber" />
-            <SummaryCard label="취소·반품·교환" value={`${summary.claim.toLocaleString()}건`} tone="red" />
+            {workTarget === 'ALL' ? (
+              <>
+                <SummaryCard label="전체 주문" value={`${summary.total.toLocaleString()}건`} />
+                <SummaryCard label="송장 처리 대상" value={`${summary.shipment.toLocaleString()}건`} tone="emerald" />
+                <SummaryCard label="배송 중" value={`${summary.delivering.toLocaleString()}건`} tone="amber" />
+                <SummaryCard label="취소·반품·교환" value={`${summary.claim.toLocaleString()}건`} tone="red" />
+              </>
+            ) : (
+              <SummaryCard
+                label={summary.workTargetLabel}
+                value={`${summary.total.toLocaleString()}건`}
+                tone={
+                  workTarget === 'SHIPMENT_TARGET'
+                    ? 'emerald'
+                    : workTarget === 'DELIVERING'
+                      ? 'amber'
+                      : workTarget === 'CLAIM'
+                        ? 'red'
+                        : 'default'
+                }
+              />
+            )}
           </div>
 
           {results.some((r) => !r.ok) ? (
