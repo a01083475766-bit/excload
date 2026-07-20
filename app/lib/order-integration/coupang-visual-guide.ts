@@ -41,7 +41,7 @@ export const COUPANG_PREFIX_STEPS: CoupangChecklistStep[] = [
     question: 'Wing에 로그인하셨나요?',
     howTo: [
       '① 아래 링크로 쿠팡 Wing 판매자센터를 엽니다.',
-      '② 스마트스토어가 아니라 쿠팡 판매자 계정으로 로그인합니다.',
+      '② 쿠팡 판매자 계정으로 로그인합니다.',
     ],
     imageSrc: `${IMG}/01-login.jpg`,
     imageAlt: '쿠팡 Wing 로그인 화면',
