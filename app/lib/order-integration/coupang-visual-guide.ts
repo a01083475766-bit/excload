@@ -1,6 +1,6 @@
 /**
  * 쿠팡 Wing Open API 초보용 따라하기.
- * 공통 시작 → 화면 2장으로 경로 선택 → 「네, 다음」쌓기.
+ * 공통 1~4 → 화면 2장으로 경로 선택 → 「네, 다음」쌓기.
  * 이미지는 사용자가 표시를 넣어 둔 캡처를 그대로 사용한다. (8번 없음)
  */
 
@@ -16,7 +16,6 @@ export type CoupangChecklistStep = {
   imageAlt: string;
   tip?: string;
   imageHeightPx?: number;
-  /** 시작 단계 등 외부 링크 */
   externalHref?: string;
   externalLabel?: string;
 };
@@ -32,6 +31,51 @@ export type CoupangPathChoice = {
 const IMG = '/guides/coupang';
 
 export const COUPANG_WING_HREF = 'https://wing.coupang.com';
+
+/** 비밀번호 확인까지 공통 — 이후 2갈래 */
+export const COUPANG_PREFIX_STEPS: CoupangChecklistStep[] = [
+  {
+    kind: 'confirm',
+    id: 'p-login',
+    title: '쿠팡 Wing 로그인',
+    question: 'Wing에 로그인하셨나요?',
+    howTo: [
+      '① 아래 링크로 쿠팡 Wing 판매자센터를 엽니다.',
+      '② 스마트스토어가 아니라 쿠팡 판매자 계정으로 로그인합니다.',
+    ],
+    imageSrc: `${IMG}/01-login.jpg`,
+    imageAlt: '쿠팡 Wing 로그인 화면',
+    externalHref: COUPANG_WING_HREF,
+    externalLabel: '쿠팡 Wing 열기',
+  },
+  {
+    kind: 'confirm',
+    id: 'p-seller',
+    title: '판매자정보',
+    question: '「판매자정보」 메뉴로 들어가셨나요?',
+    howTo: ['① 왼쪽(또는 상단) 메뉴에서 「판매자정보」를 누릅니다.'],
+    imageSrc: `${IMG}/02-seller-info.jpg`,
+    imageAlt: '판매자정보 메뉴',
+  },
+  {
+    kind: 'confirm',
+    id: 'p-extra',
+    title: '추가판매정보',
+    question: '「추가판매정보」로 들어가셨나요?',
+    howTo: ['① 「추가판매정보」를 눌러 Open API 설정 화면으로 이동합니다.'],
+    imageSrc: `${IMG}/03-extra-seller-info.jpg`,
+    imageAlt: '추가판매정보 화면',
+  },
+  {
+    kind: 'confirm',
+    id: 'p-password',
+    title: '비밀번호 확인',
+    question: '비밀번호를 입력하고 확인하셨나요?',
+    howTo: ['① 안내에 따라 비밀번호를 입력합니다.', '② 확인이 끝나면 다음 화면으로 넘어갑니다.'],
+    imageSrc: `${IMG}/04-password.jpg`,
+    imageAlt: '비밀번호 입력 화면',
+  },
+];
 
 export const COUPANG_PATH_CHOICES: CoupangPathChoice[] = [
   {
@@ -50,49 +94,7 @@ export const COUPANG_PATH_CHOICES: CoupangPathChoice[] = [
   },
 ];
 
-const START_STEP: CoupangChecklistStep = {
-  kind: 'confirm',
-  id: 'start',
-  title: '쿠팡 Wing 로그인',
-  question: 'Wing에 로그인하셨나요?',
-  howTo: [
-    '① 아래 링크로 쿠팡 Wing 판매자센터를 엽니다.',
-    '② 스마트스토어가 아니라 쿠팡 판매자 계정으로 로그인합니다.',
-  ],
-  imageSrc: `${IMG}/01-login.jpg`,
-  imageAlt: '쿠팡 Wing 로그인 화면',
-  externalHref: COUPANG_WING_HREF,
-  externalLabel: '쿠팡 Wing 열기',
-};
-
 const CREATE_STEPS: CoupangChecklistStep[] = [
-  {
-    kind: 'confirm',
-    id: 'c-seller',
-    title: '판매자정보',
-    question: '「판매자정보」 메뉴로 들어가셨나요?',
-    howTo: ['① 왼쪽(또는 상단) 메뉴에서 「판매자정보」를 누릅니다.'],
-    imageSrc: `${IMG}/02-seller-info.jpg`,
-    imageAlt: '판매자정보 메뉴',
-  },
-  {
-    kind: 'confirm',
-    id: 'c-extra',
-    title: '추가판매정보',
-    question: '「추가판매정보」로 들어가셨나요?',
-    howTo: ['① 「추가판매정보」를 눌러 Open API 설정 화면으로 이동합니다.'],
-    imageSrc: `${IMG}/03-extra-seller-info.jpg`,
-    imageAlt: '추가판매정보 화면',
-  },
-  {
-    kind: 'confirm',
-    id: 'c-password',
-    title: '비밀번호 확인',
-    question: '비밀번호를 입력하고 확인하셨나요?',
-    howTo: ['① 안내에 따라 비밀번호를 입력합니다.', '② 확인이 끝나면 다음 화면으로 넘어갑니다.'],
-    imageSrc: `${IMG}/04-password.jpg`,
-    imageAlt: '비밀번호 입력 화면',
-  },
   {
     kind: 'confirm',
     id: 'c-api-issue',
@@ -240,8 +242,8 @@ const SHARED_TAIL: CoupangChecklistStep[] = [
   },
 ];
 
-export function getCoupangStartStep(): CoupangChecklistStep {
-  return START_STEP;
+export function getCoupangPrefixSteps(): CoupangChecklistStep[] {
+  return COUPANG_PREFIX_STEPS;
 }
 
 export function getCoupangPathSteps(path: CoupangGuidePath): CoupangChecklistStep[] {

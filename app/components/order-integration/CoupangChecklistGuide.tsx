@@ -7,7 +7,7 @@ import {
   COUPANG_GUIDE_FOOTER,
   COUPANG_PATH_CHOICES,
   getCoupangPathSteps,
-  getCoupangStartStep,
+  getCoupangPrefixSteps,
   type CoupangChecklistStep,
   type CoupangGuidePath,
 } from '@/app/lib/order-integration/coupang-visual-guide';
@@ -17,12 +17,14 @@ type Props = {
   className?: string;
 };
 
-type Phase = 'start' | 'choose' | 'steps';
+/** prefix(1~4) → choose(2갈래) → path steps */
+type Phase = 'prefix' | 'choose' | 'steps';
 
-/** 쿠팡 초보용 따라하기: 시작 → 2갈래 → 「네, 다음」쌓기 */
+/** 쿠팡: 공통 1~4 후 2갈래 → 「네, 다음」쌓기 */
 export function CoupangChecklistGuide({ density = 'roomy', className = '' }: Props) {
-  const startStep = getCoupangStartStep();
-  const [phase, setPhase] = useState<Phase>('start');
+  const prefixSteps = getCoupangPrefixSteps();
+  const [phase, setPhase] = useState<Phase>('prefix');
+  const [prefixConfirmed, setPrefixConfirmed] = useState(0);
   const [path, setPath] = useState<CoupangGuidePath | null>(null);
   const [confirmed, setConfirmed] = useState(0);
   const [preview, setPreview] = useState<{ src: string; alt: string } | null>(null);
@@ -30,26 +32,32 @@ export function CoupangChecklistGuide({ density = 'roomy', className = '' }: Pro
 
   const pathSteps = path ? getCoupangPathSteps(path) : [];
   const allDone = phase === 'steps' && path !== null && confirmed >= pathSteps.length;
+  const prefixBaseNo = 1;
+  const pathBaseNo = prefixSteps.length + 1;
 
   useEffect(() => {
     activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [phase, confirmed, path]);
+  }, [phase, prefixConfirmed, confirmed, path]);
 
   function reset() {
-    setPhase('start');
+    setPhase('prefix');
+    setPrefixConfirmed(0);
     setPath(null);
     setConfirmed(0);
   }
 
-  function goToStart() {
-    setPhase('start');
+  function goToPrefixStep(stepIndex: number) {
+    setPhase('prefix');
     setPath(null);
     setConfirmed(0);
+    setPrefixConfirmed(Math.max(0, Math.min(stepIndex, prefixSteps.length - 1)));
   }
 
   function goToChoose() {
     setPhase('choose');
+    setPath(null);
     setConfirmed(0);
+    setPrefixConfirmed(prefixSteps.length);
   }
 
   function goToPathStep(stepIndex: number) {
@@ -58,8 +66,12 @@ export function CoupangChecklistGuide({ density = 'roomy', className = '' }: Pro
     setConfirmed(Math.max(0, Math.min(stepIndex, pathSteps.length - 1)));
   }
 
-  function finishStart() {
-    setPhase('choose');
+  function confirmPrefixNext() {
+    if (prefixConfirmed >= prefixSteps.length - 1) {
+      goToChoose();
+      return;
+    }
+    setPrefixConfirmed((n) => n + 1);
   }
 
   function choosePath(next: CoupangGuidePath) {
@@ -74,7 +86,13 @@ export function CoupangChecklistGuide({ density = 'roomy', className = '' }: Pro
 
   function goPrev() {
     if (phase === 'choose') {
-      goToStart();
+      setPhase('prefix');
+      setPrefixConfirmed(prefixSteps.length - 1);
+      return;
+    }
+    if (phase === 'prefix') {
+      if (prefixConfirmed <= 0) return;
+      setPrefixConfirmed((n) => n - 1);
       return;
     }
     if (phase === 'steps') {
@@ -225,9 +243,11 @@ export function CoupangChecklistGuide({ density = 'roomy', className = '' }: Pro
     );
   }
 
+  const showReset = phase !== 'prefix' || prefixConfirmed > 0;
+
   return (
     <div className={className}>
-      {phase !== 'start' ? (
+      {showReset ? (
         <div className="mb-3 flex justify-end">
           <button type="button" onClick={reset} className={secondaryBtn}>
             처음부터
@@ -236,10 +256,29 @@ export function CoupangChecklistGuide({ density = 'roomy', className = '' }: Pro
       ) : null}
 
       <div className="space-y-2.5">
-        {phase === 'start' ? renderActive(startStep, 1, finishStart, false) : null}
+        {/* 공통 1~4 */}
+        {phase === 'prefix'
+          ? prefixSteps
+              .slice(0, prefixConfirmed)
+              .map((step, i) => renderDone(step, prefixBaseNo + i, () => goToPrefixStep(i)))
+          : null}
 
-        {phase !== 'start' ? renderDone(startStep, 1, goToStart) : null}
+        {phase === 'prefix' && prefixConfirmed < prefixSteps.length
+          ? renderActive(
+              prefixSteps[prefixConfirmed]!,
+              prefixBaseNo + prefixConfirmed,
+              confirmPrefixNext,
+              prefixConfirmed > 0,
+            )
+          : null}
 
+        {phase !== 'prefix'
+          ? prefixSteps.map((step, i) =>
+              renderDone(step, prefixBaseNo + i, () => goToPrefixStep(i)),
+            )
+          : null}
+
+        {/* 2갈래 */}
         {phase === 'choose' ? (
           <div
             ref={activeRef}
@@ -299,11 +338,11 @@ export function CoupangChecklistGuide({ density = 'roomy', className = '' }: Pro
         {phase === 'steps' && path
           ? pathSteps
               .slice(0, confirmed)
-              .map((step, i) => renderDone(step, i + 2, () => goToPathStep(i)))
+              .map((step, i) => renderDone(step, pathBaseNo + i, () => goToPathStep(i)))
           : null}
 
         {phase === 'steps' && path && confirmed < pathSteps.length
-          ? renderActive(pathSteps[confirmed]!, confirmed + 2, confirmNext, true)
+          ? renderActive(pathSteps[confirmed]!, pathBaseNo + confirmed, confirmNext, true)
           : null}
 
         {allDone ? (
