@@ -20,6 +20,7 @@ import {
   presetRangeDates,
 } from '@/app/lib/order-integration/order-fetch-range';
 import { buildOrderFetchRequestBody } from '@/app/lib/order-integration/order-fetch-request';
+import { buildOrderFetchDemoResults } from '@/app/lib/order-integration/order-fetch-demo-fixture';
 import {
   parseAuthorizationPeriodInput,
   resolveAuthorizationPeriodNotice,
@@ -53,6 +54,7 @@ type ConnectedMall = {
 type MallFetchResult = {
   mallId: OrderIntegrationMallId;
   name: string;
+  accountId: string;
   ok: boolean;
   message: string;
   rows: StandardOrderRow[];
@@ -68,10 +70,14 @@ const DAY_PRESETS = [
   { days: 30, label: '최근 30일' },
 ] as const;
 
-type DisplayRow = OrderFetchView & { mallId: OrderIntegrationMallId; mallName: string };
+type DisplayRow = OrderFetchView & {
+  mallId: OrderIntegrationMallId;
+  mallName: string;
+  accountId: string;
+};
 
-function rowKey(mallId: string, rowIndex: number): string {
-  return `${mallId}:${rowIndex}`;
+function rowKey(mallId: string, accountId: string, rowIndex: number): string {
+  return `${mallId}:${accountId}:${rowIndex}`;
 }
 
 /** 필터형 버튼 공통 스타일 — 작고 일정한 높이, 선택 시에만 파란색 강조. */
@@ -159,7 +165,8 @@ export default function OrderIntegrationFetchPanel() {
   const [sendingToHub, setSendingToHub] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [results, setResults] = useState<MallFetchResult[] | null>(null);
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  /** 예시 미리보기(더미) — 허브 이관·실조회와 구분 */
+  const [demoPreview, setDemoPreview] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
 
   const selectedMallIdsRef = useRef(selectedMallIds);
@@ -246,7 +253,7 @@ export default function OrderIntegrationFetchPanel() {
     setAdvTracking('ALL');
     setNotice(null);
     setResults(null);
-    setExpandedKeys(new Set());
+    setDemoPreview(false);
     setSelectedRowKeys(new Set());
   };
 
@@ -295,7 +302,7 @@ export default function OrderIntegrationFetchPanel() {
     setFetching(true);
     setNotice(null);
     setResults(null);
-    setExpandedKeys(new Set());
+    setDemoPreview(false);
     setSelectedRowKeys(new Set());
 
     const nextResults: MallFetchResult[] = [];
@@ -324,6 +331,7 @@ export default function OrderIntegrationFetchPanel() {
           nextResults.push({
             mallId: mall.mallId,
             name: mall.name,
+            accountId: mall.accountId,
             ok: false,
             message: data.error || data.message || '조회에 실패했습니다.',
             rows: [],
@@ -337,6 +345,7 @@ export default function OrderIntegrationFetchPanel() {
         nextResults.push({
           mallId: mall.mallId,
           name: mall.name,
+          accountId: mall.accountId,
           ok: true,
           message: data.message || `${rows.length}건`,
           rows,
@@ -346,6 +355,7 @@ export default function OrderIntegrationFetchPanel() {
         nextResults.push({
           mallId: mall.mallId,
           name: mall.name,
+          accountId: mall.accountId,
           ok: false,
           message: error instanceof Error ? error.message : '조회 중 오류',
           rows: [],
@@ -358,11 +368,27 @@ export default function OrderIntegrationFetchPanel() {
     setFetching(false);
   };
 
+  /** 실제 API 없이 결과 표 UI만 확인 (스마트스토어 2 + 쿠팡 2). */
+  const onDemoPreview = () => {
+    setFetching(false);
+    setSelectedRowKeys(new Set());
+    setDemoPreview(true);
+    setResults(buildOrderFetchDemoResults());
+    setNotice(
+      '예시 미리보기입니다. 실제 주문이 아닙니다. 「미리보기에 담기」로 주문연동 화면에 어떻게 합쳐지는지 확인할 수 있습니다.',
+    );
+  };
+
   /** 조회된 모든 주문 뷰(몰 정보 포함) — 요약 계산용. */
   const allDisplayRows = useMemo<DisplayRow[]>(() => {
     if (!results) return [];
     return results.flatMap((mall) =>
-      mall.views.map((view) => ({ ...view, mallId: mall.mallId, mallName: mall.name })),
+      mall.views.map((view) => ({
+        ...view,
+        mallId: mall.mallId,
+        mallName: mall.name,
+        accountId: mall.accountId,
+      })),
     );
   }, [results]);
 
@@ -426,7 +452,7 @@ export default function OrderIntegrationFetchPanel() {
   }, [results, filteredRows, workTarget]);
 
   const filteredKeys = useMemo(
-    () => filteredRows.map((row) => rowKey(row.mallId, row.rowIndex)),
+    () => filteredRows.map((row) => rowKey(row.mallId, row.accountId, row.rowIndex)),
     [filteredRows],
   );
   const allFilteredSelected =
@@ -453,32 +479,48 @@ export default function OrderIntegrationFetchPanel() {
     });
   };
 
-  const toggleExpand = (key: string) => {
-    setExpandedKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
   const collectRows = useCallback(
     (predicate: (row: DisplayRow) => boolean) => {
-      if (!results) return { rows: [] as StandardOrderRow[], summaries: [] as Array<{ mallId: string; name: string; count: number }> };
+      if (!results)
+        return {
+          rows: [] as StandardOrderRow[],
+          summaries: [] as Array<{ mallId: string; name: string; count: number; accountId: string }>,
+          sourceEntries: [] as Array<{ mallId: string; accountId: string }>,
+        };
       const rows: StandardOrderRow[] = [];
-      const summaries: Array<{ mallId: string; name: string; count: number }> = [];
+      const sourceEntries: Array<{ mallId: string; accountId: string }> = [];
+      const summaries: Array<{ mallId: string; name: string; count: number; accountId: string }> =
+        [];
       for (const mall of results) {
         if (!mall.ok) continue;
-        const picked = mall.views
-          .filter((view) => predicate({ ...view, mallId: mall.mallId, mallName: mall.name }))
+        const pickedViews = mall.views.filter((view) =>
+          predicate({
+            ...view,
+            mallId: mall.mallId,
+            mallName: mall.name,
+            accountId: mall.accountId,
+          }),
+        );
+        const picked = pickedViews
           .map((view) => mall.rows[view.rowIndex])
           .filter((row): row is StandardOrderRow => Boolean(row));
         if (picked.length > 0) {
           rows.push(...picked);
-          summaries.push({ mallId: mall.mallId, name: mall.name, count: picked.length });
+          for (let i = 0; i < picked.length; i += 1) {
+            sourceEntries.push({
+              mallId: mall.mallId,
+              accountId: mall.accountId,
+            });
+          }
+          summaries.push({
+            mallId: mall.mallId,
+            name: mall.name,
+            count: picked.length,
+            accountId: mall.accountId,
+          });
         }
       }
-      return { rows, summaries };
+      return { rows, summaries, sourceEntries };
     },
     [results],
   );
@@ -492,7 +534,7 @@ export default function OrderIntegrationFetchPanel() {
       setNotice('로그인 정보를 확인할 수 없습니다. 새로고침 후 다시 시도해 주세요.');
       return;
     }
-    const { rows, summaries } = collectRows(predicate);
+    const { rows, summaries, sourceEntries } = collectRows(predicate);
     if (rows.length === 0) {
       setNotice(emptyMessage);
       return;
@@ -502,12 +544,15 @@ export default function OrderIntegrationFetchPanel() {
       accountScope,
       rows,
       mallSummaries: summaries,
+      sourceEntries,
     });
     if (!result.ok) {
       setNotice(
         result.reason === 'too_large'
           ? '한 번에 담을 주문이 너무 많습니다.\n주문을 나누어 선택한 뒤 다시 시도해 주세요.'
-          : emptyMessage,
+          : result.reason === 'source_mismatch'
+            ? '주문 출처 정보가 맞지 않아 미리보기에 담지 못했습니다.\n다시 조회한 뒤 시도해 주세요.'
+            : emptyMessage,
       );
       setSendingToHub(false);
       return;
@@ -517,7 +562,7 @@ export default function OrderIntegrationFetchPanel() {
 
   const sendSelectedToHub = () =>
     sendToHub(
-      (row) => selectedRowKeys.has(rowKey(row.mallId, row.rowIndex)),
+      (row) => selectedRowKeys.has(rowKey(row.mallId, row.accountId, row.rowIndex)),
       '먼저 담을 주문을 선택해 주세요.',
     );
 
@@ -785,6 +830,15 @@ export default function OrderIntegrationFetchPanel() {
             <button
               type="button"
               disabled={fetching}
+              onClick={onDemoPreview}
+              className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+              title="스마트스토어 2건·쿠팡 2건 예시로 결과 표 UI만 확인"
+            >
+              예시 미리보기
+            </button>
+            <button
+              type="button"
+              disabled={fetching}
               onClick={resetFilters}
               className="inline-flex h-8 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
             >
@@ -800,6 +854,16 @@ export default function OrderIntegrationFetchPanel() {
           role="status"
         >
           {notice}
+        </p>
+      ) : null}
+
+      {demoPreview && results ? (
+        <p
+          className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+          role="status"
+        >
+          예시 미리보기 — 스마트스토어 2건 · 쿠팡 2건 (가상 데이터). 실제 판매 주문이 아닙니다.
+          「미리보기에 담기」로 주문연동 합쳐짐도 확인할 수 있습니다.
         </p>
       ) : null}
 
@@ -876,36 +940,34 @@ export default function OrderIntegrationFetchPanel() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[64rem] table-auto text-left text-sm">
+                <table className="w-full min-w-[96rem] table-fixed text-left text-sm">
                   <thead className="bg-zinc-50 text-xs text-zinc-500">
                     <tr>
                       <th className="w-10 px-2 py-2" />
-                      <th className="w-8 px-2 py-2" />
-                      <th className="px-2 py-2 font-medium">쇼핑몰</th>
-                      <th className="px-2 py-2 font-medium">주문상태</th>
-                      <th className="px-2 py-2 font-medium">결제일시</th>
-                      <th className="px-2 py-2 font-medium">주문번호</th>
-                      <th className="px-2 py-2 font-medium">상품명/옵션</th>
-                      <th className="px-2 py-2 text-center font-medium">수량</th>
-                      <th className="px-2 py-2 font-medium">수취인</th>
-                      <th className="px-2 py-2 text-right font-medium">결제금액</th>
-                      <th className="px-2 py-2 font-medium">배송/송장</th>
+                      <th className="w-[6.5rem] px-2 py-2 font-medium">쇼핑몰</th>
+                      <th className="w-[7.5rem] px-2 py-2 font-medium">주문상태</th>
+                      <th className="w-[8.5rem] px-2 py-2 font-medium">결제일시</th>
+                      <th className="w-[10rem] px-2 py-2 font-medium">주문번호</th>
+                      <th className="w-[14rem] px-2 py-2 font-medium">상품명/옵션</th>
+                      <th className="w-14 px-2 py-2 text-center font-medium">수량</th>
+                      <th className="w-[6rem] px-2 py-2 font-medium">수취인</th>
+                      <th className="w-[8.5rem] px-2 py-2 font-medium">연락처</th>
+                      <th className="w-[22rem] px-2 py-2 font-medium">배송지</th>
+                      <th className="w-[14rem] px-2 py-2 font-medium">배송요청</th>
+                      <th className="w-[6.5rem] px-2 py-2 text-right font-medium">결제금액</th>
+                      <th className="w-[6rem] px-2 py-2 font-medium">배송/송장</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
                     {filteredRows.map((row) => {
-                      const key = rowKey(row.mallId, row.rowIndex);
-                      const expanded = expandedKeys.has(key);
+                      const key = rowKey(row.mallId, row.accountId, row.rowIndex);
                       const checked = selectedRowKeys.has(key);
                       return (
                         <FetchRow
                           key={key}
                           row={row}
-                          rowId={key}
-                          expanded={expanded}
                           checked={checked}
                           onToggleCheck={() => toggleRowSelection(key)}
-                          onToggleExpand={() => toggleExpand(key)}
                         />
                       );
                     })}
@@ -931,12 +993,6 @@ export default function OrderIntegrationFetchPanel() {
                 >
                   전체 조회 결과 미리보기에 담기
                 </button>
-                <Link
-                  href="/order/integration"
-                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                >
-                  송장 매칭으로 이동
-                </Link>
                 <p className="basis-full text-xs text-zinc-500">
                   조회만으로는 송장이 전송되지 않습니다. 담은 주문은 미리보기·송장 매칭 흐름에서 확인 후 진행하세요.
                 </p>
@@ -976,111 +1032,89 @@ function SummaryCard({
 
 function FetchRow({
   row,
-  rowId,
-  expanded,
   checked,
   onToggleCheck,
-  onToggleExpand,
 }: {
   row: DisplayRow;
-  rowId: string;
-  expanded: boolean;
   checked: boolean;
   onToggleCheck: () => void;
-  onToggleExpand: () => void;
 }) {
   return (
-    <>
-      <tr className={checked ? 'bg-blue-50/40' : undefined}>
-        <td className="px-2 py-2 align-top">
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={onToggleCheck}
-            className="h-4 w-4"
-            aria-label="주문 선택"
-          />
-        </td>
-        <td className="px-2 py-2 align-top">
-          <button
-            type="button"
-            onClick={onToggleExpand}
-            className="text-zinc-400 hover:text-zinc-700"
-            aria-expanded={expanded}
-            aria-controls={`${rowId}-detail`}
-            aria-label="행 상세 열기"
-          >
-            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
-        </td>
-        <td className="px-2 py-2 align-top text-zinc-700">{row.mallName}</td>
-        <td className="px-2 py-2 align-top">
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusPillClass(row)}`}
-          >
-            {row.statusLabel || EXCLOAD_ORDER_STATUS_LABEL[row.status]}
-          </span>
-          {row.placeOrderStatus === 'NOT_YET' ? (
-            <span className="mt-1 block text-[11px] text-amber-600">발주 미확인</span>
-          ) : null}
-        </td>
-        <td className="px-2 py-2 align-top text-zinc-600">{formatDateTime(row.paidAt)}</td>
-        <td className="px-2 py-2 align-top text-zinc-700">
-          <div className="font-medium">{row.productOrderNo || row.orderNo || '-'}</div>
-          {row.orderNo && row.orderNo !== row.productOrderNo ? (
-            <div className="text-[11px] text-zinc-400">주문 {row.orderNo}</div>
-          ) : null}
-        </td>
-        <td className="px-2 py-2 align-top text-zinc-700">
-          <div className="max-w-[18rem] truncate" title={row.productName}>
-            {row.productName || '-'}
+    <tr className={checked ? 'bg-blue-50/40' : undefined}>
+      <td className="px-2 py-2 align-top">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggleCheck}
+          className="h-4 w-4"
+          aria-label="주문 선택"
+        />
+      </td>
+      <td className="px-2 py-2 align-top text-zinc-700">{row.mallName}</td>
+      <td className="px-2 py-2 align-top">
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusPillClass(row)}`}
+        >
+          {row.statusLabel || EXCLOAD_ORDER_STATUS_LABEL[row.status]}
+        </span>
+        {row.placeOrderStatus === 'NOT_YET' ? (
+          <span className="mt-1 block text-[11px] text-amber-600">발주 미확인</span>
+        ) : null}
+      </td>
+      <td className="whitespace-nowrap px-2 py-2 align-top text-zinc-600">
+        {formatDateTime(row.paidAt)}
+      </td>
+      <td className="px-2 py-2 align-top text-zinc-700">
+        <div className="font-medium">{row.productOrderNo || row.orderNo || '-'}</div>
+        {row.orderNo && row.orderNo !== row.productOrderNo ? (
+          <div className="text-[11px] text-zinc-400">주문 {row.orderNo}</div>
+        ) : null}
+      </td>
+      <td className="px-2 py-2 align-top text-zinc-700">
+        <div className="line-clamp-2 leading-snug" title={row.productName}>
+          {row.productName || '-'}
+        </div>
+        {row.productOption ? (
+          <div className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-zinc-400" title={row.productOption}>
+            {row.productOption}
           </div>
-          {row.productOption ? (
-            <div className="max-w-[18rem] truncate text-[11px] text-zinc-400" title={row.productOption}>
-              {row.productOption}
-            </div>
-          ) : null}
-        </td>
-        <td className="px-2 py-2 text-center align-top text-zinc-700">
-          {row.quantity}
-          {row.initialQuantity != null && String(row.initialQuantity) !== row.quantity ? (
-            <span className="mt-0.5 block text-[11px] text-amber-600">최초 {row.initialQuantity}</span>
-          ) : null}
-        </td>
-        <td className="px-2 py-2 align-top text-zinc-700">{row.receiverName || '-'}</td>
-        <td className="px-2 py-2 text-right align-top text-zinc-700">{formatAmount(row.paymentAmount)}</td>
-        <td className="px-2 py-2 align-top text-zinc-600">
-          {row.hasTracking ? '송장 등록' : '미등록'}
-          {row.claimLabel ? <span className="ml-1 text-red-600">· {row.claimLabel}</span> : null}
-        </td>
-      </tr>
-      {expanded ? (
-        <tr id={`${rowId}-detail`} className="bg-zinc-50/60">
-          <td />
-          <td />
-          <td colSpan={9} className="px-2 py-3">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-xs text-zinc-600 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailItem label="주문자" value={row.detail.ordererName} />
-              <DetailItem label="수취인 연락처" value={row.detail.receiverPhone} />
-              <DetailItem label="배송지" value={row.detail.receiverAddress} />
-              <DetailItem label="배송 메모" value={row.detail.deliveryMemo} />
-              <DetailItem label="결제수단" value={row.paymentMeans} />
-              <DetailItem label="판매자 상품코드" value={row.detail.sellerProductCode} />
-              <DetailItem label="클레임 상태" value={row.claimLabel} />
-            </dl>
-          </td>
-        </tr>
-      ) : null}
-    </>
-  );
-}
-
-function DetailItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-1.5">
-      <dt className="shrink-0 font-medium text-zinc-500">{label}</dt>
-      <dd className="min-w-0 break-words text-zinc-800">{value || '-'}</dd>
-    </div>
+        ) : null}
+      </td>
+      <td className="px-2 py-2 text-center align-top text-zinc-700">
+        {row.quantity}
+        {row.initialQuantity != null && String(row.initialQuantity) !== row.quantity ? (
+          <span className="mt-0.5 block text-[11px] text-amber-600">최초 {row.initialQuantity}</span>
+        ) : null}
+      </td>
+      <td className="px-2 py-2 align-top text-zinc-700">
+        <div className="line-clamp-2 leading-snug">{row.receiverName || '-'}</div>
+        {row.detail.ordererName && row.detail.ordererName !== row.receiverName ? (
+          <div className="mt-0.5 line-clamp-1 text-[11px] text-zinc-400">
+            주문자 {row.detail.ordererName}
+          </div>
+        ) : null}
+      </td>
+      <td className="whitespace-nowrap px-2 py-2 align-top text-zinc-700">
+        {row.detail.receiverPhone || '-'}
+      </td>
+      <td className="px-2 py-2 align-top text-xs text-zinc-700">
+        <div className="line-clamp-2 leading-snug" title={row.detail.receiverAddress || undefined}>
+          {row.detail.receiverAddress || '-'}
+        </div>
+      </td>
+      <td className="px-2 py-2 align-top text-xs text-zinc-700">
+        <div className="line-clamp-2 leading-snug" title={row.detail.deliveryMemo || undefined}>
+          {row.detail.deliveryMemo || '-'}
+        </div>
+      </td>
+      <td className="whitespace-nowrap px-2 py-2 text-right align-top text-zinc-700">
+        {formatAmount(row.paymentAmount)}
+      </td>
+      <td className="px-2 py-2 align-top text-zinc-600">
+        {row.hasTracking ? '송장 등록' : '미등록'}
+        {row.claimLabel ? <span className="ml-1 text-red-600">· {row.claimLabel}</span> : null}
+      </td>
+    </tr>
   );
 }
 

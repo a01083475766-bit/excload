@@ -372,11 +372,34 @@ export default function OrderIntegrationHub() {
         throw new Error('택배 업로드 양식이 없습니다. 먼저 양식을 등록해 주세요.');
       }
       const fixedHeaderValues = loadHubFixedHeaderValues(userId);
-      // hub-pending source entry 전달은 이번 Bundle 후보에서 제외 — 워킹트리에는 유지
+      const sourceEntries = pending.sourceEntries;
+      const canAttachSources =
+        Array.isArray(sourceEntries) && sourceEntries.length === pending.rows.length;
+      const orderSyncSources = canAttachSources
+        ? pending.rows.map((row, index) => {
+            const entry = sourceEntries[index]!;
+            const standardRow = { ...row };
+            if (entry.accountId.trim()) {
+              return {
+                mallId: entry.mallId,
+                accountId: entry.accountId.trim(),
+                standardRow,
+              };
+            }
+            // 예시 미리보기 등 실계정 없음 — 미리보기 표시용만, Bundle/API 분류 금지
+            return {
+              mallId: entry.mallId,
+              accountId: '',
+              standardRow,
+              isExamplePreview: true as const,
+            };
+          })
+        : undefined;
       const result = await convertOrderStandardRowsToHubPreview({
         rows: pending.rows,
         templateBridgeFile: bridge,
         fixedHeaderValues,
+        orderSyncSources,
       });
       pendingFetchApplied = true;
       pendingFetchSessionCache = null;
@@ -385,21 +408,25 @@ export default function OrderIntegrationHub() {
         pending.mallSummaries.length > 0
           ? pending.mallSummaries.map((m) => `${m.name} ${m.count}건`).join(', ')
           : null;
+      const sourceMetaNotice =
+        Array.isArray(sourceEntries) && !canAttachSources
+          ? ' (연동 출처 정보가 맞지 않아 스냅샷용 계정 연결은 생략했습니다)'
+          : '';
       if (added === 0 && skipped > 0) {
         showNotice(
-          `이미 미리보기에 있는 주문 ${skipped.toLocaleString()}건은 건너뛰었습니다.`,
+          `이미 미리보기에 있는 주문 ${skipped.toLocaleString()}건은 건너뛰었습니다.${sourceMetaNotice}`,
         );
       } else if (skipped > 0) {
         showNotice(
           mallLabel
-            ? `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 · ${skipped.toLocaleString()}건 건너뜀 (${mallLabel})`
-            : `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 · ${skipped.toLocaleString()}건은 이미 있어 건너뛰었습니다.`,
+            ? `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 · ${skipped.toLocaleString()}건 건너뜀 (${mallLabel})${sourceMetaNotice}`
+            : `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 · ${skipped.toLocaleString()}건은 이미 있어 건너뛰었습니다.${sourceMetaNotice}`,
         );
       } else {
         showNotice(
           mallLabel
-            ? `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 (${mallLabel})`
-            : `주문조회 → 미리보기 ${added.toLocaleString()}건이 추가되었습니다.`,
+            ? `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 (${mallLabel})${sourceMetaNotice}`
+            : `주문조회 → 미리보기 ${added.toLocaleString()}건이 추가되었습니다.${sourceMetaNotice}`,
         );
       }
     } catch (error) {

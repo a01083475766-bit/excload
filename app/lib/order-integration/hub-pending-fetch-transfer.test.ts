@@ -158,6 +158,104 @@ describe('hub-pending-fetch-transfer 안전장치', () => {
     const raw = sessionStorage.getItem(HUB_PENDING_FETCH_STORAGE_KEY) ?? '';
     expect(raw).not.toMatch(/clientSecret|client_secret|accessToken|access_token|clientId/i);
   });
+  it('v2 sourceEntries는 rows와 1:1로 저장하고 행 본문은 복제하지 않는다', () => {
+    const rows = makeRows(2);
+    const write = writeHubPendingFetchTransfer({
+      accountScope: SCOPE,
+      rows,
+      mallSummaries: [
+        { mallId: 'smartstore', name: '스마트스토어', count: 1, accountId: 'acc-ss' },
+        { mallId: 'coupang', name: '쿠팡', count: 1, accountId: 'acc-cp' },
+      ],
+      sourceEntries: [
+        { mallId: 'smartstore', accountId: 'acc-ss' },
+        { mallId: 'coupang', accountId: 'acc-cp' },
+      ],
+    });
+    expect(write).toEqual({ ok: true });
+    const raw = sessionStorage.getItem(HUB_PENDING_FETCH_STORAGE_KEY) ?? '';
+    expect(raw).not.toMatch(/"row"\s*:/);
+    const result = consumeHubPendingFetchTransfer({ accountScope: SCOPE });
+    expect(result.status).toBe('ok');
+    if (result.status === 'ok') {
+      expect(result.transfer.sourceEntries).toEqual([
+        { mallId: 'smartstore', accountId: 'acc-ss' },
+        { mallId: 'coupang', accountId: 'acc-cp' },
+      ]);
+      expect(result.transfer.rows).toHaveLength(2);
+    }
+  });
+
+  it('sourceEntries 길이가 rows와 다르면 저장하지 않는다', () => {
+    const result = writeHubPendingFetchTransfer({
+      accountScope: SCOPE,
+      rows: makeRows(2),
+      mallSummaries: [],
+      sourceEntries: [{ mallId: 'smartstore', accountId: 'acc-1' }],
+    });
+    expect(result).toEqual({ ok: false, reason: 'source_mismatch' });
+    expect(sessionStorage.getItem(HUB_PENDING_FETCH_STORAGE_KEY)).toBeNull();
+  });
+
+  it('소비 시 sourceEntries 길이 불일치면 출처 메타만 버리고 rows는 유지한다', () => {
+    sessionStorage.setItem(
+      HUB_PENDING_FETCH_STORAGE_KEY,
+      JSON.stringify({
+        version: HUB_PENDING_FETCH_VERSION,
+        source: 'order-fetch',
+        accountScope: SCOPE,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        rows: makeRows(2),
+        mallSummaries: [],
+        sourceEntries: [{ mallId: 'smartstore', accountId: 'acc-1' }],
+      }),
+    );
+    const result = consumeHubPendingFetchTransfer({ accountScope: SCOPE });
+    expect(result.status).toBe('ok');
+    if (result.status === 'ok') {
+      expect(result.transfer.rows).toHaveLength(2);
+      expect(result.transfer.sourceEntries).toBeUndefined();
+    }
+  });
+
+  it('v1 payload도 소비할 수 있다(sourceEntries 없음)', () => {
+    sessionStorage.setItem(
+      HUB_PENDING_FETCH_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        source: 'order-fetch',
+        accountScope: SCOPE,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        rows: makeRows(1),
+        mallSummaries: [],
+      }),
+    );
+    const result = consumeHubPendingFetchTransfer({ accountScope: SCOPE });
+    expect(result.status).toBe('ok');
+    if (result.status === 'ok') {
+      expect(result.transfer.version).toBe(1);
+      expect(result.transfer.sourceEntries).toBeUndefined();
+    }
+  });
+
+  it('빈 rows payload는 invalid로 처리한다', () => {
+    sessionStorage.setItem(
+      HUB_PENDING_FETCH_STORAGE_KEY,
+      JSON.stringify({
+        version: HUB_PENDING_FETCH_VERSION,
+        source: 'order-fetch',
+        accountScope: SCOPE,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        rows: [],
+        mallSummaries: [],
+      }),
+    );
+    const result = consumeHubPendingFetchTransfer({ accountScope: SCOPE });
+    expect(result.status).toBe('invalid');
+  });
 });
 
 describe('isPendingFetchCacheReusable (Strict Mode 모듈 캐시 격리)', () => {
@@ -206,5 +304,25 @@ describe('isPendingFetchCacheReusable (Strict Mode 모듈 캐시 격리)', () =>
   it('accountScope가 비어 있으면 재사용하지 않는다', () => {
     const cache = makeCache({ expiresAt: new Date('2026-07-17T00:10:00.000Z').toISOString() });
     expect(isPendingFetchCacheReusable(cache, { accountScope: '', now: beforeExpiry })).toBe(false);
+  });
+
+  it('source가 order-fetch가 아니면 재사용하지 않는다', () => {
+    const cache = makeCache({
+      source: 'other' as never,
+      expiresAt: new Date('2026-07-17T00:10:00.000Z').toISOString(),
+    });
+    expect(isPendingFetchCacheReusable(cache, { accountScope: SCOPE, now: beforeExpiry })).toBe(
+      false,
+    );
+  });
+
+  it('빈 rows 캐시는 재사용하지 않는다', () => {
+    const cache = makeCache({
+      rows: [],
+      expiresAt: new Date('2026-07-17T00:10:00.000Z').toISOString(),
+    });
+    expect(isPendingFetchCacheReusable(cache, { accountScope: SCOPE, now: beforeExpiry })).toBe(
+      false,
+    );
   });
 });
