@@ -88,7 +88,7 @@ const FEATURES: FeatureCard[] = [
     flow: '매칭된 송장 → 쇼핑몰 전송',
     status: '오픈 베타',
     actionLabel: '송장 전송 화면 보기',
-    href: '/order/integration/shipments',
+    href: '/order/integration?focus=shipment-match',
   },
 ];
 
