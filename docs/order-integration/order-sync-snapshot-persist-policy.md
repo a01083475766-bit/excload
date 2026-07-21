@@ -1,6 +1,6 @@
 # 주문 스냅샷 DB — 저장 시점 정책 (확정)
 
-> 상태: 구현 준비 반영 (2026-07-21)
+> 상태: **관련 코드 구현 완료** (2026-07-21). Production에서는 `ORDER_SYNC_SNAPSHOT_PERSIST_ENABLED`를 **OFF**로 유지. Production 활성화·실계정 검증은 **아직 하지 않음**.
 > 관련: 송장 매칭·전송, `ORDER_SYNC_SNAPSHOT_PERSIST_ENABLED`
 
 ## 원칙
@@ -13,18 +13,20 @@ OrderSync DB는 **주문 원장이 아니라**, 엑클로드에서 택배로 출
 |------|---------|
 | 주문조회만 | **안 함** |
 | 미리보기 확인·담기 | **안 함** |
-| **택배 업로드 양식 다운로드** | **이 때**, 다운로드에 포함된 **연동 주문만** |
+| **택배 업로드 양식 다운로드** | **이 때**, `from-download` 경로로 다운로드에 포함된 **연동 주문만** |
 | 허브 엑셀/텍스트만 | 연동 메타 없으면 **안 함** |
+
+주문조회·미리보기만으로는 snapshot을 저장하지 않는다. `maybePersistOrderFetchResult`는 **의도적 no-op**(항상 미저장). fetch 라우트가 flag 값을 넘기더라도 **조회 단계에서 저장된다는 뜻이 아니다**. 실제 저장은 택배양식 다운로드의 **`from-download`** 에서만 수행한다.
 
 ## 보관·삭제
 
 | 항목 | 정책 |
 |------|------|
 | TTL | 다운로드 성공 시각 + **14일** (`expiresAt`) |
-| 재다운로드 | 동일 주문키 **upsert** + `expiresAt` 갱신 |
+| 재다운로드 | 동일 주문키 **upsert** + `expiresAt`·`lastCourierDownloadAt` 갱신 |
 | 만료 | 일 1회 cron **hard delete** (`/api/cron/purge-order-sync-snapshots`) |
-| 전송 성공 | 주문 단위 `SENT` 시 수취인 PII **즉시 삭제** (`piiClearedAt`) |
-| cron 보완 | `SENT`인데 `piiClearedAt` null 인 행 PII 삭제 |
+| 전송 완료 시 PII | 주문에 연결된 전송 대상 Match가 **모두 `SENT` 또는 `SKIPPED`** 일 때만 수취인 PII 삭제 (`piiClearedAt`). 부분 전송·실패·대기(NONE/READY/FAILED 등)가 남아 있으면 **정리하지 않음** |
+| cron 보완 | `SENT`인데 `piiClearedAt` null 인 행도 위와 동일 조건으로 PII 삭제 |
 | rawPayload | 운영 저장 안 함 |
 
 ## 다운로드와 저장 실패
@@ -43,7 +45,7 @@ OrderSync DB는 **주문 원장이 아니라**, 엑클로드에서 택배로 출
 4. 제한 계정 점검
 5. **마지막에** `ORDER_SYNC_SNAPSHOT_PERSIST_ENABLED=true` (`=== 'true'`만 활성)
 
-**지금은 Production flag를 켜지 않는다.**
+**지금은 Production flag를 켜지 않는다.** (코드는 반영됨 · 운영 활성화·실계정 검증은 미실시)
 
 ## 검증에서 고친 위험 (2026-07-21)
 
