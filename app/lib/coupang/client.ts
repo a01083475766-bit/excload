@@ -230,3 +230,28 @@ function dedupeOrderSheets(orders: CoupangOrderSheet[]): CoupangOrderSheet[] {
   }
   return [...map.values()];
 }
+
+/**
+ * shipmentBoxId 단건 조회 (Single PO query).
+ * GET /v2/providers/openapi/apis/api/v5/vendors/{vendorId}/ordersheets/{shipmentBoxId}
+ */
+export async function fetchCoupangOrderSheetByShipmentBoxId(input: {
+  vendorId: string;
+  accessKey: string;
+  secretKey: string;
+  shipmentBoxId: string | number;
+}): Promise<CoupangOrderSheet> {
+  const boxId = String(input.shipmentBoxId).trim();
+  if (!boxId) {
+    throw new Error('shipmentBoxId is required.');
+  }
+
+  const pathWithQuery = `/v2/providers/openapi/apis/api/v5/vendors/${encodeURIComponent(input.vendorId)}/ordersheets/${encodeURIComponent(boxId)}`;
+  return coupangApiRequest<CoupangOrderSheet>({
+    method: 'GET',
+    pathWithQuery,
+    vendorId: input.vendorId,
+    accessKey: input.accessKey,
+    secretKey: input.secretKey,
+  });
+}

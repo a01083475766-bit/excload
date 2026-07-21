@@ -514,6 +514,48 @@ export async function fetchSmartstoreProductOrders(input: {
   return collectSmartstoreProductOrders({ request, days: input.days, range: input.range });
 }
 
+/**
+ * 상품주문번호 목록으로 상세 조회 (최대 300건/배치).
+ * 전송 직후 상태 확인(B)용 — 변경주문 목록 없이 단건·소량 조회.
+ */
+export async function fetchSmartstoreProductOrdersByIds(input: {
+  credentials: SmartstoreCredentials;
+  productOrderIds: ReadonlyArray<string>;
+}): Promise<SmartstoreProductOrderDetail[]> {
+  const ids = [
+    ...new Set(
+      input.productOrderIds
+        .map((id) => String(id ?? '').trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (!ids.length) return [];
+
+  const details: SmartstoreProductOrderDetail[] = [];
+  const batchCount = Math.ceil(ids.length / SMARTSTORE_DETAIL_BATCH_SIZE);
+
+  for (let index = 0, batch = 1; index < ids.length; index += SMARTSTORE_DETAIL_BATCH_SIZE, batch += 1) {
+    const batchIds = ids.slice(index, index + SMARTSTORE_DETAIL_BATCH_SIZE);
+    try {
+      const detailResponse = await smartstoreAuthorizedRequest<{ data?: SmartstoreProductOrderDetail[] }>({
+        credentials: input.credentials,
+        method: 'POST',
+        pathWithQuery: '/external/v1/pay-order/seller/product-orders/query',
+        body: JSON.stringify({ productOrderIds: batchIds, quantityClaimCompatibility: true }),
+        contentType: 'application/json',
+      });
+      details.push(...(detailResponse.data ?? []));
+    } catch (error) {
+      throw collectionError(
+        `스마트스토어 상품주문 상세 조회에 실패했습니다. (배치 ${batch}/${batchCount}) 원인: ${toSafeErrorMessage(error)}`,
+        error,
+      );
+    }
+  }
+
+  return details;
+}
+
 export function toUserFacingSmartstoreErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return '스마트스토어 연동 처리 중 오류가 발생했습니다.';

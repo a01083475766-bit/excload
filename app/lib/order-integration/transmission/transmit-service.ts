@@ -44,6 +44,7 @@ export type ShipmentTransmitServiceDeps = {
 
 function toResult(input: {
   matchId: string;
+  attemptId?: string | null;
   attempted: boolean;
   previousStatus: string | null;
   nextStatus: string | null;
@@ -56,6 +57,7 @@ function toResult(input: {
 }): MockTransmitMatchResult {
   return {
     matchId: input.matchId,
+    attemptId: input.attemptId ?? null,
     attempted: input.attempted,
     previousStatus: input.previousStatus,
     nextStatus: input.nextStatus,
@@ -173,6 +175,7 @@ export async function runShipmentTransmitService(
     });
     results.push(toResult({
       matchId,
+      attemptId: persisted.complete?.attemptId ?? persisted.reserve.attemptId ?? null,
       attempted: persisted.adapterCalled,
       previousStatus: persisted.reserve.previousStatus ?? row.transmissionStatus,
       nextStatus: persisted.complete?.nextStatus ?? persisted.reserve.nextStatus ?? row.transmissionStatus,

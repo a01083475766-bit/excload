@@ -43,6 +43,8 @@ export type MockTransmitSkipReasonCode =
 
 export type MockTransmitMatchResult = {
   matchId: string;
+  /** 예약·완료된 Attempt id. 스킵/미예약이면 null. B(상태 확인)용. */
+  attemptId: string | null;
   attempted: boolean;
   previousStatus: string | null;
   nextStatus: string | null;
@@ -179,6 +181,7 @@ function skippedResult(
 ): MockTransmitMatchResult {
   return {
     matchId,
+    attemptId: null,
     attempted: false,
     previousStatus,
     nextStatus: previousStatus,
@@ -271,9 +274,12 @@ function mapPersistedToResult(
   const outcomeKind = persisted.outcomeKind;
   const adapter = persisted.adapterResult;
 
+  const attemptId = complete?.attemptId ?? reserve.attemptId ?? null;
+
   if (!persisted.adapterCalled) {
     return {
       matchId,
+      attemptId,
       attempted: false,
       previousStatus: reserve.previousStatus ?? previousStatus,
       nextStatus: reserve.nextStatus ?? reserve.previousStatus ?? previousStatus,
@@ -292,6 +298,7 @@ function mapPersistedToResult(
 
   return {
     matchId,
+    attemptId,
     attempted: true,
     previousStatus: reserve.previousStatus ?? previousStatus,
     nextStatus,
@@ -535,6 +542,7 @@ export async function runMockTransmitService(
     } catch {
       results.push({
         matchId,
+        attemptId: null,
         attempted: true,
         previousStatus: row.transmissionStatus,
         nextStatus: null,

@@ -296,8 +296,10 @@ describe('runMockTransmitService', () => {
     expect(result.body.results[0]?.errorCode).toBe('MATCH_NOT_READY_FOR_EXECUTION');
     expect(result.body.results[1]?.success).toBe(true);
     expect(result.body.results[1]?.attempted).toBe(true);
+    expect(result.body.results[1]?.attemptId).toBe('att-1');
     expect(result.body.results[2]?.errorCode).toBe('MATCH_ALREADY_SENT');
     expect(result.body.results[3]?.errorCode).toBe('MATCH_NOT_FOUND');
+    expect(result.body.results[0]?.attemptId).toBeNull();
     expect(runPersisted).toHaveBeenCalledTimes(1);
     const s = result.body.summary;
     expect(s.attemptedCount).toBe(s.successCount + s.failureCount + s.unknownCount);

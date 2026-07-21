@@ -9,6 +9,7 @@ import {
   type ShipmentUploadExportFormat,
 } from '@/app/lib/order-integration/shipments/render-shipment-upload-export-file';
 import { mapShipmentMatchFetchError } from '@/app/lib/order-integration/shipments/shipment-match-ui';
+import type { VerifyTransmissionResponseBody } from '@/app/lib/order-integration/transmission/verify-transmission-status';
 
 export const DEFAULT_SHIPMENT_MATCH_EXCLUDE_REASON = 'USER_EXCLUDED_FROM_UI';
 
@@ -57,6 +58,10 @@ export function buildShipmentUploadTransmitResultsUrl(batchId: string): string {
   return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/transmit/results`;
 }
 
+export function buildShipmentUploadTransmissionsVerifyUrl(batchId: string): string {
+  return `/api/order/integration/shipments/uploads/${encodeURIComponent(batchId)}/transmissions/verify`;
+}
+
 export function buildShipmentUploadExportUrl(
   batchId: string,
   options: {
@@ -102,6 +107,10 @@ export type ShipmentUploadMatchEditFetchResult =
 
 export type ShipmentUploadTransmitFetchResult =
   | { ok: true; body: unknown }
+  | { ok: false; status: number; error: string };
+
+export type ShipmentUploadTransmissionsVerifyFetchResult =
+  | { ok: true; body: VerifyTransmissionResponseBody }
   | { ok: false; status: number; error: string };
 
 export type ShipmentUploadExportDownloadResult =
@@ -331,6 +340,42 @@ export async function postShipmentUploadTransmit(
     return { ok: false, status: response.status, error: mapShipmentMatchFetchError(response.status, errorBody) };
   }
   return { ok: true, body: json };
+}
+
+export async function postShipmentUploadTransmissionsVerify(
+  batchId: string,
+  body: { attemptIds: string[] },
+  fetchFn: typeof fetch = fetch,
+): Promise<ShipmentUploadTransmissionsVerifyFetchResult> {
+  const response = await fetchFn(buildShipmentUploadTransmissionsVerifyUrl(batchId), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = (await response.json().catch(() => null)) as
+    | VerifyTransmissionResponseBody
+    | { error?: string }
+    | null;
+  if (!response.ok) {
+    const errorBody =
+      json && typeof json === 'object' && 'error' in json ? { error: json.error as string } : null;
+    return {
+      ok: false,
+      status: response.status,
+      error: mapShipmentMatchFetchError(response.status, errorBody),
+    };
+  }
+  if (!json || typeof json !== 'object' || !('results' in json) || !Array.isArray(json.results)) {
+    return {
+      ok: false,
+      status: 500,
+      error: '상태 확인 결과를 처리하지 못했습니다. 잠시 후 다시 시도해주세요.',
+    };
+  }
+  return {
+    ok: true,
+    body: json as VerifyTransmissionResponseBody,
+  };
 }
 
 export function parseContentDispositionFileName(
