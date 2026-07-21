@@ -6,13 +6,18 @@ import { ORDER_INTEGRATION_MALLS } from '@/app/lib/order-integration/malls';
 const primaryActions = [
   { label: '쇼핑몰 연결하기', path: '/order/integration/connect', icon: Link2 },
   { label: '주문 조회 시작', path: '/order/integration/fetch', icon: Search },
-  { label: '송장 매칭·전송', path: '/order/integration/shipments', icon: Send },
+  {
+    label: '송장 매칭·전송',
+    path: '/order/integration?focus=shipment-match',
+    icon: Send,
+  },
 ] as const;
 
 const workflow = [
   ['1', '주문조회', '연결한 쇼핑몰에서 내 주문을 불러옵니다.'],
-  ['2', '송장 매칭', '업로드한 송장 파일을 내 주문과 연결합니다.'],
-  ['3', '송장 전송', '확정한 송장 정보를 쇼핑몰로 전송합니다.'],
+  ['2', '다운로드', '택배 양식으로 내려받아 택배사에 올립니다.'],
+  ['3', '송장 매칭', '택배사에서 받은 송장파일을 주문과 연결합니다.'],
+  ['4', '송장 전송', '확정한 송장 정보를 쇼핑몰로 전송합니다.'],
 ] as const;
 
 export default function OrderIntegrationPublicIntro() {
@@ -46,11 +51,11 @@ export default function OrderIntegrationPublicIntro() {
         <h2 id="integration-flow-title" className="text-base font-semibold text-zinc-900">
           이용 흐름
         </h2>
-        <ol className="mt-3 grid gap-3 md:grid-cols-3">
+        <ol className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {workflow.map(([step, title, description]) => (
             <li key={step} className="flex gap-3 border-l-2 border-blue-500 pl-3">
               <span className="text-sm font-semibold text-blue-700">{step}</span>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-zinc-900">{title}</p>
                 <p className="mt-1 text-sm leading-relaxed text-zinc-600">{description}</p>
               </div>

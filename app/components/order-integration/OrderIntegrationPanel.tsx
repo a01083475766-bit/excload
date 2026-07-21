@@ -145,7 +145,7 @@ export default function OrderIntegrationPanel() {
         </p>
         <p className="mt-3 text-sm text-gray-500">
           <Link
-            href="/order/integration/shipments"
+            href="/order/integration?focus=shipment-match"
             className="text-blue-600 underline-offset-2 hover:underline"
           >
             송장 매칭·전송
