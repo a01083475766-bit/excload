@@ -1,9 +1,9 @@
-import ShipmentMatchPanel from '@/app/components/order-integration/ShipmentMatchPanel';
+import { redirect } from 'next/navigation';
 
+/**
+ * 송장 매칭·전송은 주문연동 허브 하단에서 처리합니다.
+ * 구 URL 북마크·외부 링크 호환용 리다이렉트.
+ */
 export default function ShipmentMatchPage() {
-  return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      <ShipmentMatchPanel />
-    </div>
-  );
+  redirect('/order/integration?focus=shipment-match');
 }

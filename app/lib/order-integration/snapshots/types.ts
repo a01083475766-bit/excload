@@ -141,6 +141,9 @@ export type PersistedOrderSyncOrderLike = {
   carrierCode: string | null;
   shippedAt: Date | null;
   transmissionStatus: 'NONE' | 'READY' | 'PROCESSING' | 'SENT' | 'FAILED' | 'SKIPPED' | 'UNKNOWN';
+  lastCourierDownloadAt?: Date | null;
+  expiresAt?: Date | null;
+  piiClearedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -171,11 +174,28 @@ export type OrderSyncPersistTransactionClient = {
         mallOrderNo?: { in: string[] };
       };
       select: {
+        id?: true;
         mallOrderNo: true;
         mallLineItemIds: true;
+        excloadOrderNo?: true;
+        transmissionStatus?: true;
+        piiClearedAt?: true;
       };
-    }) => Promise<Array<{ mallOrderNo: string; mallLineItemIds: unknown }>>;
+    }) => Promise<
+      Array<{
+        id?: string;
+        mallOrderNo: string;
+        mallLineItemIds: unknown;
+        excloadOrderNo?: string;
+        transmissionStatus?: string | null;
+        piiClearedAt?: Date | null;
+      }>
+    >;
     create: (args: { data: Record<string, unknown> }) => Promise<PersistedOrderSyncOrderLike>;
+    update?: (args: {
+      where: { id: string };
+      data: Record<string, unknown>;
+    }) => Promise<PersistedOrderSyncOrderLike>;
   };
 };
 
@@ -241,15 +261,10 @@ export type LoadOrderSyncSnapshotsForMatchingInput = {
 
 export type OrderSyncSnapshotLoadClient = {
   orderSyncOrder: {
-    findMany: (args: {
-      where: {
-        userId: string;
-        provider?: OrderIntegrationProvider;
-        integrationAccountId?: string;
-        batchId?: string;
-      };
+    findMany(args: {
+      where: Record<string, unknown>;
       orderBy: { createdAt: 'desc' };
       take: number;
-    }) => Promise<PersistedOrderSyncOrderLike[]>;
+    }): Promise<PersistedOrderSyncOrderLike[]>;
   };
 };

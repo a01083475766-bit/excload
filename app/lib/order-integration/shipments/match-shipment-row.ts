@@ -1,5 +1,11 @@
 import { normalizeJoinKey } from '@/app/pipeline/invoice/merge-order-invoice-standard';
 import {
+  fingerprintMatchesAddress,
+  fingerprintMatchesName,
+  fingerprintMatchesPhone,
+  parseMatchFingerprintHmac,
+} from '@/app/lib/order-integration/courier-download/match-fingerprint';
+import {
   MATCH_SCORE,
   MATCH_THRESHOLD,
 } from '@/app/lib/order-integration/shipments/match-constants';
@@ -86,31 +92,42 @@ export function scoreShipmentOrderPair(
 
   const shipmentPhone = shipment.receiverPhoneNormalized;
   const orderPhone = normalizePhoneDigits(order.receiverPhone ?? '');
-  const phoneMatched = Boolean(shipmentPhone && orderPhone && shipmentPhone === orderPhone);
+  const fingerprint = parseMatchFingerprintHmac(order.matchFingerprintHmac);
+  const phoneFp = fingerprintMatchesPhone(fingerprint, shipmentPhone);
+  const phoneMatched = Boolean(
+    (shipmentPhone && orderPhone && shipmentPhone === orderPhone) || phoneFp === true,
+  );
 
-  if (shipmentPhone && orderPhone) {
+  if (shipmentPhone && (orderPhone || fingerprint?.phone)) {
     if (phoneMatched) {
       score += MATCH_SCORE.PHONE;
       reasons.push('phone');
-    } else if (mallOrderMatched) {
+    } else if (mallOrderMatched || phoneFp === false) {
       mismatchFields.push('receiverPhone');
     }
   }
 
   const shipmentName = normalizeReceiverName(shipment.receiverName);
   const orderName = normalizeReceiverName(order.receiverName ?? '');
-  const nameMatched = Boolean(shipmentName && orderName && shipmentName === orderName);
+  const nameFp = fingerprintMatchesName(fingerprint, shipment.receiverName);
+  const nameMatched = Boolean(
+    (shipmentName && orderName && shipmentName === orderName) || nameFp === true,
+  );
 
-  if (shipmentName && orderName) {
+  if (shipmentName && (orderName || fingerprint?.name)) {
     if (nameMatched) {
       score += MATCH_SCORE.RECEIVER_NAME;
       reasons.push('receiverName');
-    } else if (mallOrderMatched) {
+    } else if (mallOrderMatched || nameFp === false) {
       mismatchFields.push('receiverName');
     }
   }
 
-  if (addressesStrongMatch(shipment.receiverAddress, order.receiverAddress)) {
+  const addressFp = fingerprintMatchesAddress(fingerprint, shipment.receiverAddress);
+  if (
+    addressesStrongMatch(shipment.receiverAddress, order.receiverAddress) ||
+    addressFp === true
+  ) {
     score += MATCH_SCORE.ADDRESS_STRONG;
     reasons.push('address');
   }

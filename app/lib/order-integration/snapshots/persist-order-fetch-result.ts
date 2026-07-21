@@ -34,12 +34,6 @@ function normalizeOrderStandardRows(
   });
 }
 
-function normalizeRawOrders(rawOrders?: unknown): ReadonlyArray<unknown> | undefined {
-  if (rawOrders == null) return undefined;
-  if (Array.isArray(rawOrders)) return rawOrders;
-  return [rawOrders];
-}
-
 export function toSafePersistErrorMessage(error: unknown): string {
   const raw =
     error instanceof Error
@@ -61,14 +55,14 @@ export function toSafePersistErrorMessage(error: unknown): string {
 }
 
 /**
- * fetch-orders 결과(orderStandardFile.rows)를 snapshot 저장 레이어에 연결합니다.
- *
- * - enabled=false: DB 접근 없음
- * - rows 빈 배열: DB 접근 없음 (`empty_rows`)
- * - 저장 실패: throw하지 않고 `persist_failed` 반환
+ * 표준 주문행 → OrderSync 스냅샷 저장.
+ * 택배양식 다운로드 등 **명시적 출고 의도**에서만 호출합니다.
+ * rawOrders는 운영 저장에 쓰지 않습니다(원문 PII 지양).
  */
-export async function maybePersistOrderFetchResult(
-  input: MaybePersistOrderFetchResultInput,
+export async function persistOrderSyncSnapshotsFromStandardRows(
+  input: MaybePersistOrderFetchResultInput & {
+    memo?: string | null;
+  },
 ): Promise<OrderFetchSnapshotPersistResult> {
   if (!input.enabled) {
     return { persisted: false, reason: 'disabled' };
@@ -91,19 +85,22 @@ export async function maybePersistOrderFetchResult(
       accountId: input.integrationAccountId,
       fetchedAt,
       rows: normalizeOrderStandardRows(rows),
-      rawOrders: normalizeRawOrders(input.rawOrders),
+      // 운영: API 원문 미저장
+      rawOrders: undefined,
     });
 
     const result = await persistOrderSyncBatch(
       input.client as unknown as OrderSyncPersistPrismaClient,
       {
-      userId: input.userId,
-      provider: input.provider,
-      integrationAccountId: input.integrationAccountId,
-      sourceType: 'API',
-      fetchedAt,
-      snapshots,
-    });
+        userId: input.userId,
+        provider: input.provider,
+        integrationAccountId: input.integrationAccountId,
+        sourceType: 'API',
+        fetchedAt,
+        memo: input.memo ?? null,
+        snapshots,
+      },
+    );
 
     return {
       persisted: true,
@@ -120,4 +117,16 @@ export async function maybePersistOrderFetchResult(
       errorMessage,
     };
   }
+}
+
+/**
+ * fetch-orders 훅용. **주문조회 시점에는 저장하지 않습니다.**
+ * (정책: 엑클로드 택배양식 다운로드 시에만 스냅샷 저장)
+ * 라우트 호환을 위해 시그니처는 유지하고 항상 disabled를 반환합니다.
+ */
+export async function maybePersistOrderFetchResult(
+  _input: MaybePersistOrderFetchResultInput,
+): Promise<OrderFetchSnapshotPersistResult> {
+  void _input;
+  return { persisted: false, reason: 'disabled' };
 }

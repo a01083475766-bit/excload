@@ -28,6 +28,8 @@ export type PersistShipmentUploadBatchInput = {
   userId: string;
   provider?: OrderIntegrationProvider;
   integrationAccountId?: string;
+  /** 사용자가 확정한 택배양식 다운로드 Bundle. null/omit = 해당 다운로드 없음 */
+  downloadBundleId?: string | null;
   file: {
     name: string;
     type: string;
@@ -269,6 +271,8 @@ export function buildKnownOrdersByIdFromSnapshots(
 ): Map<string, ShipmentUploadPersistOrderRef> {
   const map = new Map<string, ShipmentUploadPersistOrderRef>();
   for (const snapshot of snapshots) {
+    // WorkItem-only 후보는 OrderSyncOrder FK가 없으므로 persist 링크 맵에서 제외
+    if (snapshot.workItemCandidate) continue;
     map.set(snapshot.id, {
       userId: snapshot.userId,
       provider: snapshot.provider,
@@ -282,6 +286,7 @@ export function buildPersistShipmentUploadBatchInput(input: {
   userId: string;
   provider?: OrderIntegrationProvider;
   integrationAccountId?: string;
+  downloadBundleId?: string | null;
   file: {
     name: string;
     type: string;
@@ -300,6 +305,7 @@ export function buildPersistShipmentUploadBatchInput(input: {
     userId: input.userId,
     provider: input.provider,
     integrationAccountId: input.integrationAccountId,
+    downloadBundleId: input.downloadBundleId,
     file: input.file,
     parseResult: input.parseResult,
     normalizedShipmentRows: input.parseResult.file?.rows.map((row) => row.normalized) ?? [],
@@ -315,6 +321,7 @@ export function buildPersistShipmentUploadBatchInputFromMatchBody(input: {
   userId: string;
   provider?: OrderIntegrationProvider;
   integrationAccountId?: string;
+  downloadBundleId?: string | null;
   file: {
     name: string;
     type: string;
@@ -329,6 +336,7 @@ export function buildPersistShipmentUploadBatchInputFromMatchBody(input: {
     userId: input.userId,
     provider: input.provider,
     integrationAccountId: input.integrationAccountId,
+    downloadBundleId: input.downloadBundleId,
     file: input.file,
     parseResult: input.parseResult,
     matchResults: input.matchBody.rows,
@@ -366,6 +374,7 @@ export async function persistShipmentUploadBatch(
         userId: input.userId,
         provider: input.provider ?? null,
         integrationAccountId: input.integrationAccountId ?? null,
+        downloadBundleId: input.downloadBundleId?.trim() || null,
         originalFileName: input.file.name,
         fileHash: input.file.hash ?? null,
         fileSize: input.file.size,

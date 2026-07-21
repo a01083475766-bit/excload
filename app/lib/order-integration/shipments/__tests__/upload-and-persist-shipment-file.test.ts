@@ -71,7 +71,7 @@ describe('uploadAndPersistShipmentFile', () => {
         success: true,
         file: { name: file.name, type: file.type, size: file.size },
         parse: { ok: true, rowCount: 1, warningCount: 0, warnings: [] },
-        orders: { loadedCount: 0, scope: {} },
+        orders: { loadedCount: 0, emptyReason: 'no_bundle', bundle: null, scope: {} },
         match: buildMatchBody([
           {
             shipmentRowIndex: 0,

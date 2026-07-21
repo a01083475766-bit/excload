@@ -5,6 +5,7 @@ import { buildOrderSyncSnapshots } from '@/app/lib/order-integration/snapshots/b
 import {
   isOrderSyncSnapshotPersistEnabled,
   maybePersistOrderFetchResult,
+  persistOrderSyncSnapshotsFromStandardRows,
   toSafePersistErrorMessage,
 } from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 import { persistOrderSyncBatch } from '@/app/lib/order-integration/snapshots/persist-order-sync-batch';
@@ -112,6 +113,20 @@ describe('toSafePersistErrorMessage', () => {
 describe('maybePersistOrderFetchResult', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('never persists on fetch (download-only policy)', async () => {
+    const result = await maybePersistOrderFetchResult(buildInput({ enabled: true }));
+
+    expect(result).toEqual({ persisted: false, reason: 'disabled' });
+    expect(mockedBuildOrderSyncSnapshots).not.toHaveBeenCalled();
+    expect(mockedPersistOrderSyncBatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('persistOrderSyncSnapshotsFromStandardRows', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
     mockedPersistOrderSyncBatch.mockResolvedValue({
       batch: {
         id: 'batch-1',
@@ -133,64 +148,36 @@ describe('maybePersistOrderFetchResult', () => {
   });
 
   it('does not call persist when enabled is false', async () => {
-    const result = await maybePersistOrderFetchResult(buildInput({ enabled: false }));
+    const result = await persistOrderSyncSnapshotsFromStandardRows(buildInput({ enabled: false }));
 
     expect(result).toEqual({ persisted: false, reason: 'disabled' });
     expect(mockedBuildOrderSyncSnapshots).not.toHaveBeenCalled();
     expect(mockedPersistOrderSyncBatch).not.toHaveBeenCalled();
   });
 
-  it('returns missing_order_standard_file when orderStandardFile is absent', async () => {
-    const result = await maybePersistOrderFetchResult(
-      buildInput({ orderStandardFile: undefined }),
-    );
-
-    expect(result).toEqual({ persisted: false, reason: 'missing_order_standard_file' });
-    expect(mockedPersistOrderSyncBatch).not.toHaveBeenCalled();
-  });
-
   it('returns empty_rows without DB access when rows are empty', async () => {
-    const result = await maybePersistOrderFetchResult(
+    const result = await persistOrderSyncSnapshotsFromStandardRows(
       buildInput({ orderStandardFile: { rows: [] } }),
     );
 
     expect(result).toEqual({ persisted: false, reason: 'empty_rows' });
     expect(mockedBuildOrderSyncSnapshots).not.toHaveBeenCalled();
-    expect(mockedPersistOrderSyncBatch).not.toHaveBeenCalled();
   });
 
-  it('calls buildOrderSyncSnapshots and persistOrderSyncBatch when enabled', async () => {
+  it('persists without rawOrders when enabled', async () => {
     const input = buildInput();
-    const result = await maybePersistOrderFetchResult(input);
-
-    expect(mockedBuildOrderSyncSnapshots).toHaveBeenCalledWith({
-      userId: 'user-a',
-      provider: OrderIntegrationProvider.SMARTSTORE,
-      accountId: 'acc-1',
-      fetchedAt: input.fetchedAt,
-      rows: [
-        {
-          주문번호: 'ORD-1',
-          상품주문번호: 'PO-1',
-          받는사람: '홍길동',
-          받는사람전화1: '010-1234-5678',
-          받는사람주소1: '서울시 강남구',
-          상품명: '상품',
-          수량: '1',
-        },
-      ],
-      rawOrders: [{ id: 'raw-1' }],
+    const result = await persistOrderSyncSnapshotsFromStandardRows({
+      ...input,
+      memo: 'courier-download',
     });
 
-    expect(mockedPersistOrderSyncBatch).toHaveBeenCalledWith(input.client, {
-      userId: 'user-a',
-      provider: OrderIntegrationProvider.SMARTSTORE,
-      integrationAccountId: 'acc-1',
-      sourceType: 'API',
-      fetchedAt: input.fetchedAt,
-      snapshots: mockedBuildOrderSyncSnapshots.mock.results[0]?.value,
-    });
-
+    expect(mockedBuildOrderSyncSnapshots).toHaveBeenCalledWith(
+      expect.objectContaining({ rawOrders: undefined }),
+    );
+    expect(mockedPersistOrderSyncBatch).toHaveBeenCalledWith(
+      input.client,
+      expect.objectContaining({ memo: 'courier-download' }),
+    );
     expect(result).toEqual({
       persisted: true,
       batchId: 'batch-1',
@@ -206,7 +193,7 @@ describe('maybePersistOrderFetchResult', () => {
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const result = await maybePersistOrderFetchResult(buildInput());
+    const result = await persistOrderSyncSnapshotsFromStandardRows(buildInput());
 
     expect(result).toEqual({
       persisted: false,
@@ -220,14 +207,5 @@ describe('maybePersistOrderFetchResult', () => {
     );
 
     consoleSpy.mockRestore();
-  });
-
-  it('passes rawOrders array when rawOrders input is already an array', async () => {
-    const rawOrders = [{ id: 'raw-1' }, { id: 'raw-2' }];
-    await maybePersistOrderFetchResult(buildInput({ rawOrders }));
-
-    expect(mockedBuildOrderSyncSnapshots).toHaveBeenCalledWith(
-      expect.objectContaining({ rawOrders }),
-    );
   });
 });

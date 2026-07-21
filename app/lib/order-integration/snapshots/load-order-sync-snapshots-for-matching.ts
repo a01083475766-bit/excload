@@ -25,17 +25,21 @@ function assertValidLimit(limit: number): void {
  * userId는 필수이며, provider / integrationAccountId / batchId는 선택적으로 좁힙니다.
  */
 export function buildLoadOrderSyncSnapshotsForMatchingWhere(
-  input: LoadOrderSyncSnapshotsForMatchingInput,
+  input: LoadOrderSyncSnapshotsForMatchingInput & { now?: Date },
 ) {
   assertValidUserId(input.userId);
 
+  const now = input.now ?? new Date();
   const where: {
     userId: string;
     provider?: LoadOrderSyncSnapshotsForMatchingInput['provider'];
     integrationAccountId?: string;
     batchId?: string;
+    OR?: Array<{ expiresAt: null } | { expiresAt: { gte: Date } }>;
   } = {
     userId: input.userId.trim(),
+    // 만료되지 않은 스냅샷만 (expiresAt null = 레거시 행, 매칭 허용)
+    OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
   };
 
   if (input.provider) {
@@ -59,7 +63,7 @@ export function buildLoadOrderSyncSnapshotsForMatchingWhere(
  */
 export async function loadOrderSyncSnapshotsForMatching(
   client: OrderSyncSnapshotLoadClient,
-  input: LoadOrderSyncSnapshotsForMatchingInput,
+  input: LoadOrderSyncSnapshotsForMatchingInput & { now?: Date },
 ): Promise<OrderSyncOrderSnapshot[]> {
   assertValidUserId(input.userId);
 

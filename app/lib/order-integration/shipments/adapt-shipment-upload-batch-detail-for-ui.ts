@@ -44,6 +44,13 @@ export type ShipmentMatchPanelViewState = {
     warningCount: number;
   };
   ordersLoadedCount: number;
+  ordersEmptyReason?: string | null;
+  ordersBundle?: {
+    id: string;
+    expiresAt: string;
+    workItemCount: number;
+    expired: boolean;
+  } | null;
   summary: ShipmentMatchSummaryCounts;
   displayRows: ShipmentMatchPanelDisplayRow[];
 };
@@ -126,6 +133,8 @@ export function adaptShipmentUploadBatchDetailForUi(
   context: {
     ordersLoadedCount: number;
     parseWarningCount?: number;
+    ordersEmptyReason?: string | null;
+    ordersBundle?: ShipmentMatchPanelViewState['ordersBundle'];
   },
 ): ShipmentMatchPanelViewState {
   return {
@@ -140,6 +149,8 @@ export function adaptShipmentUploadBatchDetailForUi(
       warningCount: context.parseWarningCount ?? 0,
     },
     ordersLoadedCount: context.ordersLoadedCount,
+    ordersEmptyReason: context.ordersEmptyReason ?? null,
+    ordersBundle: context.ordersBundle ?? null,
     summary: detail.summary,
     displayRows: detail.rows.map(adaptShipmentUploadBatchDetailRowForDisplay),
   };
@@ -152,6 +163,8 @@ export function buildShipmentMatchPanelViewStateFromUpload(
   return adaptShipmentUploadBatchDetailForUi(detail, {
     ordersLoadedCount: uploadBody.orders.loadedCount,
     parseWarningCount: uploadBody.parse.warningCount,
+    ordersEmptyReason: uploadBody.orders.emptyReason,
+    ordersBundle: uploadBody.orders.bundle,
   });
 }
 
@@ -169,6 +182,8 @@ export function buildShipmentMatchPanelViewStateFromConfirmResponse(
     {
       ordersLoadedCount: previous.ordersLoadedCount,
       parseWarningCount: previous.parse.warningCount,
+      ordersEmptyReason: previous.ordersEmptyReason,
+      ordersBundle: previous.ordersBundle,
     },
   );
 }
@@ -187,6 +202,8 @@ export function buildShipmentMatchPanelViewStateFromExcludeResponse(
     {
       ordersLoadedCount: previous.ordersLoadedCount,
       parseWarningCount: previous.parse.warningCount,
+      ordersEmptyReason: previous.ordersEmptyReason,
+      ordersBundle: previous.ordersBundle,
     },
   );
 }
@@ -205,6 +222,8 @@ export function buildShipmentMatchPanelViewStateFromLinkResponse(
     {
       ordersLoadedCount: previous.ordersLoadedCount,
       parseWarningCount: previous.parse.warningCount,
+      ordersEmptyReason: previous.ordersEmptyReason,
+      ordersBundle: previous.ordersBundle,
     },
   );
 }
@@ -216,5 +235,7 @@ export function buildShipmentMatchPanelViewStateFromDetailResponse(
   return adaptShipmentUploadBatchDetailForUi(response, {
     ordersLoadedCount: previous.ordersLoadedCount,
     parseWarningCount: previous.parse.warningCount,
+    ordersEmptyReason: previous.ordersEmptyReason,
+    ordersBundle: previous.ordersBundle,
   });
 }

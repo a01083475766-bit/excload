@@ -31,7 +31,13 @@ export type WorkspaceInputSnapshot = {
 export type PreviewWorkspaceSnapshot = {
   v: 1 | 2;
   savedAt: string;
-  previewRows: Array<{ rowId: string; data: Record<string, string> }>;
+  previewRows: Array<{
+    rowId: string;
+    data: Record<string, string>;
+    sourceDedupeKey?: string;
+    sourceMallOrderNo?: string;
+    courierDownloadInputSource?: 'API' | 'EXCEL' | 'TEXT';
+  }>;
   userOverrides: Record<string, Record<string, string>>;
   courierHeaders: string[];
   sortConfig: { header: string; direction: 'asc' | 'desc' } | null;

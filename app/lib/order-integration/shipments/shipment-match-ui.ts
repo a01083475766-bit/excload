@@ -157,7 +157,13 @@ export function resolveProviderLabel(provider?: string | null): string | null {
 
   const normalized = provider.trim().toLowerCase();
   const mall = ORDER_INTEGRATION_MALLS.find((item) => item.id === normalized);
-  return mall?.name ?? provider.trim();
+  if (mall?.name) return mall.name;
+
+  // 몰 목록에 없는 enum은 영문 브랜드명만 보기 좋게 표기
+  const englishBrandFallback: Record<string, string> = {
+    shopify: 'Shopify',
+  };
+  return englishBrandFallback[normalized] ?? provider.trim();
 }
 
 export function getShipmentMatchStatusMeta(status: ShipmentMatchStatus): ShipmentMatchStatusMeta {
@@ -294,10 +300,32 @@ export function mapShipmentMatchFetchError(
   return serverMessage ?? '송장파일 매칭 중 문제가 발생했습니다.';
 }
 
-export function getEmptyOrderSnapshotMessage(loadedCount: number, totalRows: number): string | null {
+export function getEmptyOrderSnapshotMessage(
+  loadedCount: number,
+  totalRows: number,
+  options?: {
+    emptyReason?: string | null;
+    bundleExpired?: boolean;
+  },
+): string | null {
   if (loadedCount > 0) return null;
-  if (totalRows === 0) {
-    return '매칭할 주문 스냅샷이 없습니다. 먼저 주문연동으로 주문조회가 저장되어야 송장파일과 매칭할 수 있습니다.';
+
+  const reason = options?.emptyReason ?? null;
+  if (reason === 'bundle_expired' || options?.bundleExpired) {
+    return '선택한 다운로드 내역의 보관기간이 만료되었습니다.';
   }
-  return '송장파일은 읽었지만, 비교할 주문 데이터가 없어 모두 매칭 실패로 표시됩니다.';
+  if (reason === 'example_preview') {
+    return '예시 미리보기 데이터는 송장 매칭에 사용할 수 없습니다.';
+  }
+  if (reason === 'bundle_no_candidates' || reason === 'bundle_not_found') {
+    return '선택한 다운로드에 매칭 가능한 주문 데이터가 저장되지 않았습니다.';
+  }
+  if (reason === 'bundle_forbidden') {
+    return '선택한 다운로드 내역에 접근할 수 없습니다.';
+  }
+
+  if (totalRows === 0) {
+    return '매칭할 주문 스냅샷이 없습니다. 주문조회 후 택배 업로드 양식을 다운로드해야 송장파일과 매칭할 수 있습니다.';
+  }
+  return '송장파일은 읽었지만, 비교할 주문 데이터가 없습니다. 주문조회 후 택배양식을 다시 다운로드한 뒤, 해당 다운로드를 선택해 매칭해 주세요.';
 }

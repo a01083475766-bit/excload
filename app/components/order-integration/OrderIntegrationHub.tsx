@@ -19,6 +19,11 @@ import {
   Trash2,
   Send,
 } from 'lucide-react';
+import ShipmentMatchPanel from '@/app/components/order-integration/ShipmentMatchPanel';
+import {
+  buildNextCourierDownloadBundleListRefreshSignal,
+  type CourierDownloadBundleListRefreshSignal,
+} from '@/app/lib/order-integration/courier-download/courier-download-bundle-list-refresh';
 import { useUserStore } from '@/app/store/userStore';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
@@ -62,6 +67,12 @@ import {
   isPendingFetchCacheReusable,
 } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
 import type { HubPendingFetchTransfer } from '@/app/lib/order-integration/hub-pending-fetch-transfer';
+import { filterHubPreviewRowsBySourceDedupe } from '@/app/lib/order-integration/hub-preview-dedupe';
+import { evaluateCourierDownloadPersistGate } from '@/app/lib/order-integration/snapshots/courier-download-persist-gate';
+import {
+  buildCourierDownloadWorkItemDraftsFromPreviewRows,
+  previewRowsAreExampleOnly,
+} from '@/app/lib/order-integration/courier-download/build-work-item-drafts-from-preview';
 import {
   HUB_SALES_CHANNEL_HEADER,
   HUB_SALES_CHANNEL_IMAGE,
@@ -168,6 +179,8 @@ export default function OrderIntegrationHub() {
   const [isBundleShippingModalOpen, setIsBundleShippingModalOpen] = useState(false);
   const [dismissedBundleGroupKeys, setDismissedBundleGroupKeys] = useState<string[]>([]);
   const [bundleShippingButtonAcked, setBundleShippingButtonAcked] = useState(false);
+  const [downloadBundleListRefresh, setDownloadBundleListRefresh] =
+    useState<CourierDownloadBundleListRefreshSignal | null>(null);
   const [bundleApplyUndo, setBundleApplyUndo] = useState<{
     snapshot: {
       previewRows: PreviewRowWithId[];
@@ -235,6 +248,21 @@ export default function OrderIntegrationHub() {
     refreshActiveTemplateStatus();
   }, [refreshActiveTemplateStatus]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const shouldFocus =
+      window.location.hash === '#order-integration-shipment-match' ||
+      params.get('focus') === 'shipment-match';
+    if (!shouldFocus) return;
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById('order-integration-shipment-match')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const fixedHeaderOrder = useMemo(
     () => activeTemplateHeaderNames ?? templateBridgeFile?.courierHeaders ?? [],
     [activeTemplateHeaderNames, templateBridgeFile],
@@ -272,11 +300,27 @@ export default function OrderIntegrationHub() {
   }, []);
 
   const appendPreview = useCallback(
-    (rows: PreviewRowWithId[], headers: string[], bridge?: TemplateBridgeFile | null) => {
+    (
+      rows: PreviewRowWithId[],
+      headers: string[],
+      bridge?: TemplateBridgeFile | null,
+    ): { added: number; skipped: number } => {
       setCourierHeaders(headers);
       if (bridge) setTemplateBridgeFile(bridge);
-      setPreviewRows((prev) => [...rows, ...prev]);
-      markNewRows(rows.map((row) => row.rowId));
+
+      // 같은 틱에서 여러 번 담을 때(엑셀 다건) state flush 전에 중복을 잡도록 ref 기준 필터.
+      const { toAdd, skipped } = filterHubPreviewRowsBySourceDedupe(
+        rows,
+        previewRowsRef.current,
+      );
+      if (toAdd.length === 0) {
+        return { added: 0, skipped };
+      }
+
+      previewRowsRef.current = [...toAdd, ...previewRowsRef.current];
+      setPreviewRows(previewRowsRef.current);
+      markNewRows(toAdd.map((row) => row.rowId));
+      return { added: toAdd.length, skipped };
     },
     [markNewRows],
   );
@@ -328,6 +372,7 @@ export default function OrderIntegrationHub() {
         throw new Error('택배 업로드 양식이 없습니다. 먼저 양식을 등록해 주세요.');
       }
       const fixedHeaderValues = loadHubFixedHeaderValues(userId);
+      // hub-pending source entry 전달은 이번 Bundle 후보에서 제외 — 워킹트리에는 유지
       const result = await convertOrderStandardRowsToHubPreview({
         rows: pending.rows,
         templateBridgeFile: bridge,
@@ -335,16 +380,28 @@ export default function OrderIntegrationHub() {
       });
       pendingFetchApplied = true;
       pendingFetchSessionCache = null;
-      appendPreview(result.previewRows, result.courierHeaders, bridge);
+      const { added, skipped } = appendPreview(result.previewRows, result.courierHeaders, bridge);
       const mallLabel =
         pending.mallSummaries.length > 0
           ? pending.mallSummaries.map((m) => `${m.name} ${m.count}건`).join(', ')
           : null;
-      showNotice(
-        mallLabel
-          ? `주문조회 → 미리보기 ${result.previewRows.length.toLocaleString()}건 추가 (${mallLabel})`
-          : `주문조회 → 미리보기 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
-      );
+      if (added === 0 && skipped > 0) {
+        showNotice(
+          `이미 미리보기에 있는 주문 ${skipped.toLocaleString()}건은 건너뛰었습니다.`,
+        );
+      } else if (skipped > 0) {
+        showNotice(
+          mallLabel
+            ? `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 · ${skipped.toLocaleString()}건 건너뜀 (${mallLabel})`
+            : `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 · ${skipped.toLocaleString()}건은 이미 있어 건너뛰었습니다.`,
+        );
+      } else {
+        showNotice(
+          mallLabel
+            ? `주문조회 → 미리보기 ${added.toLocaleString()}건 추가 (${mallLabel})`
+            : `주문조회 → 미리보기 ${added.toLocaleString()}건이 추가되었습니다.`,
+        );
+      }
     } catch (error) {
       showError(error instanceof Error ? error.message : '주문조회 결과를 담지 못했습니다.');
     } finally {
@@ -477,6 +534,7 @@ export default function OrderIntegrationHub() {
       setTemplateBridgeFile(bridge);
       const fixed = loadHubFixedHeaderValues(userId);
       let added = 0;
+      let skipped = 0;
       const imageFiles = files.filter((file) => {
         const name = file.name.toLowerCase();
         return (
@@ -511,8 +569,9 @@ export default function OrderIntegrationHub() {
             if (total > 1) setStatusLabel(`서버 변환 ${completed}/${total}`);
           },
         });
-        appendPreview(result.previewRows, result.courierHeaders, bridge);
-        added += result.previewRows.length;
+        const appendResult = appendPreview(result.previewRows, result.courierHeaders, bridge);
+        added += appendResult.added;
+        skipped += appendResult.skipped;
       }
 
       setSelectedFiles([]);
@@ -520,15 +579,27 @@ export default function OrderIntegrationHub() {
 
       if (imageFiles.length > 0) {
         await runImageOcrToTextInput(imageFiles, 'imageFile');
-        if (added > 0) {
+        if (added > 0 || skipped > 0) {
+          const skipPart =
+            skipped > 0 ? ` · ${skipped.toLocaleString()}건 건너뜀` : '';
           showNotice(
-            `엑셀 ${added.toLocaleString()}건 미리보기 반영 · 이미지는 텍스트 칸에 넣었습니다. 확인 후 「텍스트 주문 변환」을 눌러 주세요.`,
+            `엑셀 ${added.toLocaleString()}건 미리보기 반영${skipPart} · 이미지는 텍스트 칸에 넣었습니다. 확인 후 「텍스트 주문 변환」을 눌러 주세요.`,
           );
         }
         return;
       }
 
-      showNotice(`변환 완료 · 미리보기에 ${added.toLocaleString()}건이 추가되었습니다.`);
+      if (added === 0 && skipped > 0) {
+        showNotice(
+          `이미 미리보기에 있는 주문 ${skipped.toLocaleString()}건은 건너뛰었습니다.`,
+        );
+      } else if (skipped > 0) {
+        showNotice(
+          `변환 완료 · 미리보기 ${added.toLocaleString()}건 추가 · ${skipped.toLocaleString()}건은 이미 있어 건너뛰었습니다.`,
+        );
+      } else {
+        showNotice(`변환 완료 · 미리보기에 ${added.toLocaleString()}건이 추가되었습니다.`);
+      }
     } catch (error) {
       setStatusLabel(null);
       showError(error instanceof Error ? error.message : '파일 변환 중 오류가 발생했습니다.');
@@ -630,12 +701,22 @@ export default function OrderIntegrationHub() {
       void fetchUser();
       nextTextSalesChannelRef.current = null;
 
-      appendPreview(result.previewRows, result.courierHeaders, bridge);
+      const { added, skipped } = appendPreview(result.previewRows, result.courierHeaders, bridge);
       setTextOrder('');
       setStatusLabel(null);
-      showNotice(
-        `텍스트 변환 완료 · 미리보기에 ${result.previewRows.length.toLocaleString()}건이 추가되었습니다.`,
-      );
+      if (added === 0 && skipped > 0) {
+        showNotice(
+          `이미 미리보기에 있는 주문 ${skipped.toLocaleString()}건은 건너뛰었습니다.`,
+        );
+      } else if (skipped > 0) {
+        showNotice(
+          `텍스트 변환 완료 · 미리보기 ${added.toLocaleString()}건 추가 · ${skipped.toLocaleString()}건은 이미 있어 건너뛰었습니다.`,
+        );
+      } else {
+        showNotice(
+          `텍스트 변환 완료 · 미리보기에 ${added.toLocaleString()}건이 추가되었습니다.`,
+        );
+      }
       openTextReview(trimmed, result.previewRows, bridge, result.courierHeaders);
     } catch (error) {
       setStatusLabel(null);
@@ -693,7 +774,25 @@ export default function OrderIntegrationHub() {
   }, [activeBundleGroupKeysSig, bundleShippingGroupCount]);
 
   const clonePreviewRows = (rows: PreviewRowWithId[]) =>
-    rows.map((r) => ({ rowId: r.rowId, data: { ...r.data } }));
+    rows.map((r) => ({
+      rowId: r.rowId,
+      data: { ...r.data },
+      ...(r.sourceDedupeKey ? { sourceDedupeKey: r.sourceDedupeKey } : {}),
+      ...(r.sourceMallOrderNo ? { sourceMallOrderNo: r.sourceMallOrderNo } : {}),
+      ...(r.courierDownloadInputSource
+        ? { courierDownloadInputSource: r.courierDownloadInputSource }
+        : {}),
+      ...(r.orderSyncSource
+        ? {
+            orderSyncSource: {
+              mallId: r.orderSyncSource.mallId,
+              accountId: r.orderSyncSource.accountId,
+              standardRow: { ...r.orderSyncSource.standardRow },
+              ...(r.orderSyncSource.isExamplePreview ? { isExamplePreview: true as const } : {}),
+            },
+          }
+        : {}),
+    }));
 
   const handleBundleShippingApply = useCallback(
     (payload: BundleShippingApplyPayload) => {
@@ -791,10 +890,111 @@ export default function OrderIntegrationHub() {
     setBusy('download');
     setHubError(null);
     try {
-      const aoa = buildPreviewDownloadAoA(courierHeaders, sortedRows, userOverrides);
+      const downloadRows = sortedRows;
+      const snapshotGroups = (() => {
+        const map = new Map<string, { mallId: string; accountId: string; rows: Record<string, string>[] }>();
+        for (const row of downloadRows) {
+          const src = row.orderSyncSource;
+          if (!src?.accountId || !src.mallId) continue;
+          const key = `${src.mallId}::${src.accountId}`;
+          const existing = map.get(key);
+          if (existing) {
+            existing.rows.push({ ...src.standardRow });
+          } else {
+            map.set(key, {
+              mallId: src.mallId,
+              accountId: src.accountId,
+              rows: [{ ...src.standardRow }],
+            });
+          }
+        }
+        return [...map.values()];
+      })();
+
+      let snapshotNotice = '';
+      if (snapshotGroups.length > 0) {
+        let persistRes: Response;
+        try {
+          persistRes = await fetch('/api/order/integration/orders/snapshots/from-download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groups: snapshotGroups }),
+          });
+        } catch {
+          throw new Error(
+            '송장 매칭·전송용 주문 저장 요청에 실패하여 다운로드를 중단했습니다.\n네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+          );
+        }
+
+        const persistData = (await persistRes.json().catch(() => null)) as {
+          success?: boolean;
+          attempted?: boolean;
+          savedOrderCount?: number;
+          error?: string;
+          groupResults?: Array<{ persisted: boolean; reason?: string; orderCount?: number }>;
+        } | null;
+
+        const gate = evaluateCourierDownloadPersistGate({
+          httpOk: persistRes.ok,
+          body: persistData,
+        });
+        if (!gate.ok) {
+          throw new Error(gate.message);
+        }
+        snapshotNotice = gate.notice;
+      }
+
+      const aoa = buildPreviewDownloadAoA(courierHeaders, downloadRows, userOverrides);
       const wb = createPreviewDownloadWorkbook(aoa);
       const fileName = buildPreviewDownloadFileName(new Date(), '엑클로드주문연동');
       const workbookBytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
+
+      const workItemDrafts = buildCourierDownloadWorkItemDraftsFromPreviewRows(downloadRows);
+      let bundleNotice = '';
+      if (previewRowsAreExampleOnly(downloadRows)) {
+        bundleNotice =
+          ' · 예시 미리보기는 송장 매칭용 다운로드 기록에 저장되지 않습니다. 실제 주문조회로 다시 다운로드해 주세요.';
+      } else if (workItemDrafts.length > 0) {
+        let bundleRes: Response;
+        try {
+          bundleRes = await fetch('/api/order/integration/orders/courier-download-bundles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              courierTemplateLabel: fileName,
+              items: workItemDrafts,
+            }),
+          });
+        } catch {
+          throw new Error(
+            '다운로드 기록 저장 요청에 실패하여 다운로드를 중단했습니다.\n네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+          );
+        }
+        const bundleData = (await bundleRes.json().catch(() => null)) as {
+          success?: boolean;
+          bundle?: { id?: string; apiCount?: number; manualCount?: number };
+          error?: string;
+        } | null;
+        if (!bundleRes.ok || !bundleData?.success) {
+          throw new Error(
+            bundleData?.error?.trim() ||
+              '다운로드 기록 저장에 실패하여 다운로드를 중단했습니다. 잠시 후 다시 시도해 주세요.',
+          );
+        }
+        const apiCount = bundleData.bundle?.apiCount ?? 0;
+        const manualCount = bundleData.bundle?.manualCount ?? 0;
+        bundleNotice = ` · API 주문 ${apiCount}건 · 수동 등록 대상 ${manualCount}건`;
+        setDownloadBundleListRefresh((previous) => {
+          const next = buildNextCourierDownloadBundleListRefreshSignal({
+            previous,
+            createSucceeded: true,
+            isExamplePreview: false,
+            createdBundleId: bundleData.bundle?.id,
+          });
+          return next ?? previous;
+        });
+      }
+
       const pointsOk = await deductHubConvertPoints(1000, 'download');
       if (!pointsOk) {
         throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
@@ -813,7 +1013,7 @@ export default function OrderIntegrationHub() {
       URL.revokeObjectURL(url);
       clearPreviewWorkspace(HUB_WORKSPACE_PAGE, userId);
       clearPreview({ silent: true });
-      showNotice(`다운로드 완료 · ${fileName}`);
+      showNotice(`다운로드 완료 · ${fileName}${snapshotNotice}${bundleNotice}`);
     } catch (error) {
       showError(error instanceof Error ? error.message : '다운로드 중 오류가 발생했습니다.');
     } finally {
@@ -1062,13 +1262,18 @@ export default function OrderIntegrationHub() {
                 </span>
               ) : null}
             </div>
-            <Link
-              href="/order/integration/shipments"
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 self-start rounded-lg bg-blue-600 px-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:self-auto"
+            <button
+              type="button"
+              onClick={() => {
+                document
+                  .getElementById('order-integration-shipment-match')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 self-start rounded-md bg-blue-600 px-3 text-sm font-semibold text-white transition hover:bg-blue-700 sm:self-auto"
             >
               <Send className="h-3.5 w-3.5" aria-hidden />
               송장 매칭·전송
-            </Link>
+            </button>
           </div>
 
           {!previewEmpty ? (
@@ -1380,6 +1585,10 @@ export default function OrderIntegrationHub() {
                 변환이 완료된 주문데이터를 미리보기 기준으로
                 <br />
                 택배사 업로드용 파일로 내려받는 단계입니다.
+                <br />
+                연동 주문은 송장 매칭용으로 최대 14일 임시 보관됩니다.
+                <br />
+                받은 송장파일은 아래 「송장 매칭·전송」에서 올립니다.
               </p>
             </button>
           </div>
@@ -1403,6 +1612,13 @@ export default function OrderIntegrationHub() {
               onRegisterCustom={() => setTemplateModalOpen(true)}
             />
           ) : null}
+        </section>
+
+        <section
+          id="order-integration-shipment-match"
+          className="relative scroll-mt-4 border-t border-zinc-200 pb-6 pt-4"
+        >
+          <ShipmentMatchPanel embedded downloadBundleListRefresh={downloadBundleListRefresh} />
         </section>
       </main>
 

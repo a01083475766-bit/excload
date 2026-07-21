@@ -41,6 +41,12 @@ export type OrderSyncOrderSnapshot = {
   existingTrackingNumber?: string | null;
   /** 택배 양식 다운로드 시 행 번호 — 단독 자동 확정 금지 */
   exportedRowIndex?: number | null;
+  /** WorkItem 비교용 HMAC (평문 PII 아님) */
+  matchFingerprintHmac?: string | null;
+  /** true면 OrderSyncOrder FK로 persist하지 않는 WorkItem 후보 */
+  workItemCandidate?: boolean;
+  workItemId?: string | null;
+  inputSource?: string | null;
 };
 
 /** 송장파일 1행 정규화 결과 */

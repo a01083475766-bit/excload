@@ -1,7 +1,11 @@
 import type { OrderIntegrationProvider } from '@prisma/client';
 
+import {
+  loadMatchingCandidatesFromBundle,
+  type ShipmentMatchSnapshotClient,
+} from '@/app/lib/order-integration/courier-download/load-matching-candidates-from-bundle';
 import { loadOrderSyncSnapshotsForMatching } from '@/app/lib/order-integration/snapshots/load-order-sync-snapshots-for-matching';
-import type { OrderSyncSnapshotLoadClient } from '@/app/lib/order-integration/snapshots/types';
+import type { OrderSyncOrderSnapshot } from '@/app/lib/order-integration/shipments/types';
 import {
   DEFAULT_SHIPMENT_MATCH_ORDER_SNAPSHOT_LIMIT,
   matchUploadedShipmentFile,
@@ -29,15 +33,53 @@ export type ShipmentUploadPersistSuccessResponse = {
   match: ShipmentMatchUploadSuccessResponse['match'];
 };
 
+async function loadOrderSnapshotsForPersist(input: {
+  snapshotClient: ShipmentMatchSnapshotClient;
+  scope: ShipmentMatchUploadScope;
+  downloadBundleId?: string | null;
+  orderSnapshotLimit?: number;
+  loadSnapshots: typeof loadOrderSyncSnapshotsForMatching;
+  loadFromBundle: typeof loadMatchingCandidatesFromBundle;
+}): Promise<OrderSyncOrderSnapshot[]> {
+  const downloadBundleId = input.downloadBundleId?.trim() || null;
+  if (downloadBundleId) {
+    const bundleFindFirst = input.snapshotClient.courierDownloadBundle?.findFirst;
+    if (!bundleFindFirst) {
+      return [];
+    }
+    const loaded = await input.loadFromBundle(
+      {
+        courierDownloadBundle: { findFirst: bundleFindFirst },
+        orderSyncOrder: input.snapshotClient.orderSyncOrder,
+      },
+      {
+        userId: input.scope.userId,
+        downloadBundleId,
+      },
+    );
+    return loaded.snapshots;
+  }
+
+  return input.loadSnapshots(input.snapshotClient, {
+    userId: input.scope.userId,
+    provider: input.scope.provider as OrderIntegrationProvider | undefined,
+    integrationAccountId: input.scope.integrationAccountId,
+    batchId: input.scope.batchId,
+    limit: input.orderSnapshotLimit ?? DEFAULT_SHIPMENT_MATCH_ORDER_SNAPSHOT_LIMIT,
+  });
+}
+
 export async function uploadAndPersistShipmentFile(input: {
   file: UploadedShipmentFileInput;
   scope: ShipmentMatchUploadScope;
-  snapshotClient: OrderSyncSnapshotLoadClient;
+  snapshotClient: ShipmentMatchSnapshotClient;
   persistClient: ShipmentUploadPersistPrismaClient;
   orderSnapshotLimit?: number;
   fileHash?: string | null;
+  downloadBundleId?: string | null;
   matchUploadedShipmentFileFn?: typeof matchUploadedShipmentFile;
   loadSnapshots?: typeof loadOrderSyncSnapshotsForMatching;
+  loadFromBundle?: typeof loadMatchingCandidatesFromBundle;
   persistShipmentUploadBatchFn?: typeof persistShipmentUploadBatch;
 }): Promise<
   | { success: false; status: number; error: string }
@@ -45,6 +87,7 @@ export async function uploadAndPersistShipmentFile(input: {
 > {
   const matchFn = input.matchUploadedShipmentFileFn ?? matchUploadedShipmentFile;
   const loadSnapshots = input.loadSnapshots ?? loadOrderSyncSnapshotsForMatching;
+  const loadFromBundle = input.loadFromBundle ?? loadMatchingCandidatesFromBundle;
   const persistFn = input.persistShipmentUploadBatchFn ?? persistShipmentUploadBatch;
 
   const matchOutcome = await matchFn({
@@ -52,7 +95,9 @@ export async function uploadAndPersistShipmentFile(input: {
     scope: input.scope,
     client: input.snapshotClient,
     orderSnapshotLimit: input.orderSnapshotLimit,
+    downloadBundleId: input.downloadBundleId,
     loadSnapshots,
+    loadFromBundle,
   });
 
   if (!matchOutcome.success) {
@@ -71,18 +116,20 @@ export async function uploadAndPersistShipmentFile(input: {
     };
   }
 
-  const orderSnapshots = await loadSnapshots(input.snapshotClient, {
-    userId: input.scope.userId,
-    provider: input.scope.provider as OrderIntegrationProvider | undefined,
-    integrationAccountId: input.scope.integrationAccountId,
-    batchId: input.scope.batchId,
-    limit: input.orderSnapshotLimit ?? DEFAULT_SHIPMENT_MATCH_ORDER_SNAPSHOT_LIMIT,
+  const orderSnapshots = await loadOrderSnapshotsForPersist({
+    snapshotClient: input.snapshotClient,
+    scope: input.scope,
+    downloadBundleId: input.downloadBundleId,
+    orderSnapshotLimit: input.orderSnapshotLimit,
+    loadSnapshots,
+    loadFromBundle,
   });
 
   const persistInput = buildPersistShipmentUploadBatchInputFromMatchBody({
     userId: input.scope.userId,
     provider: input.scope.provider,
     integrationAccountId: input.scope.integrationAccountId,
+    downloadBundleId: input.downloadBundleId,
     file: {
       name: input.file.name,
       type: input.file.type,

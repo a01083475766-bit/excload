@@ -33,6 +33,7 @@ import {
   fillEmptySalesChannelRows,
   salesChannelLabelFromFileName,
 } from '@/app/lib/order-integration/hub-sales-channel';
+import { buildHubPreviewSourceDedupeKey } from '@/app/lib/order-integration/hub-preview-dedupe';
 
 export type HubConvertResult = {
   previewRows: PreviewRowWithId[];
@@ -86,11 +87,36 @@ export function loadHubFixedHeaderValues(userId: string | null): Record<string, 
   }
 }
 
-function toPreviewRowsWithIds(rows: PreviewRow[]): PreviewRowWithId[] {
-  return rows.map((data) => ({
-    rowId: crypto.randomUUID(),
-    data,
-  }));
+function toPreviewRowsWithIds(
+  rows: PreviewRow[],
+  sourceDedupeKeys?: Array<string | null>,
+  orderSyncSources?: Array<PreviewRowWithId['orderSyncSource'] | null | undefined>,
+  inputSources?: Array<'API' | 'EXCEL' | 'TEXT' | null | undefined>,
+  sourceMallOrderNos?: Array<string | null | undefined>,
+): PreviewRowWithId[] {
+  return rows.map((data, index) => {
+    const key = sourceDedupeKeys?.[index] ?? null;
+    const orderSyncSource = orderSyncSources?.[index] ?? undefined;
+    const base: PreviewRowWithId = { rowId: crypto.randomUUID(), data };
+    if (key) base.sourceDedupeKey = key;
+    if (orderSyncSource) base.orderSyncSource = orderSyncSource;
+    const mallOrderNo = sourceMallOrderNos?.[index]?.trim();
+    if (mallOrderNo) base.sourceMallOrderNo = mallOrderNo;
+    const tagged = inputSources?.[index];
+    if (tagged) base.courierDownloadInputSource = tagged;
+    else if (
+      orderSyncSource?.accountId?.trim() &&
+      !orderSyncSource.isExamplePreview
+    ) {
+      base.courierDownloadInputSource = 'API';
+    }
+    return base;
+  });
+}
+
+function mallOrderNoFromStandardRow(row: StandardOrderRow): string | null {
+  const orderNo = String(row['주문번호'] ?? '').trim();
+  return orderNo || null;
 }
 
 function toHubConvertResult(
@@ -98,6 +124,8 @@ function toHubConvertResult(
   courierHeaders: string[],
   template: TemplateBridgeFile,
   standardRows: StandardOrderRow[],
+  orderSyncSources?: Array<PreviewRowWithId['orderSyncSource'] | null | undefined>,
+  inputSource?: 'API' | 'EXCEL' | 'TEXT',
 ): HubConvertResult {
   const ensured = ensureHubSalesChannelPreviewColumn({
     previewRows,
@@ -105,8 +133,19 @@ function toHubConvertResult(
     mappedBaseHeaders: template.mappedBaseHeaders,
     standardRows,
   });
+  const sourceDedupeKeys = standardRows.map(buildHubPreviewSourceDedupeKey);
+  const sourceMallOrderNos = standardRows.map(mallOrderNoFromStandardRow);
+  const inputSources = inputSource
+    ? ensured.previewRows.map(() => inputSource)
+    : undefined;
   return {
-    previewRows: toPreviewRowsWithIds(ensured.previewRows),
+    previewRows: toPreviewRowsWithIds(
+      ensured.previewRows,
+      sourceDedupeKeys,
+      orderSyncSources,
+      inputSources,
+      sourceMallOrderNos,
+    ),
     courierHeaders: ensured.courierHeaders,
   };
 }
@@ -156,6 +195,8 @@ export async function convertExcelBufferToHubPreview(input: {
     stage3Result.courierHeaders,
     input.templateBridgeFile,
     orderData.rows,
+    undefined,
+    'EXCEL',
   );
 }
 
@@ -209,6 +250,8 @@ export async function convertTextToHubPreview(input: {
     stage3Result.courierHeaders,
     input.templateBridgeFile,
     orderData.rows,
+    undefined,
+    'TEXT',
   );
 }
 
@@ -217,6 +260,8 @@ export async function convertOrderStandardRowsToHubPreview(input: {
   rows: StandardOrderRow[];
   templateBridgeFile: TemplateBridgeFile;
   fixedHeaderValues: Record<string, string>;
+  /** 다운로드 시 스냅샷 저장용(행 인덱스 = rows 인덱스) */
+  orderSyncSources?: Array<PreviewRowWithId['orderSyncSource'] | null | undefined>;
 }): Promise<HubConvertResult> {
   if (!input.rows.length) {
     throw new Error('미리보기에 담을 주문 행이 없습니다.');
@@ -243,6 +288,8 @@ export async function convertOrderStandardRowsToHubPreview(input: {
     stage3Result.courierHeaders,
     input.templateBridgeFile,
     orderData.rows,
+    input.orderSyncSources,
+    'API',
   );
 }
 

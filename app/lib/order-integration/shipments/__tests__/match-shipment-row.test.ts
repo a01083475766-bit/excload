@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildMatchFingerprintHmac } from '@/app/lib/order-integration/courier-download/match-fingerprint';
 import {
   normalizePhoneDigits,
   normalizeShipmentRow,
@@ -307,6 +308,89 @@ describe('matchShipmentRow', () => {
     });
 
     expect(result.matchedOrderId).toBe('order-2');
+  });
+
+  it('marks CONFIDENT when mallOrderNo and phone HMAC both match (work-item candidate)', () => {
+    const SECRET = 'test-match-fingerprint-secret-confident';
+    const prev = process.env.EXCLOAD_MATCH_FINGERPRINT_SECRET;
+    process.env.EXCLOAD_MATCH_FINGERPRINT_SECRET = SECRET;
+    try {
+      const hmac = buildMatchFingerprintHmac(
+        { receiverPhone: '010-7001-0001', receiverName: '가상수령인갑' },
+        SECRET,
+      );
+      const shipment = normalizeShipmentRow({
+        originalRowIndex: 0,
+        rawRow: {
+          송장번호: '880012340001',
+          주문번호: 'VIRT-ORD-001',
+          수취인: '가상수령인갑',
+          전화번호: '010-7001-0001',
+        },
+      });
+      const result = matchShipmentRow({
+        shipment,
+        orders: [
+          buildOrder({
+            id: 'wi-1',
+            mallOrderNo: 'VIRT-ORD-001',
+            receiverName: null,
+            receiverPhone: null,
+            matchFingerprintHmac: hmac,
+            workItemCandidate: true,
+            excloadOrderNo: 'EXC-INTERNAL-ONLY',
+          }),
+        ],
+        scope,
+      });
+      expect(result.matchStatus).toBe('MATCHED_CONFIDENT');
+      expect(result.matchReason).toContain('mallOrderNo');
+      expect(result.matchReason).toContain('phone');
+      expect(result.matchedOrderId).toBe('wi-1');
+    } finally {
+      if (prev === undefined) delete process.env.EXCLOAD_MATCH_FINGERPRINT_SECRET;
+      else process.env.EXCLOAD_MATCH_FINGERPRINT_SECRET = prev;
+    }
+  });
+
+  it('stays WARNING when phone+name match but mallOrderNo is missing on candidate', () => {
+    const SECRET = 'test-match-fingerprint-secret-warning';
+    const prev = process.env.EXCLOAD_MATCH_FINGERPRINT_SECRET;
+    process.env.EXCLOAD_MATCH_FINGERPRINT_SECRET = SECRET;
+    try {
+      const hmac = buildMatchFingerprintHmac(
+        { receiverPhone: '010-7001-0001', receiverName: '가상수령인갑' },
+        SECRET,
+      );
+      const shipment = normalizeShipmentRow({
+        originalRowIndex: 0,
+        rawRow: {
+          송장번호: '880012340001',
+          주문번호: 'VIRT-ORD-001',
+          수취인: '가상수령인갑',
+          전화번호: '010-7001-0001',
+        },
+      });
+      const result = matchShipmentRow({
+        shipment,
+        orders: [
+          buildOrder({
+            id: 'wi-2',
+            mallOrderNo: '',
+            receiverName: null,
+            receiverPhone: null,
+            matchFingerprintHmac: hmac,
+            workItemCandidate: true,
+          }),
+        ],
+        scope,
+      });
+      expect(result.matchStatus).toBe('MATCHED_WARNING');
+      expect(result.matchReason).not.toContain('mallOrderNo');
+    } finally {
+      if (prev === undefined) delete process.env.EXCLOAD_MATCH_FINGERPRINT_SECRET;
+      else process.env.EXCLOAD_MATCH_FINGERPRINT_SECRET = prev;
+    }
   });
 });
 

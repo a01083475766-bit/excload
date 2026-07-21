@@ -7,6 +7,34 @@ import { formatPhoneDisplay } from '@/app/utils/format-phone';
 export type PreviewRowWithId = {
   rowId: string;
   data: PreviewRow;
+  /**
+   * 미리보기 재담기 중복 판별용 내부 키(화면·다운로드 미노출).
+   * 표준 주문행의 몰+주문번호+상품주문번호 등에서 생성.
+   */
+  sourceDedupeKey?: string;
+  /**
+   * 표준 주문번호(주문번호). WorkItem.mallOrderNo용.
+   * 미리보기 data는 택배 양식 헤더 키라 「주문번호」열이 없을 수 있어 별도 보존.
+   * 화면·다운로드 파일에는 넣지 않음.
+   */
+  sourceMallOrderNo?: string;
+  /**
+   * 택배양식 다운로드 WorkItem 출처.
+   * API 행은 orderSyncSource와 함께 두고, 엑셀/텍스트 변환 시 각각 지정.
+   */
+  courierDownloadInputSource?: 'API' | 'EXCEL' | 'TEXT';
+  /**
+   * 주문조회→허브 경로: 택배양식 다운로드 시 OrderSync 스냅샷 저장용.
+   * 엑셀·텍스트·예시 미리보기 행에는 실계정 accountId가 없다.
+   */
+  orderSyncSource?: {
+    mallId: string;
+    /** 실연동 계정 ID. 예시 미리보기는 빈 문자열 */
+    accountId: string;
+    standardRow: Record<string, string>;
+    /** true면 예시 미리보기 — Bundle/매칭 저장 대상 아님 */
+    isExamplePreview?: boolean;
+  };
 };
 
 export type OrderConvertPreviewTableRowProps = {

@@ -39,6 +39,30 @@ export async function POST(request: Request) {
     }
 
     const fileHash = formData.get('fileHash')?.toString()?.trim() || null;
+    const downloadBundleRaw = formData.get('downloadBundleId')?.toString()?.trim() || '';
+    // 빈 문자열 / none / null → 해당 다운로드 없음
+    const downloadBundleId =
+      !downloadBundleRaw || downloadBundleRaw === 'none' || downloadBundleRaw === 'null'
+        ? null
+        : downloadBundleRaw;
+
+    if (downloadBundleId) {
+      const bundle = await prisma.courierDownloadBundle.findFirst({
+        where: {
+          id: downloadBundleId,
+          userId,
+          expiresAt: { gte: new Date() },
+        },
+        select: { id: true },
+      });
+      if (!bundle) {
+        return NextResponse.json(
+          { error: '선택한 택배양식 다운로드 기록을 찾을 수 없거나 만료되었습니다.' },
+          { status: 400 },
+        );
+      }
+    }
+
     const buffer = await fileEntry.arrayBuffer();
     const result = await uploadAndPersistShipmentFile({
       file: {
@@ -51,6 +75,7 @@ export async function POST(request: Request) {
       snapshotClient: prisma,
       persistClient: prisma as unknown as ShipmentUploadPersistPrismaClient,
       fileHash,
+      downloadBundleId,
     });
 
     if (!result.success) {

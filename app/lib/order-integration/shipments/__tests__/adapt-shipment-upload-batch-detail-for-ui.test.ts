@@ -107,7 +107,7 @@ function buildUploadBody(): ShipmentUploadPersistSuccessResponse {
     },
     file: { name: 'shipments.csv', type: 'text/csv', size: 2048 },
     parse: { ok: true, rowCount: 2, warningCount: 1, warnings: [] },
-    orders: { loadedCount: 0, scope: {} },
+    orders: { loadedCount: 0, emptyReason: 'no_bundle', bundle: null, scope: {} },
     match: {
       totalRows: 2,
       matchedConfidentCount: 1,

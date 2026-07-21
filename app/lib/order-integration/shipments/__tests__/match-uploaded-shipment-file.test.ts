@@ -3,6 +3,10 @@ import * as XLSX from 'xlsx';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { OrderSyncOrderSnapshot } from '@/app/lib/order-integration/shipments/types';
+import type {
+  OrderSyncSnapshotLoadClient,
+  PersistedOrderSyncOrderLike,
+} from '@/app/lib/order-integration/snapshots/types';
 import {
   detectShipmentUploadFormat,
   matchUploadedShipmentFile,
@@ -11,7 +15,39 @@ import {
   summarizeShipmentMatchResults,
   toSafeShipmentMatchLogMessage,
 } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
-import type { OrderSyncSnapshotLoadClient } from '@/app/lib/order-integration/snapshots/types';
+
+function buildPersistedOrder(
+  overrides: Partial<PersistedOrderSyncOrderLike> = {},
+): PersistedOrderSyncOrderLike {
+  return {
+    id: 'order-1',
+    batchId: 'batch-1',
+    userId: 'user-a',
+    provider: OrderIntegrationProvider.COUPANG,
+    integrationAccountId: 'acc-1',
+    excloadOrderNo: 'EXC-20260709-000001',
+    mallOrderNo: 'ORD-1001',
+    mallOrderId: null,
+    mallLineItemIds: null,
+    receiverName: '홍길동',
+    receiverPhone: '01012345678',
+    receiverAddress: '서울시 강남구',
+    productSummary: '티셔츠 x1',
+    quantity: 1,
+    deliveryMemo: null,
+    orderedAt: null,
+    orderStatus: 'PAID',
+    rawPayloadJson: null,
+    normalizedPayloadJson: null,
+    trackingNumber: null,
+    carrierCode: null,
+    shippedAt: null,
+    transmissionStatus: 'NONE',
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+    ...overrides,
+  };
+}
 
 function buildOrder(overrides: Partial<OrderSyncOrderSnapshot> = {}): OrderSyncOrderSnapshot {
   return {
@@ -185,6 +221,60 @@ describe('matchUploadedShipmentFile', () => {
 
     expect(result.body.orders.loadedCount).toBe(0);
     expect(result.body.match.notMatchedCount).toBe(1);
+    expect(result.body.orders.emptyReason).toBe('no_bundle');
+  });
+
+  it('loads candidates from downloadBundleId instead of all OrderSyncOrder', async () => {
+    const client = {
+      ...createMockClient(),
+      courierDownloadBundle: {
+        findFirst: vi.fn(async () => ({
+          id: 'bundle-1',
+          userId: 'user-a',
+          expiresAt: new Date('2099-01-01'),
+          workItems: [
+            {
+              id: 'wi-1',
+              userId: 'user-a',
+              excloadOrderNo: 'EXC-1',
+              inputSource: 'API',
+              sourceMallKey: 'coupang::acc-1',
+              sourceMallLabel: '쿠팡',
+              mallOrderNo: 'ORD-1001',
+              orderSyncOrderId: 'order-1',
+              matchFingerprintHmac: null,
+              expiresAt: new Date('2099-01-01'),
+            },
+          ],
+        })),
+      },
+    };
+    client.orderSyncOrder.findMany = vi.fn(async () => [
+      buildPersistedOrder({
+        id: 'order-1',
+        excloadOrderNo: 'EXC-1',
+        mallOrderNo: 'ORD-1001',
+        receiverAddress: '서울',
+        productSummary: '티셔츠',
+      }),
+    ]);
+
+    const csv = ['송장번호,주문번호,수취인,전화번호', '123456789012,ORD-1001,홍길동,01012345678'].join(
+      '\n',
+    );
+    const result = await matchUploadedShipmentFile({
+      file: createCsvFile(csv),
+      scope: { userId: 'user-a' },
+      client: client,
+      downloadBundleId: 'bundle-1',
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.body.orders.loadedCount).toBe(1);
+    expect(result.body.orders.scope.downloadBundleId).toBe('bundle-1');
+    expect(result.body.orders.emptyReason).toBeNull();
+    expect(client.orderSyncOrder.findMany).toHaveBeenCalled();
   });
 
   it('passes provider/integrationAccountId/batchId scope to snapshot loader', async () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Upload } from 'lucide-react';
@@ -9,6 +9,13 @@ import { OrderIntegrationProvider } from '@prisma/client';
 import {
   MAX_SHIPMENT_UPLOAD_FILE_BYTES,
 } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
+import type { CourierDownloadBundleListItem } from '@/app/lib/order-integration/courier-download/persist-courier-download-bundle';
+import type { ManualRegistrationRow } from '@/app/lib/order-integration/courier-download/manual-registration-view';
+import {
+  resolveSelectedDownloadBundleId,
+  shouldApplyCourierDownloadBundleListRefresh,
+  type CourierDownloadBundleListRefreshSignal,
+} from '@/app/lib/order-integration/courier-download/courier-download-bundle-list-refresh';
 import {
   buildShipmentMatchPanelViewStateFromConfirmResponse,
   buildShipmentMatchPanelViewStateFromDetailResponse,
@@ -47,6 +54,9 @@ import {
   type ShipmentMatchTabId,
 } from '@/app/lib/order-integration/shipments/shipment-match-ui';
 import type { ShipmentMatchPanelDisplayRow } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
+
+/** select: '' = 미선택(업로드 불가), 'none' = 해당 다운로드 없음, id = Bundle */
+const DOWNLOAD_BUNDLE_NONE = 'none';
 
 const ACCEPTED_EXTENSIONS = '.csv,.xlsx,.xls';
 const TABLE_HEADERS = [
@@ -93,9 +103,27 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-export default function ShipmentMatchPanel() {
+export type ShipmentMatchPanelProps = {
+  /**
+   * 주문연동 허브 하단 임베드용.
+   * true면 뒤로가기·페이지 타이틀을 숨기고 패딩을 허브에 맞춥니다.
+   */
+  embedded?: boolean;
+  /**
+   * Hub에서 Bundle 생성 성공 시 nonce 증가 + selectBundleId 전달.
+   * 인증 최초 GET과 별도로 목록을 다시 조회하고 신규 Bundle을 선택합니다.
+   */
+  downloadBundleListRefresh?: CourierDownloadBundleListRefreshSignal | null;
+};
+
+export default function ShipmentMatchPanel({
+  embedded = false,
+  downloadBundleListRefresh = null,
+}: ShipmentMatchPanelProps) {
   const { status: sessionStatus } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastHandledBundleRefreshNonceRef = useRef(0);
+  const downloadBundleListFetchGenRef = useRef(0);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -122,6 +150,14 @@ export default function ShipmentMatchPanel() {
   const [selectedTransmitMatchIds, setSelectedTransmitMatchIds] = useState<string[]>([]);
   const [transmitMessage, setTransmitMessage] = useState<string | null>(null);
   const [isTransmitting, setIsTransmitting] = useState(false);
+  const [downloadBundles, setDownloadBundles] = useState<CourierDownloadBundleListItem[]>([]);
+  const [selectedDownloadBundleId, setSelectedDownloadBundleId] = useState('');
+  const [manualRegistrationRows, setManualRegistrationRows] = useState<ManualRegistrationRow[]>([]);
+  const [manualRegistrationSummary, setManualRegistrationSummary] = useState<{
+    ready: number;
+    needsTrackingLink: number;
+    needsMallOrderInfo: number;
+  } | null>(null);
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [editTrackingNumber, setEditTrackingNumber] = useState('');
   const [editCarrierCode, setEditCarrierCode] = useState('');
@@ -129,6 +165,85 @@ export default function ShipmentMatchPanel() {
 
   const inputClass =
     'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
+
+  const loadDownloadBundles = useCallback(
+    async (mode: 'initial' | 'refresh', preferredBundleId?: string | null) => {
+      const fetchGen = ++downloadBundleListFetchGenRef.current;
+      try {
+        const res = await fetch('/api/order/integration/orders/courier-download-bundles');
+        const json = (await res.json().catch(() => null)) as
+          | { success?: boolean; bundles?: CourierDownloadBundleListItem[] }
+          | null;
+        if (fetchGen !== downloadBundleListFetchGenRef.current) return;
+        if (!res.ok || !json?.success || !Array.isArray(json.bundles)) return;
+        setDownloadBundles(json.bundles);
+        setSelectedDownloadBundleId((current) =>
+          resolveSelectedDownloadBundleId({
+            mode,
+            bundles: json.bundles!,
+            currentSelectedId: current,
+            preferredBundleId,
+          }),
+        );
+      } catch {
+        /* ignore list load errors — upload can still proceed with "none" */
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated') {
+      setDownloadBundles([]);
+      setSelectedDownloadBundleId('');
+      lastHandledBundleRefreshNonceRef.current = 0;
+      downloadBundleListFetchGenRef.current += 1;
+      return;
+    }
+
+    void loadDownloadBundles('initial');
+  }, [sessionStatus, loadDownloadBundles]);
+
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated') return;
+    if (
+      !shouldApplyCourierDownloadBundleListRefresh(
+        downloadBundleListRefresh,
+        lastHandledBundleRefreshNonceRef.current,
+      )
+    ) {
+      return;
+    }
+    lastHandledBundleRefreshNonceRef.current = downloadBundleListRefresh.nonce;
+    void loadDownloadBundles('refresh', downloadBundleListRefresh.selectBundleId);
+  }, [sessionStatus, downloadBundleListRefresh, loadDownloadBundles]);
+
+  const loadManualRegistration = useCallback(async (uploadBatchId: string) => {
+    try {
+      const res = await fetch(
+        `/api/order/integration/shipments/uploads/${encodeURIComponent(uploadBatchId)}/manual-registration`,
+      );
+      const json = (await res.json().catch(() => null)) as {
+        success?: boolean;
+        rows?: ManualRegistrationRow[];
+        summary?: {
+          ready: number;
+          needsTrackingLink: number;
+          needsMallOrderInfo: number;
+        };
+      } | null;
+      if (!res.ok || !json?.success) {
+        setManualRegistrationRows([]);
+        setManualRegistrationSummary(null);
+        return;
+      }
+      setManualRegistrationRows(Array.isArray(json.rows) ? json.rows : []);
+      setManualRegistrationSummary(json.summary ?? null);
+    } catch {
+      setManualRegistrationRows([]);
+      setManualRegistrationSummary(null);
+    }
+  }, []);
 
   const summaryCards = useMemo(
     () => (viewState ? buildShipmentMatchSummaryCards(viewState.summary) : []),
@@ -145,7 +260,10 @@ export default function ShipmentMatchPanel() {
 
   const emptySnapshotMessage = useMemo(() => {
     if (!viewState) return null;
-    return getEmptyOrderSnapshotMessage(viewState.ordersLoadedCount, viewState.summary.totalRows);
+    return getEmptyOrderSnapshotMessage(viewState.ordersLoadedCount, viewState.summary.totalRows, {
+      emptyReason: viewState.ordersEmptyReason,
+      bundleExpired: viewState.ordersBundle?.expired,
+    });
   }, [viewState]);
 
   const isBatchReady = useMemo(
@@ -204,11 +322,22 @@ export default function ShipmentMatchPanel() {
       return;
     }
 
+    if (!selectedDownloadBundleId) {
+      setErrorMessage(
+        '이 송장파일이 나온 택배양식 다운로드를 선택하거나, 「해당 다운로드 없음」을 선택해주세요.',
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
 
     const formData = new FormData();
     formData.append('file', selectedFile);
+    formData.append(
+      'downloadBundleId',
+      selectedDownloadBundleId === DOWNLOAD_BUNDLE_NONE ? DOWNLOAD_BUNDLE_NONE : selectedDownloadBundleId,
+    );
     if (provider.trim()) formData.append('provider', provider.trim());
     if (integrationAccountId.trim()) {
       formData.append('integrationAccountId', integrationAccountId.trim());
@@ -258,13 +387,22 @@ export default function ShipmentMatchPanel() {
 
       setViewState(buildShipmentMatchPanelViewStateFromUpload(uploadJson, detailResult.body));
       setActiveTab('all');
+      await loadManualRegistration(savedBatchId);
     } catch {
       setErrorMessage('네트워크 오류가 발생했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.');
       setViewState(null);
     } finally {
       setIsSubmitting(false);
     }
-  }, [batchId, integrationAccountId, provider, selectedFile, sessionStatus]);
+  }, [
+    batchId,
+    integrationAccountId,
+    loadManualRegistration,
+    provider,
+    selectedDownloadBundleId,
+    selectedFile,
+    sessionStatus,
+  ]);
 
   const handleConfirmMatch = useCallback(
     async (matchId: string) => {
@@ -485,45 +623,108 @@ export default function ShipmentMatchPanel() {
     [selectedTransmitMatchIds, sessionStatus, viewState],
   );
 
+
+
+
+  const shellClass = embedded
+    ? 'w-full'
+    : 'mx-auto max-w-5xl px-4 py-6 pb-10 sm:px-6';
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 pb-10 sm:px-6">
-      <Link
-        href="/order/integration"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        주문연동으로 돌아가기
-      </Link>
+    <div className={shellClass}>
+      {!embedded ? (
+        <>
+          <Link
+            href="/order/integration"
+            className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            주문연동으로 돌아가기
+          </Link>
 
-      <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">송장파일 매칭</h1>
-
-      <section className={`mt-4 rounded-xl border px-4 py-3 text-sm ${statusBannerClass('info')}`}>
-        <p>택배사 프로그램에서 받은 송장파일을 업로드하면 기존 주문과 송장번호를 매칭합니다.</p>
-        <p className="mt-1 font-medium">아직 쇼핑몰에 송장전송되지 않습니다.</p>
-        <p className="mt-1">
-          업로드한 매칭 결과는 저장되며, 다음 단계에서 확정·송장전송을 진행합니다.
-        </p>
-      </section>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">송장파일 매칭</h1>
+        </>
+      ) : null}
 
       {sessionStatus === 'unauthenticated' ? (
-        <p className={`mt-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
+        <p className={`mt-3 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
           로그인이 필요합니다. 로그인한 뒤 송장파일 매칭을 이용할 수 있습니다.
         </p>
       ) : null}
 
-      <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-        <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">송장파일 업로드</h2>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          지원 형식: csv, xlsx, xls · 최대 {formatFileSize(MAX_SHIPMENT_UPLOAD_FILE_BYTES)}
-        </p>
+      {embedded ? (
+        <div className="mb-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-900/40">
+          <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">처리 흐름</p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-xs leading-snug text-zinc-700 dark:text-zinc-200">
+            <span className="font-medium">주문조회</span>
+            <span className="text-zinc-400" aria-hidden>
+              →
+            </span>
+            <span className="font-medium">미리보기 확인</span>
+            <span className="text-zinc-400" aria-hidden>
+              →
+            </span>
+            <span className="font-medium">택배양식 다운로드</span>
+            <span className="text-zinc-400" aria-hidden>
+              →
+            </span>
+            <span className="inline-flex items-center gap-1 rounded border border-zinc-300 bg-white px-1.5 py-0.5 dark:border-zinc-600 dark:bg-zinc-950">
+              <span
+                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-white dark:bg-zinc-200 dark:text-zinc-900"
+                aria-label="1"
+              >
+                1
+              </span>
+              <span className="font-medium">택배사 업로드</span>
+            </span>
+            <span className="inline-flex items-center gap-1 rounded border border-zinc-300 bg-white px-1.5 py-0.5 dark:border-zinc-600 dark:bg-zinc-950">
+              <span
+                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[10px] font-bold text-white dark:bg-zinc-200 dark:text-zinc-900"
+                aria-label="2"
+              >
+                2
+              </span>
+              <span className="font-medium">택배사 송장파일 다운로드</span>
+            </span>
+            <span className="text-zinc-400" aria-hidden>
+              →
+            </span>
+            <span className="font-semibold text-blue-700 dark:text-blue-300">
+              송장 매칭·쇼핑몰 전송
+            </span>
+            <span className="text-zinc-400" aria-hidden>
+              →
+            </span>
+            <span className="font-medium">쇼핑몰 전송</span>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+            아래 업로드는 매칭 단계입니다. 쇼핑몰 전송은 매칭·확정 후 별도로 실행합니다. (메뉴
+            「송장파일변환」과 다름)
+          </p>
+        </div>
+      ) : null}
+
+      <section
+        className={`${embedded ? 'mt-0' : 'mt-6'} rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900`}
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {embedded ? '송장 매칭·쇼핑몰 전송' : '택배사 송장파일 업로드'}
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            지원 형식: csv, xlsx, xls · 최대 {formatFileSize(MAX_SHIPMENT_UPLOAD_FILE_BYTES)}
+          </p>
+        </div>
 
         <div
-          className={`mt-4 rounded-xl border-2 border-dashed p-6 transition-colors ${
+          className={`mt-3 rounded-lg border border-dashed transition-colors ${
+            embedded ? 'px-4 py-10 sm:py-12' : 'p-4'
+          } ${
             isDragging
               ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
               : selectedFile
-                ? 'border-blue-300 bg-blue-50/60 dark:border-blue-700 dark:bg-blue-950/20'
-                : 'border-zinc-300 bg-zinc-50 hover:border-blue-400 dark:border-zinc-600 dark:bg-zinc-900/60'
+                ? 'border-blue-400 bg-blue-50/60 dark:border-blue-700 dark:bg-blue-950/20'
+                : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/60'
           }`}
           onDragOver={(event) => {
             event.preventDefault();
@@ -540,7 +741,7 @@ export default function ShipmentMatchPanel() {
           <div
             role="button"
             tabIndex={0}
-            className="flex cursor-pointer flex-col items-center gap-2 text-center"
+            className="flex cursor-pointer flex-col items-center gap-1.5 text-center"
             onClick={() => fileInputRef.current?.click()}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -549,16 +750,16 @@ export default function ShipmentMatchPanel() {
               }
             }}
           >
-            <Upload className="h-8 w-8 text-zinc-400" />
+            <Upload className="h-6 w-6 text-zinc-400" />
             <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-              파일을 선택하거나 이 영역에 끌어다 놓으세요
+              택배사에서 받은 송장번호 파일을 선택하거나 이 영역에 끌어다 놓으세요
             </p>
             {selectedFile ? (
               <p className="text-xs text-zinc-600 dark:text-zinc-300">
                 선택됨: {selectedFile.name} ({formatFileSize(selectedFile.size)})
               </p>
             ) : (
-              <p className="text-xs text-zinc-500">csv, xlsx, xls</p>
+              <p className="text-xs text-zinc-500">(송장번호 필수) · csv, xlsx, xls</p>
             )}
           </div>
           <input
@@ -586,7 +787,7 @@ export default function ShipmentMatchPanel() {
         {showAdvancedScope ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <label className="block text-xs text-zinc-600 dark:text-zinc-300">
-              쇼핑몰(provider)
+              쇼핑몰
               <select
                 value={provider}
                 onChange={(event) => setProvider(event.target.value)}
@@ -595,7 +796,7 @@ export default function ShipmentMatchPanel() {
                 <option value="">전체</option>
                 {Object.values(OrderIntegrationProvider).map((value) => (
                   <option key={value} value={value}>
-                    {value}
+                    {resolveProviderLabel(value) ?? value}
                   </option>
                 ))}
               </select>
@@ -621,19 +822,53 @@ export default function ShipmentMatchPanel() {
           </div>
         ) : null}
 
+        <label className="mt-3 block text-xs text-zinc-600 dark:text-zinc-300">
+          택배양식 다운로드 연결
+          <select
+            value={selectedDownloadBundleId}
+            onChange={(event) => setSelectedDownloadBundleId(event.target.value)}
+            className={`${inputClass} mt-1`}
+          >
+            <option value="">선택하세요</option>
+            {downloadBundles.map((bundle) => (
+              <option key={bundle.id} value={bundle.id}>
+                {bundle.label}
+              </option>
+            ))}
+            <option value={DOWNLOAD_BUNDLE_NONE}>해당 다운로드 없음</option>
+          </select>
+          <span className="mt-1 block text-[11px] text-zinc-500 dark:text-zinc-400">
+            1개면 자동 선택됩니다. 다른 다운로드로 바꾸거나 「해당 다운로드 없음」을 고를 수 있습니다.
+          </span>
+        </label>
+
         <button
           type="button"
           onClick={() => void handleSubmit()}
-          disabled={isSubmitting || sessionStatus !== 'authenticated'}
-          className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={
+            isSubmitting ||
+            sessionStatus !== 'authenticated' ||
+            !selectedDownloadBundleId
+          }
+          className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           송장파일 매칭하기
         </button>
       </section>
 
+      {!embedded ? (
+        <section className={`mt-3 rounded-lg border px-3 py-2.5 text-sm ${statusBannerClass('info')}`}>
+          <p>택배사 프로그램에서 받은 송장파일을 업로드하면 기존 주문과 송장번호를 매칭합니다.</p>
+          <p className="mt-1 font-medium">아직 쇼핑몰에 송장전송되지 않습니다.</p>
+          <p className="mt-1">
+            업로드한 매칭 결과는 저장되며, 아래에서 확정·송장전송을 진행합니다.
+          </p>
+        </section>
+      ) : null}
+
       {errorMessage ? (
-        <p className={`mt-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
+        <p className={`mt-3 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
           {errorMessage}
         </p>
       ) : null}
@@ -651,7 +886,7 @@ export default function ShipmentMatchPanel() {
       ) : null}
 
       {viewState ? (
-        <section className="mt-6 space-y-4">
+        <section className={`${embedded ? 'mt-3' : 'mt-6'} space-y-3`}>
           <div className={`rounded-lg border px-3 py-2 text-sm ${statusBannerClass('success')}`}>
             <p>
               파일 <strong>{viewState.file.name}</strong> · {viewState.parse.rowCount}행 읽음 · 주문
@@ -671,14 +906,77 @@ export default function ShipmentMatchPanel() {
             </p>
           ) : null}
 
+          {manualRegistrationRows.length > 0 || manualRegistrationSummary ? (
+            <div className="rounded-md border border-zinc-200 bg-white px-2.5 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                  수동 등록 안내
+                </span>
+                {manualRegistrationSummary ? (
+                  <span className="text-xs text-zinc-600 dark:text-zinc-300">
+                    준비됨 {manualRegistrationSummary.ready} · 송장 연결 필요{' '}
+                    {manualRegistrationSummary.needsTrackingLink} · 확인 필요{' '}
+                    {manualRegistrationSummary.needsMallOrderInfo}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                엑셀·텍스트로 내려받은 주문입니다. 몰 관리자에 직접 등록하세요. API 전송 대상이 아닙니다.
+              </p>
+              {manualRegistrationRows.length > 0 ? (
+                <div className="mt-2 overflow-x-auto">
+                  <table className="min-w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-700">
+                        <th className="px-1.5 py-1 font-medium">상태</th>
+                        <th className="px-1.5 py-1 font-medium">출처</th>
+                        <th className="px-1.5 py-1 font-medium">쇼핑몰</th>
+                        <th className="px-1.5 py-1 font-medium">주문번호</th>
+                        <th className="px-1.5 py-1 font-medium">택배사</th>
+                        <th className="px-1.5 py-1 font-medium">송장번호</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {manualRegistrationRows.map((row) => (
+                        <tr
+                          key={row.workItemId}
+                          className="border-b border-zinc-100 dark:border-zinc-800"
+                        >
+                          <td className="px-1.5 py-1 text-zinc-800 dark:text-zinc-100">
+                            {row.statusLabel}
+                          </td>
+                          <td className="px-1.5 py-1 text-zinc-600 dark:text-zinc-300">
+                            {row.inputSource}
+                          </td>
+                          <td className="px-1.5 py-1 text-zinc-800 dark:text-zinc-100">
+                            {row.sourceMallLabel}
+                          </td>
+                          <td className="px-1.5 py-1 font-mono text-zinc-800 dark:text-zinc-100">
+                            {row.mallOrderNo || '-'}
+                          </td>
+                          <td className="px-1.5 py-1 text-zinc-600 dark:text-zinc-300">
+                            {row.carrierName || '-'}
+                          </td>
+                          <td className="px-1.5 py-1 font-mono text-zinc-800 dark:text-zinc-100">
+                            {row.trackingNumber || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <section
-            className={`rounded-xl border px-4 py-4 ${
+            className={`rounded-lg border px-3 py-3 ${
               isBatchReady
                 ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
                 : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/60'
             }`}
           >
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               쇼핑몰 업로드용 파일
             </h3>
             <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -694,14 +992,14 @@ export default function ShipmentMatchPanel() {
               type="button"
               onClick={() => void handleDownloadExport()}
               disabled={!isBatchReady || isDownloadingExport || sessionStatus !== 'authenticated'}
-              className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isDownloadingExport ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isDownloadingExport ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
               {isDownloadingExport ? '파일 준비 중…' : '쇼핑몰 업로드용 엑셀 다운로드'}
             </button>
           </section>
 
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
             {summaryCards.map((card) => (
               <button
                 key={card.key}
@@ -709,24 +1007,30 @@ export default function ShipmentMatchPanel() {
                 onClick={() => {
                   if (card.tabId) setActiveTab(card.tabId);
                 }}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-left transition hover:border-blue-400 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-blue-500"
+                className={`rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-left transition dark:border-zinc-700 dark:bg-zinc-900 ${
+                  card.tabId && activeTab === card.tabId
+                    ? 'border-blue-500 ring-1 ring-blue-500'
+                    : 'hover:border-zinc-300'
+                }`}
               >
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">{card.label}</p>
-                <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-100">{card.count}</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{card.label}</p>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                  {card.count}
+                </p>
               </button>
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {SHIPMENT_MATCH_TABS.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                className={`inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium transition ${
                   activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200'
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'
                 }`}
               >
                 {tab.label}
@@ -734,9 +1038,9 @@ export default function ShipmentMatchPanel() {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-            <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-              선택 {selectedTransmitMatchIds.length}건
+          <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+            <span className="mr-1 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+              쇼핑몰 전송 · 선택 {selectedTransmitMatchIds.length}건
             </span>
             <button
               type="button"
@@ -767,6 +1071,7 @@ export default function ShipmentMatchPanel() {
               <span className="text-xs text-zinc-600 dark:text-zinc-300">{transmitMessage}</span>
             ) : null}
           </div>
+
 
           <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
             <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">

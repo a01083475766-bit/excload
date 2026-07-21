@@ -56,10 +56,15 @@ function createMockClient(orders: PersistedOrderSyncOrderLike[] = []) {
 }
 
 describe('buildLoadOrderSyncSnapshotsForMatchingWhere', () => {
-  it('always includes userId', () => {
+  const now = new Date('2026-07-21T00:00:00.000Z');
+  const notExpired = {
+    OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+  };
+
+  it('always includes userId and non-expired filter', () => {
     expect(
-      buildLoadOrderSyncSnapshotsForMatchingWhere({ userId: 'user-a' }),
-    ).toEqual({ userId: 'user-a' });
+      buildLoadOrderSyncSnapshotsForMatchingWhere({ userId: 'user-a', now }),
+    ).toEqual({ userId: 'user-a', ...notExpired });
   });
 
   it('narrows by provider when provided', () => {
@@ -67,10 +72,12 @@ describe('buildLoadOrderSyncSnapshotsForMatchingWhere', () => {
       buildLoadOrderSyncSnapshotsForMatchingWhere({
         userId: 'user-a',
         provider: OrderIntegrationProvider.COUPANG,
+        now,
       }),
     ).toEqual({
       userId: 'user-a',
       provider: OrderIntegrationProvider.COUPANG,
+      ...notExpired,
     });
   });
 
@@ -79,10 +86,12 @@ describe('buildLoadOrderSyncSnapshotsForMatchingWhere', () => {
       buildLoadOrderSyncSnapshotsForMatchingWhere({
         userId: 'user-a',
         integrationAccountId: 'acc-1',
+        now,
       }),
     ).toEqual({
       userId: 'user-a',
       integrationAccountId: 'acc-1',
+      ...notExpired,
     });
   });
 
@@ -91,10 +100,12 @@ describe('buildLoadOrderSyncSnapshotsForMatchingWhere', () => {
       buildLoadOrderSyncSnapshotsForMatchingWhere({
         userId: 'user-a',
         batchId: 'batch-9',
+        now,
       }),
     ).toEqual({
       userId: 'user-a',
       batchId: 'batch-9',
+      ...notExpired,
     });
   });
 
@@ -106,13 +117,17 @@ describe('buildLoadOrderSyncSnapshotsForMatchingWhere', () => {
 });
 
 describe('loadOrderSyncSnapshotsForMatching', () => {
-  it('queries with userId and default limit', async () => {
+  it('queries with userId, expiry filter, and default limit', async () => {
     const { client, findMany } = createMockClient([buildPersistedOrder()]);
+    const now = new Date('2026-07-21T00:00:00.000Z');
 
-    await loadOrderSyncSnapshotsForMatching(client, { userId: 'user-a' });
+    await loadOrderSyncSnapshotsForMatching(client, { userId: 'user-a', now });
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { userId: 'user-a' },
+      where: {
+        userId: 'user-a',
+        OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+      },
       orderBy: { createdAt: 'desc' },
       take: DEFAULT_LOAD_ORDER_SYNC_SNAPSHOTS_FOR_MATCHING_LIMIT,
     });
@@ -120,6 +135,7 @@ describe('loadOrderSyncSnapshotsForMatching', () => {
 
   it('applies optional filters and custom limit', async () => {
     const { client, findMany } = createMockClient([]);
+    const now = new Date('2026-07-21T00:00:00.000Z');
 
     await loadOrderSyncSnapshotsForMatching(client, {
       userId: 'user-a',
@@ -127,6 +143,7 @@ describe('loadOrderSyncSnapshotsForMatching', () => {
       integrationAccountId: 'acc-1',
       batchId: 'batch-1',
       limit: 25,
+      now,
     });
 
     expect(findMany).toHaveBeenCalledWith({
@@ -135,6 +152,7 @@ describe('loadOrderSyncSnapshotsForMatching', () => {
         provider: OrderIntegrationProvider.SMARTSTORE,
         integrationAccountId: 'acc-1',
         batchId: 'batch-1',
+        OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
       },
       orderBy: { createdAt: 'desc' },
       take: 25,

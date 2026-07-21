@@ -45,7 +45,7 @@ function buildSuccessBody(overrides: Record<string, unknown> = {}) {
     },
     file: { name: 'shipments.csv', type: 'text/csv', size: 10 },
     parse: { ok: true, rowCount: 1, warningCount: 0, warnings: [] },
-    orders: { loadedCount: 0, scope: {} },
+    orders: { loadedCount: 0, emptyReason: 'no_bundle', bundle: null, scope: {} },
     match: {
       totalRows: 1,
       matchedConfidentCount: 0,
@@ -165,7 +165,7 @@ describe('POST /api/order/integration/shipments/uploads', () => {
     mocks.uploadAndPersistShipmentFile.mockResolvedValueOnce({
       success: true,
       body: buildSuccessBody({
-        orders: { loadedCount: 0, scope: {} },
+        orders: { loadedCount: 0, emptyReason: 'no_bundle', bundle: null, scope: {} },
         match: {
           totalRows: 1,
           matchedConfidentCount: 0,

@@ -1,7 +1,11 @@
 import type { OrderIntegrationProvider } from '@prisma/client';
 
+import {
+  loadMatchingCandidatesFromBundle,
+  type MatchingCandidateEmptyReason,
+  type ShipmentMatchSnapshotClient,
+} from '@/app/lib/order-integration/courier-download/load-matching-candidates-from-bundle';
 import { loadOrderSyncSnapshotsForMatching } from '@/app/lib/order-integration/snapshots/load-order-sync-snapshots-for-matching';
-import type { OrderSyncSnapshotLoadClient } from '@/app/lib/order-integration/snapshots/types';
 import { matchShipmentRows } from '@/app/lib/order-integration/shipments/match-shipment-row';
 import {
   buildShipmentMatchDisplayRows,
@@ -13,6 +17,7 @@ import {
   parseShipmentWorkbook,
 } from '@/app/lib/order-integration/shipments/parse-shipment-file';
 import type {
+  OrderSyncOrderSnapshot,
   ShipmentMatchResult,
   ShipmentParseResult,
   ShipmentParseWarning,
@@ -43,6 +48,11 @@ export type ShipmentMatchUploadScope = {
   batchId?: string;
 };
 
+export type ShipmentMatchOrdersEmptyReason =
+  | MatchingCandidateEmptyReason
+  | 'example_preview'
+  | null;
+
 export type ShipmentMatchUploadSuccessResponse = {
   success: true;
   file: {
@@ -58,17 +68,25 @@ export type ShipmentMatchUploadSuccessResponse = {
   };
   orders: {
     loadedCount: number;
+    emptyReason: ShipmentMatchOrdersEmptyReason;
+    bundle: {
+      id: string;
+      expiresAt: string;
+      workItemCount: number;
+      expired: boolean;
+    } | null;
     scope: {
       provider?: string;
       integrationAccountId?: string;
       batchId?: string;
+      downloadBundleId?: string | null;
     };
   };
   match: {
     totalRows: number;
     matchedConfidentCount: number;
-    matchedWarningCount: number;
     multipleCandidatesCount: number;
+    matchedWarningCount: number;
     notMatchedCount: number;
     duplicateTrackingNumberCount: number;
     alreadyShippedCount: number;
@@ -168,9 +186,11 @@ export function summarizeShipmentMatchResults(rows: ShipmentMatchResult[]) {
 export async function matchUploadedShipmentFile(input: {
   file: UploadedShipmentFileInput;
   scope: ShipmentMatchUploadScope;
-  client: OrderSyncSnapshotLoadClient;
+  client: ShipmentMatchSnapshotClient;
   orderSnapshotLimit?: number;
+  downloadBundleId?: string | null;
   loadSnapshots?: typeof loadOrderSyncSnapshotsForMatching;
+  loadFromBundle?: typeof loadMatchingCandidatesFromBundle;
 }): Promise<
   | { success: false; status: number; error: string }
   | { success: true; body: ShipmentMatchUploadSuccessResponse }
@@ -190,14 +210,46 @@ export async function matchUploadedShipmentFile(input: {
   }
 
   const shipmentRows = extractNormalizedShipmentRows(parseResult);
-  const loadSnapshots = input.loadSnapshots ?? loadOrderSyncSnapshotsForMatching;
-  const orderSnapshots = await loadSnapshots(input.client, {
-    userId: input.scope.userId,
-    provider: input.scope.provider,
-    integrationAccountId: input.scope.integrationAccountId,
-    batchId: input.scope.batchId,
-    limit: input.orderSnapshotLimit ?? DEFAULT_SHIPMENT_MATCH_ORDER_SNAPSHOT_LIMIT,
-  });
+  const downloadBundleId = input.downloadBundleId?.trim() || null;
+
+  let orderSnapshots: OrderSyncOrderSnapshot[] = [];
+  let emptyReason: ShipmentMatchOrdersEmptyReason = null;
+  let bundleMeta: ShipmentMatchUploadSuccessResponse['orders']['bundle'] = null;
+
+  if (downloadBundleId) {
+    const loadFromBundle = input.loadFromBundle ?? loadMatchingCandidatesFromBundle;
+    const bundleFindFirst = input.client.courierDownloadBundle?.findFirst;
+    if (!bundleFindFirst) {
+      return {
+        success: false,
+        status: 500,
+        error: '택배양식 다운로드 Bundle 조회를 사용할 수 없습니다.',
+      };
+    }
+    const loaded = await loadFromBundle(
+      {
+        courierDownloadBundle: { findFirst: bundleFindFirst },
+        orderSyncOrder: input.client.orderSyncOrder,
+      },
+      {
+        userId: input.scope.userId,
+        downloadBundleId,
+      },
+    );
+    orderSnapshots = loaded.snapshots;
+    emptyReason = loaded.emptyReason;
+    bundleMeta = loaded.bundle;
+  } else {
+    const loadSnapshots = input.loadSnapshots ?? loadOrderSyncSnapshotsForMatching;
+    orderSnapshots = await loadSnapshots(input.client, {
+      userId: input.scope.userId,
+      provider: input.scope.provider,
+      integrationAccountId: input.scope.integrationAccountId,
+      batchId: input.scope.batchId,
+      limit: input.orderSnapshotLimit ?? DEFAULT_SHIPMENT_MATCH_ORDER_SNAPSHOT_LIMIT,
+    });
+    emptyReason = orderSnapshots.length === 0 ? 'no_bundle' : null;
+  }
 
   const matchRows = matchShipmentRows({
     shipments: shipmentRows,
@@ -231,10 +283,13 @@ export async function matchUploadedShipmentFile(input: {
       },
       orders: {
         loadedCount: orderSnapshots.length,
+        emptyReason,
+        bundle: bundleMeta,
         scope: {
           provider: input.scope.provider,
           integrationAccountId: input.scope.integrationAccountId,
           batchId: input.scope.batchId,
+          downloadBundleId,
         },
       },
       match: {

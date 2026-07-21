@@ -19,6 +19,15 @@ function createSequenceStore() {
 
 function createMockTransactionClient(sequenceStore: Map<string, number>) {
   const orderCreates: Array<Record<string, unknown>> = [];
+  const orderUpdates: Array<Record<string, unknown>> = [];
+  const existingStore: Array<{
+    id: string;
+    mallOrderNo: string;
+    mallLineItemIds: unknown;
+    excloadOrderNo: string;
+    transmissionStatus?: string | null;
+    piiClearedAt?: Date | null;
+  }> = [];
 
   const tx: OrderSyncPersistTransactionClient = {
     excloadOrderNoSequence: {
@@ -51,9 +60,10 @@ function createMockTransactionClient(sequenceStore: Map<string, number>) {
       })),
     },
     orderSyncOrder: {
+      findMany: vi.fn(async () => [...existingStore]),
       create: vi.fn(async ({ data }) => {
         orderCreates.push(data);
-        return {
+        const row = {
           id: `order-${orderCreates.length}`,
           batchId: data.batchId as string,
           userId: data.userId as string,
@@ -77,6 +87,49 @@ function createMockTransactionClient(sequenceStore: Map<string, number>) {
           carrierCode: null,
           shippedAt: null,
           transmissionStatus: OrderSyncTransmissionStatus.NONE,
+          lastCourierDownloadAt: (data.lastCourierDownloadAt as Date | null) ?? null,
+          expiresAt: (data.expiresAt as Date | null) ?? null,
+          piiClearedAt: (data.piiClearedAt as Date | null) ?? null,
+          createdAt: new Date('2026-07-09T00:00:00.000Z'),
+          updatedAt: new Date('2026-07-09T00:00:00.000Z'),
+        };
+        existingStore.push({
+          id: row.id,
+          mallOrderNo: row.mallOrderNo,
+          mallLineItemIds: row.mallLineItemIds,
+          excloadOrderNo: row.excloadOrderNo,
+        });
+        return row;
+      }),
+      update: vi.fn(async ({ where, data }) => {
+        orderUpdates.push({ where, ...data });
+        return {
+          id: where.id,
+          batchId: data.batchId as string,
+          userId: 'user-a',
+          provider: OrderIntegrationProvider.SMARTSTORE,
+          integrationAccountId: (data.integrationAccountId as string | null) ?? null,
+          excloadOrderNo: 'EXC-EXISTING-000001',
+          mallOrderNo: data.mallOrderNo as string,
+          mallOrderId: (data.mallOrderId as string | null) ?? null,
+          mallLineItemIds: data.mallLineItemIds ?? null,
+          receiverName: (data.receiverName as string | null) ?? null,
+          receiverPhone: (data.receiverPhone as string | null) ?? null,
+          receiverAddress: (data.receiverAddress as string | null) ?? null,
+          productSummary: (data.productSummary as string | null) ?? null,
+          quantity: (data.quantity as number | null) ?? null,
+          deliveryMemo: (data.deliveryMemo as string | null) ?? null,
+          orderedAt: (data.orderedAt as Date | null) ?? null,
+          orderStatus: (data.orderStatus as string | null) ?? null,
+          rawPayloadJson: data.rawPayloadJson ?? null,
+          normalizedPayloadJson: data.normalizedPayloadJson ?? null,
+          trackingNumber: (data.trackingNumber as string | null) ?? null,
+          carrierCode: null,
+          shippedAt: null,
+          transmissionStatus: OrderSyncTransmissionStatus.NONE,
+          lastCourierDownloadAt: (data.lastCourierDownloadAt as Date | null) ?? null,
+          expiresAt: (data.expiresAt as Date | null) ?? null,
+          piiClearedAt: (data.piiClearedAt as Date | null) ?? null,
           createdAt: new Date('2026-07-09T00:00:00.000Z'),
           updatedAt: new Date('2026-07-09T00:00:00.000Z'),
         };
@@ -84,7 +137,7 @@ function createMockTransactionClient(sequenceStore: Map<string, number>) {
     },
   };
 
-  return { tx, orderCreates };
+  return { tx, orderCreates, orderUpdates, existingStore };
 }
 
 function buildSnapshots(count = 2) {
@@ -193,6 +246,77 @@ describe('persistOrderSyncBatch', () => {
     expect(orderCreates[0]?.normalizedPayloadJson).toEqual({
       mallLineItemIds: ['PO-1'],
     });
+    expect(orderCreates[0]?.expiresAt).toBeInstanceOf(Date);
+  });
+
+  it('upserts existing order keys and refreshes expiresAt instead of inserting duplicates', async () => {
+    const { tx, orderCreates, orderUpdates, existingStore } =
+      createMockTransactionClient(sequenceStore);
+    existingStore.push({
+      id: 'order-existing',
+      mallOrderNo: 'ORD-1',
+      mallLineItemIds: ['PO-1'],
+      excloadOrderNo: 'EXC-EXISTING-000001',
+      transmissionStatus: 'NONE',
+      piiClearedAt: null,
+    });
+
+    const client = {
+      $transaction: async <T>(fn: (innerTx: OrderSyncPersistTransactionClient) => Promise<T>) =>
+        fn(tx),
+    };
+
+    const snapshots = buildSnapshots(1);
+    const result = await persistOrderSyncBatch(client, {
+      userId: 'user-a',
+      provider: OrderIntegrationProvider.SMARTSTORE,
+      integrationAccountId: 'acc-1',
+      fetchedAt: '2026-07-09T00:00:00.000Z',
+      snapshots,
+    });
+
+    expect(orderCreates).toHaveLength(0);
+    expect(orderUpdates).toHaveLength(1);
+    expect(result.orders).toHaveLength(1);
+    expect(result.excloadOrderNos).toEqual(['EXC-EXISTING-000001']);
+    expect(tx.excloadOrderNoSequence.upsert).not.toHaveBeenCalled();
+  });
+
+  it('does not restore PII when re-downloading an already SENT order', async () => {
+    const { tx, orderCreates, orderUpdates, existingStore } =
+      createMockTransactionClient(sequenceStore);
+    existingStore.push({
+      id: 'order-sent',
+      mallOrderNo: 'ORD-1',
+      mallLineItemIds: ['PO-1'],
+      excloadOrderNo: 'EXC-EXISTING-000001',
+      transmissionStatus: 'SENT',
+      piiClearedAt: new Date('2026-07-08T00:00:00.000Z'),
+    });
+
+    const client = {
+      $transaction: async <T>(fn: (innerTx: OrderSyncPersistTransactionClient) => Promise<T>) =>
+        fn(tx),
+    };
+
+    await persistOrderSyncBatch(client, {
+      userId: 'user-a',
+      provider: OrderIntegrationProvider.SMARTSTORE,
+      integrationAccountId: 'acc-1',
+      fetchedAt: '2026-07-09T00:00:00.000Z',
+      snapshots: buildSnapshots(1),
+    });
+
+    expect(orderCreates).toHaveLength(0);
+    expect(orderUpdates).toHaveLength(1);
+    expect(orderUpdates[0]).toEqual(
+      expect.objectContaining({
+        expiresAt: expect.any(Date),
+        lastCourierDownloadAt: expect.any(Date),
+      }),
+    );
+    expect(orderUpdates[0]).not.toHaveProperty('receiverName');
+    expect(orderUpdates[0]).not.toHaveProperty('piiClearedAt');
   });
 
   it('ignores temporary snapshot excloadOrderNo and uses DB sequence values', async () => {

@@ -17,7 +17,14 @@ import { migrateWorkspaceFilesGuestToUser } from '@/app/lib/workspace-order-file
 
 type SortConfig = { header: string; direction: 'asc' | 'desc' } | null;
 
-type PreviewRowLike = { rowId: string; data: Record<string, string> };
+type PreviewRowLike = {
+  rowId: string;
+  data: Record<string, string>;
+  /** 허브 재담기 중복 판별용(선택) */
+  sourceDedupeKey?: string;
+  /** 표준 주문번호 — WorkItem.mallOrderNo용(선택) */
+  sourceMallOrderNo?: string;
+};
 
 type Options = {
   pageKey: PreviewWorkspacePageKey;
