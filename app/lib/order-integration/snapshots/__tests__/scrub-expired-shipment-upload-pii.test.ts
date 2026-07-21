@@ -344,7 +344,10 @@ describe('purgeOrderSyncSnapshots regression with independent scrub constants', 
         shipmentTransmissionAttempt: {
           updateMany: vi.fn(async () => ({ count: 0 })),
         },
-      },
+        $transaction: async <T>(_fn: (tx: never) => Promise<T>): Promise<T> => {
+          throw new Error('unexpected PII clear transaction in expired-delete test');
+        },
+      } as never,
     });
 
     expect(result.deletedExpiredOrders).toBe(1);

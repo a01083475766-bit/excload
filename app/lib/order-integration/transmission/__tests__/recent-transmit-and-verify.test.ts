@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildRecentTransmitGuidance,
@@ -266,6 +266,45 @@ describe('runVerifyTransmissionService', () => {
       expect.objectContaining({ attemptId: 'a-11', status: 'UNSUPPORTED' }),
       expect.objectContaining({ attemptId: 'missing', status: 'CHECK_FAILED' }),
     ]);
+  });
+
+  it('never calls transmitted-order PII clear helpers', async () => {
+    const clearSpy = vi.spyOn(
+      await import('@/app/lib/order-integration/snapshots/clear-transmitted-order-pii'),
+      'clearTransmittedOrderPiiIfComplete',
+    );
+
+    const result = await runVerifyTransmissionService(
+      {
+        findAttempts: async () => [
+          {
+            id: 'a-ss',
+            userId: 'u1',
+            uploadBatchId: 'b1',
+            provider: 'SMARTSTORE',
+            integrationAccountId: 'acc-ss',
+            status: 'SUCCESS',
+            mallOrderNo: 'ORD-1',
+            mallLineItemIdsJson: ['PO-1'],
+            orderSyncOrder: { mallLineItemIds: ['PO-1'], normalizedPayloadJson: null },
+          },
+        ],
+        loadAccount: async () => ({ id: 'acc-ss' }) as never,
+        resolveSmartstoreCredentials: () => ({
+          clientId: 'cid',
+          clientSecret: 'secret',
+          authType: 'SELF',
+        }),
+        fetchSmartstoreByIds: async () => [
+          { productOrder: { productOrderId: 'PO-1', productOrderStatus: 'DELIVERING' } },
+        ],
+      },
+      { userId: 'u1', batchId: 'b1', attemptIds: ['a-ss'] },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(clearSpy).not.toHaveBeenCalled();
+    clearSpy.mockRestore();
   });
 
   it('merges verification into recent transmit view labels', () => {

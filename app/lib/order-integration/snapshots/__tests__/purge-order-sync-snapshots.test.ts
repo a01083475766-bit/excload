@@ -82,11 +82,14 @@ describe('purgeOrderSyncSnapshots expired incomplete orders', () => {
       shipmentTransmissionAttempt: {
         updateMany: vi.fn(async () => ({ count: 0 })),
       },
+      $transaction: async <T>(_fn: (tx: never) => Promise<T>): Promise<T> => {
+        throw new Error('unexpected PII clear transaction in expired-delete test');
+      },
     };
 
     const result = await purgeOrderSyncSnapshots({
       now: new Date('2026-07-21T00:00:00.000Z'),
-      client,
+      client: client as never,
     });
 
     expect(result.deletedExpiredOrders).toBe(1);

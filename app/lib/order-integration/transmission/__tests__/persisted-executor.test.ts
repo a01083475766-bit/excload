@@ -170,4 +170,133 @@ describe('runPersistedShipmentTransmission', () => {
     expect(result.reserve.reasonMessage).toBe('ADAPTER_NOT_REGISTERED');
     expect(mem.getMatch('match-1')?.transmissionStatus).toBe('READY');
   });
+
+  it('invokes piiClearClient only after successful persist', async () => {
+    const trackingDelegates = {
+      shipmentMatch: {
+        findMany: vi.fn(async () => [
+          { id: 'match-1', uploadRowId: 'row-1', transmissionStatus: 'SENT' },
+        ]),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      shipmentUploadRow: {
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      shipmentTransmissionAttempt: {
+        updateMany: vi.fn(async () => ({ count: 0 })),
+      },
+      orderSyncOrder: {
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+    };
+    let trackingTxCalls = 0;
+    const trackingClient = {
+      ...trackingDelegates,
+      async $transaction<T>(fn: (tx: typeof trackingDelegates) => Promise<T>): Promise<T> {
+        trackingTxCalls += 1;
+        return fn(trackingDelegates);
+      },
+    };
+
+    const ok = await runPersistedShipmentTransmission({
+      userId: 'user-a',
+      candidate: CANDIDATE,
+      adapter: createMockShipmentTransmissionAdapter({ provider: 'COUPANG' }),
+      persistClient: mem.client,
+      piiClearClient: trackingClient as never,
+      now,
+      executionTokenFactory: () => 'token-pii-ok',
+    });
+    expect(ok.complete?.success).toBe(true);
+    expect(ok.success).toBe(true);
+    expect(ok.piiClear).toEqual({ status: 'cleared' });
+    expect(trackingTxCalls).toBe(1);
+    expect(trackingDelegates.shipmentMatch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-a', orderSyncOrderId: 'order-1' },
+      }),
+    );
+    expect(trackingDelegates.orderSyncOrder.updateMany).toHaveBeenCalled();
+
+    const findManyOnFail = vi.fn(async () => []);
+    const failDelegates = {
+      shipmentMatch: {
+        findMany: findManyOnFail,
+        updateMany: vi.fn(async () => ({ count: 0 })),
+      },
+      shipmentUploadRow: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      shipmentTransmissionAttempt: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      orderSyncOrder: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    };
+    let failTxCalls = 0;
+    const failClient = {
+      ...failDelegates,
+      async $transaction<T>(fn: (tx: typeof failDelegates) => Promise<T>): Promise<T> {
+        failTxCalls += 1;
+        return fn(failDelegates);
+      },
+    };
+    mem.seedMatch(readyMatch());
+    const fail = await runPersistedShipmentTransmission({
+      userId: 'user-a',
+      candidate: CANDIDATE,
+      adapter: createMockShipmentTransmissionAdapter({
+        provider: 'COUPANG',
+        defaultOutcome: 'non_retryable_failure',
+      }),
+      persistClient: mem.client,
+      piiClearClient: failClient as never,
+      now,
+      executionTokenFactory: () => 'token-pii-fail',
+    });
+    expect(fail.outcomeKind).toBe('failure');
+    expect(fail.success).toBe(false);
+    expect(fail.piiClear).toBeUndefined();
+    expect(failTxCalls).toBe(0);
+    expect(findManyOnFail).not.toHaveBeenCalled();
+  });
+
+  it('keeps transmit success when PII clear fails and records a safe failure code', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const piiClearClient = {
+      async $transaction<T>(_fn: (tx: never) => Promise<T>): Promise<T> {
+        throw Object.assign(new Error('db down'), { code: 'P2028' });
+      },
+      shipmentMatch: {
+        findMany: vi.fn(async () => []),
+        updateMany: vi.fn(async () => ({ count: 0 })),
+      },
+      shipmentUploadRow: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      shipmentTransmissionAttempt: { updateMany: vi.fn(async () => ({ count: 0 })) },
+      orderSyncOrder: { updateMany: vi.fn(async () => ({ count: 0 })) },
+    };
+
+    const result = await runPersistedShipmentTransmission({
+      userId: 'user-a',
+      candidate: CANDIDATE,
+      adapter: createMockShipmentTransmissionAdapter({ provider: 'COUPANG' }),
+      persistClient: mem.client,
+      piiClearClient: piiClearClient as never,
+      now,
+      executionTokenFactory: () => 'token-pii-err',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.complete?.success).toBe(true);
+    expect(result.piiClear).toEqual({ status: 'failed', failureCode: 'P2028' });
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[ShipmentTransmissionPiiClear]',
+      expect.objectContaining({
+        code: 'PII_CLEAR_FAILED',
+        failureCode: 'P2028',
+        userId: 'user-a',
+        orderSyncOrderId: 'order-1',
+        matchId: 'match-1',
+        attemptId: expect.any(String),
+      }),
+    );
+    const logged = errorSpy.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(JSON.stringify(logged)).not.toMatch(/receiver|010-|mallOrder|홍길동/i);
+    errorSpy.mockRestore();
+  });
 });

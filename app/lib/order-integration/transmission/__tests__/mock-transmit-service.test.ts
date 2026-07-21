@@ -301,6 +301,7 @@ describe('runMockTransmitService', () => {
     expect(result.body.results[3]?.errorCode).toBe('MATCH_NOT_FOUND');
     expect(result.body.results[0]?.attemptId).toBeNull();
     expect(runPersisted).toHaveBeenCalledTimes(1);
+    expect(runPersisted.mock.calls[0]?.[0]).not.toHaveProperty('piiClearClient');
     const s = result.body.summary;
     expect(s.attemptedCount).toBe(s.successCount + s.failureCount + s.unknownCount);
     expect(s.evaluatedCount).toBe(s.attemptedCount + s.skippedCount);

@@ -11,6 +11,7 @@ import {
   type MockTransmitMatchResult,
   type MockTransmitReadRepository,
 } from '@/app/lib/order-integration/transmission/mock-transmit-service';
+import type { ClearTransmittedOrderPiiClient } from '@/app/lib/order-integration/snapshots/clear-transmitted-order-pii';
 import { runPersistedShipmentTransmission } from '@/app/lib/order-integration/transmission/persisted-executor';
 import type { ShipmentTransmissionPersistClient } from '@/app/lib/order-integration/transmission/repository';
 import type { ShipmentTransmissionAdapter } from '@/app/lib/order-integration/transmission/types';
@@ -40,6 +41,8 @@ export type ShipmentTransmitServiceDeps = {
   resolveAdapter: (input: { provider: OrderIntegrationProvider }) => ShipmentTransmissionAdapter;
   runPersisted?: RunPersistedShipmentTransmissionFn;
   prepareFailedRetry?: (input: { matchId: string }) => Promise<boolean>;
+  /** 실전송 성공 후 주문 단위 PII 정리. mock 경로에는 주입하지 않음. */
+  piiClearClient?: ClearTransmittedOrderPiiClient;
 };
 
 function toResult(input: {
@@ -172,6 +175,7 @@ export async function runShipmentTransmitService(
       candidate: eligibility.candidate,
       adapter,
       persistClient: deps.persistClient,
+      piiClearClient: deps.piiClearClient,
     });
     results.push(toResult({
       matchId,

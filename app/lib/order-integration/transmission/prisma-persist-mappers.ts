@@ -350,6 +350,12 @@ export function toOrderWhereInput(
   const out: Prisma.OrderSyncOrderWhereInput = {};
   if ('id' in where) out.id = String(where.id);
   if ('userId' in where) out.userId = String(where.userId);
+  if ('transmissionStatus' in where) {
+    out.transmissionStatus = where.transmissionStatus as OrderSyncTransmissionStatus;
+  }
+  if ('piiClearedAt' in where) {
+    out.piiClearedAt = where.piiClearedAt === null ? null : (where.piiClearedAt as Date);
+  }
   return out;
 }
 
@@ -359,6 +365,28 @@ export function toOrderUpdateData(
   const out: Prisma.OrderSyncOrderUpdateManyMutationInput = {};
   if ('transmissionStatus' in data) {
     out.transmissionStatus = data.transmissionStatus as OrderSyncTransmissionStatus;
+  }
+  if ('receiverName' in data) {
+    out.receiverName = data.receiverName === null ? null : String(data.receiverName);
+  }
+  if ('receiverPhone' in data) {
+    out.receiverPhone = data.receiverPhone === null ? null : String(data.receiverPhone);
+  }
+  if ('receiverAddress' in data) {
+    out.receiverAddress = data.receiverAddress === null ? null : String(data.receiverAddress);
+  }
+  if ('deliveryMemo' in data) {
+    out.deliveryMemo = data.deliveryMemo === null ? null : String(data.deliveryMemo);
+  }
+  if ('productSummary' in data) {
+    out.productSummary = data.productSummary === null ? null : String(data.productSummary);
+  }
+  if ('rawPayloadJson' in data) {
+    out.rawPayloadJson =
+      data.rawPayloadJson === null ? Prisma.DbNull : (data.rawPayloadJson as Prisma.InputJsonValue);
+  }
+  if ('piiClearedAt' in data) {
+    out.piiClearedAt = data.piiClearedAt === null ? null : (data.piiClearedAt as Date);
   }
   return out;
 }

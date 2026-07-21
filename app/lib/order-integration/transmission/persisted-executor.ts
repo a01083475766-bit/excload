@@ -2,6 +2,8 @@ import {
   buildShipmentTransmissionFingerprint,
   SHIPMENT_TRANSMISSION_FINGERPRINT_VERSION,
 } from '@/app/lib/order-integration/transmission/fingerprint';
+import type { ClearTransmittedOrderPiiClient } from '@/app/lib/order-integration/snapshots/clear-transmitted-order-pii';
+import { clearTransmittedOrderPiiIfComplete } from '@/app/lib/order-integration/snapshots/clear-transmitted-order-pii';
 import {
   completeTransmissionAttemptFailure,
   completeTransmissionAttemptSuccess,
@@ -20,6 +22,17 @@ import type {
   ShipmentTransmissionCandidate,
 } from '@/app/lib/order-integration/transmission/types';
 
+export type PersistedShipmentPiiClearStatus =
+  | 'cleared'
+  | 'skipped_incomplete'
+  | 'failed';
+
+export type PersistedShipmentPiiClearInfo = {
+  status: PersistedShipmentPiiClearStatus;
+  /** Prisma code / Error.name 등 — 메시지·PII·몰 주문번호 없음 */
+  failureCode?: string;
+};
+
 export type PersistedShipmentTransmissionResult = {
   success: boolean;
   adapterCalled: boolean;
@@ -29,6 +42,8 @@ export type PersistedShipmentTransmissionResult = {
   complete: ShipmentTransmissionPersistResult | null;
   adapterResult: ShipmentTransmissionAdapterResult | null;
   outcomeKind: ShipmentTransmissionAdapterOutcomeKind | null;
+  /** 전송 성공 persist 이후 PII 정리 결과(실패해도 success에 영향 없음) */
+  piiClear?: PersistedShipmentPiiClearInfo;
 };
 
 export type RunPersistedShipmentTransmissionInput = {
@@ -39,6 +54,8 @@ export type RunPersistedShipmentTransmissionInput = {
   now?: Date;
   leaseMs?: number;
   executionTokenFactory?: () => string;
+  /** 전송 성공 후 연관 PII 정리(업로드 행·후보 JSON). 미주입 시 생략(cron 보완). */
+  piiClearClient?: ClearTransmittedOrderPiiClient;
 };
 
 function resolveOutcomeKind(
@@ -46,6 +63,35 @@ function resolveOutcomeKind(
 ): ShipmentTransmissionAdapterOutcomeKind {
   if (result.outcomeKind) return result.outcomeKind;
   return result.success ? 'success' : 'failure';
+}
+
+/** 로그·결과용 — 원본 메시지/PII/몰 주문번호 제외 */
+export function toSafePiiClearFailureCode(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code: unknown }).code;
+    if (typeof code === 'string' && code.trim()) return code.trim().slice(0, 64);
+  }
+  if (error instanceof Error && error.name.trim()) {
+    return error.name.trim().slice(0, 64);
+  }
+  return 'PII_CLEAR_FAILED';
+}
+
+function logSafePiiClearFailure(input: {
+  failureCode: string;
+  userId: string;
+  orderSyncOrderId: string;
+  matchId: string;
+  attemptId: string | null;
+}): void {
+  console.error('[ShipmentTransmissionPiiClear]', {
+    code: 'PII_CLEAR_FAILED',
+    failureCode: input.failureCode,
+    userId: input.userId,
+    orderSyncOrderId: input.orderSyncOrderId,
+    matchId: input.matchId,
+    attemptId: input.attemptId,
+  });
 }
 
 /**
@@ -186,12 +232,39 @@ export async function runPersistedShipmentTransmission(
   };
 
   let complete: ShipmentTransmissionPersistResult;
+  let piiClear: PersistedShipmentPiiClearInfo | undefined;
   if (outcomeKind === 'success') {
     complete = await completeTransmissionAttemptSuccess(input.persistClient, {
       ...completeBase,
       providerRequestId: adapterResult.providerRequestId,
       responseSummary: adapterResult.responseSummary,
     });
+    if (
+      complete.success &&
+      input.piiClearClient &&
+      input.candidate.orderSyncOrderId
+    ) {
+      try {
+        const clearResult = await clearTransmittedOrderPiiIfComplete(input.piiClearClient, {
+          userId: input.userId,
+          orderSyncOrderId: input.candidate.orderSyncOrderId,
+          now,
+        });
+        piiClear = {
+          status: clearResult.skippedIncomplete ? 'skipped_incomplete' : 'cleared',
+        };
+      } catch (error) {
+        const failureCode = toSafePiiClearFailureCode(error);
+        logSafePiiClearFailure({
+          failureCode,
+          userId: input.userId,
+          orderSyncOrderId: input.candidate.orderSyncOrderId,
+          matchId: input.candidate.matchId,
+          attemptId: reserve.attemptId,
+        });
+        piiClear = { status: 'failed', failureCode };
+      }
+    }
   } else if (outcomeKind === 'unknown') {
     complete = await completeTransmissionAttemptUnknown(input.persistClient, {
       ...completeBase,
@@ -220,5 +293,6 @@ export async function runPersistedShipmentTransmission(
     complete,
     adapterResult,
     outcomeKind,
+    piiClear,
   };
 }

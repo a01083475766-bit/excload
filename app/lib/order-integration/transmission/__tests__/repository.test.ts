@@ -370,6 +370,65 @@ describe('transmission repository', () => {
     });
   });
 
+  it('does not persist PII in FAILED attempt responseSummaryJson', async () => {
+    const reserved = await reserveTransmissionAttempt(mem.client, {
+      userId: 'user-a',
+      candidate: CANDIDATE,
+      payloadFingerprint: 'a'.repeat(64),
+      executionToken: 'token-fail-pii',
+      now,
+      leaseExpiresAt,
+    });
+    await markTransmissionAttemptDispatched(mem.client, {
+      userId: 'user-a',
+      shipmentMatchId: 'match-1',
+      attemptId: reserved.attemptId!,
+      executionToken: 'token-fail-pii',
+      now,
+    });
+
+    const failed = await completeTransmissionAttemptFailure(mem.client, {
+      userId: 'user-a',
+      shipmentMatchId: 'match-1',
+      attemptId: reserved.attemptId!,
+      executionToken: 'token-fail-pii',
+      now,
+      errorCode: 'MALL_REJECT',
+      errorMessage: 'reject receiverPhone: 010-1234-5678 주소: 서울시 강남구',
+      retryable: false,
+      responseSummary: {
+        httpStatus: 400,
+        message: 'reject receiverName: 홍길동 receiverPhone: 010-9876-5432',
+        receiverName: '홍길동',
+        receiverPhone: '01098765432',
+        receiverAddress: '서울시 강남구',
+      } as {
+        httpStatus: number;
+        message: string;
+        receiverName: string;
+        receiverPhone: string;
+        receiverAddress: string;
+      },
+    });
+
+    expect(failed.success).toBe(true);
+    const attempt = mem.getAttempt(reserved.attemptId!);
+    expect(attempt?.status).toBe('FAILED');
+    const summary = attempt?.responseSummaryJson as Record<string, unknown> | null;
+    expect(summary).not.toBeNull();
+    expect(summary).not.toHaveProperty('receiverName');
+    expect(summary).not.toHaveProperty('receiverPhone');
+    expect(summary).not.toHaveProperty('receiverAddress');
+    const summaryText = JSON.stringify(summary);
+    expect(summaryText).not.toMatch(/010-9876-5432|01098765432|홍길동|서울시/);
+    expect(summaryText).toMatch(/REDACTED/);
+    expect(String(attempt?.errorMessage)).not.toMatch(/010-1234-5678|서울시 강남구/);
+    expect(toPersistedResponseSummaryJson({
+      httpStatus: 400,
+      message: 'fail 010-1111-2222',
+    })?.message).toContain('[REDACTED_PHONE]');
+  });
+
   it('completes SUCCESS even when lease time already expired', async () => {
     const reserved = await reserveTransmissionAttempt(mem.client, {
       userId: 'user-a',

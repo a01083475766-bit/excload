@@ -143,6 +143,11 @@ export function sanitizeTransmissionErrorMessage(message: string | null | undefi
     .replace(/Bearer\s+\S+/gi, '[REDACTED]')
     .replace(/Authorization:\s*\S+/gi, '[REDACTED]')
     .replace(/(api[_-]?key|secret|password|token)\s*[:=]\s*\S+/gi, '$1=[REDACTED]')
+    // 수취인 PII 라벨·값 (실패 Attempt responseSummaryJson 방어)
+    .replace(
+      /(?:receiver(?:Name|Phone|Address)|수취인(?:명)?|연락처|주소)\s*[:=：]\s*.+$/gi,
+      '[REDACTED_PII]',
+    )
     .replace(/\b01[016789][-\s]?\d{3,4}[-\s]?\d{4}\b/g, '[REDACTED_PHONE]')
     .replace(/\b\d{2,3}[-\s]?\d{3,4}[-\s]?\d{4}\b/g, '[REDACTED_PHONE]')
     .replace(/\b\d{10,16}\b/g, '[REDACTED_NUMBER]')

@@ -17,6 +17,7 @@ import {
   createRealShipmentTransmissionAdapterRegistry,
   type ShipmentTransmissionAccountPrismaClient,
 } from '@/app/lib/order-integration/transmission/real-adapters';
+import type { ClearTransmittedOrderPiiClient } from '@/app/lib/order-integration/snapshots/clear-transmitted-order-pii';
 import type { ShipmentTransmissionPersistClient } from '@/app/lib/order-integration/transmission/repository';
 import { runShipmentTransmitService } from '@/app/lib/order-integration/transmission/transmit-service';
 import { prisma } from '@/app/lib/prisma';
@@ -61,6 +62,7 @@ export async function POST(
         enabled: process.env.ORDER_TRANSMISSION_ENABLED === 'true',
         readRepository: createShipmentTransmissionReadRepository(readClient),
         persistClient: prisma as unknown as ShipmentTransmissionPersistClient,
+        piiClearClient: prisma as unknown as ClearTransmittedOrderPiiClient,
         resolveAdapter: ({ provider }) => {
           const adapter = registry.get(provider);
           if (!adapter) throw new Error('ADAPTER_NOT_REGISTERED');
