@@ -6,7 +6,10 @@ export type CoupangTransportRequest = {
   vendorId: string;
   accessKey: string;
   secretKey: string;
+  /** JSON 객체 — transport가 stringify (일반 GET 등) */
   body?: unknown;
+  /** lossless 직렬화된 JSON 원문 — PATCH acknowledgement 등. body와 동시 사용 금지 */
+  bodyText?: string;
   timeoutMs?: number;
 };
 

@@ -31,7 +31,9 @@ export class DirectCoupangTransport implements CoupangTransport {
           'X-MARKET': 'KR',
           'X-EXTENDED-TIMEOUT': '90000',
         },
-        body: request.body ? JSON.stringify(request.body) : undefined,
+        body:
+          request.bodyText ??
+          (request.body !== undefined ? JSON.stringify(request.body) : undefined),
         signal: controller.signal,
         cache: 'no-store',
       });

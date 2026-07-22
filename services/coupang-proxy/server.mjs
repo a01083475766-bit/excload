@@ -122,7 +122,12 @@ async function invokeCoupang(payload) {
       'X-MARKET': 'KR',
       'X-EXTENDED-TIMEOUT': '90000',
     },
-    body: payload.body != null ? JSON.stringify(payload.body) : undefined,
+    body:
+      payload.bodyText != null
+        ? payload.bodyText
+        : payload.body != null
+          ? JSON.stringify(payload.body)
+          : undefined,
   });
 
   return {

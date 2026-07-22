@@ -26,6 +26,8 @@ export type CoupangProxyInvokeBody = {
   accessKey: string;
   secretKey: string;
   body?: unknown;
+  /** lossless 직렬화 JSON 원문 — 프록시가 쿠팡으로 그대로 전달 */
+  bodyText?: string;
 };
 
 /** 프록시 → Vercel 응답 래퍼 */
@@ -53,7 +55,11 @@ export class ProxyCoupangTransport implements CoupangTransport {
       vendorId: request.vendorId,
       accessKey: request.accessKey,
       secretKey: request.secretKey,
-      ...(request.body !== undefined ? { body: request.body } : {}),
+      ...(request.bodyText !== undefined
+        ? { bodyText: request.bodyText }
+        : request.body !== undefined
+          ? { body: request.body }
+          : {}),
     };
 
     const body = JSON.stringify(payload);

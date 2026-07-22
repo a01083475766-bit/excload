@@ -54,22 +54,43 @@ type CoupangApiEnvelope<T> = {
   nextToken?: string;
 };
 
-export async function coupangApiRequest<T>(input: {
+export type CoupangApiInvokeInput = {
   method: string;
   pathWithQuery: string;
   vendorId: string;
   accessKey: string;
   secretKey: string;
   body?: unknown;
+  bodyText?: string;
   timeoutMs?: number;
-}): Promise<T> {
+};
+
+export async function invokeCoupangApi(input: CoupangApiInvokeInput): Promise<{
+  httpStatus: number;
+  bodyText: string;
+}> {
   const transport = resolveCoupangTransport();
 
   try {
-    const { httpStatus, bodyText } = await transport.invoke({
+    return await transport.invoke({
       ...input,
       timeoutMs: input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     });
+  } catch (error) {
+    if (error instanceof CoupangApiError) throw error;
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new CoupangApiError(
+        'SERVER_DELAY',
+        '쿠팡 서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.',
+      );
+    }
+    throw error;
+  }
+}
+
+export async function coupangApiRequest<T>(input: CoupangApiInvokeInput): Promise<T> {
+  try {
+    const { httpStatus, bodyText } = await invokeCoupangApi(input);
 
     if (httpStatus < 200 || httpStatus >= 300) {
       throw classifyCoupangHttpError({
@@ -254,5 +275,27 @@ export async function fetchCoupangOrderSheetByShipmentBoxId(input: {
     vendorId: input.vendorId,
     accessKey: input.accessKey,
     secretKey: input.secretKey,
+  });
+}
+
+/**
+ * 상품준비중 처리 (acknowledgement).
+ * PATCH /v2/providers/openapi/apis/api/v4/vendors/{vendorId}/ordersheets/acknowledgement
+ * bodyText는 lossless 직렬화된 JSON 원문.
+ */
+export async function patchCoupangOrderSheetAcknowledgement(input: {
+  vendorId: string;
+  accessKey: string;
+  secretKey: string;
+  bodyText: string;
+}): Promise<{ httpStatus: number; bodyText: string }> {
+  const pathWithQuery = `/v2/providers/openapi/apis/api/v4/vendors/${encodeURIComponent(input.vendorId)}/ordersheets/acknowledgement`;
+  return invokeCoupangApi({
+    method: 'PATCH',
+    pathWithQuery,
+    vendorId: input.vendorId,
+    accessKey: input.accessKey,
+    secretKey: input.secretKey,
+    bodyText: input.bodyText,
   });
 }

@@ -2,6 +2,11 @@ import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 import { createEmptyBaseHeaderRow, type BaseHeaderRow } from '@/app/pipeline/base/base-headers';
 import type { OrderStandardFile, StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
 import type { CoupangMoney, CoupangOrderItem, CoupangOrderSheet } from '@/app/lib/coupang/client';
+import type { OrderFetchView } from '@/app/lib/order-integration/order-fetch-view';
+import {
+  EXCLOAD_ORDER_STATUS_LABEL,
+  type ExcloadPlaceOrderStatus,
+} from '@/app/lib/order-integration/order-status';
 
 const COUPANG_STATUS_LABEL: Record<string, string> = {
   ACCEPT: '결제완료',
@@ -52,6 +57,39 @@ function pickOrdererPhone(orderer?: CoupangOrderSheet['orderer']): string {
 function mapStatusLabel(status?: string): string {
   if (!status) return '';
   return COUPANG_STATUS_LABEL[status] ?? status;
+}
+
+/** 쿠팡 API status → 공통 발주 상태 (ACCEPT=미확인, INSTRUCT=확인·발송대기). */
+export function normalizeCoupangPlaceOrderStatus(rawStatus?: string | null): ExcloadPlaceOrderStatus {
+  switch ((rawStatus ?? '').trim().toUpperCase()) {
+    case 'ACCEPT':
+      return 'NOT_YET';
+    case 'INSTRUCT':
+      return 'OK';
+    default:
+      return 'UNKNOWN';
+  }
+}
+
+function normalizeCoupangOrderStatus(rawStatus?: string | null): OrderFetchView['status'] {
+  switch ((rawStatus ?? '').trim().toUpperCase()) {
+    case 'ACCEPT':
+    case 'INSTRUCT':
+      return 'PAYED';
+    case 'DEPARTURE':
+    case 'DELIVERING':
+      return 'DELIVERING';
+    case 'FINAL_DELIVERY':
+      return 'DELIVERED';
+    case 'NONE_TRACKING':
+      return 'DELIVERING';
+    default:
+      return 'UNKNOWN';
+  }
+}
+
+function isCoupangHubEligible(rawStatus?: string | null): boolean {
+  return (rawStatus ?? '').trim().toUpperCase() === 'INSTRUCT';
 }
 
 function buildProductName(item: CoupangOrderItem): string {
@@ -141,4 +179,51 @@ export function mapCoupangOrdersToPreviewRows(orders: CoupangOrderSheet[]): Coup
     결제일시: row['결제일시'],
     배송메시지: row['배송메시지'],
   }));
+}
+
+/**
+ * 주문조회 UI 표시용 뷰. 표준행과 동일한 순서(index)로 정렬된다.
+ */
+export function mapCoupangOrdersToFetchViews(orders: CoupangOrderSheet[]): OrderFetchView[] {
+  const rows = mapCoupangOrdersToStandardRows(orders);
+  return rows.map((row, rowIndex) => {
+    const sheetIndex = orders.findIndex(
+      (sheet) => String(sheet.shipmentBoxId ?? '') === String(row['묶음배송번호'] ?? ''),
+    );
+    const sheet = sheetIndex >= 0 ? orders[sheetIndex] : undefined;
+    const rawStatus = sheet?.status ?? '';
+    const status = normalizeCoupangOrderStatus(rawStatus);
+    const placeOrderStatus = normalizeCoupangPlaceOrderStatus(rawStatus);
+    const address = [row['받는사람주소1'], row['받는사람주소2']].filter(Boolean).join(' ').trim();
+    const tracking = String(row['운송장번호'] ?? '').trim();
+
+    return {
+      rowIndex,
+      status,
+      statusLabel: row['주문상태'] || EXCLOAD_ORDER_STATUS_LABEL[status],
+      placeOrderStatus,
+      orderNo: row['주문번호'],
+      productOrderNo: row['상품주문번호'] || row['묶음배송번호'] || row['주문번호'],
+      paidAt: row['결제일시'],
+      orderedAt: row['주문일시'],
+      productName: row['상품명'],
+      productOption: row['상품옵션'],
+      quantity: row['수량'] || '1',
+      receiverName: row['받는사람'],
+      paymentAmount: row['결제금액'],
+      paymentMeans: row['결제구분'],
+      hasTracking: Boolean(tracking),
+      claimLabel: '',
+      shipmentBoxId: row['묶음배송번호'] || undefined,
+      mallOrderStatusCode: rawStatus || undefined,
+      hubEligible: isCoupangHubEligible(rawStatus),
+      detail: {
+        ordererName: row['주문자'],
+        receiverPhone: row['받는사람전화1'],
+        receiverAddress: address,
+        deliveryMemo: row['배송메시지'],
+        sellerProductCode: row['옵션ID'] || row['노출상품ID'],
+      },
+    };
+  });
 }

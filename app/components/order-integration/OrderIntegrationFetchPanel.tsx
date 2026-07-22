@@ -33,6 +33,7 @@ import {
   buildOrderFetchViewsFromStandardRows,
   type OrderFetchView,
 } from '@/app/lib/order-integration/order-fetch-view';
+import { mergeCoupangRefetchedOrdersIntoFetchResult } from '@/app/lib/coupang/coupang-acknowledgement';
 import {
   EXCLOAD_ORDER_STATUS_LABEL,
   isClaimStatus,
@@ -75,6 +76,12 @@ type DisplayRow = OrderFetchView & {
   mallName: string;
   accountId: string;
 };
+
+import {
+  collectSelectedAcknowledgementBoxIds,
+  isCoupangAcceptRow,
+  isRowHubEligible,
+} from '@/app/lib/coupang/coupang-fetch-panel-logic';
 
 function rowKey(mallId: string, accountId: string, rowIndex: number): string {
   return `${mallId}:${accountId}:${rowIndex}`;
@@ -168,6 +175,11 @@ export default function OrderIntegrationFetchPanel() {
   /** 예시 미리보기(더미) — 허브 이관·실조회와 구분 */
   const [demoPreview, setDemoPreview] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
+  const [acknowledging, setAcknowledging] = useState(false);
+  const [acknowledgeNotice, setAcknowledgeNotice] = useState<string | null>(null);
+  const [acknowledgeItemMessages, setAcknowledgeItemMessages] = useState<
+    Record<string, string>
+  >({});
 
   const selectedMallIdsRef = useRef(selectedMallIds);
   useEffect(() => {
@@ -255,6 +267,8 @@ export default function OrderIntegrationFetchPanel() {
     setResults(null);
     setDemoPreview(false);
     setSelectedRowKeys(new Set());
+    setAcknowledgeNotice(null);
+    setAcknowledgeItemMessages({});
   };
 
   const selectedMalls = useMemo(
@@ -304,6 +318,8 @@ export default function OrderIntegrationFetchPanel() {
     setResults(null);
     setDemoPreview(false);
     setSelectedRowKeys(new Set());
+    setAcknowledgeNotice(null);
+    setAcknowledgeItemMessages({});
 
     const nextResults: MallFetchResult[] = [];
 
@@ -534,9 +550,15 @@ export default function OrderIntegrationFetchPanel() {
       setNotice('로그인 정보를 확인할 수 없습니다. 새로고침 후 다시 시도해 주세요.');
       return;
     }
-    const { rows, summaries, sourceEntries } = collectRows(predicate);
+    const wrappedPredicate = (row: DisplayRow) => predicate(row) && isRowHubEligible(row);
+    const matched = collectRows(predicate);
+    const { rows, summaries, sourceEntries } = collectRows(wrappedPredicate);
     if (rows.length === 0) {
-      setNotice(emptyMessage);
+      setNotice(
+        matched.rows.length > 0
+          ? '담기 가능한 주문이 없습니다. 쿠팡은 상품준비중 처리·재조회가 완료된 주문만 담을 수 있습니다.'
+          : emptyMessage,
+      );
       return;
     }
     setSendingToHub(true);
@@ -573,6 +595,104 @@ export default function OrderIntegrationFetchPanel() {
     'w-[7.5rem] shrink-0 border-r border-zinc-200 bg-zinc-100 px-3 py-3 text-sm font-medium text-zinc-700 sm:w-28';
   const valueCellClass = 'min-w-0 flex-1 px-3 py-3';
   const selectedCount = selectedRowKeys.size;
+
+  const selectedAcknowledgementBoxIds = useMemo(
+    () => collectSelectedAcknowledgementBoxIds(filteredRows, selectedRowKeys, rowKey),
+    [filteredRows, selectedRowKeys],
+  );
+
+  const hasCoupangAcceptRows = useMemo(
+    () => allDisplayRows.some((row) => isCoupangAcceptRow(row)),
+    [allDisplayRows],
+  );
+
+  const runAcknowledgement = async () => {
+    if (acknowledging) return;
+    if (selectedAcknowledgementBoxIds.length === 0) {
+      setAcknowledgeNotice('상품준비중 처리할 결제완료(발주 미확인) 주문을 선택해 주세요.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `선택한 ${selectedAcknowledgementBoxIds.length}개 묶음배송을 상품준비중 처리합니다.\n계속하시겠습니까?`,
+    );
+    if (!confirmed) return;
+
+    setAcknowledging(true);
+    setAcknowledgeNotice(null);
+    setAcknowledgeItemMessages({});
+
+    try {
+      const res = await fetch('/api/order/integration/coupang/acknowledge-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipmentBoxIds: selectedAcknowledgementBoxIds }),
+        cache: 'no-store',
+      });
+      const data = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        summary?: {
+          requested: number;
+          succeeded: number;
+          failed: number;
+          uncertain: number;
+        };
+        results?: Array<{
+          shipmentBoxId: string;
+          status: string;
+          message: string;
+        }>;
+        patches?: Array<{
+          shipmentBoxId: string;
+          standardRows: StandardOrderRow[];
+          views: OrderFetchView[];
+        }>;
+      };
+
+      if (!res.ok || !data.success) {
+        setAcknowledgeNotice(data.error || '상품준비중 처리에 실패했습니다.');
+        return;
+      }
+
+      const itemMessages: Record<string, string> = {};
+      for (const row of data.results ?? []) {
+        itemMessages[row.shipmentBoxId] = row.message;
+      }
+      setAcknowledgeItemMessages(itemMessages);
+
+      const summaryText = data.summary
+        ? `성공 ${data.summary.succeeded}건 · 실패 ${data.summary.failed}건 · 확인 필요 ${data.summary.uncertain}건`
+        : '처리가 완료되었습니다.';
+      setAcknowledgeNotice(summaryText);
+
+      if (data.patches?.length && results) {
+        const patchByBox = new Map(data.patches.map((patch) => [patch.shipmentBoxId, patch]));
+        setResults(
+          results.map((mall) => {
+            if (mall.mallId !== 'coupang' || !mall.ok) return mall;
+            let rows = mall.rows;
+            let views = mall.views;
+            for (const patch of data.patches ?? []) {
+              const merged = mergeCoupangRefetchedOrdersIntoFetchResult({
+                rows,
+                views,
+                patches: [patch],
+              });
+              rows = merged.rows;
+              views = merged.views;
+            }
+            void patchByBox;
+            return { ...mall, rows, views };
+          }),
+        );
+        setSelectedRowKeys(new Set());
+      }
+    } catch {
+      setAcknowledgeNotice('상품준비중 처리 중 오류가 발생했습니다.');
+    } finally {
+      setAcknowledging(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-3 pb-12 pt-1.5 sm:px-5 lg:px-8">
@@ -923,21 +1043,41 @@ export default function OrderIntegrationFetchPanel() {
             </div>
           ) : (
             <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50 px-3 py-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-3 py-2 text-sm">
                 <span className="font-semibold text-zinc-800">
                   조회 결과 {filteredRows.length.toLocaleString()}건
                   {selectedCount > 0 ? (
                     <span className="ml-2 font-normal text-blue-700">· 선택 {selectedCount}건</span>
                   ) : null}
                 </span>
+                {hasCoupangAcceptRows ? (
+                  <button
+                    type="button"
+                    disabled={acknowledging || selectedAcknowledgementBoxIds.length === 0}
+                    onClick={() => void runAcknowledgement()}
+                    className="ml-auto inline-flex h-8 items-center justify-center gap-1 rounded-md border border-amber-600 bg-white px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50"
+                  >
+                    {acknowledging ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    선택 건 상품준비중 처리
+                    {selectedAcknowledgementBoxIds.length > 0
+                      ? ` (${selectedAcknowledgementBoxIds.length})`
+                      : ''}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={toggleSelectAllFiltered}
-                  className="text-xs font-medium text-blue-700 hover:underline"
+                  className={`text-xs font-medium text-blue-700 hover:underline ${hasCoupangAcceptRows ? '' : 'ml-auto'}`}
                 >
                   {allFilteredSelected ? '전체 선택 해제' : '이 결과 전체 선택'}
                 </button>
               </div>
+
+              {acknowledgeNotice ? (
+                <div className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {acknowledgeNotice}
+                </div>
+              ) : null}
 
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[96rem] table-fixed text-left text-sm">
@@ -967,6 +1107,11 @@ export default function OrderIntegrationFetchPanel() {
                           key={key}
                           row={row}
                           checked={checked}
+                          acknowledgeMessage={
+                            row.shipmentBoxId
+                              ? acknowledgeItemMessages[row.shipmentBoxId]
+                              : undefined
+                          }
                           onToggleCheck={() => toggleRowSelection(key)}
                         />
                       );
@@ -1033,10 +1178,12 @@ function SummaryCard({
 function FetchRow({
   row,
   checked,
+  acknowledgeMessage,
   onToggleCheck,
 }: {
   row: DisplayRow;
   checked: boolean;
+  acknowledgeMessage?: string;
   onToggleCheck: () => void;
 }) {
   return (
@@ -1059,6 +1206,12 @@ function FetchRow({
         </span>
         {row.placeOrderStatus === 'NOT_YET' ? (
           <span className="mt-1 block text-[11px] text-amber-600">발주 미확인</span>
+        ) : null}
+        {row.placeOrderStatus === 'OK' ? (
+          <span className="mt-1 block text-[11px] text-emerald-700">발주 확인·발송 대기</span>
+        ) : null}
+        {acknowledgeMessage ? (
+          <span className="mt-1 block text-[11px] text-zinc-500">{acknowledgeMessage}</span>
         ) : null}
       </td>
       <td className="whitespace-nowrap px-2 py-2 align-top text-zinc-600">

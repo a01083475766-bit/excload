@@ -4,6 +4,7 @@ import { prisma } from '@/app/lib/prisma';
 import { fetchCoupangOrderSheets } from '@/app/lib/coupang/client';
 import {
   COUPANG_PREVIEW_HEADERS,
+  mapCoupangOrdersToFetchViews,
   mapCoupangOrdersToOrderStandardFile,
   mapCoupangOrdersToPreviewRows,
 } from '@/app/lib/coupang/map-coupang-orders';
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
 
     const orderStandardFile = mapCoupangOrdersToOrderStandardFile(orders);
     const previewRows = mapCoupangOrdersToPreviewRows(orders);
+    const orderViews = mapCoupangOrdersToFetchViews(orders);
 
     await markCoupangAccountSyncResult({
       accountId: account.id,
@@ -110,6 +112,7 @@ export async function POST(request: Request) {
       previewHeaders: COUPANG_PREVIEW_HEADERS,
       previewRows,
       orderStandardFile,
+      orderViews,
       snapshotPersist,
     });
   } catch (error) {

@@ -34,7 +34,13 @@ export type OrderFetchView = {
   paymentMeans: string;
   hasTracking: boolean;
   claimLabel: string;
-  /** 행 상세(펼침) 전용 — 개인정보. */
+  /** 쿠팡: 묶음배송번호(shipmentBoxId). 다른 몰은 undefined. */
+  shipmentBoxId?: string;
+  /** 쿠팡 API 원본 status (ACCEPT, INSTRUCT …). */
+  mallOrderStatusCode?: string;
+  /** 미리보기 담기 허용 여부. 쿠팡 INSTRUCT(재조회 성공) 등에서 사용. */
+  hubEligible?: boolean;
+  /** detail: 주문자·상품코드 등 부가 정보. */
   detail: {
     ordererName: string;
     receiverPhone: string;
