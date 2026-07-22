@@ -17,6 +17,9 @@ export type CoupangOrderItem = {
   sellerProductItemName?: string;
   productId?: number;
   shippingCount?: number;
+  /** 취소 대기 수량 — 있으면 송장 전송 차단 */
+  holdCountForCancel?: number;
+  cancelCount?: number;
   salesPrice?: CoupangMoney;
   orderPrice?: CoupangMoney;
   externalVendorSkuCode?: string;
@@ -29,6 +32,11 @@ export type CoupangOrderSheet = {
   orderedAt?: string;
   paidAt?: string;
   status?: string;
+  shipmentType?: string;
+  splitShipping?: boolean;
+  ableSplitShipping?: boolean;
+  invoiceNumber?: string | null;
+  deliveryCompanyName?: string | null;
   parcelPrintMessage?: string | null;
   orderer?: {
     name?: string;
@@ -292,6 +300,28 @@ export async function patchCoupangOrderSheetAcknowledgement(input: {
   const pathWithQuery = `/v2/providers/openapi/apis/api/v4/vendors/${encodeURIComponent(input.vendorId)}/ordersheets/acknowledgement`;
   return invokeCoupangApi({
     method: 'PATCH',
+    pathWithQuery,
+    vendorId: input.vendorId,
+    accessKey: input.accessKey,
+    secretKey: input.secretKey,
+    bodyText: input.bodyText,
+  });
+}
+
+/**
+ * 송장업로드 (Uploading Waybills).
+ * POST /v2/providers/openapi/apis/api/v4/vendors/{vendorId}/orders/invoices
+ * bodyText는 lossless 직렬화된 JSON 원문.
+ */
+export async function postCoupangOrderInvoices(input: {
+  vendorId: string;
+  accessKey: string;
+  secretKey: string;
+  bodyText: string;
+}): Promise<{ httpStatus: number; bodyText: string }> {
+  const pathWithQuery = `/v2/providers/openapi/apis/api/v4/vendors/${encodeURIComponent(input.vendorId)}/orders/invoices`;
+  return invokeCoupangApi({
+    method: 'POST',
     pathWithQuery,
     vendorId: input.vendorId,
     accessKey: input.accessKey,

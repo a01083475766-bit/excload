@@ -79,3 +79,66 @@ export function buildCoupangAcknowledgementBodyText(input: {
     shipmentBoxIds,
   }) as string;
 }
+
+export type CoupangInvoiceApplyDtoInput = {
+  shipmentBoxId: string;
+  orderId: string;
+  vendorItemId: string;
+  deliveryCompanyCode: string;
+  invoiceNumber: string;
+  splitShipping: false;
+  preSplitShipped: false;
+  estimatedShippingDate: '';
+};
+
+/**
+ * 송장업로드(invoices) POST body.
+ * shipmentBoxId / orderId / vendorItemId → JSON Number 토큰.
+ * invoiceNumber / vendorId / deliveryCompanyCode → String.
+ */
+export function buildCoupangInvoiceBodyText(input: {
+  vendorId: string;
+  orderSheetInvoiceApplyDtos: readonly CoupangInvoiceApplyDtoInput[];
+}): string {
+  const vendorId = input.vendorId.trim();
+  if (!vendorId) {
+    throw new Error('Invalid vendorId.');
+  }
+
+  const orderSheetInvoiceApplyDtos = input.orderSheetInvoiceApplyDtos.map((dto) => {
+    const shipmentBoxId = dto.shipmentBoxId.trim();
+    const orderId = dto.orderId.trim();
+    const vendorItemId = dto.vendorItemId.trim();
+    if (!isCoupangPositiveIntegerId(shipmentBoxId)) {
+      throw new Error('Invalid shipmentBoxId.');
+    }
+    if (!isCoupangPositiveIntegerId(orderId)) {
+      throw new Error('Invalid orderId.');
+    }
+    if (!isCoupangPositiveIntegerId(vendorItemId)) {
+      throw new Error('Invalid vendorItemId.');
+    }
+    if (typeof dto.invoiceNumber !== 'string' || !dto.invoiceNumber.trim()) {
+      throw new Error('Invalid invoiceNumber.');
+    }
+    if (typeof dto.deliveryCompanyCode !== 'string' || !dto.deliveryCompanyCode.trim()) {
+      throw new Error('Invalid deliveryCompanyCode.');
+    }
+
+    return {
+      shipmentBoxId: new LosslessNumber(shipmentBoxId),
+      orderId: new LosslessNumber(orderId),
+      vendorItemId: new LosslessNumber(vendorItemId),
+      deliveryCompanyCode: dto.deliveryCompanyCode.trim(),
+      invoiceNumber: dto.invoiceNumber,
+      splitShipping: false,
+      preSplitShipped: false,
+      estimatedShippingDate: '',
+    };
+  });
+
+  return stringify({
+    vendorId,
+    orderSheetInvoiceApplyDtos,
+  }) as string;
+}

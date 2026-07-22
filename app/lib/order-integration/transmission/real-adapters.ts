@@ -1,5 +1,10 @@
 import type { OrderIntegrationAccount, OrderIntegrationProvider } from '@prisma/client';
 
+import {
+  fetchCoupangOrderSheetByShipmentBoxId,
+  postCoupangOrderInvoices,
+} from '@/app/lib/coupang/client';
+import { runCoupangInvoiceTransmission } from '@/app/lib/coupang/coupang-invoice';
 import { decryptIntegrationSecret } from '@/app/lib/order-integration/encryption';
 import { createShipmentTransmissionAdapterRegistry } from '@/app/lib/order-integration/transmission/adapter-registry';
 import type {
@@ -75,6 +80,7 @@ function buildFailure(input: {
   matchId: string;
   errorCode: string;
   errorMessage: string;
+  outcomeKind?: ShipmentTransmissionAdapterResult['outcomeKind'];
 }): ShipmentTransmissionAdapterResult {
   return {
     success: false,
@@ -89,30 +95,30 @@ function buildFailure(input: {
       providerStatusCode: input.errorCode,
       message: input.errorMessage,
     },
-    outcomeKind: 'failure',
+    outcomeKind: input.outcomeKind ?? 'failure',
   };
 }
 
 const DEFERRED_SPECS: ProviderDeferredSpec[] = [
   {
-    provider: 'COUPANG',
-    missingInfo: 'shipment registration endpoint, HMAC signing path, and response schema are not confirmed in repository specs.',
-  },
-  {
     provider: 'SMARTSTORE',
-    missingInfo: 'dispatch endpoint request fields and product-order result schema are not confirmed in repository specs.',
+    missingInfo:
+      'dispatch endpoint request fields and product-order result schema are not confirmed in repository specs.',
   },
   {
     provider: 'ELEVEN',
-    missingInfo: 'delivery registration XML endpoint, field names, and success/error XML schema are not confirmed in repository specs.',
+    missingInfo:
+      'delivery registration XML endpoint, field names, and success/error XML schema are not confirmed in repository specs.',
   },
   {
     provider: 'CAFE24',
-    missingInfo: 'shipment creation endpoint, required OAuth scope, item fields, and result schema are not confirmed in repository specs.',
+    missingInfo:
+      'shipment creation endpoint, required OAuth scope, item fields, and result schema are not confirmed in repository specs.',
   },
   {
     provider: 'LOTTEON',
-    missingInfo: 'invoice registration endpoint and body fields are not present in the existing LotteON order client/spec.',
+    missingInfo:
+      'invoice registration endpoint and body fields are not present in the existing LotteON order client/spec.',
   },
   {
     provider: 'SSG',
@@ -120,28 +126,37 @@ const DEFERRED_SPECS: ProviderDeferredSpec[] = [
   },
   {
     provider: 'CJONSTYLE',
-    missingInfo: 'shipment transmission endpoint/path/query and per-order result schema are placeholder-only in repository specs.',
+    missingInfo:
+      'shipment transmission endpoint/path/query and per-order result schema are placeholder-only in repository specs.',
   },
   {
     provider: 'SHOPBY',
-    missingInfo: 'delivery registration endpoint and order-option result schema are not present in the existing Shopby order spec.',
+    missingInfo:
+      'delivery registration endpoint and order-option result schema are not present in the existing Shopby order spec.',
   },
   {
     provider: 'GODOMALL',
-    missingInfo: 'shipment registration endpoint, XML fields, and response schema are not present in the existing Godomall order spec.',
+    missingInfo:
+      'shipment registration endpoint, XML fields, and response schema are not present in the existing Godomall order spec.',
   },
   {
     provider: 'MAKESHOP',
-    missingInfo: 'order_delivery path exists, but confirmed request fields, auth token usage, and response schema are missing.',
+    missingInfo:
+      'order_delivery path exists, but confirmed request fields, auth token usage, and response schema are missing.',
   },
   {
     provider: 'SHOPIFY',
-    missingInfo: 'fulfillment mutation variables, fulfillment-order identifier source, and userErrors mapping are not confirmed in repository specs.',
+    missingInfo:
+      'fulfillment mutation variables, fulfillment-order identifier source, and userErrors mapping are not confirmed in repository specs.',
   },
 ];
 
 function hasAnyCredential(secrets: AccountSecretBundle): boolean {
   return Boolean(secrets.accessKey || secrets.secretKey || secrets.apiKey);
+}
+
+function hasCoupangCredentials(secrets: AccountSecretBundle): boolean {
+  return Boolean(secrets.vendorId && secrets.accessKey && secrets.secretKey);
 }
 
 function createDeferredAdapter(
@@ -196,10 +211,101 @@ function createDeferredAdapter(
   };
 }
 
+function createCoupangLiveAdapter(
+  options: CreateRealShipmentTransmissionAdaptersOptions,
+): ShipmentTransmissionAdapter {
+  return {
+    provider: 'COUPANG',
+    buildPayload(candidate: ShipmentTransmissionCandidate) {
+      return {
+        provider: 'COUPANG',
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        trackingNumber: candidate.trackingNumber,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+      };
+    },
+    async transmit(candidate): Promise<ShipmentTransmissionAdapterResult> {
+      const account = await options.loadAccount({
+        userId: options.userId,
+        accountId: candidate.integrationAccountId,
+        provider: 'COUPANG',
+      });
+      if (!account) {
+        return buildFailure({
+          provider: 'COUPANG',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account is not connected.',
+        });
+      }
+
+      const secrets = options.resolveAccountSecrets?.(account) ?? toSecretBundle(account);
+      if (!hasCoupangCredentials(secrets)) {
+        return buildFailure({
+          provider: 'COUPANG',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account credentials are not configured.',
+        });
+      }
+
+      const vendorId = secrets.vendorId!;
+      const accessKey = secrets.accessKey!;
+      const secretKey = secrets.secretKey!;
+
+      const result = await runCoupangInvoiceTransmission({
+        vendorId,
+        accessKey,
+        secretKey,
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+        invoiceNumber: candidate.trackingNumber,
+        fetchByBoxId: (shipmentBoxId) =>
+          fetchCoupangOrderSheetByShipmentBoxId({
+            vendorId,
+            accessKey,
+            secretKey,
+            shipmentBoxId,
+          }),
+        postInvoices: (bodyText) =>
+          postCoupangOrderInvoices({
+            vendorId,
+            accessKey,
+            secretKey,
+            bodyText,
+          }),
+      });
+
+      return {
+        success: result.success,
+        provider: 'COUPANG',
+        matchId: candidate.matchId,
+        providerRequestId: result.providerRequestId,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        retryable: false,
+        responseSummary: {
+          httpStatus: result.responseSummary.httpStatus,
+          providerStatusCode: result.responseSummary.providerStatusCode,
+          message: result.responseSummary.message,
+        },
+        outcomeKind: result.outcomeKind,
+      };
+    },
+  };
+}
+
 export function createRealShipmentTransmissionAdapters(
   options: CreateRealShipmentTransmissionAdaptersOptions,
 ): ShipmentTransmissionAdapter[] {
-  return DEFERRED_SPECS.map((spec) => createDeferredAdapter(spec, options));
+  return [
+    createCoupangLiveAdapter(options),
+    ...DEFERRED_SPECS.map((spec) => createDeferredAdapter(spec, options)),
+  ];
 }
 
 export function createRealShipmentTransmissionAdapterRegistry(

@@ -307,6 +307,46 @@ describe('runVerifyTransmissionService', () => {
     clearSpy.mockRestore();
   });
 
+  it('flags coupang invoice mismatch as ATTENTION even when status is DEPARTURE', async () => {
+    const result = await runVerifyTransmissionService(
+      {
+        findAttempts: async () => [
+          {
+            id: 'a-cp',
+            userId: 'u1',
+            uploadBatchId: 'b1',
+            provider: 'COUPANG',
+            integrationAccountId: 'acc-cp',
+            status: 'SUCCESS',
+            mallOrderNo: 'ORD-1',
+            mallLineItemIdsJson: ['bundle:111'],
+            trackingNumberNormalized: 'INV-1',
+            orderSyncOrder: {
+              mallLineItemIds: ['bundle:111'],
+              normalizedPayloadJson: { shipmentBoxIds: ['111'] },
+            },
+          },
+        ],
+        loadAccount: async () => ({ id: 'acc-cp' }) as never,
+        resolveCoupangCredentials: () => ({
+          vendorId: 'A00012345',
+          accessKey: 'access',
+          secretKey: 'secret',
+        }),
+        fetchCoupangByBoxId: async () => ({
+          shipmentBoxId: '111',
+          status: 'DEPARTURE',
+          invoiceNumber: 'OTHER',
+        }),
+      },
+      { userId: 'u1', batchId: 'b1', attemptIds: ['a-cp'] },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.results[0]?.status).toBe('ATTENTION');
+  });
+
   it('merges verification into recent transmit view labels', () => {
     const view = buildRecentTransmitResultView({
       body: {

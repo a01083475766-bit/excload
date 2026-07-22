@@ -36,6 +36,8 @@ export type VerifyTransmissionAttemptRecord = {
   status: ShipmentTransmissionAttemptStatus;
   mallOrderNo: string;
   mallLineItemIdsJson: unknown;
+  /** 전송 시 요청한 송장번호(정규화). 쿠팡 재조회 대조에 사용 */
+  trackingNumberNormalized?: string | null;
   orderSyncOrder: {
     mallLineItemIds: unknown;
     normalizedPayloadJson: unknown;
@@ -252,9 +254,11 @@ async function verifyCoupangAttempt(
     return failedItem(record.id, '쇼핑몰 연결을 확인하세요.');
   }
 
+  const requestedInvoice = String(record.trackingNumberNormalized ?? '').trim();
   const fetchByBox = deps.fetchCoupangByBoxId ?? fetchCoupangOrderSheetByShipmentBoxId;
   try {
     const statuses: Array<string | null> = [];
+    const invoices: string[] = [];
     for (const boxId of boxIds) {
       const sheet = await fetchByBox({
         vendorId: credentials.vendorId,
@@ -263,8 +267,38 @@ async function verifyCoupangAttempt(
         shipmentBoxId: boxId,
       });
       statuses.push(sheet.status ?? null);
+      invoices.push(String(sheet.invoiceNumber ?? '').trim());
     }
-    return itemFromMapped(record.id, mapCoupangOrderSheetStatuses({ statuses }));
+
+    const mapped = mapCoupangOrderSheetStatuses({ statuses });
+    if (mapped.status === 'CONFIRMED' && requestedInvoice) {
+      const allMatch = invoices.every((invoice) => invoice === requestedInvoice);
+      const anyMissing = invoices.some((invoice) => !invoice);
+      if (anyMissing) {
+        return {
+          attemptId: record.id,
+          status: 'PENDING',
+          mallStatusCode: mapped.mallStatusCode,
+          mallStatusLabel: mapped.mallStatusLabel,
+          confirmedItems: mapped.confirmedItems,
+          totalItems: mapped.totalItems,
+          message: '주문 상태는 확인됐으나 송장번호를 아직 확인하지 못했습니다.',
+        };
+      }
+      if (!allMatch) {
+        return {
+          attemptId: record.id,
+          status: 'ATTENTION',
+          mallStatusCode: mapped.mallStatusCode,
+          mallStatusLabel: mapped.mallStatusLabel,
+          confirmedItems: mapped.confirmedItems,
+          totalItems: mapped.totalItems,
+          message: '주문 상태는 확인됐으나 송장번호가 전송값과 일치하지 않습니다.',
+        };
+      }
+    }
+
+    return itemFromMapped(record.id, mapped);
   } catch (error) {
     return failedItem(record.id, toUserFacingCoupangErrorMessage(error));
   }

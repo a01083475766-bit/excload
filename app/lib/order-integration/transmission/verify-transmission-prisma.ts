@@ -30,6 +30,7 @@ export function createVerifyTransmissionFindAttempts(
         status: true,
         mallOrderNo: true,
         mallLineItemIdsJson: true,
+        trackingNumberNormalized: true,
         orderSyncOrder: {
           select: {
             mallLineItemIds: true,
