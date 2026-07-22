@@ -107,6 +107,7 @@ describe('coupang ID precision through standard rows and snapshots', () => {
       id: 'attempt-1',
       userId: 'user-a',
       uploadBatchId: 'batch-1',
+      shipmentMatchId: 'match-1',
       provider: 'COUPANG',
       integrationAccountId: 'acc-1',
       status: 'SUCCESS',

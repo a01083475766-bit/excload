@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { SmartstoreProductOrderDetail } from '@/app/lib/smartstore/client';
 import { buildSmartstoreItemShipmentFingerprint } from '@/app/lib/smartstore/smartstore-batch-dispatch';
 import { classifySmartstoreDispatchPreflight } from '@/app/lib/smartstore/smartstore-invoice';
 import {
@@ -20,14 +21,18 @@ function detail(overrides?: {
   remainQuantity?: number | null;
   deliveryCompanyCode?: string;
   trackingNumber?: string;
-}) {
+}): SmartstoreProductOrderDetail {
   return {
     order: { orderId: 'ORD-1' },
     productOrder: {
       productOrderId: 'PO-1',
       productOrderStatus: overrides?.status ?? 'PAYED',
       placeOrderStatus: 'OK',
-      remainQuantity: overrides?.remainQuantity === undefined ? 1 : overrides.remainQuantity,
+      ...(overrides && 'remainQuantity' in overrides
+        ? overrides.remainQuantity == null
+          ? {}
+          : { remainQuantity: overrides.remainQuantity }
+        : { remainQuantity: 1 }),
     },
     delivery:
       overrides?.deliveryCompanyCode || overrides?.trackingNumber
@@ -166,7 +171,7 @@ describe('SMARTSTORE-C1 verify fingerprint', () => {
           status: 'DELIVERING',
           deliveryCompanyCode: 'CJGLS',
           trackingNumber: '123456789012',
-        }) as never,
+        }),
       ],
     ]);
     const { itemResults, decisions } = mergeSmartstoreVerifyItemResults({
@@ -195,7 +200,7 @@ describe('SMARTSTORE-C1 verify fingerprint', () => {
         shipmentFingerprint: fp,
       },
     ];
-    const details = new Map([['PO-1', detail({ status: 'PAYED' }) as never]]);
+    const details = new Map([['PO-1', detail({ status: 'PAYED' })]]);
     const { itemResults, decisions } = mergeSmartstoreVerifyItemResults({
       userId: 'u1',
       integrationAccountId: 'acc-1',

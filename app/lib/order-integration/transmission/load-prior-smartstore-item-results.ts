@@ -1,3 +1,5 @@
+import type { PrismaClient, ShipmentTransmissionAttemptStatus } from '@prisma/client';
+
 import {
   parseSmartstoreItemResultsFromSummary,
 } from '@/app/lib/smartstore/smartstore-batch-dispatch';
@@ -10,8 +12,31 @@ export type PriorSmartstoreItemResultsLoader = (input: {
   integrationAccountId?: string;
 }) => Promise<Map<string, ShipmentTransmissionItemResultSummary[]>>;
 
+/**
+ * loader가 실제로 쓰는 Prisma 표면만 노출.
+ * - PrismaClient는 구조적으로 호환 (delegate에 findMany 포함)
+ * - hand-rolled findMany(select: Record<string, boolean>)는 Prisma 반환 타입과 충돌하므로 사용하지 않음
+ */
+export type PriorSmartstoreItemResultsPrismaClient = {
+  shipmentTransmissionAttempt: {
+    findMany: PrismaClient['shipmentTransmissionAttempt']['findMany'];
+  };
+};
+
+const PRIOR_ATTEMPT_STATUSES: ShipmentTransmissionAttemptStatus[] = [
+  'SUCCESS',
+  'FAILED',
+  'UNKNOWN',
+];
+
+export type PriorSmartstoreAttemptSummaryRow = {
+  shipmentMatchId: string;
+  attemptNo: number;
+  responseSummaryJson: unknown;
+};
+
 function collectSuccessItems(
-  rows: Array<{ shipmentMatchId: string; responseSummaryJson: unknown }>,
+  rows: ReadonlyArray<PriorSmartstoreAttemptSummaryRow>,
 ): {
   byMatch: Map<string, ShipmentTransmissionItemResultSummary[]>;
   accountSuccess: ShipmentTransmissionItemResultSummary[];
@@ -39,24 +64,12 @@ function collectSuccessItems(
 }
 
 /**
- * Prisma(또는 호환 client)에서 Match/계정 범위의 이전 itemResults를 읽는다.
+ * Prisma(또는 동일 delegate를 가진 client)에서 Match/계정 범위의 이전 itemResults를 읽는다.
  * PENDING/PROCESSING은 제외한다.
  */
-export function createPrismaPriorSmartstoreItemResultsLoader(client: {
-  shipmentTransmissionAttempt: {
-    findMany: (args: {
-      where: Record<string, unknown>;
-      orderBy: Array<Record<string, 'asc' | 'desc'>> | Record<string, 'asc' | 'desc'>;
-      select: Record<string, boolean>;
-    }) => Promise<
-      Array<{
-        shipmentMatchId: string;
-        attemptNo: number;
-        responseSummaryJson: unknown;
-      }>
-    >;
-  };
-}): PriorSmartstoreItemResultsLoader {
+export function createPrismaPriorSmartstoreItemResultsLoader(
+  client: PriorSmartstoreItemResultsPrismaClient,
+): PriorSmartstoreItemResultsLoader {
   return async ({ userId, matchIds, integrationAccountId }) => {
     const out = new Map<string, ShipmentTransmissionItemResultSummary[]>();
     if (matchIds.length === 0) return out;
@@ -65,12 +78,12 @@ export function createPrismaPriorSmartstoreItemResultsLoader(client: {
       ? {
           userId,
           integrationAccountId,
-          status: { in: ['SUCCESS', 'FAILED', 'UNKNOWN'] },
+          status: { in: PRIOR_ATTEMPT_STATUSES },
         }
       : {
           userId,
           shipmentMatchId: { in: [...matchIds] },
-          status: { in: ['SUCCESS', 'FAILED', 'UNKNOWN'] },
+          status: { in: PRIOR_ATTEMPT_STATUSES },
         };
 
     const rows = await client.shipmentTransmissionAttempt.findMany({

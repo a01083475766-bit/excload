@@ -1,7 +1,3 @@
-/**
- * Prisma loader / persist for transmission verify (B / SMARTSTORE-C1).
- */
-
 import type { OrderIntegrationProvider, PrismaClient } from '@prisma/client';
 
 import {
@@ -11,6 +7,7 @@ import {
   sanitizeTransmissionErrorMessage,
   toPersistedResponseSummaryJson,
 } from '@/app/lib/order-integration/transmission/repository';
+import { toResponseSummaryJsonValue } from '@/app/lib/order-integration/transmission/prisma-persist-mappers';
 import type {
   PersistSmartstoreVerificationInput,
   VerifyTransmissionAttemptRecord,
@@ -133,7 +130,7 @@ export function createPersistSmartstoreVerification(
     await client.shipmentTransmissionAttempt.update({
       where: { id: attempt.id },
       data: {
-        responseSummaryJson: summaryJson,
+        responseSummaryJson: toResponseSummaryJsonValue(summaryJson),
         ...(input.allConfirmed && attempt.status === 'UNKNOWN'
           ? {
               status: 'SUCCESS' as const,
@@ -161,7 +158,7 @@ export function createPersistSmartstoreVerification(
       data: {
         transmissionStatus: 'SENT',
         transmissionErrorMessage: null,
-        transmittedAt: input.now,
+        lastTransmissionAttemptAt: input.now,
       },
     });
   };
