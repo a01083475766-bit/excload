@@ -3,8 +3,9 @@
 import { Loader2 } from 'lucide-react';
 
 import {
-  formatCourierDownloadOrdersHiddenCountLabel,
-  sliceCourierDownloadOrdersForDisplay,
+  COURIER_DOWNLOAD_ORDERS_SCROLL_MAX_HEIGHT_CLASS,
+  formatCourierDownloadOrdersScrollHint,
+  shouldShowCourierDownloadOrdersScrollHint,
 } from '@/app/lib/order-integration/courier-download/courier-download-bundle-orders-view';
 import {
   shouldShowExcloadOrderNoHelper,
@@ -21,15 +22,11 @@ export type SelectedCourierDownloadOrdersStatus =
 type SelectedCourierDownloadOrdersPanelProps = {
   status: SelectedCourierDownloadOrdersStatus;
   orders: CourierDownloadBundleOrderRow[];
-  expanded: boolean;
-  onToggleExpanded: () => void;
 };
 
 export function SelectedCourierDownloadOrdersPanel({
   status,
   orders,
-  expanded,
-  onToggleExpanded,
 }: SelectedCourierDownloadOrdersPanelProps) {
   if (status === 'loading') {
     return (
@@ -67,16 +64,18 @@ export function SelectedCourierDownloadOrdersPanel({
     );
   }
 
-  const slice = sliceCourierDownloadOrdersForDisplay(orders, expanded);
+  const showScrollHint = shouldShowCourierDownloadOrdersScrollHint(orders.length);
 
   return (
     <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-2 dark:border-zinc-700 dark:bg-zinc-900/40">
       <p className="text-xs font-medium text-zinc-700 dark:text-zinc-200">
         선택한 다운로드 주문 · 총 {orders.length}건
       </p>
-      <div className="mt-1.5 overflow-x-auto">
+      <div
+        className={`mt-1.5 overflow-x-auto overflow-y-auto overscroll-contain ${COURIER_DOWNLOAD_ORDERS_SCROLL_MAX_HEIGHT_CLASS}`}
+      >
         <table className="min-w-full text-left text-xs text-zinc-700 dark:text-zinc-200">
-          <thead>
+          <thead className="sticky top-0 bg-zinc-50 dark:bg-zinc-900/95">
             <tr className="border-b border-zinc-200 text-[11px] text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
               <th className="whitespace-nowrap py-1 pr-3 font-medium">쇼핑몰</th>
               <th className="py-1 pr-3 font-medium">주문번호</th>
@@ -84,7 +83,7 @@ export function SelectedCourierDownloadOrdersPanel({
             </tr>
           </thead>
           <tbody>
-            {slice.visible.map((order) => (
+            {orders.map((order) => (
               <tr key={order.id} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800">
                 <td className="whitespace-nowrap py-1 pr-3 align-top">{order.mallLabel}</td>
                 <td className="max-w-[14rem] break-all py-1 pr-3 align-top sm:max-w-none">
@@ -101,19 +100,10 @@ export function SelectedCourierDownloadOrdersPanel({
           </tbody>
         </table>
       </div>
-      {slice.canToggleExpand ? (
-        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-          {!expanded && slice.hiddenCount > 0 ? (
-            <span>{formatCourierDownloadOrdersHiddenCountLabel(slice.hiddenCount)}</span>
-          ) : null}
-          <button
-            type="button"
-            onClick={onToggleExpanded}
-            className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-          >
-            {expanded ? '접기' : '전체 보기'}
-          </button>
-        </div>
+      {showScrollHint ? (
+        <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+          {formatCourierDownloadOrdersScrollHint(orders.length)}
+        </p>
       ) : null}
     </div>
   );

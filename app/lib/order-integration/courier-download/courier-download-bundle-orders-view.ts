@@ -1,40 +1,21 @@
-/** 「선택한 다운로드 주문」 표 표시용 순수 헬퍼 */
+/** 「선택한 다운로드 주문」 표 — 고정 높이 스크롤 미리보기용 헬퍼 */
 
+/** 기본으로 한 화면에 보이는 대략 행 수 */
 export const COURIER_DOWNLOAD_ORDERS_PREVIEW_LIMIT = 5;
 
-export type CourierDownloadOrdersDisplaySlice<T> = {
-  visible: T[];
-  hiddenCount: number;
-  canToggleExpand: boolean;
-};
+/**
+ * 헤더 1행 + 데이터 약 5행 분량.
+ * text-xs / py-1 기준 (보조 엑클로드 번호가 있어도 스크롤로 확인).
+ */
+export const COURIER_DOWNLOAD_ORDERS_SCROLL_MAX_HEIGHT_CLASS = 'max-h-[9.5rem]';
 
-export function sliceCourierDownloadOrdersForDisplay<T>(
-  orders: ReadonlyArray<T>,
-  expanded: boolean,
+export function shouldShowCourierDownloadOrdersScrollHint(
+  orderCount: number,
   previewLimit: number = COURIER_DOWNLOAD_ORDERS_PREVIEW_LIMIT,
-): CourierDownloadOrdersDisplaySlice<T> {
-  const limit = Math.max(0, previewLimit);
-  if (orders.length <= limit) {
-    return {
-      visible: [...orders],
-      hiddenCount: 0,
-      canToggleExpand: false,
-    };
-  }
-  if (expanded) {
-    return {
-      visible: [...orders],
-      hiddenCount: 0,
-      canToggleExpand: true,
-    };
-  }
-  return {
-    visible: orders.slice(0, limit),
-    hiddenCount: orders.length - limit,
-    canToggleExpand: true,
-  };
+): boolean {
+  return orderCount > previewLimit;
 }
 
-export function formatCourierDownloadOrdersHiddenCountLabel(hiddenCount: number): string {
-  return `외 ${hiddenCount}건`;
+export function formatCourierDownloadOrdersScrollHint(orderCount: number): string {
+  return `총 ${orderCount}건 · 스크롤하여 더 보기`;
 }

@@ -178,7 +178,6 @@ export default function ShipmentMatchPanel({
   const [selectedBundleOrdersStatus, setSelectedBundleOrdersStatus] =
     useState<SelectedCourierDownloadOrdersStatus | null>(null);
   const [selectedBundleOrders, setSelectedBundleOrders] = useState<CourierDownloadBundleOrderRow[]>([]);
-  const [selectedBundleOrdersExpanded, setSelectedBundleOrdersExpanded] = useState(false);
   const [manualRegistrationRows, setManualRegistrationRows] = useState<ManualRegistrationRow[]>([]);
   const [manualRegistrationSummary, setManualRegistrationSummary] = useState<{
     ready: number;
@@ -225,7 +224,6 @@ export default function ShipmentMatchPanel({
       setSelectedDownloadBundleId('');
       setSelectedBundleOrdersStatus(null);
       setSelectedBundleOrders([]);
-      setSelectedBundleOrdersExpanded(false);
       lastHandledBundleRefreshNonceRef.current = 0;
       downloadBundleListFetchGenRef.current += 1;
       selectedBundleOrdersFetchGenRef.current += 1;
@@ -257,13 +255,11 @@ export default function ShipmentMatchPanel({
       selectedBundleOrdersFetchGenRef.current += 1;
       setSelectedBundleOrdersStatus(null);
       setSelectedBundleOrders([]);
-      setSelectedBundleOrdersExpanded(false);
       return;
     }
 
     let cancelled = false;
     const fetchGen = ++selectedBundleOrdersFetchGenRef.current;
-    setSelectedBundleOrdersExpanded(false);
     setSelectedBundleOrders([]);
     setSelectedBundleOrdersStatus('loading');
 
@@ -978,8 +974,6 @@ export default function ShipmentMatchPanel({
           <SelectedCourierDownloadOrdersPanel
             status={selectedBundleOrdersStatus}
             orders={selectedBundleOrders}
-            expanded={selectedBundleOrdersExpanded}
-            onToggleExpanded={() => setSelectedBundleOrdersExpanded((current) => !current)}
           />
         ) : null}
 

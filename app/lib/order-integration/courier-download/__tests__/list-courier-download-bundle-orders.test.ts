@@ -9,8 +9,8 @@ import {
   type CourierDownloadBundleOrdersClient,
 } from '@/app/lib/order-integration/courier-download/list-courier-download-bundle-orders';
 import {
-  formatCourierDownloadOrdersHiddenCountLabel,
-  sliceCourierDownloadOrdersForDisplay,
+  formatCourierDownloadOrdersScrollHint,
+  shouldShowCourierDownloadOrdersScrollHint,
 } from '@/app/lib/order-integration/courier-download/courier-download-bundle-orders-view';
 
 function buildClient(
@@ -152,31 +152,15 @@ describe('source type and excload helper', () => {
   });
 });
 
-describe('sliceCourierDownloadOrdersForDisplay', () => {
-  const rows = [1, 2, 3, 4, 5, 6, 7];
-
-  it('shows all when 5 or fewer', () => {
-    expect(sliceCourierDownloadOrdersForDisplay(rows.slice(0, 5), false)).toEqual({
-      visible: [1, 2, 3, 4, 5],
-      hiddenCount: 0,
-      canToggleExpand: false,
-    });
+describe('courier download orders scroll preview', () => {
+  it('hides scroll hint when 5 or fewer', () => {
+    expect(shouldShowCourierDownloadOrdersScrollHint(5)).toBe(false);
+    expect(shouldShowCourierDownloadOrdersScrollHint(1)).toBe(false);
   });
 
-  it('shows first 5 and hidden count when collapsed', () => {
-    expect(sliceCourierDownloadOrdersForDisplay(rows, false)).toEqual({
-      visible: [1, 2, 3, 4, 5],
-      hiddenCount: 2,
-      canToggleExpand: true,
-    });
-    expect(formatCourierDownloadOrdersHiddenCountLabel(2)).toBe('외 2건');
-  });
-
-  it('shows all when expanded', () => {
-    expect(sliceCourierDownloadOrdersForDisplay(rows, true)).toEqual({
-      visible: rows,
-      hiddenCount: 0,
-      canToggleExpand: true,
-    });
+  it('shows scroll hint when more than 5', () => {
+    expect(shouldShowCourierDownloadOrdersScrollHint(6)).toBe(true);
+    expect(shouldShowCourierDownloadOrdersScrollHint(200)).toBe(true);
+    expect(formatCourierDownloadOrdersScrollHint(200)).toBe('총 200건 · 스크롤하여 더 보기');
   });
 });
