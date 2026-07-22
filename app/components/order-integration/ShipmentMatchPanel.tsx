@@ -11,11 +11,16 @@ import {
 } from '@/app/lib/order-integration/shipments/match-uploaded-shipment-file';
 import type { CourierDownloadBundleListItem } from '@/app/lib/order-integration/courier-download/persist-courier-download-bundle';
 import type { ManualRegistrationRow } from '@/app/lib/order-integration/courier-download/manual-registration-view';
+import type { CourierDownloadBundleOrderRow } from '@/app/lib/order-integration/courier-download/list-courier-download-bundle-orders';
 import {
   resolveSelectedDownloadBundleId,
   shouldApplyCourierDownloadBundleListRefresh,
   type CourierDownloadBundleListRefreshSignal,
 } from '@/app/lib/order-integration/courier-download/courier-download-bundle-list-refresh';
+import {
+  SelectedCourierDownloadOrdersPanel,
+  type SelectedCourierDownloadOrdersStatus,
+} from '@/app/components/order-integration/SelectedCourierDownloadOrdersPanel';
 import {
   buildShipmentMatchPanelViewStateFromConfirmResponse,
   buildShipmentMatchPanelViewStateFromDetailResponse,
@@ -137,6 +142,7 @@ export default function ShipmentMatchPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastHandledBundleRefreshNonceRef = useRef(0);
   const downloadBundleListFetchGenRef = useRef(0);
+  const selectedBundleOrdersFetchGenRef = useRef(0);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -169,6 +175,10 @@ export default function ShipmentMatchPanel({
   const [verifyTransmitMessage, setVerifyTransmitMessage] = useState<string | null>(null);
   const [downloadBundles, setDownloadBundles] = useState<CourierDownloadBundleListItem[]>([]);
   const [selectedDownloadBundleId, setSelectedDownloadBundleId] = useState('');
+  const [selectedBundleOrdersStatus, setSelectedBundleOrdersStatus] =
+    useState<SelectedCourierDownloadOrdersStatus | null>(null);
+  const [selectedBundleOrders, setSelectedBundleOrders] = useState<CourierDownloadBundleOrderRow[]>([]);
+  const [selectedBundleOrdersExpanded, setSelectedBundleOrdersExpanded] = useState(false);
   const [manualRegistrationRows, setManualRegistrationRows] = useState<ManualRegistrationRow[]>([]);
   const [manualRegistrationSummary, setManualRegistrationSummary] = useState<{
     ready: number;
@@ -213,8 +223,12 @@ export default function ShipmentMatchPanel({
     if (sessionStatus !== 'authenticated') {
       setDownloadBundles([]);
       setSelectedDownloadBundleId('');
+      setSelectedBundleOrdersStatus(null);
+      setSelectedBundleOrders([]);
+      setSelectedBundleOrdersExpanded(false);
       lastHandledBundleRefreshNonceRef.current = 0;
       downloadBundleListFetchGenRef.current += 1;
+      selectedBundleOrdersFetchGenRef.current += 1;
       return;
     }
 
@@ -234,6 +248,59 @@ export default function ShipmentMatchPanel({
     lastHandledBundleRefreshNonceRef.current = downloadBundleListRefresh.nonce;
     void loadDownloadBundles('refresh', downloadBundleListRefresh.selectBundleId);
   }, [sessionStatus, downloadBundleListRefresh, loadDownloadBundles]);
+
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated') return;
+
+    const bundleId = selectedDownloadBundleId.trim();
+    if (!bundleId || bundleId === DOWNLOAD_BUNDLE_NONE) {
+      selectedBundleOrdersFetchGenRef.current += 1;
+      setSelectedBundleOrdersStatus(null);
+      setSelectedBundleOrders([]);
+      setSelectedBundleOrdersExpanded(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchGen = ++selectedBundleOrdersFetchGenRef.current;
+    setSelectedBundleOrdersExpanded(false);
+    setSelectedBundleOrders([]);
+    setSelectedBundleOrdersStatus('loading');
+
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/order/integration/orders/courier-download-bundles/${encodeURIComponent(bundleId)}/orders`,
+        );
+        const json = (await res.json().catch(() => null)) as {
+          success?: boolean;
+          orders?: CourierDownloadBundleOrderRow[];
+          orderCount?: number;
+        } | null;
+        if (cancelled || fetchGen !== selectedBundleOrdersFetchGenRef.current) return;
+        if (res.status === 404) {
+          setSelectedBundleOrders([]);
+          setSelectedBundleOrdersStatus('expired');
+          return;
+        }
+        if (!res.ok || !json?.success || !Array.isArray(json.orders)) {
+          setSelectedBundleOrders([]);
+          setSelectedBundleOrdersStatus('error');
+          return;
+        }
+        setSelectedBundleOrders(json.orders);
+        setSelectedBundleOrdersStatus(json.orders.length === 0 ? 'empty' : 'ready');
+      } catch {
+        if (cancelled || fetchGen !== selectedBundleOrdersFetchGenRef.current) return;
+        setSelectedBundleOrders([]);
+        setSelectedBundleOrdersStatus('error');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionStatus, selectedDownloadBundleId]);
 
   const loadManualRegistration = useCallback(async (uploadBatchId: string) => {
     try {
@@ -906,6 +973,15 @@ export default function ShipmentMatchPanel({
             1개면 자동 선택됩니다. 다른 다운로드로 바꾸거나 「해당 다운로드 없음」을 고를 수 있습니다.
           </span>
         </label>
+
+        {selectedBundleOrdersStatus ? (
+          <SelectedCourierDownloadOrdersPanel
+            status={selectedBundleOrdersStatus}
+            orders={selectedBundleOrders}
+            expanded={selectedBundleOrdersExpanded}
+            onToggleExpanded={() => setSelectedBundleOrdersExpanded((current) => !current)}
+          />
+        ) : null}
 
         <button
           type="button"
