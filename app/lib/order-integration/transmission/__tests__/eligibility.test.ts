@@ -202,6 +202,82 @@ describe('evaluateShipmentTransmissionEligibility', () => {
     expect(result.reasonCode).toBe('COURIER_MISSING');
   });
 
+  it('rejects unsupported Coupang courier', () => {
+    const result = evaluate({
+      match: buildMatch({
+        uploadRow: {
+          trackingNumber: '012345678901',
+          carrierCode: 'UNKNOWN',
+          carrierName: '알수없는택배',
+        },
+      }),
+    });
+    expect(result.eligible).toBe(false);
+    if (result.eligible) return;
+    expect(result.reasonCode).toBe('COURIER_UNSUPPORTED');
+  });
+
+  it('allows supported Coupang courier via resolveProviderCourierCode', () => {
+    const result = evaluate({
+      match: buildMatch({
+        uploadRow: {
+          trackingNumber: '012345678901',
+          carrierCode: 'LOTTE',
+          carrierName: '롯데택배',
+        },
+      }),
+    });
+    expect(result.eligible).toBe(true);
+    if (!result.eligible) return;
+    expect(result.candidate.courierCode).toBe('LOTTE');
+  });
+
+  it('re-validates courier after user edit via finalCarrier fields', () => {
+    const unsupported = evaluate({
+      match: buildMatch({
+        finalCarrierCode: 'UNKNOWN',
+        finalCarrierName: '미지원택배',
+        uploadRow: {
+          trackingNumber: '012345678901',
+          carrierCode: 'CJ',
+          carrierName: 'CJ대한통운',
+        },
+      }),
+    });
+    expect(unsupported.eligible).toBe(false);
+    if (unsupported.eligible) return;
+    expect(unsupported.reasonCode).toBe('COURIER_UNSUPPORTED');
+
+    const supported = evaluate({
+      match: buildMatch({
+        finalCarrierCode: 'HANJIN',
+        finalCarrierName: '한진택배',
+        uploadRow: {
+          trackingNumber: '012345678901',
+          carrierCode: 'UNKNOWN',
+          carrierName: '미지원택배',
+        },
+      }),
+    });
+    expect(supported.eligible).toBe(true);
+  });
+
+  it('does not apply Coupang courier validation to SMARTSTORE', () => {
+    const result = evaluate({
+      batch: { ...BATCH, provider: 'SMARTSTORE' },
+      match: buildMatch({
+        provider: 'SMARTSTORE',
+        uploadRow: {
+          trackingNumber: '012345678901',
+          carrierCode: 'UNKNOWN',
+          carrierName: '알수없는택배',
+        },
+      }),
+      order: { ...ORDER, provider: 'SMARTSTORE' },
+    });
+    expect(result.eligible).toBe(true);
+  });
+
   it('prefers finalTrackingNumber over upload row', () => {
     const result = evaluate({
       match: buildMatch({

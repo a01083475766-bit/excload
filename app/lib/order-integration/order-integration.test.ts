@@ -126,8 +126,8 @@ describe('mapCoupangOrdersToPreviewRows', () => {
   it('maps coupang order sheet to preview rows', () => {
     const rows = mapCoupangOrdersToPreviewRows([
       {
-        shipmentBoxId: 123,
-        orderId: 456,
+        shipmentBoxId: '123',
+        orderId: '456',
         status: 'INSTRUCT',
         paidAt: '2025-01-15T14:17:13+09:00',
         parcelPrintMessage: '문 앞',

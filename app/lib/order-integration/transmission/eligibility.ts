@@ -7,6 +7,7 @@ import type {
 
 import { isExportableShipmentMatchStatus } from '@/app/lib/order-integration/shipments/build-shipment-upload-export-rows';
 import { SHIPMENT_UPLOAD_BATCH_READY_STATUS } from '@/app/lib/order-integration/shipments/refresh-shipment-upload-batch-ready-status';
+import { resolveProviderCourierCode } from '@/app/lib/order-integration/transmission/courier-mapping';
 import type {
   ShipmentTransmissionCandidate,
   ShipmentTransmissionEligibilityOptions,
@@ -229,6 +230,20 @@ export function evaluateShipmentTransmissionEligibility(
   const { courierCode, courierName } = resolveTransmissionCourier(match);
   if (!courierCode && !courierName) {
     return fail('COURIER_MISSING', '택배사 코드 또는 택배사명이 필요합니다.');
+  }
+
+  if (provider === 'COUPANG') {
+    const providerCourierCode = resolveProviderCourierCode({
+      provider,
+      courierCode,
+      courierName,
+    });
+    if (!providerCourierCode) {
+      return fail(
+        'COURIER_UNSUPPORTED',
+        '쿠팡에서 지원하지 않는 택배사입니다. 택배사를 확인해 주세요.',
+      );
+    }
   }
 
   switch (match.transmissionStatus) {

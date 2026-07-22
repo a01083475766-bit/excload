@@ -1,3 +1,4 @@
+import { parseCoupangJson } from '@/app/lib/coupang/coupang-json';
 import { classifyCoupangHttpError, CoupangApiError } from '@/app/lib/coupang/errors';
 import { resolveCoupangTransport } from '@/app/lib/coupang/transport/resolve-transport';
 
@@ -10,7 +11,7 @@ export type CoupangMoney = {
 };
 
 export type CoupangOrderItem = {
-  vendorItemId?: number;
+  vendorItemId?: string;
   vendorItemName?: string;
   sellerProductName?: string;
   sellerProductItemName?: string;
@@ -23,8 +24,8 @@ export type CoupangOrderItem = {
 };
 
 export type CoupangOrderSheet = {
-  shipmentBoxId?: number;
-  orderId?: number;
+  shipmentBoxId?: string;
+  orderId?: string;
   orderedAt?: string;
   paidAt?: string;
   status?: string;
@@ -80,7 +81,7 @@ export async function coupangApiRequest<T>(input: {
 
     let parsed: CoupangApiEnvelope<T>;
     try {
-      parsed = JSON.parse(bodyText) as CoupangApiEnvelope<T>;
+      parsed = parseCoupangJson(bodyText) as CoupangApiEnvelope<T>;
     } catch {
       throw new CoupangApiError('UNKNOWN', '쿠팡 API 응답을 해석하지 못했습니다.');
     }
