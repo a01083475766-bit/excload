@@ -81,6 +81,34 @@ describe('courier download bundle helpers', () => {
     expect(label).toMatch(/API 18/);
     expect(label).toMatch(/수동 7/);
   });
+
+  it('formats bundle label in Asia/Seoul regardless of host timezone', () => {
+    // UTC 11:37 → KST 20:37 → 화면: 7. 22. 오후 8:37
+    const label = formatCourierDownloadBundleLabel({
+      createdAt: '2026-07-22T11:37:00.000Z',
+      rowCount: 1,
+      apiCount: 1,
+      manualCount: 0,
+    });
+    expect(label).toMatch(/7\.\s*22\./);
+    expect(label).toMatch(/오후/);
+    expect(label).toMatch(/8:37/);
+    expect(label).not.toMatch(/오전\s*11:37/);
+    expect(label).toContain('택배양식 다운로드 · 총 1건 (API 1 · 수동 0)');
+  });
+
+  it('uses KST calendar day across UTC midnight boundary', () => {
+    // UTC 2026-07-21 16:10 → KST 2026-07-22 01:10
+    const label = formatCourierDownloadBundleLabel({
+      createdAt: new Date('2026-07-21T16:10:00.000Z'),
+      rowCount: 2,
+      apiCount: 0,
+      manualCount: 2,
+    });
+    expect(label).toMatch(/7\.\s*22\./);
+    expect(label).toMatch(/오전/);
+    expect(label).toMatch(/1:10/);
+  });
 });
 
 describe('parseCourierDownloadBundleBody', () => {

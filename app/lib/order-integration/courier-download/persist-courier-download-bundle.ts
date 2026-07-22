@@ -129,10 +129,12 @@ export function formatCourierDownloadBundleLabel(input: {
   const when = Number.isNaN(createdAt.getTime())
     ? '-'
     : createdAt.toLocaleString('ko-KR', {
+        timeZone: 'Asia/Seoul',
         month: 'numeric',
         day: 'numeric',
-        hour: '2-digit',
+        hour: 'numeric',
         minute: '2-digit',
+        hour12: true,
       });
   return `${when} 택배양식 다운로드 · 총 ${input.rowCount}건 (API ${input.apiCount} · 수동 ${input.manualCount})`;
 }
