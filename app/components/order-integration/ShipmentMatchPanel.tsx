@@ -72,6 +72,18 @@ import {
   type ShipmentMatchTabId,
 } from '@/app/lib/order-integration/shipments/shipment-match-ui';
 import type { ShipmentMatchPanelDisplayRow } from '@/app/lib/order-integration/shipments/adapt-shipment-upload-batch-detail-for-ui';
+import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
+import {
+  LIVE_TRANSMIT_AREA_WARNING,
+  LIVE_TRANSMIT_BUTTON_LABEL,
+  LIVE_TRANSMIT_FINAL_CONFIRM_LABEL,
+  LIVE_TRANSMIT_IN_PROGRESS_LABEL,
+  MOCK_TRANSMIT_BUTTON_LABEL,
+  decideRealTransmitClick,
+  shouldExecuteLiveTransmitAfterConfirm,
+  type SmartstoreLiveTransmitConfirmOrderInput,
+  type SmartstoreLiveTransmitConfirmView,
+} from '@/app/lib/order-integration/transmission/smartstore-live-transmit-confirm';
 
 /** select: '' = 미선택(업로드 불가), 'none' = 해당 다운로드 없음, id = Bundle */
 const DOWNLOAD_BUNDLE_NONE = 'none';
@@ -169,6 +181,9 @@ export default function ShipmentMatchPanel({
   const [selectedTransmitMatchIds, setSelectedTransmitMatchIds] = useState<string[]>([]);
   const [transmitMessage, setTransmitMessage] = useState<string | null>(null);
   const [isTransmitting, setIsTransmitting] = useState(false);
+  const [liveTransmitConfirmView, setLiveTransmitConfirmView] =
+    useState<SmartstoreLiveTransmitConfirmView | null>(null);
+  const liveTransmitInFlightRef = useRef(false);
   const [recentTransmitView, setRecentTransmitView] = useState<RecentTransmitResultView | null>(null);
   const [recentTransmitFilter, setRecentTransmitFilter] = useState<'all' | 'failed'>('all');
   const [isVerifyingTransmit, setIsVerifyingTransmit] = useState(false);
@@ -682,6 +697,12 @@ export default function ShipmentMatchPanel({
         setTransmitMessage('전송할 행을 선택해주세요.');
         return;
       }
+      if (mode === 'real' && liveTransmitInFlightRef.current) {
+        return;
+      }
+      if (mode === 'real') {
+        liveTransmitInFlightRef.current = true;
+      }
       setIsTransmitting(true);
       setTransmitMessage(null);
       setVerifyTransmitMessage(null);
@@ -695,7 +716,13 @@ export default function ShipmentMatchPanel({
           setTransmitMessage(result.error);
           return;
         }
-        setTransmitMessage(`${mode} 처리 완료`);
+        setTransmitMessage(
+          mode === 'real'
+            ? '실제 전송 처리 완료'
+            : mode === 'mock'
+              ? 'Mock 테스트 전송 처리 완료'
+              : 'Dry-run 처리 완료',
+        );
         if (mode !== 'dry-run') {
           const nextView = buildRecentTransmitResultView({
             body: result.body,
@@ -712,11 +739,87 @@ export default function ShipmentMatchPanel({
           setViewState(buildShipmentMatchPanelViewStateFromDetailResponse(detail.body, viewState));
         }
       } finally {
+        if (mode === 'real') {
+          liveTransmitInFlightRef.current = false;
+          setLiveTransmitConfirmView(null);
+        }
         setIsTransmitting(false);
       }
     },
     [selectedTransmitMatchIds, sessionStatus, viewState],
   );
+
+  const buildSelectedLiveTransmitOrders = useCallback((): SmartstoreLiveTransmitConfirmOrderInput[] => {
+    if (!viewState) return [];
+    const selected = new Set(selectedTransmitMatchIds);
+    return viewState.displayRows
+      .filter((row) => row.matchId && selected.has(row.matchId))
+      .map((row) => ({
+        matchId: row.matchId as string,
+        provider: row.providerLabel,
+        mallOrderNo: row.mallOrderNo,
+        carrierName: row.carrierName,
+        carrierCode: row.carrierCode,
+        trackingNumberMasked: row.trackingNumberMasked,
+        hasTrackingNumber: row.hasTrackingNumber === true,
+        transmissionStatus: row.transmissionStatus,
+        matchStatus: row.matchStatus,
+        remainQuantity: row.remainQuantity ?? null,
+      }));
+  }, [selectedTransmitMatchIds, viewState]);
+
+  const handleRealTransmitClick = useCallback(() => {
+    if (!viewState || sessionStatus !== 'authenticated') {
+      setTransmitMessage('전송할 행을 선택해주세요.');
+      return;
+    }
+    if (isTransmitting || liveTransmitInFlightRef.current) {
+      return;
+    }
+    const decision = decideRealTransmitClick({
+      selectedOrders: buildSelectedLiveTransmitOrders(),
+      batchProvider: viewState.batchProvider,
+      integrationAccountId: viewState.integrationAccountId,
+      accountDisplayName: null,
+      isMockMode: false,
+    });
+    if (decision.action === 'noop') {
+      setTransmitMessage(decision.reason);
+      return;
+    }
+    if (decision.action === 'transmit-direct') {
+      void handleTransmit('real');
+      return;
+    }
+    // SMARTSTORE: 확인창만 열고 API는 호출하지 않음
+    setLiveTransmitConfirmView(decision.view);
+    setTransmitMessage(null);
+  }, [
+    buildSelectedLiveTransmitOrders,
+    handleTransmit,
+    isTransmitting,
+    sessionStatus,
+    viewState,
+  ]);
+
+  const handleLiveTransmitConfirmCancel = useCallback(() => {
+    if (isTransmitting || liveTransmitInFlightRef.current) return;
+    setLiveTransmitConfirmView(null);
+  }, [isTransmitting]);
+
+  const handleLiveTransmitFinalConfirm = useCallback(() => {
+    if (!liveTransmitConfirmView) return;
+    if (
+      !shouldExecuteLiveTransmitAfterConfirm({
+        canConfirmFinal: liveTransmitConfirmView.canConfirmFinal,
+        isMockMode: false,
+        isTransmitting: isTransmitting || liveTransmitInFlightRef.current,
+      })
+    ) {
+      return;
+    }
+    void handleTransmit('real');
+  }, [handleTransmit, isTransmitting, liveTransmitConfirmView]);
 
   const verifiableAttemptIds = useMemo(
     () => (recentTransmitView ? collectVerifiableAttemptIds(recentTransmitView.results) : []),
@@ -1173,37 +1276,49 @@ export default function ShipmentMatchPanel({
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-            <span className="mr-1 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-              쇼핑몰 전송 · 선택 {selectedTransmitMatchIds.length}건
-            </span>
-            <button
-              type="button"
-              onClick={() => void handleTransmit('dry-run')}
-              disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
-            >
-              Dry-run
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleTransmit('mock')}
-              disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
-              className="inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Mock 전송
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleTransmit('real')}
-              disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
-              className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-3 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
-            >
-              실전송
-            </button>
-            {isTransmitting ? <Loader2 className="h-4 w-4 animate-spin text-zinc-500" /> : null}
-            {transmitMessage ? (
-              <span className="text-xs text-zinc-600 dark:text-zinc-300">{transmitMessage}</span>
+          <div className="flex flex-col gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                쇼핑몰 전송 · 선택 {selectedTransmitMatchIds.length}건
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleTransmit('dry-run')}
+                disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+              >
+                Dry-run
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleTransmit('mock')}
+                disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-sky-300 bg-sky-50 px-3 text-xs font-semibold text-sky-900 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+              >
+                {MOCK_TRANSMIT_BUTTON_LABEL}
+              </button>
+              <button
+                type="button"
+                onClick={handleRealTransmitClick}
+                disabled={isTransmitting || selectedTransmitMatchIds.length === 0}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-red-300 bg-red-50 px-3 text-xs font-semibold text-red-800 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100"
+              >
+                {LIVE_TRANSMIT_BUTTON_LABEL}
+              </button>
+              {isTransmitting ? <Loader2 className="h-4 w-4 animate-spin text-zinc-500" /> : null}
+              {transmitMessage ? (
+                <span className="text-xs text-zinc-600 dark:text-zinc-300">{transmitMessage}</span>
+              ) : null}
+            </div>
+            <p className="text-[11px] leading-snug text-red-700 dark:text-red-300">
+              {LIVE_TRANSMIT_AREA_WARNING}
+            </p>
+            {viewState.batchProvider === 'SMARTSTORE' ||
+            viewState.batchProvider === '스마트스토어' ? (
+              <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                남은 발송 수량은 주문조회·택배양식 다운로드 저장 시점 기준입니다. 값이 없으면
+                주문을 다시 조회하고 택배양식을 새로 다운로드하세요.
+              </p>
             ) : null}
           </div>
 
@@ -1709,6 +1824,57 @@ export default function ShipmentMatchPanel({
           </div>
         </div>
       ) : null}
+
+      <ExcloudConfirmDialog
+        open={liveTransmitConfirmView != null}
+        title="스마트스토어 실제 전송 확인"
+        variant="danger"
+        cancelLabel="취소"
+        confirmLabel={
+          isTransmitting ? LIVE_TRANSMIT_IN_PROGRESS_LABEL : LIVE_TRANSMIT_FINAL_CONFIRM_LABEL
+        }
+        confirmDisabled={!liveTransmitConfirmView?.canConfirmFinal}
+        busy={isTransmitting}
+        panelClassName="max-w-[560px]"
+        onCancel={handleLiveTransmitConfirmCancel}
+        onConfirm={handleLiveTransmitFinalConfirm}
+        description={
+          liveTransmitConfirmView ? (
+            <>
+              <p>
+                쇼핑몰: {liveTransmitConfirmView.mallLabel} · 계정:{' '}
+                {liveTransmitConfirmView.accountLabel}
+              </p>
+              <p>전송 대상 주문 수: {liveTransmitConfirmView.orderCount}건</p>
+              <ul className="max-h-48 space-y-2 overflow-y-auto rounded border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-xs text-zinc-700">
+                {liveTransmitConfirmView.orders.map((order) => (
+                  <li key={order.matchId} className="border-b border-zinc-200 pb-2 last:border-0 last:pb-0">
+                    <div>주문번호: {order.maskedMallOrderNo}</div>
+                    <div>택배사: {order.carrierLabel}</div>
+                    <div>송장번호: {order.maskedTrackingNumber}</div>
+                    <div>{order.remainQuantity.label}</div>
+                    <div>{order.duplicatePrecheck.label}</div>
+                  </li>
+                ))}
+              </ul>
+              {liveTransmitConfirmView.blockReasons.length > 0 ? (
+                <ul className="list-disc space-y-1 pl-4 text-xs text-red-700">
+                  {liveTransmitConfirmView.blockReasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+              ) : null}
+              {liveTransmitConfirmView.warnings.map((warning) => (
+                <p key={warning} className="text-xs font-medium text-red-800">
+                  {warning}
+                </p>
+              ))}
+              <p className="text-xs text-zinc-600">{liveTransmitConfirmView.serverRecheckNotice}</p>
+              <p className="text-xs text-zinc-500">{liveTransmitConfirmView.snapshotRemainHint}</p>
+            </>
+          ) : null
+        }
+      />
     </div>
   );
 }

@@ -261,13 +261,13 @@ model OrderIntegrationAccount {
   lastErrorMessage String?                       @db.Text
 
   /// 실제 외부 API 연결 상태(HealthStatus). status(계정 활성/비활성)와 별개.
-  healthStatus            String?
-  lastCheckedAt           DateTime?
-  lastSuccessAt           DateTime?
-  lastFailureAt           DateTime?
-  lastErrorCategory       String?
-  lastErrorCode           String?
-  consecutiveFailureCount Int       @default(0)
+  healthStatus                   String?
+  lastCheckedAt                  DateTime?
+  lastSuccessAt                  DateTime?
+  lastFailureAt                  DateTime?
+  lastErrorCategory              String?
+  lastErrorCode                  String?
+  consecutiveFailureCount        Int       @default(0)
   /// 연결 상태 작업 시작 순번. 계정 단위 최신 결과 판정에 사용한다.
   healthOperationSequence        BigInt    @default(0)
   /// 실제 반영을 마친 마지막 연결 상태 작업 순번.
@@ -278,8 +278,8 @@ model OrderIntegrationAccount {
   /// 네이버 커머스API센터 등에 표시된 "인증기간"을 사용자가 직접 등록하는 값(선택).
   /// 자동 조회 값이 아니며, 토큰/키 만료(expiresAt)와 혼용 금지.
   /// 시간대 변환으로 날짜가 밀리지 않도록 시간 없는 DATE(@db.Date)로 저장한다.
-  authorizationPeriodStart DateTime? @db.Date
-  authorizationPeriodEnd   DateTime? @db.Date
+  authorizationPeriodStart       DateTime? @db.Date
+  authorizationPeriodEnd         DateTime? @db.Date
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -333,6 +333,8 @@ model OrderSyncOrder {
   receiverAddress       String?                     @db.Text
   productSummary        String?                     @db.Text
   quantity              Int?
+  /// 스마트스토어 주문조회·저장 시점 remainQuantity. 다른 몰은 null. 불명확 시 null(1 추정 금지).
+  remainQuantity        Int?
   deliveryMemo          String?                     @db.Text
   orderedAt             DateTime?
   orderStatus           String?
@@ -424,8 +426,8 @@ model CourierDownloadBundle {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workItems          CourierDownloadWorkItem[]
+  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workItems             CourierDownloadWorkItem[]
   shipmentUploadBatches ShipmentUploadBatch[]
 
   @@index([userId, createdAt])
@@ -435,7 +437,7 @@ model CourierDownloadBundle {
 
 /// 다운로드 행 최소 명세 (수취인 PII·원본 JSON 저장 금지)
 model CourierDownloadWorkItem {
-  id                   String                       @id @default(cuid())
+  id                   String                        @id @default(cuid())
   userId               String
   downloadBundleId     String
   excloadOrderNo       String
@@ -447,8 +449,8 @@ model CourierDownloadWorkItem {
   /// 선택: 정규화 값 HMAC (1차 미사용 가능)
   matchFingerprintHmac String?
   expiresAt            DateTime
-  createdAt            DateTime                     @default(now())
-  updatedAt            DateTime                     @updatedAt
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
 
   user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   downloadBundle CourierDownloadBundle @relation(fields: [downloadBundleId], references: [id], onDelete: Cascade)

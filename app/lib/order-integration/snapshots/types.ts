@@ -20,6 +20,8 @@ export type OrderSyncOrderSnapshotForPersist = {
   receiverAddress: string;
   productSummary: string;
   quantity: number;
+  /** 스마트스토어 주문조회·저장 시점 remainQuantity. 다른 몰·불명확은 null */
+  remainQuantity?: number | null;
   deliveryMemo?: string | null;
   orderedAt?: string | null;
   orderStatus?: string | null;
@@ -39,6 +41,11 @@ export type BuildOrderSyncSnapshotsInput = {
   rawOrders?: ReadonlyArray<unknown>;
   /** excloadOrderNo 시퀀스 시작값 (기본 1) */
   excloadOrderNoStartSeq?: number;
+  /**
+   * rows와 동일 인덱스. 이미 number|null 로 정규화된 메타.
+   * 표준행에 내부 키를 넣지 않는다.
+   */
+  remainQuantities?: ReadonlyArray<number | null>;
 };
 
 export type OrderRowShipmentGroup = {
@@ -132,6 +139,7 @@ export type PersistedOrderSyncOrderLike = {
   receiverAddress: string | null;
   productSummary: string | null;
   quantity: number | null;
+  remainQuantity?: number | null;
   deliveryMemo: string | null;
   orderedAt: Date | null;
   orderStatus: string | null;
@@ -217,6 +225,8 @@ export type MaybePersistOrderFetchResultInput = {
   orderStandardFile?: OrderFetchStandardFileLike | null;
   rawOrders?: unknown;
   fetchedAt?: Date;
+  /** rows와 동일 인덱스. 정규화된 number|null 메타(표준행 키 아님) */
+  remainQuantities?: ReadonlyArray<number | null>;
 };
 
 export type OrderFetchSnapshotPersistResult =

@@ -35,6 +35,10 @@ export type ShipmentUploadBatchDetailRow = {
   transmissionErrorMessage: string | null;
   matchReason: string | null;
   matchScore: number | null;
+  /** 주문조회·저장 시점 remainQuantity. 없으면 null */
+  remainQuantity: number | null;
+  /** 서버가 원문 송장 존재 여부만 계산. 원문은 노출하지 않음 */
+  hasTrackingNumber: boolean;
 };
 
 export type ShipmentUploadBatchDetailResponse = {
@@ -70,6 +74,7 @@ type LoadedOrderSyncOrder = {
   receiverPhone: string | null;
   receiverAddress: string | null;
   productSummary: string | null;
+  remainQuantity: number | null;
 };
 
 type LoadedShipmentMatch = {
@@ -183,6 +188,8 @@ export function mapShipmentUploadBatchDetailRow(input: {
   const receiverPhone = order?.receiverPhone ?? row.receiverPhone;
   const receiverAddress = order?.receiverAddress ?? row.receiverAddress;
   const productSummary = order?.productSummary ?? row.productText;
+  const trackingRaw =
+    match?.finalTrackingNumber?.trim() || row.trackingNumber?.trim() || '';
 
   return {
     uploadRowId: row.id,
@@ -197,7 +204,9 @@ export function mapShipmentUploadBatchDetailRow(input: {
     receiverName: order?.receiverName ?? row.receiverName,
     receiverPhoneMasked: maskShipmentPhone(receiverPhone),
     receiverAddressMasked: maskShipmentAddress(receiverAddress),
-    trackingNumberMasked: maskShipmentTrackingNumber(row.trackingNumber),
+    trackingNumberMasked: maskShipmentTrackingNumber(
+      match?.finalTrackingNumber?.trim() || row.trackingNumber,
+    ),
     trackingNumberValue: null,
     productSummary: productSummary?.trim() || null,
     carrierName: match?.finalCarrierName?.trim() || row.carrierName?.trim() || null,
@@ -205,6 +214,11 @@ export function mapShipmentUploadBatchDetailRow(input: {
     transmissionErrorMessage: match?.transmissionErrorMessage ?? null,
     matchReason: match?.matchReason ?? null,
     matchScore: match?.matchScore ?? null,
+    remainQuantity:
+      typeof order?.remainQuantity === 'number' && Number.isFinite(order.remainQuantity)
+        ? order.remainQuantity
+        : null,
+    hasTrackingNumber: trackingRaw.length > 0,
   };
 }
 
@@ -289,6 +303,7 @@ export async function loadShipmentUploadBatchDetail(
               receiverPhone: true,
               receiverAddress: true,
               productSummary: true,
+              remainQuantity: true,
             },
           },
         },

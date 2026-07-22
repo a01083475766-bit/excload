@@ -32,6 +32,8 @@ export type PreviewRowWithId = {
     /** 실연동 계정 ID. 예시 미리보기는 빈 문자열 */
     accountId: string;
     standardRow: Record<string, string>;
+    /** 스마트스토어 등. 표준행·다운로드에 넣지 않는 정규화 remainQuantity */
+    remainQuantity?: number | null;
     /** true면 예시 미리보기 — Bundle/매칭 저장 대상 아님 */
     isExamplePreview?: boolean;
   };

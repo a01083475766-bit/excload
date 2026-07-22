@@ -1,5 +1,9 @@
 import { buildOrderSyncSnapshots } from '@/app/lib/order-integration/snapshots/build-order-sync-snapshots';
 import { persistOrderSyncBatch } from '@/app/lib/order-integration/snapshots/persist-order-sync-batch';
+import {
+  normalizeRemainQuantityForPersist,
+  stripExcloadRemainQuantityFromRows,
+} from '@/app/lib/order-integration/snapshots/remain-quantity';
 import type {
   MaybePersistOrderFetchResultInput,
   OrderFetchSnapshotPersistResult,
@@ -79,14 +83,19 @@ export async function persistOrderSyncSnapshotsFromStandardRows(
 
   try {
     const fetchedAt = input.fetchedAt ?? new Date();
+    const cleanedRows = stripExcloadRemainQuantityFromRows(normalizeOrderStandardRows(rows));
+    const remainQuantities = (input.remainQuantities ?? cleanedRows.map(() => null)).map((value) =>
+      normalizeRemainQuantityForPersist(value),
+    );
     const snapshots = buildOrderSyncSnapshots({
       userId: input.userId,
       provider: input.provider,
       accountId: input.integrationAccountId,
       fetchedAt,
-      rows: normalizeOrderStandardRows(rows),
+      rows: cleanedRows,
       // 운영: API 원문 미저장
       rawOrders: undefined,
+      remainQuantities,
     });
 
     const result = await persistOrderSyncBatch(

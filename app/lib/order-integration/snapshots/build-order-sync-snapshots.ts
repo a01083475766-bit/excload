@@ -5,6 +5,10 @@ import {
   normalizeReceiverName,
 } from '@/app/lib/order-integration/shipments/normalize-shipment-row';
 import { generateExcloadOrderNo, formatExcloadOrderNoDateKey } from '@/app/lib/order-integration/snapshots/excload-order-no';
+import {
+  resolveGroupedRemainQuantityForPersist,
+  stripExcloadRemainQuantityFromRows,
+} from '@/app/lib/order-integration/snapshots/remain-quantity';
 import type {
   BuildOrderSyncSnapshotsInput,
   OrderRowShipmentGroup,
@@ -225,10 +229,12 @@ export function buildOrderSyncSnapshots(
     Number.isNaN(fetchedDate.getTime()) ? new Date() : fetchedDate,
   );
 
+  const cleanedRows = stripExcloadRemainQuantityFromRows(input.rows);
+
   const groups = groupOrderRowsForShipment({
     provider: String(input.provider),
     accountId: input.accountId,
-    rows: input.rows,
+    rows: cleanedRows,
   });
 
   let sequence = input.excloadOrderNoStartSeq ?? 1;
@@ -255,6 +261,11 @@ export function buildOrderSyncSnapshots(
       receiverAddress: formatReceiverAddress(firstRow),
       productSummary: buildProductSummary(group.rows),
       quantity: sumQuantity(group.rows),
+      remainQuantity: resolveGroupedRemainQuantityForPersist({
+        provider: String(input.provider),
+        sourceRowIndexes: group.sourceRowIndexes,
+        remainQuantities: input.remainQuantities,
+      }),
       deliveryMemo: pickDeliveryMemo(group.rows) || null,
       orderedAt: pickOrderedAt(firstRow) || null,
       orderStatus: pickOrderStatus(group.rows) || null,

@@ -513,10 +513,18 @@ export default function OrderIntegrationFetchPanel() {
         return {
           rows: [] as StandardOrderRow[],
           summaries: [] as Array<{ mallId: string; name: string; count: number; accountId: string }>,
-          sourceEntries: [] as Array<{ mallId: string; accountId: string }>,
+          sourceEntries: [] as Array<{
+            mallId: string;
+            accountId: string;
+            remainQuantity: number | null;
+          }>,
         };
       const rows: StandardOrderRow[] = [];
-      const sourceEntries: Array<{ mallId: string; accountId: string }> = [];
+      const sourceEntries: Array<{
+        mallId: string;
+        accountId: string;
+        remainQuantity: number | null;
+      }> = [];
       const summaries: Array<{ mallId: string; name: string; count: number; accountId: string }> =
         [];
       for (const mall of results) {
@@ -535,9 +543,12 @@ export default function OrderIntegrationFetchPanel() {
         if (picked.length > 0) {
           rows.push(...picked);
           for (let i = 0; i < picked.length; i += 1) {
+            const view = pickedViews[i]!;
             sourceEntries.push({
               mallId: mall.mallId,
               accountId: mall.accountId,
+              remainQuantity:
+                typeof view.remainQuantity === 'number' ? view.remainQuantity : null,
             });
           }
           summaries.push({

@@ -30,11 +30,16 @@ export type ShipmentMatchPanelDisplayRow = ShipmentMatchDisplayRow & {
   transmissionErrorMessage: string | null;
   trackingNumberValue: string | null;
   carrierCode: string | null;
+  remainQuantity: number | null;
+  hasTrackingNumber: boolean;
 };
 
 export type ShipmentMatchPanelViewState = {
   uploadBatchId: string;
   batchStatus: ShipmentUploadBatchStatus;
+  /** 배치 provider enum (SMARTSTORE 등). 표시용 한글 라벨과 구분 */
+  batchProvider: string | null;
+  integrationAccountId: string | null;
   file: {
     name: string;
     size: number;
@@ -88,6 +93,8 @@ export function adaptShipmentUploadBatchDetailRowForDisplay(
     transmissionStatus: row.transmissionStatus,
     transmissionErrorMessage: row.transmissionErrorMessage,
     hasLinkedOrder,
+    remainQuantity: row.remainQuantity ?? null,
+    hasTrackingNumber: row.hasTrackingNumber === true,
   };
 }
 
@@ -140,6 +147,8 @@ export function adaptShipmentUploadBatchDetailForUi(
   return {
     uploadBatchId: detail.uploadBatch.id,
     batchStatus: detail.uploadBatch.status,
+    batchProvider: detail.uploadBatch.provider ?? null,
+    integrationAccountId: detail.uploadBatch.integrationAccountId ?? null,
     file: {
       name: detail.uploadBatch.originalFileName,
       size: detail.uploadBatch.fileSize,

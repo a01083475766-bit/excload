@@ -51,6 +51,7 @@ function mapSnapshotFieldsForWrite(
     receiverAddress: snapshot.receiverAddress,
     productSummary: snapshot.productSummary,
     quantity: snapshot.quantity,
+    remainQuantity: snapshot.remainQuantity ?? null,
     deliveryMemo: snapshot.deliveryMemo ?? null,
     orderedAt: parseOrderedAt(snapshot.orderedAt),
     orderStatus: snapshot.orderStatus ?? null,

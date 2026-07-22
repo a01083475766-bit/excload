@@ -33,14 +33,26 @@ function parseGroups(body: unknown): CourierDownloadSnapshotGroup[] | null {
       const normalized: Record<string, string> = {};
       for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
         if (typeof key !== 'string') continue;
+        if (key === '__excloadRemainQuantity') continue;
         normalized[key] = value == null ? '' : String(value);
       }
       rows.push(normalized);
     }
 
+    const remainRaw = (item as { remainQuantities?: unknown }).remainQuantities;
+    let remainQuantities: Array<number | null> | undefined;
+    if (remainRaw !== undefined) {
+      if (!Array.isArray(remainRaw) || remainRaw.length !== rows.length) return null;
+      remainQuantities = remainRaw.map((value) => {
+        if (typeof value !== 'number') return null;
+        if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) return null;
+        return value;
+      });
+    }
+
     totalRows += rows.length;
     if (totalRows > MAX_ROWS_TOTAL) return null;
-    parsed.push({ mallId, accountId, rows });
+    parsed.push({ mallId, accountId, rows, ...(remainQuantities ? { remainQuantities } : {}) });
   }
 
   return parsed;

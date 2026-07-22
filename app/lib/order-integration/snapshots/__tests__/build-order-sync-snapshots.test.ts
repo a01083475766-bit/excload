@@ -135,6 +135,7 @@ describe('buildOrderSyncSnapshots', () => {
     expect(snapshots[0]?.mallOrderNo).toBe('1001');
     expect(snapshots[0]?.productSummary).toBe('반팔티 x1 / 바지 x1 / 모자 x1');
     expect(snapshots[0]?.quantity).toBe(3);
+    expect(snapshots[0]?.remainQuantity).toBeNull();
     expect(snapshots[0]?.receiverName).toBe('홍길동');
     expect(snapshots[0]?.receiverPhone).toBe('010-1234-5678');
     expect(snapshots[0]?.mallLineItemIds).toEqual(['PO-1', 'PO-2', 'PO-3']);
@@ -191,6 +192,26 @@ describe('buildOrderSyncSnapshots', () => {
 
     expect(snapshots[0]?.excloadOrderNo).toBe('EXC-20260709-000001');
     expect(snapshots[1]?.excloadOrderNo).toBe('EXC-20260709-000002');
+  });
+
+  it('persists smartstore remainQuantity from remainQuantities meta without estimating 1', () => {
+    const snapshots = buildOrderSyncSnapshots({
+      ...BASE_INPUT,
+      provider: 'SMARTSTORE',
+      rows: [
+        makeRow({
+          상품주문번호: 'PO-1',
+        }),
+      ],
+      remainQuantities: [2],
+    });
+    expect(snapshots[0]?.remainQuantity).toBe(2);
+
+    const missing = buildOrderSyncSnapshots({
+      ...BASE_INPUT,
+      rows: [makeRow({ 상품주문번호: 'PO-9' })],
+    });
+    expect(missing[0]?.remainQuantity).toBeNull();
   });
 });
 

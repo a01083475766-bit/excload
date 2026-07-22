@@ -70,6 +70,7 @@ function buildRow(overrides: Record<string, unknown> = {}) {
         receiverPhone: '01099998888',
         receiverAddress: '서울시 서초구 반포대로 10',
         productSummary: '티셔츠 1개',
+        remainQuantity: 1,
       },
     },
     ...overrides,
@@ -126,6 +127,28 @@ describe('mapShipmentUploadBatchDetailRow', () => {
     expect(mapped.userConfirmationStatus).toBe(ShipmentUserConfirmationStatus.UNCONFIRMED);
     expect(mapped.transmissionStatus).toBe(OrderSyncTransmissionStatus.NONE);
     expect(mapped.algorithmMatchStatus).toBe(ShipmentAlgorithmMatchStatus.MATCHED_CONFIDENT);
+    expect(mapped.remainQuantity).toBe(1);
+    expect(mapped.hasTrackingNumber).toBe(true);
+    expect(mapped.trackingNumberValue).toBeNull();
+  });
+
+  it('sets hasTrackingNumber false and remainQuantity null when missing', () => {
+    const mapped = mapShipmentUploadBatchDetailRow({
+      row: buildRow({
+        trackingNumber: '   ',
+        match: {
+          ...buildRow().match!,
+          finalTrackingNumber: null,
+          orderSyncOrder: {
+            ...buildRow().match!.orderSyncOrder!,
+            remainQuantity: null,
+          },
+        },
+      }),
+      batchProvider: OrderIntegrationProvider.SMARTSTORE,
+    });
+    expect(mapped.hasTrackingNumber).toBe(false);
+    expect(mapped.remainQuantity).toBeNull();
   });
 });
 

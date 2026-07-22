@@ -60,6 +60,8 @@ function buildDetail(): ShipmentUploadBatchDetailResponse {
         transmissionErrorMessage: null,
         matchReason: 'exact',
         matchScore: 100,
+        remainQuantity: 1,
+        hasTrackingNumber: true,
       },
       {
         uploadRowId: 'row-2',
@@ -82,6 +84,8 @@ function buildDetail(): ShipmentUploadBatchDetailResponse {
         transmissionErrorMessage: null,
         matchReason: 'no candidate',
         matchScore: 0,
+        remainQuantity: null,
+        hasTrackingNumber: true,
       },
     ],
     summary: {
@@ -148,6 +152,8 @@ describe('adaptShipmentUploadBatchDetailRowForDisplay', () => {
       transmissionErrorMessage: null,
       carrierCode: 'CJ',
       hasLinkedOrder: true,
+      remainQuantity: 1,
+      hasTrackingNumber: true,
     });
     expect(JSON.stringify(mapped)).not.toContain('rawRowJson');
     expect(JSON.stringify(mapped)).not.toContain('candidateOrdersJson');
@@ -163,6 +169,8 @@ describe('adaptShipmentUploadBatchDetailForUi', () => {
 
     expect(viewState.uploadBatchId).toBe('upload-batch-1');
     expect(viewState.batchStatus).toBe('MATCHED');
+    expect(viewState.batchProvider).toBe('SMARTSTORE');
+    expect(viewState.integrationAccountId).toBe('acc-1');
     expect(viewState.file.name).toBe('shipments.csv');
     expect(viewState.parse).toEqual({ rowCount: 2, warningCount: 2 });
     expect(viewState.ordersLoadedCount).toBe(5);

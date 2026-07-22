@@ -379,11 +379,14 @@ export default function OrderIntegrationHub() {
         ? pending.rows.map((row, index) => {
             const entry = sourceEntries[index]!;
             const standardRow = { ...row };
+            delete (standardRow as Record<string, string>)['__excloadRemainQuantity'];
             if (entry.accountId.trim()) {
               return {
                 mallId: entry.mallId,
                 accountId: entry.accountId.trim(),
                 standardRow,
+                remainQuantity:
+                  typeof entry.remainQuantity === 'number' ? entry.remainQuantity : null,
               };
             }
             // 예시 미리보기 등 실계정 없음 — 미리보기 표시용만, Bundle/API 분류 금지
@@ -391,6 +394,8 @@ export default function OrderIntegrationHub() {
               mallId: entry.mallId,
               accountId: '',
               standardRow,
+              remainQuantity:
+                typeof entry.remainQuantity === 'number' ? entry.remainQuantity : null,
               isExamplePreview: true as const,
             };
           })
@@ -815,6 +820,10 @@ export default function OrderIntegrationHub() {
               mallId: r.orderSyncSource.mallId,
               accountId: r.orderSyncSource.accountId,
               standardRow: { ...r.orderSyncSource.standardRow },
+              remainQuantity:
+                typeof r.orderSyncSource.remainQuantity === 'number'
+                  ? r.orderSyncSource.remainQuantity
+                  : null,
               ...(r.orderSyncSource.isExamplePreview ? { isExamplePreview: true as const } : {}),
             },
           }
@@ -919,19 +928,35 @@ export default function OrderIntegrationHub() {
     try {
       const downloadRows = sortedRows;
       const snapshotGroups = (() => {
-        const map = new Map<string, { mallId: string; accountId: string; rows: Record<string, string>[] }>();
+        const map = new Map<
+          string,
+          {
+            mallId: string;
+            accountId: string;
+            rows: Record<string, string>[];
+            remainQuantities: Array<number | null>;
+          }
+        >();
         for (const row of downloadRows) {
           const src = row.orderSyncSource;
           if (!src?.accountId || !src.mallId) continue;
           const key = `${src.mallId}::${src.accountId}`;
+          const standardRow = { ...src.standardRow };
+          delete standardRow['__excloadRemainQuantity'];
+          const remain =
+            typeof src.remainQuantity === 'number' && Number.isInteger(src.remainQuantity)
+              ? src.remainQuantity
+              : null;
           const existing = map.get(key);
           if (existing) {
-            existing.rows.push({ ...src.standardRow });
+            existing.rows.push(standardRow);
+            existing.remainQuantities.push(remain);
           } else {
             map.set(key, {
               mallId: src.mallId,
               accountId: src.accountId,
-              rows: [{ ...src.standardRow }],
+              rows: [standardRow],
+              remainQuantities: [remain],
             });
           }
         }

@@ -179,8 +179,8 @@ describe('hub-pending-fetch-transfer 안전장치', () => {
     expect(result.status).toBe('ok');
     if (result.status === 'ok') {
       expect(result.transfer.sourceEntries).toEqual([
-        { mallId: 'smartstore', accountId: 'acc-ss' },
-        { mallId: 'coupang', accountId: 'acc-cp' },
+        { mallId: 'smartstore', accountId: 'acc-ss', remainQuantity: null },
+        { mallId: 'coupang', accountId: 'acc-cp', remainQuantity: null },
       ]);
       expect(result.transfer.rows).toHaveLength(2);
     }

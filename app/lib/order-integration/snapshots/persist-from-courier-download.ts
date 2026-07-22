@@ -14,12 +14,18 @@ import {
   persistOrderSyncSnapshotsFromStandardRows,
   toSafePersistErrorMessage,
 } from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
+import {
+  normalizeRemainQuantityForPersist,
+  stripExcloadRemainQuantityFromRows,
+} from '@/app/lib/order-integration/snapshots/remain-quantity';
 import type { OrderFetchSnapshotPersistResult } from '@/app/lib/order-integration/snapshots/types';
 
 export type CourierDownloadSnapshotGroup = {
   mallId: string;
   accountId: string;
   rows: Array<Record<string, string>>;
+  /** rows와 동일 길이. 정규화된 remainQuantity 메타(행 키 아님) */
+  remainQuantities?: Array<number | null>;
 };
 
 export type PersistFromCourierDownloadInput = {
@@ -40,13 +46,15 @@ export type PersistFromCourierDownloadResult = {
 };
 
 function normalizeRows(rows: Array<Record<string, string>>): Array<Record<string, string>> {
-  return rows.map((row) => {
-    const next: Record<string, string> = {};
-    for (const [key, value] of Object.entries(row)) {
-      next[key] = value == null ? '' : String(value);
-    }
-    return next;
-  });
+  return stripExcloadRemainQuantityFromRows(
+    rows.map((row) => {
+      const next: Record<string, string> = {};
+      for (const [key, value] of Object.entries(row)) {
+        next[key] = value == null ? '' : String(value);
+      }
+      return next;
+    }),
+  );
 }
 
 /**
@@ -98,13 +106,21 @@ export async function persistOrderSyncFromCourierDownload(
       continue;
     }
 
+    const cleanedRows = normalizeRows(group.rows);
+    const remainQuantities = (
+      group.remainQuantities && group.remainQuantities.length === cleanedRows.length
+        ? group.remainQuantities
+        : cleanedRows.map(() => null)
+    ).map((value) => normalizeRemainQuantityForPersist(value));
+
     const result = await persistOrderSyncSnapshotsFromStandardRows({
       client: prisma,
       enabled: true,
       userId: input.userId,
       provider,
       integrationAccountId: account.id,
-      orderStandardFile: { rows: normalizeRows(group.rows) },
+      orderStandardFile: { rows: cleanedRows },
+      remainQuantities,
       fetchedAt: downloadedAt,
       memo: 'courier-download',
     });

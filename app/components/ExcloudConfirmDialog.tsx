@@ -23,14 +23,19 @@ type Props = {
   onCancel: () => void;
   /** 확인만 (닫기 한 버튼) */
   confirmOnly?: boolean;
+  /** 최종 확인 비활성 (조건 미충족) */
+  confirmDisabled?: boolean;
+  /** 요청 진행 중 — 확인·취소 모두 잠금 */
+  busy?: boolean;
+  panelClassName?: string;
 };
 
 const confirmClass: Record<Variant, string> = {
   default: EXCLOAD_MODAL_BTN_PRIMARY,
   danger:
-    'rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700',
+    'rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50',
   warning:
-    'rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700',
+    'rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50',
 };
 
 /**
@@ -46,13 +51,22 @@ export function ExcloudConfirmDialog({
   onConfirm,
   onCancel,
   confirmOnly = false,
+  confirmDisabled = false,
+  busy = false,
+  panelClassName = 'max-w-[400px]',
 }: Props) {
   if (!open) return null;
 
+  const locked = busy || confirmDisabled;
+
   return (
-    <div className={EXCLOAD_MODAL_OVERLAY} onClick={onCancel} role="presentation">
+    <div
+      className={EXCLOAD_MODAL_OVERLAY}
+      onClick={busy ? undefined : onCancel}
+      role="presentation"
+    >
       <div
-        className={`${EXCLOAD_MODAL_PANEL} max-w-[400px]`}
+        className={`${EXCLOAD_MODAL_PANEL} ${panelClassName}`}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -70,11 +84,21 @@ export function ExcloudConfirmDialog({
         </div>
         <div className="flex justify-end gap-2.5 border-t border-zinc-100 px-6 py-4">
           {!confirmOnly ? (
-            <button type="button" className={EXCLOAD_MODAL_BTN_SECONDARY} onClick={onCancel}>
+            <button
+              type="button"
+              className={EXCLOAD_MODAL_BTN_SECONDARY}
+              onClick={onCancel}
+              disabled={busy}
+            >
               {cancelLabel}
             </button>
           ) : null}
-          <button type="button" className={confirmClass[variant]} onClick={onConfirm}>
+          <button
+            type="button"
+            className={confirmClass[variant]}
+            onClick={onConfirm}
+            disabled={locked}
+          >
             {confirmLabel}
           </button>
         </div>

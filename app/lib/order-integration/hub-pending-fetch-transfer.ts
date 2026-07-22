@@ -12,6 +12,7 @@
  */
 
 import type { StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
+import { normalizeRemainQuantityForPersist } from '@/app/lib/order-integration/snapshots/remain-quantity';
 
 export const HUB_PENDING_FETCH_STORAGE_KEY = 'excload_order_integration_hub_pending_fetch_v1';
 /** payload 스키마 버전. 미지원 버전은 소비 시 삭제한다. */
@@ -38,6 +39,8 @@ export type HubPendingMallSummary = {
 export type HubPendingFetchSourceEntry = {
   mallId: string;
   accountId: string;
+  /** 스마트스토어 등. 표준행에 넣지 않는 정규화 remainQuantity */
+  remainQuantity?: number | null;
 };
 
 export type HubPendingFetchTransfer = {
@@ -94,6 +97,9 @@ export function writeHubPendingFetchTransfer(
       normalized.push({
         mallId: entry.mallId,
         accountId: entry.accountId,
+        remainQuantity: normalizeRemainQuantityForPersist(
+          'remainQuantity' in entry ? entry.remainQuantity : null,
+        ),
       });
     }
     sourceEntries = normalized;
@@ -201,6 +207,9 @@ export function consumeHubPendingFetchTransfer(input: {
           normalized.push({
             mallId: entry.mallId,
             accountId: entry.accountId,
+            remainQuantity: normalizeRemainQuantityForPersist(
+              'remainQuantity' in entry ? (entry as { remainQuantity?: unknown }).remainQuantity : null,
+            ),
           });
         }
         sourceEntries = valid ? normalized : undefined;

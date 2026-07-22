@@ -123,8 +123,12 @@ export function maskShipmentPhone(value?: string | null): string | null {
 export function maskShipmentTrackingNumber(value?: string | null): string | null {
   const compact = String(value ?? '').trim();
   if (!compact) return null;
+  // 짧은 값: 원문 전체·연속 원문이 결과에 포함되지 않게
+  if (compact.length <= 2) {
+    return '****';
+  }
   if (compact.length <= 8) {
-    return `${compact.slice(0, 2)}****`;
+    return `****${compact.slice(-2)}`;
   }
 
   const head = compact.slice(0, 4);

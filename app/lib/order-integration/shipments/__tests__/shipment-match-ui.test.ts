@@ -56,6 +56,10 @@ describe('masking helpers', () => {
 
   it('masks tracking numbers', () => {
     expect(maskShipmentTrackingNumber('12345678901234')).toBe('1234****1234');
+    expect(maskShipmentTrackingNumber('12')).toBe('****');
+    expect(maskShipmentTrackingNumber('12')?.includes('12')).toBe(false);
+    expect(maskShipmentTrackingNumber('12345678')).toBe('****78');
+    expect(maskShipmentTrackingNumber('12345678')?.includes('12345678')).toBe(false);
   });
 
   it('masks addresses with head and tail', () => {

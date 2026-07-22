@@ -8,6 +8,7 @@ import {
   normalizeSmartstoreOrderStatus,
   normalizeSmartstorePlaceOrderStatus,
 } from '@/app/lib/order-integration/order-status';
+import { normalizeRemainQuantityForPersist } from '@/app/lib/order-integration/snapshots/remain-quantity';
 
 const SMARTSTORE_STATUS_LABEL: Record<string, string> = {
   PAYED: '결제완료',
@@ -114,6 +115,15 @@ export function mapSmartstoreOrderToStandardRow(detail: SmartstoreProductOrderDe
   return row;
 }
 
+/** 스마트스토어 API 원문 remainQuantity만 정규화(표준행에 넣지 않음). */
+export function mapSmartstoreRemainQuantities(
+  orders: SmartstoreProductOrderDetail[],
+): Array<number | null> {
+  return orders.map((detail) =>
+    normalizeRemainQuantityForPersist(detail.productOrder?.remainQuantity),
+  );
+}
+
 /**
  * 주문조회 UI 표시용 뷰(정규화 상태·발주상태·클레임 포함).
  * 표준행 배열과 동일한 순서(index)로 정렬된다.
@@ -131,6 +141,7 @@ export function mapSmartstoreOrdersToFetchViews(
       .join(' ')
       .trim();
     const processingQuantity = pickProcessingQuantity(productOrder);
+    const remainQuantity = normalizeRemainQuantityForPersist(productOrder.remainQuantity);
     return {
       rowIndex: index,
       status,
@@ -144,7 +155,7 @@ export function mapSmartstoreOrdersToFetchViews(
       productName: productOrder.productName ?? '',
       productOption: productOrder.productOption ?? '',
       quantity: String(processingQuantity),
-      remainQuantity: productOrder.remainQuantity ?? processingQuantity,
+      ...(remainQuantity !== null ? { remainQuantity } : {}),
       initialQuantity: productOrder.initialQuantity,
       receiverName: shipping.name ?? '',
       paymentAmount: pickPaymentAmount(productOrder),
