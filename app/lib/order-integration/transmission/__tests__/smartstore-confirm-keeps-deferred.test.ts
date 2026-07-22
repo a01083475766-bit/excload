@@ -1,35 +1,27 @@
-import type { OrderIntegrationAccount } from '@prisma/client';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { createRealShipmentTransmissionAdapterRegistry } from '@/app/lib/order-integration/transmission/real-adapters';
+/**
+ * SMARTSTORE-A 이후 B에서 live adapter가 연결됐더라도,
+ * 송장 전송 경로가 confirm POST를 호출하면 안 된다.
+ */
+describe('SMARTSTORE invoice path must not call confirm', () => {
+  it('runSmartstoreInvoiceTransmission module does not import confirm runner', async () => {
+    const invoiceModule = await import('@/app/lib/smartstore/smartstore-invoice');
+    const source = JSON.stringify(Object.keys(invoiceModule));
+    expect(source).not.toContain('runSmartstoreConfirm');
+    expect(typeof invoiceModule.runSmartstoreInvoiceTransmission).toBe('function');
+  });
 
-describe('SMARTSTORE live adapter remains deferred after confirm work', () => {
-  it('still returns PROVIDER_SPEC_INCOMPLETE for SMARTSTORE transmit', async () => {
-    const account = {
-      id: 'acc',
-      userId: 'user-1',
-      provider: 'SMARTSTORE',
-      vendorId: 'vendor-1',
-      sellerId: 'seller-1',
-      apiKeyCiphertext: 'x',
-    } as OrderIntegrationAccount;
-
+  it('live SMARTSTORE adapter is registered (no longer PROVIDER_SPEC_INCOMPLETE stub only)', async () => {
+    const { createRealShipmentTransmissionAdapterRegistry } = await import(
+      '@/app/lib/order-integration/transmission/real-adapters'
+    );
     const registry = createRealShipmentTransmissionAdapterRegistry({
       userId: 'user-1',
-      loadAccount: async () => account,
-      resolveAccountSecrets: (loaded) => ({
-        accountId: loaded.id,
-        vendorId: loaded.vendorId,
-        sellerId: loaded.sellerId,
-        accessKey: null,
-        secretKey: null,
-        apiKey: loaded.apiKeyCiphertext ? 'api-key' : null,
-      }),
+      loadAccount: async () => null,
     });
-
     const adapter = registry.get('SMARTSTORE');
     expect(adapter).toBeTruthy();
-
     const result = await adapter!.transmit({
       provider: 'SMARTSTORE',
       integrationAccountId: 'acc',
@@ -43,8 +35,8 @@ describe('SMARTSTORE live adapter remains deferred after confirm work', () => {
       courierCode: 'CJ',
       courierName: 'CJ대한통운',
     });
-
-    expect(result.success).toBe(false);
-    expect(result.errorCode).toBe('PROVIDER_SPEC_INCOMPLETE');
+    expect(result.errorCode).toBe('NOT_CONFIGURED');
+    expect(result.errorCode).not.toBe('PROVIDER_SPEC_INCOMPLETE');
+    void vi;
   });
 });

@@ -63,14 +63,21 @@ describe('resolveProviderCourierCode (COUPANG)', () => {
     ).toBeNull();
   });
 
-  it('does not change SMARTSTORE LOTTE mapping', () => {
+  it('maps SMARTSTORE LOTTE to HYUNDAI (Naver deliveryCompanyCode)', () => {
     expect(
       resolveProviderCourierCode({
         provider: 'SMARTSTORE',
         courierCode: 'LOTTE',
         courierName: null,
       }),
-    ).toBe('LOTTE');
+    ).toBe('HYUNDAI');
+    expect(
+      resolveProviderCourierCode({
+        provider: 'SMARTSTORE',
+        courierCode: null,
+        courierName: '롯데택배',
+      }),
+    ).toBe('HYUNDAI');
   });
 });
 

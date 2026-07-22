@@ -262,7 +262,7 @@ describe('evaluateShipmentTransmissionEligibility', () => {
     expect(supported.eligible).toBe(true);
   });
 
-  it('does not apply Coupang courier validation to SMARTSTORE', () => {
+  it('applies SMARTSTORE courier validation and rejects unknown couriers', () => {
     const result = evaluate({
       batch: { ...BATCH, provider: 'SMARTSTORE' },
       match: buildMatch({
@@ -271,6 +271,24 @@ describe('evaluateShipmentTransmissionEligibility', () => {
           trackingNumber: '012345678901',
           carrierCode: 'UNKNOWN',
           carrierName: '알수없는택배',
+        },
+      }),
+      order: { ...ORDER, provider: 'SMARTSTORE' },
+    });
+    expect(result.eligible).toBe(false);
+    if (result.eligible) return;
+    expect(result.reasonCode).toBe('COURIER_UNSUPPORTED');
+  });
+
+  it('accepts SMARTSTORE LOTTE as mapped courier', () => {
+    const result = evaluate({
+      batch: { ...BATCH, provider: 'SMARTSTORE' },
+      match: buildMatch({
+        provider: 'SMARTSTORE',
+        uploadRow: {
+          trackingNumber: '012345678901',
+          carrierCode: 'LOTTE',
+          carrierName: '롯데택배',
         },
       }),
       order: { ...ORDER, provider: 'SMARTSTORE' },

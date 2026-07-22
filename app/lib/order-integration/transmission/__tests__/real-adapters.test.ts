@@ -115,15 +115,15 @@ describe('real shipment transmission adapters', () => {
     expect(result.errorCode).toBe('NOT_CONFIGURED');
   });
 
-  it('keeps shipment send blocked when official provider spec is incomplete', async () => {
+  it('keeps other providers deferred when official provider spec is incomplete', async () => {
     const adapter = registry({
       loadAccount: async ({ provider }) => ({
         ...account(provider),
         apiKeyCiphertext: 'x',
       }),
-    }).get('SMARTSTORE')!;
+    }).get('ELEVEN')!;
 
-    const result = await adapter.transmit(candidate());
+    const result = await adapter.transmit(candidate({ provider: 'ELEVEN' }));
 
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe('PROVIDER_SPEC_INCOMPLETE');

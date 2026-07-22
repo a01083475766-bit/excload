@@ -19,6 +19,7 @@ import {
 } from '@/app/lib/order-integration/transmission/real-adapters';
 import type { ClearTransmittedOrderPiiClient } from '@/app/lib/order-integration/snapshots/clear-transmitted-order-pii';
 import type { ShipmentTransmissionPersistClient } from '@/app/lib/order-integration/transmission/repository';
+import { createPrismaPriorSmartstoreItemResultsLoader } from '@/app/lib/order-integration/transmission/load-prior-smartstore-item-results';
 import { runShipmentTransmitService } from '@/app/lib/order-integration/transmission/transmit-service';
 import { prisma } from '@/app/lib/prisma';
 
@@ -74,6 +75,7 @@ export async function POST(
             batchId: validatedBatchId,
             matchId,
           }),
+        loadPriorSmartstoreItemResults: createPrismaPriorSmartstoreItemResultsLoader(prisma),
       },
       { userId, batchId: validatedBatchId, parsedBody: parsed.body },
     );

@@ -153,24 +153,27 @@ describe('COUPANG live shipment transmission adapter', () => {
     expect(postInvoicesMock).not.toHaveBeenCalled();
   });
 
-  it('keeps SMARTSTORE deferred', async () => {
+  it('keeps SMARTSTORE live while Coupang path is unchanged', async () => {
     const registry = createRealShipmentTransmissionAdapterRegistry({
       userId: 'user-1',
       loadAccount: async ({ provider }) => account(provider),
       resolveAccountSecrets: () => ({
         accountId: 'acct-1',
-        vendorId: null,
-        sellerId: 'seller',
-        accessKey: null,
-        secretKey: null,
-        apiKey: 'api',
+        vendorId: 'A00012345',
+        sellerId: null,
+        accessKey: 'access',
+        secretKey: 'secret',
+        apiKey: null,
       }),
     });
 
-    const result = await registry.get('SMARTSTORE')!.transmit({
+    expect(registry.get('SMARTSTORE')).toBeTruthy();
+    // SMARTSTORE live uses toSmartstoreCredentials — missing ciphertext → NOT_CONFIGURED, not deferred.
+    const smartstoreResult = await registry.get('SMARTSTORE')!.transmit({
       ...candidate({ provider: 'SMARTSTORE', mallLineItemIds: ['PO-1'] }),
     });
-    expect(result.errorCode).toBe('PROVIDER_SPEC_INCOMPLETE');
+    expect(smartstoreResult.errorCode).toBe('NOT_CONFIGURED');
+    expect(smartstoreResult.errorCode).not.toBe('PROVIDER_SPEC_INCOMPLETE');
     expect(postInvoicesMock).not.toHaveBeenCalled();
   });
 });

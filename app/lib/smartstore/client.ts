@@ -225,6 +225,11 @@ function formatKstIsoWithMillis(date: Date): string {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}.${ms}+09:00`;
 }
 
+/** 발송처리 dispatchDate 등 — ISO 8601, 밀리초 3자리, +09:00 명시. */
+export function formatSmartstoreApiDateTime(date: Date): string {
+  return formatKstIsoWithMillis(date);
+}
+
 export type SmartstoreLastChangedStatus = {
   productOrderId?: string;
   orderId?: string;
@@ -299,6 +304,15 @@ export type SmartstoreProductOrderDetail = {
       baseAddress?: string;
       detailedAddress?: string;
     };
+  };
+  /** 배송 정보(발송 후 상태·송장 확인용). */
+  delivery?: {
+    deliveryStatus?: string;
+    deliveryMethod?: string;
+    deliveryCompany?: string;
+    deliveryCompanyCode?: string;
+    trackingNumber?: string;
+    sendDate?: string;
   };
 };
 
@@ -618,6 +632,75 @@ export async function postSmartstoreProductOrdersConfirm(input: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ productOrderIds }),
+    });
+  } catch (cause) {
+    throw new SmartstoreApiError({ stage: 'ORDER', networkFailure: true, cause });
+  }
+}
+
+/** 발송처리 요청당 최대 상품주문번호 수(네이버 공식 한도). */
+export const SMARTSTORE_DISPATCH_MAX_BATCH = 30;
+export const SMARTSTORE_DISPATCH_PATH = '/external/v1/pay-order/seller/product-orders/dispatch';
+
+export type SmartstoreDispatchProductOrderRequest = {
+  productOrderId: string;
+  deliveryMethod: 'DELIVERY';
+  deliveryCompanyCode: string;
+  trackingNumber: string;
+  dispatchDate: string;
+};
+
+/**
+ * 발송처리 POST. HTTP 상태와 bodyText를 그대로 반환한다(부분 성공 파싱용).
+ * - 요청당 최대 30건(호출 측에서 chunk 보장)
+ * - 자동 재시도 없음
+ * - 고정 IP 프록시만 사용
+ */
+export async function postSmartstoreProductOrdersDispatch(input: {
+  credentials: SmartstoreCredentials;
+  dispatchProductOrders: ReadonlyArray<SmartstoreDispatchProductOrderRequest>;
+}): Promise<{ httpStatus: number; bodyText: string }> {
+  const dispatchProductOrders = [...input.dispatchProductOrders];
+  if (dispatchProductOrders.length === 0) {
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      code: 'DISPATCH_EMPTY',
+      rawMessage: 'dispatchProductOrders required',
+    });
+  }
+  if (dispatchProductOrders.length > SMARTSTORE_DISPATCH_MAX_BATCH) {
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      code: 'DISPATCH_BATCH_TOO_LARGE',
+      rawMessage: `max ${SMARTSTORE_DISPATCH_MAX_BATCH}`,
+    });
+  }
+
+  if (!isIntegrationProxyConfigured()) {
+    throw new Error('스마트스토어 API는 고정 IP 프록시 설정이 필요합니다.');
+  }
+  try {
+    assertIntegrationProxyConfigReady();
+  } catch (cause) {
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      code: 'CLIENT_CONFIGURATION',
+      cause,
+    });
+  }
+
+  const { accessToken } = await requestSmartstoreAccessToken(input.credentials);
+  const url = `${SMARTSTORE_API_ORIGIN}${SMARTSTORE_DISPATCH_PATH}`;
+
+  try {
+    return await invokeIntegrationHttp({
+      method: 'POST',
+      url,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ dispatchProductOrders }),
     });
   } catch (cause) {
     throw new SmartstoreApiError({ stage: 'ORDER', networkFailure: true, cause });

@@ -100,11 +100,51 @@ function resolveOutcome(row: MockTransmitMatchResult): RecentTransmitOutcome {
 
 function resolveMessage(row: MockTransmitMatchResult, outcome: RecentTransmitOutcome): string {
   if (outcome === 'SUCCESS') {
-    return '쇼핑몰 API 접수 완료';
+    if (row.errorCode === 'ALREADY_DISPATCHED') {
+      return asString(row.errorMessage) ?? '이미 동일 송장정보로 발송 처리된 주문입니다.';
+    }
+    return '전송 완료';
   }
-  const raw = asString(row.errorMessage) ?? asString(row.errorCode);
+
+  const code = asString(row.errorCode);
+  const raw = asString(row.errorMessage);
+  switch (code) {
+    case 'ORDER_CONFIRMATION_REQUIRED':
+      return (
+        raw ??
+        '발주확인이 필요합니다. 주문조회 화면에서 발주확인을 먼저 진행한 뒤 송장을 전송해 주세요.'
+      );
+    case 'STATE_NOT_ELIGIBLE':
+    case 'ORDER_STATE_NOT_ELIGIBLE':
+      return raw ?? '주문 상태상 송장 전송이 불가합니다.';
+    case 'CARRIER_MAPPING_REQUIRED':
+    case 'COURIER_UNSUPPORTED':
+      return raw ?? '택배사 확인이 필요합니다. 스마트스토어에서 지원하는 택배사로 연결해 주세요.';
+    case 'CONFLICT':
+    case 'SHIPMENT_CONFLICT':
+    case 'PRIOR_SHIPMENT_CONFLICT':
+      return raw ?? '송장 연결 충돌이 있어 전송하지 않았습니다.';
+    case 'ALREADY_DISPATCHED':
+      return raw ?? '이미 동일 송장정보로 발송 처리된 주문입니다.';
+    case 'NOT_ATTEMPTED':
+      return raw ?? '아직 전송하지 않았습니다. 이전 묶음 오류로 요청하지 않았습니다.';
+    case 'UNCERTAIN':
+      return (
+        raw ??
+        '전송 여부를 확인하지 못했습니다. 자동으로 다시 전송하지 않습니다.'
+      );
+    default:
+      break;
+  }
+
   if (raw) return raw;
-  return outcome === 'SKIPPED' ? '전송 제외' : '전송 실패';
+  return outcome === 'SKIPPED' ? '전송 제외' : '처리 실패';
+}
+
+export function outcomeLabel(outcome: RecentTransmitOutcome): string {
+  if (outcome === 'SUCCESS') return '전송 완료';
+  if (outcome === 'FAILED') return '처리 실패';
+  return '전송 제외';
 }
 
 function formatCarrierTracking(carrierName: string | null, trackingNumber: string | null): string {
@@ -139,12 +179,6 @@ export function buildRecentTransmitGuidance(summary: RecentTransmitResultView['s
 
 export const RECENT_TRANSMIT_COMMON_HINT =
   '전송 성공은 쇼핑몰 API가 요청을 정상 접수했다는 뜻입니다. 쇼핑몰 화면의 상태 반영에는 시간이 걸릴 수 있습니다.';
-
-export function outcomeLabel(outcome: RecentTransmitOutcome): string {
-  if (outcome === 'SUCCESS') return '전송 성공';
-  if (outcome === 'FAILED') return '전송 실패';
-  return '전송 제외';
-}
 
 /** B(상태 다시 확인) 1차 지원 몰 */
 export function isTransmissionVerifySupportedProvider(provider?: string | null): boolean {

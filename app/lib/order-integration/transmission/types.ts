@@ -104,13 +104,41 @@ export type ShipmentTransmissionAdapterProvider = OrderIntegrationProvider | str
  * - credential / Authorization / access token / secret 금지
  * - 수취인 이름·전화·주소 등 PII 금지
  * - 허용: request id, HTTP status, provider status code, 비민감 메시지
+ * - SMARTSTORE: productOrderId별 itemResults (원문·PII 금지)
  */
+export type ShipmentTransmissionItemResultStatus =
+  | 'SUCCESS'
+  | 'ALREADY_DISPATCHED'
+  | 'ORDER_CONFIRMATION_REQUIRED'
+  | 'STATE_NOT_ELIGIBLE'
+  | 'CARRIER_MAPPING_REQUIRED'
+  | 'CONFLICT'
+  | 'FAILED'
+  | 'UNCERTAIN'
+  | 'NOT_ATTEMPTED';
+
+export type ShipmentTransmissionItemResultSummary = {
+  productOrderId: string;
+  status: ShipmentTransmissionItemResultStatus;
+  /** 정제된 provider code (실패 코드 등). 시크릿·PII 금지 */
+  providerCode?: string | null;
+  /** 사용자 노출 가능한 정제 메시지 */
+  message?: string | null;
+  /**
+   * 계정·productOrderId·택배사·정규화 송장 동일성 판정용 fingerprint.
+   * 원문 송장·주소를 저장하지 않음.
+   */
+  shipmentFingerprint: string;
+};
+
 export type ShipmentTransmissionResponseSummary = {
   httpStatus?: number | null;
   providerStatusCode?: string | null;
   providerRequestId?: string | null;
   /** 비민감 상태 문구만. raw body / stack / header 금지 */
   message?: string | null;
+  /** SMARTSTORE 등 — productOrderId별 결과 (allowlist) */
+  itemResults?: ShipmentTransmissionItemResultSummary[] | null;
 };
 
 export type ShipmentTransmissionAdapterOutcomeKind = 'success' | 'failure' | 'unknown';
@@ -131,6 +159,25 @@ export type ShipmentTransmissionAdapterResult = {
   outcomeKind?: ShipmentTransmissionAdapterOutcomeKind;
 };
 
+export type ShipmentTransmissionAccountBatchEntry = {
+  candidate: ShipmentTransmissionCandidate;
+  priorItemResults: ShipmentTransmissionItemResultSummary[];
+};
+
+/** SMARTSTORE 계정 배치 전송의 Match별 결과 (lease/attempt 재연결용) */
+export type ShipmentTransmissionAccountBatchMatchResult = {
+  matchId: string;
+  success: boolean;
+  outcomeKind: ShipmentTransmissionAdapterOutcomeKind;
+  errorCode: string | null;
+  errorMessage: string | null;
+  providerRequestId: string | null;
+  retryable: boolean;
+  responseSummary: ShipmentTransmissionResponseSummary | null;
+  /** 네이버 dispatch POST 본문에 이 Match 관련 ID가 포함됐는지 */
+  externallyPosted?: boolean;
+};
+
 export type ShipmentTransmissionAdapter = {
   readonly provider: ShipmentTransmissionAdapterProvider;
   /** 공통 DTO → provider payload (타입만; 실제 변환은 provider 모듈) */
@@ -140,6 +187,15 @@ export type ShipmentTransmissionAdapter = {
    * mock / 실 adapter 모두 이 계약을 구현.
    */
   transmit(candidate: ShipmentTransmissionCandidate): Promise<ShipmentTransmissionAdapterResult>;
+  /**
+   * SMARTSTORE 전용(선택). 같은 integrationAccountId의 여러 Match를
+   * productOrderId 기준으로 묶어 최대 30건씩 순차 dispatch한다.
+   * 다른 provider는 구현하지 않는다.
+   */
+  transmitAccountBatch?: (input: {
+    integrationAccountId: string;
+    entries: ShipmentTransmissionAccountBatchEntry[];
+  }) => Promise<ShipmentTransmissionAccountBatchMatchResult[]>;
 };
 
 /** executor 전용 오류 코드 (eligibility reasonCode 와 별도) */

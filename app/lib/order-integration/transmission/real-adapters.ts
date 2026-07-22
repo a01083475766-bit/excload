@@ -5,12 +5,26 @@ import {
   postCoupangOrderInvoices,
 } from '@/app/lib/coupang/client';
 import { runCoupangInvoiceTransmission } from '@/app/lib/coupang/coupang-invoice';
+import {
+  fetchSmartstoreProductOrdersByIds,
+  postSmartstoreProductOrdersDispatch,
+} from '@/app/lib/smartstore/client';
+import {
+  buildSmartstoreItemShipmentFingerprint,
+  runSmartstoreCrossMatchBatchDispatch,
+} from '@/app/lib/smartstore/smartstore-batch-dispatch';
+import {
+  resolveSmartstoreDeliveryCompanyCode,
+  runSmartstoreInvoiceTransmission,
+} from '@/app/lib/smartstore/smartstore-invoice';
+import { toSmartstoreCredentials } from '@/app/lib/order-integration/smartstore-account';
 import { decryptIntegrationSecret } from '@/app/lib/order-integration/encryption';
 import { createShipmentTransmissionAdapterRegistry } from '@/app/lib/order-integration/transmission/adapter-registry';
 import type {
   ShipmentTransmissionAdapter,
   ShipmentTransmissionAdapterResult,
   ShipmentTransmissionCandidate,
+  ShipmentTransmissionItemResultSummary,
 } from '@/app/lib/order-integration/transmission/types';
 
 type AccountSecretBundle = {
@@ -100,11 +114,6 @@ function buildFailure(input: {
 }
 
 const DEFERRED_SPECS: ProviderDeferredSpec[] = [
-  {
-    provider: 'SMARTSTORE',
-    missingInfo:
-      'dispatch endpoint request fields and product-order result schema are not confirmed in repository specs.',
-  },
   {
     provider: 'ELEVEN',
     missingInfo:
@@ -299,11 +308,196 @@ function createCoupangLiveAdapter(
   };
 }
 
+function mapSmartstoreInvoiceItemsToPersisted(input: {
+  userId: string;
+  candidate: ShipmentTransmissionCandidate;
+  itemResults: Array<{ productOrderId: string; status: string; message: string }>;
+}): ShipmentTransmissionItemResultSummary[] {
+  const courier = resolveSmartstoreDeliveryCompanyCode({
+    courierCode: input.candidate.courierCode,
+    courierName: input.candidate.courierName,
+  });
+  const deliveryCompanyCode = courier.ok ? courier.deliveryCompanyCode : 'UNRESOLVED';
+  return input.itemResults
+    .filter((row) => row.productOrderId.trim())
+    .map((row) => {
+      const status =
+        row.status === 'DISPATCHED'
+          ? 'SUCCESS'
+          : row.status === 'ORDER_STATE_NOT_ELIGIBLE'
+            ? 'STATE_NOT_ELIGIBLE'
+            : (row.status as ShipmentTransmissionItemResultSummary['status']);
+      return {
+        productOrderId: row.productOrderId,
+        status,
+        providerCode: null,
+        message: row.message,
+        shipmentFingerprint: buildSmartstoreItemShipmentFingerprint({
+          userId: input.userId,
+          integrationAccountId: input.candidate.integrationAccountId,
+          productOrderId: row.productOrderId,
+          deliveryCompanyCode,
+          trackingNumber: input.candidate.trackingNumber,
+        }),
+      };
+    });
+}
+
+function createSmartstoreLiveAdapter(
+  options: CreateRealShipmentTransmissionAdaptersOptions,
+): ShipmentTransmissionAdapter {
+  async function loadSmartstoreRuntime(accountId: string) {
+    const account = await options.loadAccount({
+      userId: options.userId,
+      accountId,
+      provider: 'SMARTSTORE',
+    });
+    if (!account) {
+      return { ok: false as const, errorCode: 'NOT_CONFIGURED', errorMessage: 'Integration account is not connected.' };
+    }
+    let credentials;
+    try {
+      credentials = toSmartstoreCredentials(account);
+    } catch {
+      return {
+        ok: false as const,
+        errorCode: 'NOT_CONFIGURED',
+        errorMessage: 'Integration account credentials are not configured.',
+      };
+    }
+    if (!credentials.clientId || !credentials.clientSecret) {
+      return {
+        ok: false as const,
+        errorCode: 'NOT_CONFIGURED',
+        errorMessage: 'Integration account credentials are not configured.',
+      };
+    }
+    return { ok: true as const, credentials };
+  }
+
+  return {
+    provider: 'SMARTSTORE',
+    buildPayload(candidate: ShipmentTransmissionCandidate) {
+      return {
+        provider: 'SMARTSTORE',
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        trackingNumber: candidate.trackingNumber,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+      };
+    },
+    async transmit(candidate): Promise<ShipmentTransmissionAdapterResult> {
+      const runtime = await loadSmartstoreRuntime(candidate.integrationAccountId);
+      if (!runtime.ok) {
+        return buildFailure({
+          provider: 'SMARTSTORE',
+          matchId: candidate.matchId,
+          errorCode: runtime.errorCode,
+          errorMessage: runtime.errorMessage,
+        });
+      }
+
+      const result = await runSmartstoreInvoiceTransmission({
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+        trackingNumber: candidate.trackingNumber,
+        fetchByIds: (productOrderIds) =>
+          fetchSmartstoreProductOrdersByIds({
+            credentials: runtime.credentials,
+            productOrderIds,
+          }),
+        dispatchBatch: (dispatchProductOrders) =>
+          postSmartstoreProductOrdersDispatch({
+            credentials: runtime.credentials,
+            dispatchProductOrders,
+          }),
+      });
+
+      const itemResults = mapSmartstoreInvoiceItemsToPersisted({
+        userId: options.userId,
+        candidate,
+        itemResults: result.itemResults,
+      });
+
+      return {
+        success: result.success,
+        provider: 'SMARTSTORE',
+        matchId: candidate.matchId,
+        providerRequestId: result.providerRequestId,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        retryable: false,
+        responseSummary: {
+          httpStatus: result.responseSummary.httpStatus,
+          providerStatusCode: result.responseSummary.providerStatusCode,
+          message: result.responseSummary.message,
+          itemResults,
+        },
+        outcomeKind: result.outcomeKind,
+      };
+    },
+    async transmitAccountBatch({ integrationAccountId, entries }) {
+      const runtime = await loadSmartstoreRuntime(integrationAccountId);
+      if (!runtime.ok) {
+        return entries.map((entry) => ({
+          matchId: entry.candidate.matchId,
+          success: false,
+          outcomeKind: 'failure' as const,
+          errorCode: runtime.errorCode,
+          errorMessage: runtime.errorMessage,
+          providerRequestId: null,
+          retryable: false,
+          responseSummary: {
+            providerStatusCode: runtime.errorCode,
+            message: runtime.errorMessage,
+          },
+        }));
+      }
+
+      const outcomes = await runSmartstoreCrossMatchBatchDispatch({
+        userId: options.userId,
+        integrationAccountId,
+        entries: entries.map((entry) => ({
+          matchId: entry.candidate.matchId,
+          candidate: entry.candidate,
+          priorItemResults: entry.priorItemResults,
+        })),
+        fetchByIds: (productOrderIds) =>
+          fetchSmartstoreProductOrdersByIds({
+            credentials: runtime.credentials,
+            productOrderIds,
+          }),
+        dispatchBatch: (dispatchProductOrders) =>
+          postSmartstoreProductOrdersDispatch({
+            credentials: runtime.credentials,
+            dispatchProductOrders,
+          }),
+      });
+
+      return outcomes.map((outcome) => ({
+        matchId: outcome.matchId,
+        success: outcome.success,
+        outcomeKind: outcome.outcomeKind,
+        errorCode: outcome.errorCode,
+        errorMessage: outcome.errorMessage,
+        providerRequestId: null,
+        retryable: false,
+        responseSummary: outcome.responseSummary,
+        externallyPosted: outcome.externallyPosted,
+      }));
+    },
+  };
+}
+
 export function createRealShipmentTransmissionAdapters(
   options: CreateRealShipmentTransmissionAdaptersOptions,
 ): ShipmentTransmissionAdapter[] {
   return [
     createCoupangLiveAdapter(options),
+    createSmartstoreLiveAdapter(options),
     ...DEFERRED_SPECS.map((spec) => createDeferredAdapter(spec, options)),
   ];
 }

@@ -177,6 +177,29 @@ export function toPersistedResponseSummaryJson(
     const msg = sanitizeTransmissionErrorMessage(summary.message ?? null);
     out.message = msg;
   }
+  if ('itemResults' in summary && Array.isArray(summary.itemResults)) {
+    const items: NonNullable<ShipmentTransmissionResponseSummary['itemResults']> = [];
+    for (const raw of summary.itemResults) {
+      if (!raw || typeof raw !== 'object') continue;
+      const productOrderId = String(raw.productOrderId ?? '').trim();
+      const shipmentFingerprint = String(raw.shipmentFingerprint ?? '').trim();
+      const status = String(raw.status ?? '').trim();
+      if (!productOrderId || !shipmentFingerprint || !status) continue;
+      if (productOrderId.length > 64 || shipmentFingerprint.length > 128) continue;
+      items.push({
+        productOrderId,
+        status: status as NonNullable<
+          ShipmentTransmissionResponseSummary['itemResults']
+        >[number]['status'],
+        providerCode: raw.providerCode == null ? null : String(raw.providerCode).slice(0, 64),
+        message: sanitizeTransmissionErrorMessage(
+          raw.message == null ? null : String(raw.message),
+        ),
+        shipmentFingerprint,
+      });
+    }
+    if (items.length > 0) out.itemResults = items;
+  }
   return Object.keys(out).length > 0 ? out : null;
 }
 
@@ -518,6 +541,156 @@ export async function markTransmissionAttemptDispatched(
       executionToken,
       previousStatus: 'PENDING',
       nextStatus: 'PROCESSING',
+    });
+  });
+}
+
+/**
+ * 외부 POST 없이 종료 (preflight 차단·충돌·NOT_ATTEMPTED 등).
+ * Attempt는 PENDING 유지 후 SUCCESS/FAILED로 닫고, dispatchedAt은 null로 남긴다.
+ * stale 복구에서 “외부 호출 가능”으로 오인하지 않기 위함.
+ */
+export async function completeTransmissionAttemptWithoutExternalDispatch(
+  client: ShipmentTransmissionPersistClient,
+  input: CompleteBaseInput & {
+    outcome: 'success' | 'failure';
+    errorCode: string | null;
+    errorMessage: string | null;
+    responseSummary: ShipmentTransmissionResponseSummary | null;
+  },
+): Promise<ShipmentTransmissionPersistResult> {
+  return withPersistTransaction(client, async (tx) => {
+    const match = await tx.shipmentMatch.findFirst({
+      where: { id: input.shipmentMatchId, userId: input.userId },
+    });
+    const attempt = await tx.shipmentTransmissionAttempt.findFirst({
+      where: {
+        id: input.attemptId,
+        shipmentMatchId: input.shipmentMatchId,
+        userId: input.userId,
+      },
+    });
+
+    if (!match || !attempt) {
+      return failResult({
+        reasonCode: 'PERSISTENCE_ERROR',
+        shipmentMatchId: input.shipmentMatchId,
+        attemptId: input.attemptId,
+        attemptNo: null,
+        executionToken: null,
+        previousStatus: null,
+        nextStatus: null,
+        reasonMessage: 'match 또는 attempt를 찾을 수 없습니다.',
+      });
+    }
+
+    if (
+      attempt.executionToken !== input.executionToken ||
+      match.transmissionLeaseToken !== input.executionToken
+    ) {
+      return failResult({
+        reasonCode: 'LEASE_TOKEN_MISMATCH',
+        shipmentMatchId: input.shipmentMatchId,
+        attemptId: input.attemptId,
+        attemptNo: attempt.attemptNo,
+        executionToken: null,
+        previousStatus: attempt.status,
+        nextStatus: attempt.status,
+      });
+    }
+
+    if (
+      match.transmissionStatus !== 'PROCESSING' ||
+      attempt.status !== 'PENDING' ||
+      attempt.dispatchedAt != null
+    ) {
+      return failResult({
+        reasonCode: 'ATTEMPT_NOT_PENDING',
+        shipmentMatchId: input.shipmentMatchId,
+        attemptId: input.attemptId,
+        attemptNo: attempt.attemptNo,
+        executionToken: input.executionToken,
+        previousStatus: attempt.status,
+        nextStatus: attempt.status,
+      });
+    }
+
+    const summaryJson = toPersistedResponseSummaryJson(input.responseSummary);
+    const safeMessage = sanitizeTransmissionErrorMessage(input.errorMessage);
+    const nextAttemptStatus = input.outcome === 'success' ? 'SUCCESS' : 'FAILED';
+    const nextMatchStatus = input.outcome === 'success' ? 'SENT' : 'FAILED';
+
+    const attemptUpdated = await tx.shipmentTransmissionAttempt.updateMany({
+      where: {
+        id: input.attemptId,
+        userId: input.userId,
+        status: 'PENDING',
+        executionToken: input.executionToken,
+        dispatchedAt: null,
+      },
+      data: {
+        status: nextAttemptStatus,
+        providerRequestId: null,
+        responseSummaryJson: summaryJson,
+        errorCode: input.outcome === 'success' ? null : input.errorCode,
+        errorMessage: input.outcome === 'success' ? null : safeMessage,
+        retryable: false,
+        completedAt: input.now,
+      },
+    });
+    if (attemptUpdated.count !== 1) {
+      return failResult({
+        reasonCode: 'ATTEMPT_NOT_PENDING',
+        shipmentMatchId: input.shipmentMatchId,
+        attemptId: input.attemptId,
+        attemptNo: attempt.attemptNo,
+        executionToken: input.executionToken,
+        previousStatus: attempt.status,
+        nextStatus: attempt.status,
+      });
+    }
+
+    const matchUpdated = await tx.shipmentMatch.updateMany({
+      where: {
+        id: input.shipmentMatchId,
+        userId: input.userId,
+        transmissionStatus: 'PROCESSING',
+        transmissionLeaseToken: input.executionToken,
+      },
+      data: {
+        transmissionStatus: nextMatchStatus,
+        transmissionErrorMessage: input.outcome === 'success' ? null : safeMessage,
+        transmissionLeaseToken: null,
+        transmissionLeaseExpiresAt: null,
+      },
+    });
+    if (matchUpdated.count !== 1) {
+      throw new TransmissionPersistRollbackError(
+        failResult({
+          reasonCode: 'LEASE_TOKEN_MISMATCH',
+          shipmentMatchId: input.shipmentMatchId,
+          attemptId: input.attemptId,
+          attemptNo: attempt.attemptNo,
+          executionToken: input.executionToken,
+          previousStatus: attempt.status,
+          nextStatus: attempt.status,
+          reasonMessage: 'Match 조건부 갱신 실패 — Attempt 결과 rollback',
+        }),
+      );
+    }
+
+    await refreshOrderSummaryInTx(tx, {
+      userId: input.userId,
+      orderSyncOrderId: match.orderSyncOrderId,
+    });
+
+    return okResult({
+      shipmentMatchId: input.shipmentMatchId,
+      attemptId: input.attemptId,
+      attemptNo: attempt.attemptNo,
+      executionToken: input.executionToken,
+      previousStatus: 'PENDING',
+      nextStatus: nextAttemptStatus,
     });
   });
 }

@@ -232,16 +232,18 @@ export function evaluateShipmentTransmissionEligibility(
     return fail('COURIER_MISSING', '택배사 코드 또는 택배사명이 필요합니다.');
   }
 
-  if (provider === 'COUPANG') {
+  if (provider === 'COUPANG' || provider === 'SMARTSTORE') {
     const providerCourierCode = resolveProviderCourierCode({
       provider,
       courierCode,
       courierName,
     });
-    if (!providerCourierCode) {
+    if (!providerCourierCode || (provider === 'SMARTSTORE' && providerCourierCode === 'CH1')) {
       return fail(
         'COURIER_UNSUPPORTED',
-        '쿠팡에서 지원하지 않는 택배사입니다. 택배사를 확인해 주세요.',
+        provider === 'SMARTSTORE'
+          ? '스마트스토어에서 지원하지 않는 택배사입니다. 택배사를 확인해 주세요.'
+          : '쿠팡에서 지원하지 않는 택배사입니다. 택배사를 확인해 주세요.',
       );
     }
   }

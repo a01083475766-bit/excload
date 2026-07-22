@@ -149,6 +149,9 @@ export function toResponseSummaryJsonValue(
     out.providerRequestId = summary.providerRequestId ?? null;
   }
   if ('message' in summary) out.message = summary.message ?? null;
+  if ('itemResults' in summary && Array.isArray(summary.itemResults)) {
+    out.itemResults = summary.itemResults;
+  }
   return Object.keys(out).length > 0
     ? (out as Prisma.InputJsonValue)
     : Prisma.DbNull;

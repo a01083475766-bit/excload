@@ -108,9 +108,8 @@ describe('buildRecentTransmitResultView', () => {
       skipped: 1,
     });
     expect(view!.results.map((row) => row.outcome)).toEqual(['SUCCESS', 'FAILED', 'SKIPPED']);
-    expect(outcomeLabel('SUCCESS')).toBe('전송 성공');
     expect(view!.results[0]?.attemptId).toBe('a1');
-    expect(view!.results[0]?.message).toBe('쇼핑몰 API 접수 완료');
+    expect(view!.results[0]?.message).toBe('전송 완료');
     expect(JSON.stringify(view)).not.toMatch(/receiver|phone|address|수취인/i);
     expect(filterRecentTransmitResults(view!.results, 'failed')).toHaveLength(1);
     expect(collectVerifiableAttemptIds(view!.results)).toEqual(['a1']);
@@ -120,6 +119,110 @@ describe('buildRecentTransmitResultView', () => {
     expect(verificationStatusLabel(view!.results[0]?.verificationStatus ?? null)).toBe('-');
     expect(verificationStatusLabel('NOT_APPLICABLE')).toBe('확인 대상 아님');
     expect(buildRecentTransmitGuidance(view!.summary)).toContain('1건은 전송됐고 1건은 실패');
+    expect(outcomeLabel('SUCCESS')).toBe('전송 완료');
+    expect(outcomeLabel('FAILED')).toBe('처리 실패');
+  });
+
+  it('distinguishes SMARTSTORE result codes in message column', () => {
+    const view = buildRecentTransmitResultView({
+      body: {
+        batchId: 'batch-1',
+        summary: {
+          requestedCount: 6,
+          successCount: 1,
+          failureCount: 5,
+          skippedCount: 0,
+        },
+        results: [
+          {
+            matchId: 'ok',
+            attemptId: 'a0',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'SENT',
+            success: true,
+            retryable: false,
+            errorCode: null,
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
+          {
+            matchId: 'confirm',
+            attemptId: 'a1',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'FAILED',
+            success: false,
+            retryable: false,
+            errorCode: 'ORDER_CONFIRMATION_REQUIRED',
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
+          {
+            matchId: 'state',
+            attemptId: 'a2',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'FAILED',
+            success: false,
+            retryable: false,
+            errorCode: 'STATE_NOT_ELIGIBLE',
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
+          {
+            matchId: 'carrier',
+            attemptId: 'a3',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'FAILED',
+            success: false,
+            retryable: false,
+            errorCode: 'CARRIER_MAPPING_REQUIRED',
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
+          {
+            matchId: 'conflict',
+            attemptId: 'a4',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'FAILED',
+            success: false,
+            retryable: false,
+            errorCode: 'CONFLICT',
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
+          {
+            matchId: 'not-attempted',
+            attemptId: 'a5',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'FAILED',
+            success: false,
+            retryable: false,
+            errorCode: 'NOT_ATTEMPTED',
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
+        ],
+      },
+    });
+    expect(view!.results.map((row) => row.message)).toEqual([
+      '전송 완료',
+      '발주확인이 필요합니다. 주문조회 화면에서 발주확인을 먼저 진행한 뒤 송장을 전송해 주세요.',
+      '주문 상태상 송장 전송이 불가합니다.',
+      '택배사 확인이 필요합니다. 스마트스토어에서 지원하는 택배사로 연결해 주세요.',
+      '송장 연결 충돌이 있어 전송하지 않았습니다.',
+      '아직 전송하지 않았습니다. 이전 묶음 오류로 요청하지 않았습니다.',
+    ]);
   });
 
   it('marks non-Coupang/Smartstore success as 상태 확인 지원 예정', () => {

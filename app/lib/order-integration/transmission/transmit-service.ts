@@ -13,8 +13,13 @@ import {
 } from '@/app/lib/order-integration/transmission/mock-transmit-service';
 import type { ClearTransmittedOrderPiiClient } from '@/app/lib/order-integration/snapshots/clear-transmitted-order-pii';
 import { runPersistedShipmentTransmission } from '@/app/lib/order-integration/transmission/persisted-executor';
+import type { PriorSmartstoreItemResultsLoader } from '@/app/lib/order-integration/transmission/load-prior-smartstore-item-results';
+import { runPersistedSmartstoreBatchedTransmission } from '@/app/lib/order-integration/transmission/smartstore-batched-persisted';
 import type { ShipmentTransmissionPersistClient } from '@/app/lib/order-integration/transmission/repository';
-import type { ShipmentTransmissionAdapter } from '@/app/lib/order-integration/transmission/types';
+import type {
+  ShipmentTransmissionAdapter,
+  ShipmentTransmissionCandidate,
+} from '@/app/lib/order-integration/transmission/types';
 
 export type ShipmentTransmitServiceResult =
   | { ok: false; status: 403 | 404 | 409 | 500; reasonCode: string; safeMessage: string }
@@ -43,6 +48,8 @@ export type ShipmentTransmitServiceDeps = {
   prepareFailedRetry?: (input: { matchId: string }) => Promise<boolean>;
   /** 실전송 성공 후 주문 단위 PII 정리. mock 경로에는 주입하지 않음. */
   piiClearClient?: ClearTransmittedOrderPiiClient;
+  /** SMARTSTORE 재처리 시 이전 productOrderId 성공 이력 로드 */
+  loadPriorSmartstoreItemResults?: PriorSmartstoreItemResultsLoader;
 };
 
 function toResult(input: {
@@ -71,6 +78,45 @@ function toResult(input: {
     providerRequestId: input.providerRequestId ?? null,
     requiresRetryPreparation: input.requiresRetryPreparation ?? false,
   };
+}
+
+function toResultFromPersisted(input: {
+  matchId: string;
+  rowStatus: string | null;
+  persisted: Awaited<ReturnType<typeof runPersistedShipmentTransmission>>;
+}): MockTransmitMatchResult {
+  const alreadyDispatched =
+    input.persisted.success &&
+    input.persisted.adapterResult?.errorCode === 'ALREADY_DISPATCHED';
+  return toResult({
+    matchId: input.matchId,
+    attemptId: input.persisted.complete?.attemptId ?? input.persisted.reserve.attemptId ?? null,
+    attempted: input.persisted.adapterCalled,
+    previousStatus: input.persisted.reserve.previousStatus ?? input.rowStatus,
+    nextStatus:
+      input.persisted.complete?.nextStatus ??
+      input.persisted.reserve.nextStatus ??
+      input.rowStatus,
+    success: input.persisted.success,
+    errorCode: input.persisted.success
+      ? alreadyDispatched
+        ? 'ALREADY_DISPATCHED'
+        : null
+      : (input.persisted.adapterResult?.errorCode ??
+        input.persisted.complete?.reasonCode ??
+        input.persisted.reserve.reasonCode),
+    errorMessage: input.persisted.success
+      ? alreadyDispatched
+        ? (input.persisted.adapterResult?.errorMessage ??
+          '이미 동일 송장정보로 발송 처리된 주문입니다.')
+        : null
+      : (input.persisted.adapterResult?.errorMessage ??
+        input.persisted.complete?.reasonMessage ??
+        input.persisted.reserve.reasonMessage ??
+        'Transmission failed.'),
+    retryable: input.persisted.adapterResult?.retryable ?? false,
+    providerRequestId: input.persisted.adapterResult?.providerRequestId ?? null,
+  });
 }
 
 export async function runShipmentTransmitService(
@@ -116,20 +162,50 @@ export async function runShipmentTransmitService(
     integrationAccountId: batch.integrationAccountId,
     status: batch.status,
   };
-  const results: MockTransmitMatchResult[] = [];
+  const resultByMatchId = new Map<string, MockTransmitMatchResult>();
   const runPersisted = deps.runPersisted ?? runPersistedShipmentTransmission;
+
+  type SmartstorePending = {
+    matchId: string;
+    rowStatus: string | null;
+    candidate: ShipmentTransmissionCandidate;
+  };
+  const smartstoreByAccount = new Map<string, SmartstorePending[]>();
 
   for (const matchId of matchIds) {
     const row = byId.get(matchId);
     if (!row) {
-      results.push(toResult({ matchId, attempted: false, previousStatus: null, nextStatus: null, success: false, errorCode: 'MATCH_NOT_FOUND', errorMessage: 'Match not found.' }));
+      resultByMatchId.set(
+        matchId,
+        toResult({
+          matchId,
+          attempted: false,
+          previousStatus: null,
+          nextStatus: null,
+          success: false,
+          errorCode: 'MATCH_NOT_FOUND',
+          errorMessage: 'Match not found.',
+        }),
+      );
       continue;
     }
 
     if (row.transmissionStatus === 'FAILED' && input.parsedBody.retryFailed) {
       const prepared = await deps.prepareFailedRetry?.({ matchId });
       if (!prepared) {
-        results.push(toResult({ matchId, attempted: false, previousStatus: 'FAILED', nextStatus: 'FAILED', success: false, errorCode: 'RETRY_PREPARE_FAILED', errorMessage: 'Failed match could not be prepared for retry.', requiresRetryPreparation: true }));
+        resultByMatchId.set(
+          matchId,
+          toResult({
+            matchId,
+            attempted: false,
+            previousStatus: 'FAILED',
+            nextStatus: 'FAILED',
+            success: false,
+            errorCode: 'RETRY_PREPARE_FAILED',
+            errorMessage: 'Failed match could not be prepared for retry.',
+            requiresRetryPreparation: true,
+          }),
+        );
         continue;
       }
       row.transmissionStatus = 'READY';
@@ -165,11 +241,38 @@ export async function runShipmentTransmitService(
       options: { retryFailed: input.parsedBody.retryFailed },
     });
     if (!eligibility.eligible || !eligibility.candidate) {
-      results.push(toResult({ matchId, attempted: false, previousStatus: row.transmissionStatus, nextStatus: row.transmissionStatus, success: false, errorCode: eligibility.reasonCode ?? 'NOT_ELIGIBLE', errorMessage: eligibility.reasonMessage ?? 'Not eligible.' }));
+      resultByMatchId.set(
+        matchId,
+        toResult({
+          matchId,
+          attempted: false,
+          previousStatus: row.transmissionStatus,
+          nextStatus: row.transmissionStatus,
+          success: false,
+          errorCode: eligibility.reasonCode ?? 'NOT_ELIGIBLE',
+          errorMessage: eligibility.reasonMessage ?? 'Not eligible.',
+        }),
+      );
       continue;
     }
 
     const adapter = deps.resolveAdapter({ provider: eligibility.candidate.provider });
+    const useSmartstoreBatch =
+      eligibility.candidate.provider === 'SMARTSTORE' &&
+      typeof adapter.transmitAccountBatch === 'function';
+
+    if (useSmartstoreBatch) {
+      const accountId = eligibility.candidate.integrationAccountId;
+      const list = smartstoreByAccount.get(accountId) ?? [];
+      list.push({
+        matchId,
+        rowStatus: row.transmissionStatus,
+        candidate: eligibility.candidate,
+      });
+      smartstoreByAccount.set(accountId, list);
+      continue;
+    }
+
     const persisted = await runPersisted({
       userId: input.userId,
       candidate: eligibility.candidate,
@@ -177,19 +280,80 @@ export async function runShipmentTransmitService(
       persistClient: deps.persistClient,
       piiClearClient: deps.piiClearClient,
     });
-    results.push(toResult({
+    resultByMatchId.set(
       matchId,
-      attemptId: persisted.complete?.attemptId ?? persisted.reserve.attemptId ?? null,
-      attempted: persisted.adapterCalled,
-      previousStatus: persisted.reserve.previousStatus ?? row.transmissionStatus,
-      nextStatus: persisted.complete?.nextStatus ?? persisted.reserve.nextStatus ?? row.transmissionStatus,
-      success: persisted.success,
-      errorCode: persisted.success ? null : (persisted.adapterResult?.errorCode ?? persisted.complete?.reasonCode ?? persisted.reserve.reasonCode),
-      errorMessage: persisted.success ? null : (persisted.adapterResult?.errorMessage ?? persisted.complete?.reasonMessage ?? persisted.reserve.reasonMessage ?? 'Transmission failed.'),
-      retryable: persisted.adapterResult?.retryable ?? false,
-      providerRequestId: persisted.adapterResult?.providerRequestId ?? null,
-    }));
+      toResultFromPersisted({
+        matchId,
+        rowStatus: row.transmissionStatus,
+        persisted,
+      }),
+    );
   }
+
+  for (const [accountId, pending] of smartstoreByAccount) {
+    const adapter = deps.resolveAdapter({ provider: 'SMARTSTORE' });
+    const matchIdsForAccount = pending.map((row) => row.matchId);
+    const priorByMatch =
+      (await deps.loadPriorSmartstoreItemResults?.({
+        userId: input.userId,
+        matchIds: matchIdsForAccount,
+        integrationAccountId: accountId,
+      })) ?? new Map();
+
+    const batched = await runPersistedSmartstoreBatchedTransmission({
+      userId: input.userId,
+      integrationAccountId: accountId,
+      entries: pending.map((row) => ({
+        candidate: row.candidate,
+        priorItemResults: priorByMatch.get(row.matchId) ?? [],
+      })),
+      adapter,
+      persistClient: deps.persistClient,
+      piiClearClient: deps.piiClearClient,
+    });
+
+    const byMatch = new Map(batched.map((row) => [row.matchId, row]));
+    for (const row of pending) {
+      const persisted = byMatch.get(row.matchId);
+      if (!persisted) {
+        resultByMatchId.set(
+          row.matchId,
+          toResult({
+            matchId: row.matchId,
+            attempted: false,
+            previousStatus: row.rowStatus,
+            nextStatus: row.rowStatus,
+            success: false,
+            errorCode: 'BATCH_RESULT_MISSING',
+            errorMessage: '배치 전송 결과를 연결하지 못했습니다.',
+          }),
+        );
+        continue;
+      }
+      resultByMatchId.set(
+        row.matchId,
+        toResultFromPersisted({
+          matchId: row.matchId,
+          rowStatus: row.rowStatus,
+          persisted,
+        }),
+      );
+    }
+  }
+
+  const results = matchIds.map(
+    (matchId) =>
+      resultByMatchId.get(matchId) ??
+      toResult({
+        matchId,
+        attempted: false,
+        previousStatus: null,
+        nextStatus: null,
+        success: false,
+        errorCode: 'RESULT_MISSING',
+        errorMessage: 'Transmission result missing.',
+      }),
+  );
 
   const attempted = results.filter((row) => row.attempted);
   return {
