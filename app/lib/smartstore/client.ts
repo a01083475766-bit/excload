@@ -556,6 +556,74 @@ export async function fetchSmartstoreProductOrdersByIds(input: {
   return details;
 }
 
+/** 발주확인 요청당 최대 상품주문번호 수(네이버 공식 한도). */
+export const SMARTSTORE_CONFIRM_MAX_BATCH = 30;
+export const SMARTSTORE_CONFIRM_PATH = '/external/v1/pay-order/seller/product-orders/confirm';
+
+/**
+ * 발주확인 POST. HTTP 상태와 bodyText를 그대로 반환한다(부분 성공 파싱용).
+ * - 요청당 최대 30건(호출 측에서 chunk 보장)
+ * - 자동 재시도 없음
+ * - 고정 IP 프록시(`/internal/integration/invoke`)만 사용
+ * - 시크릿·원문 로깅 없음
+ */
+export async function postSmartstoreProductOrdersConfirm(input: {
+  credentials: SmartstoreCredentials;
+  productOrderIds: ReadonlyArray<string>;
+}): Promise<{ httpStatus: number; bodyText: string }> {
+  const productOrderIds = [
+    ...new Set(
+      input.productOrderIds
+        .map((id) => String(id ?? '').trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (productOrderIds.length === 0) {
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      code: 'CONFIRM_EMPTY',
+      rawMessage: 'productOrderIds required',
+    });
+  }
+  if (productOrderIds.length > SMARTSTORE_CONFIRM_MAX_BATCH) {
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      code: 'CONFIRM_BATCH_TOO_LARGE',
+      rawMessage: `max ${SMARTSTORE_CONFIRM_MAX_BATCH}`,
+    });
+  }
+
+  if (!isIntegrationProxyConfigured()) {
+    throw new Error('스마트스토어 API는 고정 IP 프록시 설정이 필요합니다.');
+  }
+  try {
+    assertIntegrationProxyConfigReady();
+  } catch (cause) {
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      code: 'CLIENT_CONFIGURATION',
+      cause,
+    });
+  }
+
+  const { accessToken } = await requestSmartstoreAccessToken(input.credentials);
+  const url = `${SMARTSTORE_API_ORIGIN}${SMARTSTORE_CONFIRM_PATH}`;
+
+  try {
+    return await invokeIntegrationHttp({
+      method: 'POST',
+      url,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ productOrderIds }),
+    });
+  } catch (cause) {
+    throw new SmartstoreApiError({ stage: 'ORDER', networkFailure: true, cause });
+  }
+}
+
 export function toUserFacingSmartstoreErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return '스마트스토어 연동 처리 중 오류가 발생했습니다.';

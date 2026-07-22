@@ -35,6 +35,14 @@ import {
 } from '@/app/lib/order-integration/order-fetch-view';
 import { mergeCoupangRefetchedOrdersIntoFetchResult } from '@/app/lib/coupang/coupang-acknowledgement';
 import {
+  applyUnconfirmedAddressChangeGuards,
+  mergeSmartstoreRefetchedOrdersIntoFetchResult,
+} from '@/app/lib/smartstore/smartstore-confirm';
+import {
+  collectSelectedSmartstoreConfirmProductOrderIds,
+  isSmartstorePlaceOrderNotYetRow,
+} from '@/app/lib/smartstore/smartstore-fetch-panel-logic';
+import {
   EXCLOAD_ORDER_STATUS_LABEL,
   isClaimStatus,
   isShipmentTarget,
@@ -180,6 +188,9 @@ export default function OrderIntegrationFetchPanel() {
   const [acknowledgeItemMessages, setAcknowledgeItemMessages] = useState<
     Record<string, string>
   >({});
+  const [confirmingPlaceOrders, setConfirmingPlaceOrders] = useState(false);
+  const [confirmNotice, setConfirmNotice] = useState<string | null>(null);
+  const [confirmItemMessages, setConfirmItemMessages] = useState<Record<string, string>>({});
 
   const selectedMallIdsRef = useRef(selectedMallIds);
   useEffect(() => {
@@ -606,8 +617,18 @@ export default function OrderIntegrationFetchPanel() {
     [allDisplayRows],
   );
 
+  const selectedSmartstoreConfirmProductOrderIds = useMemo(
+    () => collectSelectedSmartstoreConfirmProductOrderIds(filteredRows, selectedRowKeys, rowKey),
+    [filteredRows, selectedRowKeys],
+  );
+
+  const hasSmartstorePlaceOrderNotYetRows = useMemo(
+    () => allDisplayRows.some((row) => isSmartstorePlaceOrderNotYetRow(row)),
+    [allDisplayRows],
+  );
+
   const runAcknowledgement = async () => {
-    if (acknowledging) return;
+    if (acknowledging || confirmingPlaceOrders) return;
     if (selectedAcknowledgementBoxIds.length === 0) {
       setAcknowledgeNotice('상품준비중 처리할 결제완료(발주 미확인) 주문을 선택해 주세요.');
       return;
@@ -691,6 +712,119 @@ export default function OrderIntegrationFetchPanel() {
       setAcknowledgeNotice('상품준비중 처리 중 오류가 발생했습니다.');
     } finally {
       setAcknowledging(false);
+    }
+  };
+
+  const runSmartstoreConfirm = async () => {
+    if (confirmingPlaceOrders || acknowledging) return;
+    if (selectedSmartstoreConfirmProductOrderIds.length === 0) {
+      setConfirmNotice('발주확인할 스마트스토어 발주 미확인 주문을 선택해 주세요.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `선택한 ${selectedSmartstoreConfirmProductOrderIds.length}건을 발주확인합니다.\n\n발주확인 후에는 구매자가 배송지를 변경할 수 없습니다.\n계속하시겠습니까?`,
+    );
+    if (!confirmed) return;
+
+    setConfirmingPlaceOrders(true);
+    setConfirmNotice(null);
+    setConfirmItemMessages({});
+
+    try {
+      const res = await fetch('/api/order/integration/smartstore/confirm-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productOrderIds: selectedSmartstoreConfirmProductOrderIds }),
+        cache: 'no-store',
+      });
+      const data = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        summary?: {
+          requested: number;
+          confirmed: number;
+          alreadyConfirmed: number;
+          addressChanged: number;
+          failed: number;
+          uncertain: number;
+        };
+        results?: Array<{
+          productOrderId: string;
+          status: string;
+          message: string;
+          isReceiverAddressChanged?: boolean;
+        }>;
+        patches?: Array<{
+          productOrderId: string;
+          standardRows: StandardOrderRow[];
+          views: OrderFetchView[];
+        }>;
+        addressChangedWarning?: string | null;
+      };
+
+      if (!res.ok || !data.success) {
+        setConfirmNotice(data.error || '발주확인 처리에 실패했습니다.');
+        return;
+      }
+
+      const itemMessages: Record<string, string> = {};
+      for (const row of data.results ?? []) {
+        itemMessages[row.productOrderId] = row.message;
+      }
+      setConfirmItemMessages(itemMessages);
+
+      const summaryParts: string[] = [];
+      if (data.summary) {
+        summaryParts.push(`완료 ${data.summary.confirmed}건`);
+        summaryParts.push(`이미 확인 ${data.summary.alreadyConfirmed}건`);
+        summaryParts.push(`배송지 변경 ${data.summary.addressChanged}건`);
+        summaryParts.push(`실패 ${data.summary.failed}건`);
+        summaryParts.push(`확인 필요 ${data.summary.uncertain}건`);
+      }
+      const summaryText = summaryParts.length > 0 ? summaryParts.join(' · ') : '처리가 완료되었습니다.';
+      const addressWarning = data.addressChangedWarning?.trim();
+      setConfirmNotice(
+        addressWarning ? `${summaryText}\n${addressWarning}` : summaryText,
+      );
+
+      const staleAddressProductOrderIds = (data.results ?? [])
+        .filter((row) => row.isReceiverAddressChanged === true && row.status === 'UNCERTAIN')
+        .map((row) => row.productOrderId);
+
+      if (results && (data.patches?.length || staleAddressProductOrderIds.length > 0)) {
+        setResults(
+          results.map((mall) => {
+            if (mall.mallId !== 'smartstore' || !mall.ok) return mall;
+            let rows = mall.rows;
+            let views = mall.views;
+            for (const patch of data.patches ?? []) {
+              const merged = mergeSmartstoreRefetchedOrdersIntoFetchResult({
+                rows,
+                views,
+                patches: [patch],
+              });
+              rows = merged.rows;
+              views = merged.views;
+            }
+            if (staleAddressProductOrderIds.length > 0) {
+              const guarded = applyUnconfirmedAddressChangeGuards({
+                rows,
+                views,
+                productOrderIds: staleAddressProductOrderIds,
+              });
+              rows = guarded.rows;
+              views = guarded.views;
+            }
+            return { ...mall, rows, views };
+          }),
+        );
+      }
+      // 처리 직후 선택 해제 — 구주소·불확실 주문을 그대로 담기/다운로드하지 않도록 한다.
+      setSelectedRowKeys(new Set());
+    } catch {
+      setConfirmNotice('발주확인 처리 중 오류가 발생했습니다.');
+    } finally {
+      setConfirmingPlaceOrders(false);
     }
   };
 
@@ -1053,7 +1187,7 @@ export default function OrderIntegrationFetchPanel() {
                 {hasCoupangAcceptRows ? (
                   <button
                     type="button"
-                    disabled={acknowledging || selectedAcknowledgementBoxIds.length === 0}
+                    disabled={acknowledging || confirmingPlaceOrders || selectedAcknowledgementBoxIds.length === 0}
                     onClick={() => void runAcknowledgement()}
                     className="ml-auto inline-flex h-8 items-center justify-center gap-1 rounded-md border border-amber-600 bg-white px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50"
                   >
@@ -1064,10 +1198,30 @@ export default function OrderIntegrationFetchPanel() {
                       : ''}
                   </button>
                 ) : null}
+                {hasSmartstorePlaceOrderNotYetRows ? (
+                  <button
+                    type="button"
+                    disabled={
+                      confirmingPlaceOrders ||
+                      acknowledging ||
+                      selectedSmartstoreConfirmProductOrderIds.length === 0
+                    }
+                    onClick={() => void runSmartstoreConfirm()}
+                    className={`${hasCoupangAcceptRows ? '' : 'ml-auto '}inline-flex h-8 items-center justify-center gap-1 rounded-md border border-amber-600 bg-white px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50`}
+                  >
+                    {confirmingPlaceOrders ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    발주확인
+                    {selectedSmartstoreConfirmProductOrderIds.length > 0
+                      ? ` (${selectedSmartstoreConfirmProductOrderIds.length})`
+                      : ''}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={toggleSelectAllFiltered}
-                  className={`text-xs font-medium text-blue-700 hover:underline ${hasCoupangAcceptRows ? '' : 'ml-auto'}`}
+                  className={`text-xs font-medium text-blue-700 hover:underline ${
+                    hasCoupangAcceptRows || hasSmartstorePlaceOrderNotYetRows ? '' : 'ml-auto'
+                  }`}
                 >
                   {allFilteredSelected ? '전체 선택 해제' : '이 결과 전체 선택'}
                 </button>
@@ -1076,6 +1230,12 @@ export default function OrderIntegrationFetchPanel() {
               {acknowledgeNotice ? (
                 <div className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                   {acknowledgeNotice}
+                </div>
+              ) : null}
+
+              {confirmNotice ? (
+                <div className="whitespace-pre-line border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {confirmNotice}
                 </div>
               ) : null}
 
@@ -1110,6 +1270,11 @@ export default function OrderIntegrationFetchPanel() {
                           acknowledgeMessage={
                             row.shipmentBoxId
                               ? acknowledgeItemMessages[row.shipmentBoxId]
+                              : undefined
+                          }
+                          confirmMessage={
+                            row.productOrderNo
+                              ? confirmItemMessages[row.productOrderNo]
                               : undefined
                           }
                           onToggleCheck={() => toggleRowSelection(key)}
@@ -1179,11 +1344,13 @@ function FetchRow({
   row,
   checked,
   acknowledgeMessage,
+  confirmMessage,
   onToggleCheck,
 }: {
   row: DisplayRow;
   checked: boolean;
   acknowledgeMessage?: string;
+  confirmMessage?: string;
   onToggleCheck: () => void;
 }) {
   return (
@@ -1212,6 +1379,9 @@ function FetchRow({
         ) : null}
         {acknowledgeMessage ? (
           <span className="mt-1 block text-[11px] text-zinc-500">{acknowledgeMessage}</span>
+        ) : null}
+        {confirmMessage ? (
+          <span className="mt-1 block text-[11px] text-zinc-500">{confirmMessage}</span>
         ) : null}
       </td>
       <td className="whitespace-nowrap px-2 py-2 align-top text-zinc-600">
