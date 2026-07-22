@@ -4,8 +4,9 @@ import {
   requireOrderIntegrationUser,
 } from '@/app/lib/order-integration/user-api-auth';
 import {
-  getSmartstoreAccountForUser,
+  extractAccountIdFromRequestBody,
   markSmartstoreAccountTestResult,
+  resolveSmartstoreAccountForRequest,
   toSmartstoreCredentials,
 } from '@/app/lib/order-integration/smartstore-account';
 import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
@@ -17,7 +18,7 @@ import {
 } from '@/app/lib/order-integration/connection-health/adapters/smartstore';
 import { beginConnectionHealthOperation } from '@/app/lib/order-integration/connection-health/concurrency';
 
-export async function POST() {
+export async function POST(request: Request) {
   const auth = await requireOrderIntegrationUser();
   if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
 
@@ -28,13 +29,25 @@ export async function POST() {
     );
   }
 
-  const account = await getSmartstoreAccountForUser(auth.userId);
-  if (!account) {
+  let body: unknown = null;
+  try {
+    const text = await request.text();
+    body = text.trim() ? JSON.parse(text) : null;
+  } catch {
+    return NextResponse.json({ error: '요청 본문을 해석하지 못했습니다.' }, { status: 400 });
+  }
+
+  const resolvedAccount = await resolveSmartstoreAccountForRequest({
+    userId: auth.userId,
+    accountId: extractAccountIdFromRequestBody(body),
+  });
+  if (!resolvedAccount.ok) {
     return NextResponse.json(
-      { error: '저장된 스마트스토어 연동 정보가 없습니다. 먼저 저장해 주세요.' },
-      { status: 404 },
+      { error: resolvedAccount.error },
+      { status: resolvedAccount.status },
     );
   }
+  const account = resolvedAccount.account;
 
   const operation = await beginConnectionHealthOperation({
     accountId: account.id,
@@ -74,6 +87,7 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       message: '스마트스토어 API 연결이 정상 확인되었습니다.',
+      accountId: account.id,
     });
   } catch (error) {
     const result = categorizeSmartstoreOperationError(error);

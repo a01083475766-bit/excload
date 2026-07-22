@@ -142,6 +142,109 @@ export async function getSmartstoreAccountForUser(
   });
 }
 
+/** userId + accountId + SMARTSTORE 소유권 검증 로드 (임의 findFirst 금지). */
+export async function getOwnedSmartstoreAccount(input: {
+  userId: string;
+  accountId: string;
+}): Promise<OrderIntegrationAccount | null> {
+  const accountId = input.accountId.trim();
+  if (!accountId) return null;
+  return prisma.orderIntegrationAccount.findFirst({
+    where: {
+      id: accountId,
+      userId: input.userId,
+      provider: OrderIntegrationProvider.SMARTSTORE,
+    },
+  });
+}
+
+export async function countSmartstoreAccountsForUser(userId: string): Promise<number> {
+  return prisma.orderIntegrationAccount.count({
+    where: {
+      userId,
+      provider: OrderIntegrationProvider.SMARTSTORE,
+    },
+  });
+}
+
+export type ResolveSmartstoreAccountFailure = {
+  ok: false;
+  status: 400 | 404;
+  error: string;
+};
+
+export type ResolveSmartstoreAccountSuccess = {
+  ok: true;
+  account: OrderIntegrationAccount;
+};
+
+/**
+ * 운영 호출용 계정 해석.
+ * - accountId가 있으면 소유권·provider 재검증
+ * - 없으면 계정이 정확히 1개일 때만 허용 (복수면 400, 자동 대체 금지)
+ */
+export async function resolveSmartstoreAccountForRequest(input: {
+  userId: string;
+  accountId?: string | null;
+}): Promise<ResolveSmartstoreAccountSuccess | ResolveSmartstoreAccountFailure> {
+  const requestedId =
+    typeof input.accountId === 'string' ? input.accountId.trim() : '';
+
+  if (requestedId) {
+    const account = await getOwnedSmartstoreAccount({
+      userId: input.userId,
+      accountId: requestedId,
+    });
+    if (!account) {
+      return {
+        ok: false,
+        status: 404,
+        error: '스마트스토어 연동 계정을 찾을 수 없습니다. 계정 선택을 확인해 주세요.',
+      };
+    }
+    return { ok: true, account };
+  }
+
+  const count = await countSmartstoreAccountsForUser(input.userId);
+  if (count === 0) {
+    return {
+      ok: false,
+      status: 404,
+      error: '저장된 스마트스토어 연동 정보가 없습니다. 먼저 저장해 주세요.',
+    };
+  }
+  if (count > 1) {
+    return {
+      ok: false,
+      status: 400,
+      error: '스마트스토어 계정이 여러 개입니다. 계정을 정확히 선택해 주세요.',
+    };
+  }
+
+  const only = await prisma.orderIntegrationAccount.findFirst({
+    where: {
+      userId: input.userId,
+      provider: OrderIntegrationProvider.SMARTSTORE,
+    },
+  });
+  if (!only) {
+    return {
+      ok: false,
+      status: 404,
+      error: '저장된 스마트스토어 연동 정보가 없습니다. 먼저 저장해 주세요.',
+    };
+  }
+  return { ok: true, account: only };
+}
+
+export function extractAccountIdFromRequestBody(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const value = (raw as Record<string, unknown>).accountId;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export async function saveSmartstoreAccount(input: {
   userId: string;
   accountName: string;
@@ -249,10 +352,13 @@ export async function saveSmartstoreAccount(input: {
   });
 }
 
-export async function deleteSmartstoreAccount(userId: string): Promise<boolean> {
-  const account = await getSmartstoreAccountForUser(userId);
-  if (!account) return false;
-  await prisma.orderIntegrationAccount.delete({ where: { id: account.id } });
+export async function deleteSmartstoreAccount(
+  userId: string,
+  accountId?: string | null,
+): Promise<boolean> {
+  const resolved = await resolveSmartstoreAccountForRequest({ userId, accountId });
+  if (!resolved.ok) return false;
+  await prisma.orderIntegrationAccount.delete({ where: { id: resolved.account.id } });
   return true;
 }
 

@@ -13,7 +13,12 @@ vi.mock('@/app/lib/order-integration/user-api-auth', () => ({
 }));
 
 vi.mock('@/app/lib/order-integration/smartstore-account', () => ({
-  getSmartstoreAccountForUser: mocks.getAccount,
+  resolveSmartstoreAccountForRequest: mocks.getAccount,
+  extractAccountIdFromRequestBody: (raw: unknown) => {
+    if (!raw || typeof raw !== 'object') return null;
+    const value = (raw as { accountId?: unknown }).accountId;
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  },
   markSmartstoreAccountTestResult: mocks.markResult,
   toSmartstoreCredentials: vi.fn(() => ({
     clientId: 'client-id',
@@ -36,10 +41,16 @@ vi.mock('@/app/lib/order-integration/connection-health/concurrency', () => ({
 
 import { POST } from './route';
 
+function emptyRequest(): Request {
+  return new Request('http://localhost/api/order/integration/smartstore/test', {
+    method: 'POST',
+  });
+}
+
 describe('POST /api/order/integration/smartstore/test', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getAccount.mockResolvedValue({ id: 'account-1' });
+    mocks.getAccount.mockResolvedValue({ ok: true, account: { id: 'account-1' } });
     mocks.beginOperation.mockResolvedValue({ started: true, operationSequence: BigInt(7) });
   });
 
@@ -54,7 +65,7 @@ describe('POST /api/order/integration/smartstore/test', () => {
       };
     });
 
-    const response = await POST();
+    const response = await POST(emptyRequest());
 
     expect(response.status).toBe(200);
     expect(mocks.invokeHttp).toHaveBeenCalledTimes(2);
@@ -88,7 +99,7 @@ describe('POST /api/order/integration/smartstore/test', () => {
       bodyText: JSON.stringify({ code: 'invalid_client', message: 'Client Secret is invalid' }),
     });
 
-    const response = await POST();
+    const response = await POST(emptyRequest());
     const body = (await response.json()) as Record<string, unknown>;
 
     expect(response.status).toBe(400);
@@ -105,7 +116,7 @@ describe('POST /api/order/integration/smartstore/test', () => {
   it('비활성 계정이면 외부 API를 호출하거나 결과를 저장하지 않는다', async () => {
     mocks.beginOperation.mockResolvedValue({ started: false, reason: 'INACTIVE' });
 
-    const response = await POST();
+    const response = await POST(emptyRequest());
 
     expect(response.status).toBe(409);
     expect(mocks.invokeHttp).not.toHaveBeenCalled();
@@ -113,9 +124,13 @@ describe('POST /api/order/integration/smartstore/test', () => {
   });
 
   it('계정이 없으면 sequence를 발급하지 않는다', async () => {
-    mocks.getAccount.mockResolvedValue(null);
+    mocks.getAccount.mockResolvedValue({
+      ok: false,
+      status: 404,
+      error: '저장된 스마트스토어 연동 정보가 없습니다. 먼저 저장해 주세요.',
+    });
 
-    const response = await POST();
+    const response = await POST(emptyRequest());
 
     expect(response.status).toBe(404);
     expect(mocks.beginOperation).not.toHaveBeenCalled();

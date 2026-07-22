@@ -19,6 +19,7 @@ function detail(overrides?: {
   claimType?: string;
   trackingNumber?: string;
   deliveryCompanyCode?: string;
+  remainQuantity?: number | null;
 }): SmartstoreProductOrderDetail {
   return {
     order: { orderId: overrides?.orderId ?? 'ORDER-1' },
@@ -27,7 +28,8 @@ function detail(overrides?: {
       productOrderStatus: overrides?.productOrderStatus ?? 'PAYED',
       placeOrderStatus: overrides?.placeOrderStatus ?? 'OK',
       claimType: overrides?.claimType,
-      remainQuantity: 1,
+      remainQuantity:
+        overrides && 'remainQuantity' in overrides ? (overrides.remainQuantity as number) : 1,
       productName: '상품',
     },
     delivery: overrides?.trackingNumber
@@ -162,6 +164,35 @@ describe('classifySmartstoreDispatchPreflight', () => {
         requestedDeliveryCompanyCode: 'CJGLS',
       }).action,
     ).toBe('ALREADY_DISPATCHED');
+  });
+
+  it('blocks unclear or zero remainQuantity without estimating 1', () => {
+    expect(
+      classifySmartstoreDispatchPreflight({
+        detail: detail({ remainQuantity: null }),
+        requestedProductOrderId: 'PO-1',
+        expectedMallOrderNo: 'ORDER-1',
+        requestedTrackingNumber: '123',
+        requestedDeliveryCompanyCode: 'CJGLS',
+      }),
+    ).toMatchObject({
+      action: 'BLOCK',
+      status: 'QUANTITY_UNCLEAR',
+      errorCode: 'QUANTITY_UNCLEAR',
+    });
+
+    expect(
+      classifySmartstoreDispatchPreflight({
+        detail: detail({ remainQuantity: 0 }),
+        requestedProductOrderId: 'PO-1',
+        expectedMallOrderNo: 'ORDER-1',
+        requestedTrackingNumber: '123',
+        requestedDeliveryCompanyCode: 'CJGLS',
+      }),
+    ).toMatchObject({
+      action: 'BLOCK',
+      errorCode: 'ORDER_STATE_NOT_ELIGIBLE',
+    });
   });
 });
 

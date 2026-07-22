@@ -326,7 +326,9 @@ function mapSmartstoreInvoiceItemsToPersisted(input: {
           ? 'SUCCESS'
           : row.status === 'ORDER_STATE_NOT_ELIGIBLE'
             ? 'STATE_NOT_ELIGIBLE'
-            : (row.status as ShipmentTransmissionItemResultSummary['status']);
+            : row.status === 'QUANTITY_UNCLEAR'
+              ? 'QUANTITY_UNCLEAR'
+              : (row.status as ShipmentTransmissionItemResultSummary['status']);
       return {
         productOrderId: row.productOrderId,
         status,

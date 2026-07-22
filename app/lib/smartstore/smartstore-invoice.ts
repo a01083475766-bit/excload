@@ -44,6 +44,7 @@ export type SmartstoreInvoiceItemStatus =
   | 'ALREADY_DISPATCHED'
   | 'ORDER_CONFIRMATION_REQUIRED'
   | 'ORDER_STATE_NOT_ELIGIBLE'
+  | 'QUANTITY_UNCLEAR'
   | 'FAILED'
   | 'UNCERTAIN';
 
@@ -290,7 +291,16 @@ export function classifySmartstoreDispatchPreflight(input: {
   }
 
   const remain = detail.productOrder?.remainQuantity;
-  if (remain != null && remain <= 0) {
+  if (remain == null || typeof remain !== 'number' || !Number.isFinite(remain)) {
+    return {
+      action: 'BLOCK',
+      status: 'QUANTITY_UNCLEAR',
+      errorCode: 'QUANTITY_UNCLEAR',
+      message:
+        '발송 가능 수량(remainQuantity)을 확인할 수 없어 송장 전송을 진행하지 않았습니다.',
+    };
+  }
+  if (remain < 1) {
     return {
       action: 'BLOCK',
       status: 'ORDER_STATE_NOT_ELIGIBLE',
@@ -492,6 +502,7 @@ function aggregateMatchOutcome(
     (row) =>
       row.status === 'FAILED' ||
       row.status === 'ORDER_STATE_NOT_ELIGIBLE' ||
+      row.status === 'QUANTITY_UNCLEAR' ||
       row.status === 'ORDER_CONFIRMATION_REQUIRED',
   );
   return {
@@ -500,9 +511,11 @@ function aggregateMatchOutcome(
     errorCode:
       firstFail?.status === 'ORDER_CONFIRMATION_REQUIRED'
         ? 'ORDER_CONFIRMATION_REQUIRED'
-        : firstFail?.status === 'ORDER_STATE_NOT_ELIGIBLE'
-          ? 'ORDER_STATE_NOT_ELIGIBLE'
-          : 'DISPATCH_FAILED',
+        : firstFail?.status === 'QUANTITY_UNCLEAR'
+          ? 'QUANTITY_UNCLEAR'
+          : firstFail?.status === 'ORDER_STATE_NOT_ELIGIBLE'
+            ? 'ORDER_STATE_NOT_ELIGIBLE'
+            : 'DISPATCH_FAILED',
     errorMessage: firstFail?.message ?? '송장 전송에 실패했습니다.',
   };
 }
@@ -623,6 +636,7 @@ export async function runSmartstoreInvoiceTransmission(input: {
     (row) =>
       row.status === 'ORDER_CONFIRMATION_REQUIRED' ||
       row.status === 'ORDER_STATE_NOT_ELIGIBLE' ||
+      row.status === 'QUANTITY_UNCLEAR' ||
       row.status === 'UNCERTAIN' ||
       row.status === 'FAILED',
   );
@@ -633,6 +647,7 @@ export async function runSmartstoreInvoiceTransmission(input: {
         (row) =>
           row.status === 'ORDER_CONFIRMATION_REQUIRED' ||
           row.status === 'ORDER_STATE_NOT_ELIGIBLE' ||
+          row.status === 'QUANTITY_UNCLEAR' ||
           row.status === 'UNCERTAIN' ||
           (row.status === 'FAILED' && row.message.includes('불명확')),
       )

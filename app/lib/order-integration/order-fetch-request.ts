@@ -1,6 +1,8 @@
 import type { OrderIntegrationMallId } from './malls';
 
-export type OrderFetchRequestBody = { days: number } | { from: string; to: string };
+export type OrderFetchRequestBody =
+  | { days: number; accountId?: string }
+  | { from: string; to: string; accountId?: string };
 
 /**
  * 화면에 표시된 달력 범위와 스마트스토어 실제 요청 범위를 일치시킨다.
@@ -11,9 +13,13 @@ export function buildOrderFetchRequestBody(input: {
   days: number;
   from: string;
   to: string;
+  accountId?: string;
 }): OrderFetchRequestBody {
+  const accountId = input.accountId?.trim() || undefined;
   if (input.mallId === 'smartstore') {
-    return { from: input.from, to: input.to };
+    return accountId
+      ? { from: input.from, to: input.to, accountId }
+      : { from: input.from, to: input.to };
   }
-  return { days: input.days };
+  return accountId ? { days: input.days, accountId } : { days: input.days };
 }

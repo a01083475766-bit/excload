@@ -288,6 +288,7 @@ describe('verify identifier extractors', () => {
     id: 'a1',
     userId: 'u1',
     uploadBatchId: 'b1',
+    shipmentMatchId: 'm1',
     provider: 'SMARTSTORE',
     integrationAccountId: 'acc',
     status: 'SUCCESS',
@@ -319,6 +320,16 @@ describe('verify identifier extractors', () => {
 
 describe('runVerifyTransmissionService', () => {
   it('verifies smartstore success attempt and marks unsupported providers', async () => {
+    const { buildSmartstoreItemShipmentFingerprint } = await import(
+      '@/app/lib/smartstore/smartstore-batch-dispatch'
+    );
+    const fp = buildSmartstoreItemShipmentFingerprint({
+      userId: 'u1',
+      integrationAccountId: 'acc-ss',
+      productOrderId: 'PO-1',
+      deliveryCompanyCode: 'CJGLS',
+      trackingNumber: '123456789012',
+    });
     const result = await runVerifyTransmissionService(
       {
         findAttempts: async () => [
@@ -326,17 +337,30 @@ describe('runVerifyTransmissionService', () => {
             id: 'a-ss',
             userId: 'u1',
             uploadBatchId: 'b1',
+            shipmentMatchId: 'm-ss',
             provider: 'SMARTSTORE',
             integrationAccountId: 'acc-ss',
             status: 'SUCCESS',
             mallOrderNo: 'ORD-1',
             mallLineItemIdsJson: ['PO-1'],
+            trackingNumberNormalized: '123456789012',
+            courierCode: 'CJ',
+            responseSummaryJson: {
+              itemResults: [
+                {
+                  productOrderId: 'PO-1',
+                  status: 'SUCCESS',
+                  shipmentFingerprint: fp,
+                },
+              ],
+            },
             orderSyncOrder: { mallLineItemIds: ['PO-1'], normalizedPayloadJson: null },
           },
           {
             id: 'a-11',
             userId: 'u1',
             uploadBatchId: 'b1',
+            shipmentMatchId: 'm-11',
             provider: 'ELEVEN',
             integrationAccountId: 'acc-11',
             status: 'SUCCESS',
@@ -355,7 +379,10 @@ describe('runVerifyTransmissionService', () => {
           authType: 'SELF',
         }),
         fetchSmartstoreByIds: async () => [
-          { productOrder: { productOrderId: 'PO-1', productOrderStatus: 'DELIVERING' } },
+          {
+            productOrder: { productOrderId: 'PO-1', productOrderStatus: 'DELIVERING' },
+            delivery: { deliveryCompanyCode: 'CJGLS', trackingNumber: '123456789012' },
+          },
         ],
         now: () => new Date('2026-07-21T06:00:00.000Z'),
       },
@@ -376,6 +403,16 @@ describe('runVerifyTransmissionService', () => {
       await import('@/app/lib/order-integration/snapshots/clear-transmitted-order-pii'),
       'clearTransmittedOrderPiiIfComplete',
     );
+    const { buildSmartstoreItemShipmentFingerprint } = await import(
+      '@/app/lib/smartstore/smartstore-batch-dispatch'
+    );
+    const fp = buildSmartstoreItemShipmentFingerprint({
+      userId: 'u1',
+      integrationAccountId: 'acc-ss',
+      productOrderId: 'PO-1',
+      deliveryCompanyCode: 'CJGLS',
+      trackingNumber: '123456789012',
+    });
 
     const result = await runVerifyTransmissionService(
       {
@@ -384,11 +421,23 @@ describe('runVerifyTransmissionService', () => {
             id: 'a-ss',
             userId: 'u1',
             uploadBatchId: 'b1',
+            shipmentMatchId: 'm-ss',
             provider: 'SMARTSTORE',
             integrationAccountId: 'acc-ss',
             status: 'SUCCESS',
             mallOrderNo: 'ORD-1',
             mallLineItemIdsJson: ['PO-1'],
+            trackingNumberNormalized: '123456789012',
+            courierCode: 'CJ',
+            responseSummaryJson: {
+              itemResults: [
+                {
+                  productOrderId: 'PO-1',
+                  status: 'SUCCESS',
+                  shipmentFingerprint: fp,
+                },
+              ],
+            },
             orderSyncOrder: { mallLineItemIds: ['PO-1'], normalizedPayloadJson: null },
           },
         ],
@@ -399,7 +448,10 @@ describe('runVerifyTransmissionService', () => {
           authType: 'SELF',
         }),
         fetchSmartstoreByIds: async () => [
-          { productOrder: { productOrderId: 'PO-1', productOrderStatus: 'DELIVERING' } },
+          {
+            productOrder: { productOrderId: 'PO-1', productOrderStatus: 'DELIVERING' },
+            delivery: { deliveryCompanyCode: 'CJGLS', trackingNumber: '123456789012' },
+          },
         ],
       },
       { userId: 'u1', batchId: 'b1', attemptIds: ['a-ss'] },
@@ -418,6 +470,7 @@ describe('runVerifyTransmissionService', () => {
             id: 'a-cp',
             userId: 'u1',
             uploadBatchId: 'b1',
+            shipmentMatchId: 'm-cp',
             provider: 'COUPANG',
             integrationAccountId: 'acc-cp',
             status: 'SUCCESS',

@@ -8,6 +8,7 @@ import { toSafeShipmentMatchLogMessage } from '@/app/lib/order-integration/shipm
 import { validateShipmentUploadBatchId } from '@/app/lib/order-integration/shipments/load-shipment-upload-batch-detail';
 import { parseVerifyTransmissionBody } from '@/app/lib/order-integration/transmission/parse-verify-transmission-body';
 import {
+  createPersistSmartstoreVerification,
   createVerifyTransmissionAccountLoader,
   createVerifyTransmissionFindAttempts,
 } from '@/app/lib/order-integration/transmission/verify-transmission-prisma';
@@ -51,6 +52,7 @@ export async function POST(
       {
         findAttempts: createVerifyTransmissionFindAttempts(prisma),
         loadAccount: createVerifyTransmissionAccountLoader(prisma),
+        persistSmartstoreVerification: createPersistSmartstoreVerification(prisma),
       },
       {
         userId,

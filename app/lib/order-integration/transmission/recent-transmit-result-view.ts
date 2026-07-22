@@ -117,6 +117,10 @@ function resolveMessage(row: MockTransmitMatchResult, outcome: RecentTransmitOut
     case 'STATE_NOT_ELIGIBLE':
     case 'ORDER_STATE_NOT_ELIGIBLE':
       return raw ?? '주문 상태상 송장 전송이 불가합니다.';
+    case 'QUANTITY_UNCLEAR':
+      return raw ?? '수량을 확인할 수 없어 전송하지 않았습니다.';
+    case 'ACCOUNT_SELECTION_REQUIRED':
+      return raw ?? '계정을 정확히 선택할 수 없어 처리하지 않았습니다.';
     case 'CARRIER_MAPPING_REQUIRED':
     case 'COURIER_UNSUPPORTED':
       return raw ?? '택배사 확인이 필요합니다. 스마트스토어에서 지원하는 택배사로 연결해 주세요.';
@@ -191,11 +195,42 @@ export function isTransmissionVerifySupportedProvider(provider?: string | null):
 export function resolveInitialVerificationStatus(input: {
   outcome: RecentTransmitOutcome;
   provider?: string | null;
+  resultCode?: string | null;
 }): RecentTransmitVerificationStatus | null {
-  if (input.outcome !== 'SUCCESS') return 'NOT_APPLICABLE';
-  if (!isTransmissionVerifySupportedProvider(input.provider)) return 'UNSUPPORTED';
-  // 쿠팡·스마트스토어 성공: 확인 전(미조회)
-  return null;
+  if (!isTransmissionVerifySupportedProvider(input.provider)) {
+    if (input.outcome === 'SUCCESS') return 'UNSUPPORTED';
+    return 'NOT_APPLICABLE';
+  }
+  if (input.outcome === 'SUCCESS') return null;
+  const code = String(input.resultCode ?? '')
+    .trim()
+    .toUpperCase();
+  // 외부 POST 이후 불확실 — 읽기 전용 재확인 대상
+  if (
+    input.outcome === 'FAILED' &&
+    (code === 'UNCERTAIN' || code === 'PARTIAL_ERROR' || code === 'PROVIDER_STATUS_UNKNOWN')
+  ) {
+    return null;
+  }
+  return 'NOT_APPLICABLE';
+}
+
+export function isRecentTransmitRowVerifiable(row: {
+  outcome: RecentTransmitOutcome;
+  attemptId: string | null;
+  provider: string | null;
+  resultCode: string | null;
+}): boolean {
+  if (!row.attemptId) return false;
+  if (!isTransmissionVerifySupportedProvider(row.provider)) return false;
+  if (row.outcome === 'SUCCESS') return true;
+  const code = String(row.resultCode ?? '')
+    .trim()
+    .toUpperCase();
+  return (
+    row.outcome === 'FAILED' &&
+    (code === 'UNCERTAIN' || code === 'PARTIAL_ERROR' || code === 'PROVIDER_STATUS_UNKNOWN')
+  );
 }
 
 export function verificationStatusLabel(
@@ -262,6 +297,7 @@ export function buildRecentTransmitResultView(input: {
       verificationStatus: resolveInitialVerificationStatus({
         outcome,
         provider: providerRaw,
+        resultCode: asString(row.errorCode),
       }),
       verificationMessage: null,
       confirmedItems: null,
@@ -300,10 +336,8 @@ export function filterRecentTransmitResults(
 export function collectVerifiableAttemptIds(rows: ReadonlyArray<RecentTransmitResultRow>): string[] {
   const ids: string[] = [];
   for (const row of rows) {
-    if (row.outcome !== 'SUCCESS') continue;
-    if (!row.attemptId) continue;
-    if (!isTransmissionVerifySupportedProvider(row.provider)) continue;
-    ids.push(row.attemptId);
+    if (!isRecentTransmitRowVerifiable(row)) continue;
+    ids.push(row.attemptId!);
   }
   return ids;
 }
@@ -324,7 +358,7 @@ export function mergeVerificationIntoRecentTransmitView(
   return {
     ...view,
     results: view.results.map((row) => {
-      if (!row.attemptId || row.outcome !== 'SUCCESS') {
+      if (!row.attemptId || !isRecentTransmitRowVerifiable(row)) {
         return {
           ...row,
           verificationStatus: row.verificationStatus ?? 'NOT_APPLICABLE',

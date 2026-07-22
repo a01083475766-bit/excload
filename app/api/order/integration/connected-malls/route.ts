@@ -45,7 +45,7 @@ export async function GET() {
     ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'available').map((m) => m.id)
   );
 
-  const seen = new Set<OrderIntegrationMallId>();
+  const seen = new Set<string>();
   const malls: {
     mallId: OrderIntegrationMallId;
     name: string;
@@ -57,8 +57,10 @@ export async function GET() {
 
   for (const account of accounts) {
     const mallId = PROVIDER_TO_MALL_ID[account.provider];
-    if (!mallId || !availableIds.has(mallId) || seen.has(mallId)) continue;
-    seen.add(mallId);
+    if (!mallId || !availableIds.has(mallId)) continue;
+    // 동일 provider라도 계정별로 모두 노출 (findFirst/최신 1개 대체 금지).
+    if (seen.has(account.id)) continue;
+    seen.add(account.id);
     const meta = ORDER_INTEGRATION_MALLS.find((m) => m.id === mallId);
     if (!meta) continue;
     malls.push({

@@ -7,8 +7,9 @@ import {
   requireOrderIntegrationUser,
 } from '@/app/lib/order-integration/user-api-auth';
 import {
-  getSmartstoreAccountForUser,
+  extractAccountIdFromRequestBody,
   markSmartstoreAccountSyncResult,
+  resolveSmartstoreAccountForRequest,
   toSmartstoreCredentials,
 } from '@/app/lib/order-integration/smartstore-account';
 import { fetchSmartstoreProductOrders } from '@/app/lib/smartstore/client';
@@ -61,13 +62,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const account = await getSmartstoreAccountForUser(auth.userId);
-  if (!account) {
+  const resolvedAccount = await resolveSmartstoreAccountForRequest({
+    userId: auth.userId,
+    accountId: extractAccountIdFromRequestBody(body),
+  });
+  if (!resolvedAccount.ok) {
     return NextResponse.json(
-      { error: '저장된 스마트스토어 연동 정보가 없습니다. 먼저 저장해 주세요.' },
-      { status: 404 },
+      { error: resolvedAccount.error },
+      { status: resolvedAccount.status },
     );
   }
+  const account = resolvedAccount.account;
 
   const operation = await beginConnectionHealthOperation({
     accountId: account.id,

@@ -1,6 +1,6 @@
 /**
- * 전송 성공 Attempt에 대한 쇼핑몰 반영 상태 확인 (B).
- * credential은 서버에서 accountId로만 로드. 클라이언트 재전송 금지.
+ * 전송 성공·UNCERTAIN Attempt에 대한 쇼핑몰 반영 상태 확인 (읽기 전용).
+ * credential은 서버에서 accountId로만 로드. 클라이언트 재전송·confirm/dispatch 금지.
  */
 
 import type {
@@ -21,23 +21,35 @@ import {
   type SmartstoreCredentials,
   toUserFacingSmartstoreErrorMessage,
 } from '@/app/lib/smartstore/client';
+import { resolveSmartstoreDeliveryCompanyCode } from '@/app/lib/smartstore/smartstore-invoice';
+import { parseSmartstoreItemResultsFromSummary } from '@/app/lib/smartstore/smartstore-batch-dispatch';
 import {
   mapCoupangOrderSheetStatuses,
-  mapSmartstoreProductOrderStatuses,
 } from '@/app/lib/order-integration/transmission/map-transmission-verify-status';
 import type { RecentTransmitVerificationStatus } from '@/app/lib/order-integration/transmission/recent-transmit-result-view';
+import type { ShipmentTransmissionItemResultSummary } from '@/app/lib/order-integration/transmission/types';
+import {
+  buildFallbackVerifyItemsFromProductOrderIds,
+  isSmartstoreVerifiableAttemptStatus,
+  mergeSmartstoreVerifyItemResults,
+  summarizeSmartstoreVerifyDecisions,
+} from '@/app/lib/order-integration/transmission/smartstore-verify-reconcile';
 
 export type VerifyTransmissionAttemptRecord = {
   id: string;
   userId: string;
   uploadBatchId: string;
+  shipmentMatchId: string;
   provider: OrderIntegrationProvider;
   integrationAccountId: string | null;
   status: ShipmentTransmissionAttemptStatus;
   mallOrderNo: string;
   mallLineItemIdsJson: unknown;
-  /** 전송 시 요청한 송장번호(정규화). 쿠팡 재조회 대조에 사용 */
   trackingNumberNormalized?: string | null;
+  courierCode?: string | null;
+  courierName?: string | null;
+  dispatchedAt?: Date | string | null;
+  responseSummaryJson?: unknown;
   orderSyncOrder: {
     mallLineItemIds: unknown;
     normalizedPayloadJson: unknown;
@@ -80,6 +92,16 @@ export type VerifyTransmissionServiceSuccess = {
   body: VerifyTransmissionResponseBody;
 };
 
+export type PersistSmartstoreVerificationInput = {
+  userId: string;
+  attemptId: string;
+  shipmentMatchId: string;
+  itemResults: ShipmentTransmissionItemResultSummary[];
+  allConfirmed: boolean;
+  hasUncertain: boolean;
+  now: Date;
+};
+
 export type VerifyTransmissionServiceDeps = {
   findAttempts: (input: {
     userId: string;
@@ -95,6 +117,10 @@ export type VerifyTransmissionServiceDeps = {
   resolveCoupangCredentials?: (account: OrderIntegrationAccount) => CoupangCredentials;
   fetchSmartstoreByIds?: typeof fetchSmartstoreProductOrdersByIds;
   fetchCoupangByBoxId?: typeof fetchCoupangOrderSheetByShipmentBoxId;
+  /** SMARTSTORE 부분 결과 보존·Match SENT 정리 (선택) */
+  persistSmartstoreVerification?: (
+    input: PersistSmartstoreVerificationInput,
+  ) => Promise<void>;
   now?: () => Date;
 };
 
@@ -139,7 +165,7 @@ export function extractCoupangShipmentBoxIds(record: VerifyTransmissionAttemptRe
 
 function itemFromMapped(
   attemptId: string,
-  mapped: ReturnType<typeof mapSmartstoreProductOrderStatuses>,
+  mapped: ReturnType<typeof mapCoupangOrderSheetStatuses>,
 ): VerifyTransmissionResultItem {
   return {
     attemptId,
@@ -207,6 +233,11 @@ async function verifySmartstoreAttempt(
     return failedItem(record.id, '확인에 필요한 상품주문번호가 없습니다.');
   }
 
+  const accountId = record.integrationAccountId?.trim() ?? '';
+  if (!accountId) {
+    return failedItem(record.id, '연결 계정이 없어 확인할 수 없습니다.');
+  }
+
   let credentials;
   try {
     credentials = (deps.resolveSmartstoreCredentials ?? toSmartstoreCredentials)(account);
@@ -217,6 +248,31 @@ async function verifySmartstoreAttempt(
     return failedItem(record.id, '쇼핑몰 연결을 확인하세요.');
   }
 
+  const priorFromSummary = parseSmartstoreItemResultsFromSummary(record.responseSummaryJson);
+  let priorItems = priorFromSummary.filter((row) =>
+    productOrderIds.includes(row.productOrderId),
+  );
+  if (priorItems.length === 0) {
+    const courier = resolveSmartstoreDeliveryCompanyCode({
+      courierCode: record.courierCode ?? null,
+      courierName: record.courierName ?? null,
+    });
+    if (!courier.ok) {
+      return failedItem(record.id, '네이버 응답에서 송장정보를 확인할 수 없습니다.');
+    }
+    const tracking = String(record.trackingNumberNormalized ?? '').trim();
+    if (!tracking) {
+      return failedItem(record.id, '네이버 응답에서 송장정보를 확인할 수 없습니다.');
+    }
+    priorItems = buildFallbackVerifyItemsFromProductOrderIds({
+      userId: record.userId,
+      integrationAccountId: accountId,
+      productOrderIds,
+      deliveryCompanyCode: courier.deliveryCompanyCode,
+      trackingNumber: tracking,
+    });
+  }
+
   const fetchByIds = deps.fetchSmartstoreByIds ?? fetchSmartstoreProductOrdersByIds;
   try {
     const details = await fetchByIds({ credentials, productOrderIds });
@@ -225,13 +281,36 @@ async function verifySmartstoreAttempt(
       const id = detail.productOrder?.productOrderId?.trim();
       if (id) byId.set(id, detail);
     }
-    const statuses = productOrderIds.map(
-      (id) => byId.get(id)?.productOrder?.productOrderStatus ?? null,
-    );
-    if (statuses.every((status) => !status)) {
-      return failedItem(record.id, '상품주문 상태를 조회하지 못했습니다.');
+
+    const { itemResults, decisions } = mergeSmartstoreVerifyItemResults({
+      userId: record.userId,
+      integrationAccountId: accountId,
+      priorItems,
+      detailsByProductOrderId: byId,
+    });
+    const summarized = summarizeSmartstoreVerifyDecisions({ itemResults, decisions });
+
+    if (deps.persistSmartstoreVerification) {
+      await deps.persistSmartstoreVerification({
+        userId: record.userId,
+        attemptId: record.id,
+        shipmentMatchId: record.shipmentMatchId,
+        itemResults,
+        allConfirmed: summarized.allConfirmed,
+        hasUncertain: summarized.hasUncertain || summarized.hasConflict,
+        now: deps.now?.() ?? new Date(),
+      });
     }
-    return itemFromMapped(record.id, mapSmartstoreProductOrderStatuses({ statuses }));
+
+    return {
+      attemptId: record.id,
+      status: summarized.status,
+      mallStatusCode: summarized.mallStatusCode,
+      mallStatusLabel: summarized.mallStatusCode,
+      confirmedItems: summarized.confirmedItems,
+      totalItems: summarized.totalItems,
+      message: summarized.message,
+    };
   } catch (error) {
     return failedItem(record.id, toUserFacingSmartstoreErrorMessage(error));
   }
@@ -324,13 +403,31 @@ export async function runVerifyTransmissionService(
       results.push(failedItem(attemptId, '전송 기록을 찾을 수 없습니다.'));
       continue;
     }
-    if (record.status !== 'SUCCESS') {
-      results.push(unsupportedItem(attemptId, '전송 성공 건만 확인할 수 있습니다.'));
-      continue;
-    }
 
-    if (record.provider !== 'SMARTSTORE' && record.provider !== 'COUPANG') {
-      results.push(unsupportedItem(attemptId, '이 쇼핑몰은 상태 확인을 아직 지원하지 않습니다. 상태 확인 지원 예정.'));
+    if (record.provider === 'COUPANG') {
+      if (record.status !== 'SUCCESS') {
+        results.push(unsupportedItem(attemptId, '전송 성공 건만 확인할 수 있습니다.'));
+        continue;
+      }
+    } else if (record.provider === 'SMARTSTORE') {
+      if (
+        !isSmartstoreVerifiableAttemptStatus({
+          status: record.status,
+          dispatchedAt: record.dispatchedAt,
+        })
+      ) {
+        results.push(
+          unsupportedItem(
+            attemptId,
+            '외부 전송이 확인된 성공·불확실(UNCERTAIN) 건만 확인할 수 있습니다.',
+          ),
+        );
+        continue;
+      }
+    } else {
+      results.push(
+        unsupportedItem(attemptId, '이 쇼핑몰은 상태 확인을 아직 지원하지 않습니다. 상태 확인 지원 예정.'),
+      );
       continue;
     }
 

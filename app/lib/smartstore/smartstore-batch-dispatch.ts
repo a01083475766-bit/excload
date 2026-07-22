@@ -107,6 +107,8 @@ function mapRuntimeStatusToPersisted(
       return 'ORDER_CONFIRMATION_REQUIRED';
     case 'ORDER_STATE_NOT_ELIGIBLE':
       return 'STATE_NOT_ELIGIBLE';
+    case 'QUANTITY_UNCLEAR':
+      return 'QUANTITY_UNCLEAR';
     case 'FAILED':
       return 'FAILED';
     case 'UNCERTAIN':
@@ -176,6 +178,7 @@ function aggregateMatchFromItems(
   }
   const preferred =
     itemResults.find((row) => row.status === 'ORDER_CONFIRMATION_REQUIRED') ??
+    itemResults.find((row) => row.status === 'QUANTITY_UNCLEAR') ??
     itemResults.find((row) => row.status === 'CONFLICT') ??
     itemResults.find((row) => row.status === 'CARRIER_MAPPING_REQUIRED') ??
     itemResults.find((row) => row.status === 'STATE_NOT_ELIGIBLE') ??
@@ -459,15 +462,20 @@ export async function runSmartstoreCrossMatchBatchDispatch(input: {
       continue;
     }
     if (decision.action === 'BLOCK') {
-      const status = mapRuntimeStatusToPersisted(
-        decision.status === 'ORDER_STATE_NOT_ELIGIBLE'
-          ? 'ORDER_STATE_NOT_ELIGIBLE'
-          : decision.status === 'ORDER_CONFIRMATION_REQUIRED'
-            ? 'ORDER_CONFIRMATION_REQUIRED'
-            : decision.status === 'UNCERTAIN'
-              ? 'UNCERTAIN'
-              : 'FAILED',
-      );
+      const status =
+        decision.errorCode === 'QUANTITY_UNCLEAR'
+          ? 'QUANTITY_UNCLEAR'
+          : mapRuntimeStatusToPersisted(
+              decision.status === 'ORDER_STATE_NOT_ELIGIBLE'
+                ? 'ORDER_STATE_NOT_ELIGIBLE'
+                : decision.status === 'ORDER_CONFIRMATION_REQUIRED'
+                  ? 'ORDER_CONFIRMATION_REQUIRED'
+                  : decision.status === 'QUANTITY_UNCLEAR'
+                    ? 'QUANTITY_UNCLEAR'
+                    : decision.status === 'UNCERTAIN'
+                      ? 'UNCERTAIN'
+                      : 'FAILED',
+            );
       for (const matchId of target.matchIds) {
         pushItem(matchId, {
           productOrderId: target.productOrderId,

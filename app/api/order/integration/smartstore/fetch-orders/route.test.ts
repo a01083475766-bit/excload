@@ -19,7 +19,12 @@ vi.mock('@/app/lib/integration-proxy/config', () => ({
 vi.mock('@/app/lib/prisma', () => ({ prisma: {} }));
 
 vi.mock('@/app/lib/order-integration/smartstore-account', () => ({
-  getSmartstoreAccountForUser: mocks.getAccount,
+  resolveSmartstoreAccountForRequest: mocks.getAccount,
+  extractAccountIdFromRequestBody: (raw: unknown) => {
+    if (!raw || typeof raw !== 'object') return null;
+    const value = (raw as { accountId?: unknown }).accountId;
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  },
   markSmartstoreAccountSyncResult: mocks.markResult,
   toSmartstoreCredentials: vi.fn(() => ({ clientId: 'id', clientSecret: 'secret', authType: 'SELF' })),
 }));
@@ -59,7 +64,7 @@ describe('POST /api/order/integration/smartstore/fetch-orders', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-18T06:00:00.000Z'));
     vi.clearAllMocks();
-    mocks.getAccount.mockResolvedValue({ id: 'account-1' });
+    mocks.getAccount.mockResolvedValue({ ok: true, account: { id: 'account-1' } });
     mocks.fetchOrders.mockResolvedValue([]);
     mocks.beginOperation.mockResolvedValue({ started: true, operationSequence: BigInt(11) });
   });

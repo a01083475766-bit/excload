@@ -14,7 +14,12 @@ vi.mock('@/app/lib/order-integration/user-api-auth', () => ({
 }));
 
 vi.mock('@/app/lib/order-integration/smartstore-account', () => ({
-  getSmartstoreAccountForUser: (userId: unknown) => getAccountMock(userId),
+  resolveSmartstoreAccountForRequest: (input: unknown) => getAccountMock(input),
+  extractAccountIdFromRequestBody: (raw: unknown) => {
+    if (!raw || typeof raw !== 'object') return null;
+    const value = (raw as { accountId?: unknown }).accountId;
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  },
   toSmartstoreCredentials: (account: unknown) => toCredentialsMock(account),
 }));
 
@@ -47,7 +52,7 @@ describe('POST /api/order/integration/smartstore/confirm-orders', () => {
     vi.clearAllMocks();
     proxyConfiguredMock.mockReturnValue(true);
     requireUserMock.mockResolvedValue({ userId: 'user-1', email: 'a@example.com' });
-    getAccountMock.mockResolvedValue({ id: 'acc-1' });
+    getAccountMock.mockResolvedValue({ ok: true, account: { id: 'acc-1' } });
     toCredentialsMock.mockReturnValue({
       clientId: 'client',
       clientSecret: 'secret',
@@ -129,7 +134,10 @@ describe('POST /api/order/integration/smartstore/confirm-orders', () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(getAccountMock).toHaveBeenCalledWith('user-1');
+    expect(getAccountMock).toHaveBeenCalledWith({
+      userId: 'user-1',
+      accountId: null,
+    });
     expect(confirmMock).toHaveBeenCalledTimes(1);
     expect(confirmMock.mock.calls[0]?.[0]?.productOrderIds).toEqual(['PO-1']);
     const body = await res.json();

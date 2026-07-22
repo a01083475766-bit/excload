@@ -112,6 +112,7 @@ export type ShipmentTransmissionItemResultStatus =
   | 'ORDER_CONFIRMATION_REQUIRED'
   | 'STATE_NOT_ELIGIBLE'
   | 'CARRIER_MAPPING_REQUIRED'
+  | 'QUANTITY_UNCLEAR'
   | 'CONFLICT'
   | 'FAILED'
   | 'UNCERTAIN'

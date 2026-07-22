@@ -14,7 +14,8 @@ import {
   type SmartstoreConfirmItemResult,
 } from '@/app/lib/smartstore/smartstore-confirm';
 import {
-  getSmartstoreAccountForUser,
+  extractAccountIdFromRequestBody,
+  resolveSmartstoreAccountForRequest,
   toSmartstoreCredentials,
 } from '@/app/lib/order-integration/smartstore-account';
 import {
@@ -49,7 +50,9 @@ function toPublicItem(row: SmartstoreConfirmItemResult): PublicConfirmItem {
 
 function parseRequestBody(
   raw: unknown,
-): { ok: true; productOrderIds: string[] } | { ok: false; error: string } {
+):
+  | { ok: true; productOrderIds: string[]; accountId: string | null }
+  | { ok: false; error: string } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { ok: false, error: 'Invalid request body.' };
   }
@@ -57,7 +60,13 @@ function parseRequestBody(
   if ('clientId' in record || 'clientSecret' in record || 'accessToken' in record) {
     return { ok: false, error: '인증 정보는 서버에서 확인합니다.' };
   }
-  return validateConfirmProductOrderIds(record.productOrderIds);
+  const ids = validateConfirmProductOrderIds(record.productOrderIds);
+  if (!ids.ok) return ids;
+  return {
+    ok: true,
+    productOrderIds: ids.productOrderIds,
+    accountId: extractAccountIdFromRequestBody(raw),
+  };
 }
 
 export async function POST(request: Request) {
@@ -83,10 +92,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const account = await getSmartstoreAccountForUser(auth.userId);
-  if (!account) {
-    return NextResponse.json({ error: '저장된 스마트스토어 연동 정보가 없습니다.' }, { status: 404 });
+  const resolvedAccount = await resolveSmartstoreAccountForRequest({
+    userId: auth.userId,
+    accountId: parsed.accountId,
+  });
+  if (!resolvedAccount.ok) {
+    return NextResponse.json(
+      { error: resolvedAccount.error },
+      { status: resolvedAccount.status },
+    );
   }
+  const account = resolvedAccount.account;
 
   let credentials;
   try {

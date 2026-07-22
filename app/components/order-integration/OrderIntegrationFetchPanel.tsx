@@ -39,7 +39,7 @@ import {
   mergeSmartstoreRefetchedOrdersIntoFetchResult,
 } from '@/app/lib/smartstore/smartstore-confirm';
 import {
-  collectSelectedSmartstoreConfirmProductOrderIds,
+  collectSelectedSmartstoreConfirmSelection,
   isSmartstorePlaceOrderNotYetRow,
 } from '@/app/lib/smartstore/smartstore-fetch-panel-logic';
 import {
@@ -164,7 +164,7 @@ export default function OrderIntegrationFetchPanel() {
   const [connectedMalls, setConnectedMalls] = useState<ConnectedMall[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [selectedMallIds, setSelectedMallIds] = useState<Set<OrderIntegrationMallId>>(new Set());
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
   const [days, setDays] = useState(7);
   const [rangeMode, setRangeMode] = useState(false);
   const [startDate, setStartDate] = useState(() => presetRangeDates(7).start);
@@ -192,14 +192,14 @@ export default function OrderIntegrationFetchPanel() {
   const [confirmNotice, setConfirmNotice] = useState<string | null>(null);
   const [confirmItemMessages, setConfirmItemMessages] = useState<Record<string, string>>({});
 
-  const selectedMallIdsRef = useRef(selectedMallIds);
+  const selectedAccountIdsRef = useRef(selectedAccountIds);
   useEffect(() => {
-    selectedMallIdsRef.current = selectedMallIds;
-  }, [selectedMallIds]);
-  const { healthByAccount, recheck } = useMallHealth(connectedMalls, selectedMallIdsRef);
+    selectedAccountIdsRef.current = selectedAccountIds;
+  }, [selectedAccountIds]);
+  const { healthByAccount, recheck } = useMallHealth(connectedMalls, selectedAccountIdsRef);
 
   const allSelected =
-    connectedMalls.length > 0 && selectedMallIds.size === connectedMalls.length;
+    connectedMalls.length > 0 && selectedAccountIds.size === connectedMalls.length;
 
   const loadConnected = useCallback(async () => {
     setLoadingMalls(true);
@@ -216,10 +216,10 @@ export default function OrderIntegrationFetchPanel() {
       }
       const malls = data.malls ?? [];
       setConnectedMalls(malls);
-      setSelectedMallIds(new Set(malls.map((m) => m.mallId)));
+      setSelectedAccountIds(new Set(malls.map((m) => m.accountId)));
     } catch (error) {
       setConnectedMalls([]);
-      setSelectedMallIds(new Set());
+      setSelectedAccountIds(new Set());
       setLoadError(error instanceof Error ? error.message : '목록 로드 실패');
     } finally {
       setLoadingMalls(false);
@@ -232,17 +232,17 @@ export default function OrderIntegrationFetchPanel() {
 
   const toggleAllMalls = () => {
     if (allSelected) {
-      setSelectedMallIds(new Set());
+      setSelectedAccountIds(new Set());
       return;
     }
-    setSelectedMallIds(new Set(connectedMalls.map((m) => m.mallId)));
+    setSelectedAccountIds(new Set(connectedMalls.map((m) => m.accountId)));
   };
 
-  const toggleMall = (mallId: OrderIntegrationMallId) => {
-    setSelectedMallIds((prev) => {
+  const toggleAccount = (accountId: string) => {
+    setSelectedAccountIds((prev) => {
       const next = new Set(prev);
-      if (next.has(mallId)) next.delete(mallId);
-      else next.add(mallId);
+      if (next.has(accountId)) next.delete(accountId);
+      else next.add(accountId);
       return next;
     });
   };
@@ -266,7 +266,7 @@ export default function OrderIntegrationFetchPanel() {
   };
 
   const resetFilters = () => {
-    setSelectedMallIds(new Set(connectedMalls.map((m) => m.mallId)));
+    setSelectedAccountIds(new Set(connectedMalls.map((m) => m.accountId)));
     applyPreset(7);
     setWorkTarget('SHIPMENT_TARGET');
     setSearchTerm('');
@@ -283,8 +283,8 @@ export default function OrderIntegrationFetchPanel() {
   };
 
   const selectedMalls = useMemo(
-    () => connectedMalls.filter((m) => selectedMallIds.has(m.mallId)),
-    [connectedMalls, selectedMallIds],
+    () => connectedMalls.filter((m) => selectedAccountIds.has(m.accountId)),
+    [connectedMalls, selectedAccountIds],
   );
 
   /**
@@ -341,6 +341,7 @@ export default function OrderIntegrationFetchPanel() {
           days,
           from: startDate,
           to: endDate,
+          accountId: mall.accountId,
         });
         const res = await fetch(`/api/order/integration/${mall.mallId}/fetch-orders`, {
           method: 'POST',
@@ -617,10 +618,13 @@ export default function OrderIntegrationFetchPanel() {
     [allDisplayRows],
   );
 
-  const selectedSmartstoreConfirmProductOrderIds = useMemo(
-    () => collectSelectedSmartstoreConfirmProductOrderIds(filteredRows, selectedRowKeys, rowKey),
+  const selectedSmartstoreConfirmSelection = useMemo(
+    () => collectSelectedSmartstoreConfirmSelection(filteredRows, selectedRowKeys, rowKey),
     [filteredRows, selectedRowKeys],
   );
+  const selectedSmartstoreConfirmProductOrderIds = selectedSmartstoreConfirmSelection.ok
+    ? selectedSmartstoreConfirmSelection.productOrderIds
+    : [];
 
   const hasSmartstorePlaceOrderNotYetRows = useMemo(
     () => allDisplayRows.some((row) => isSmartstorePlaceOrderNotYetRow(row)),
@@ -717,12 +721,17 @@ export default function OrderIntegrationFetchPanel() {
 
   const runSmartstoreConfirm = async () => {
     if (confirmingPlaceOrders || acknowledging) return;
-    if (selectedSmartstoreConfirmProductOrderIds.length === 0) {
-      setConfirmNotice('발주확인할 스마트스토어 발주 미확인 주문을 선택해 주세요.');
+    if (!selectedSmartstoreConfirmSelection.ok) {
+      setConfirmNotice(
+        selectedSmartstoreConfirmSelection.reason === 'MIXED_ACCOUNTS'
+          ? '계정을 정확히 선택할 수 없어 처리하지 않았습니다. 같은 스마트스토어 계정 주문만 선택해 주세요.'
+          : '발주확인할 스마트스토어 발주 미확인 주문을 선택해 주세요.',
+      );
       return;
     }
+    const { accountId, productOrderIds } = selectedSmartstoreConfirmSelection;
     const confirmed = window.confirm(
-      `선택한 ${selectedSmartstoreConfirmProductOrderIds.length}건을 발주확인합니다.\n\n발주확인 후에는 구매자가 배송지를 변경할 수 없습니다.\n계속하시겠습니까?`,
+      `선택한 ${productOrderIds.length}건을 발주확인합니다.\n\n발주확인 후에는 구매자가 배송지를 변경할 수 없습니다.\n계속하시겠습니까?`,
     );
     if (!confirmed) return;
 
@@ -734,7 +743,7 @@ export default function OrderIntegrationFetchPanel() {
       const res = await fetch('/api/order/integration/smartstore/confirm-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productOrderIds: selectedSmartstoreConfirmProductOrderIds }),
+        body: JSON.stringify({ productOrderIds, accountId }),
         cache: 'no-store',
       });
       const data = (await res.json()) as {
@@ -892,17 +901,20 @@ export default function OrderIntegrationFetchPanel() {
                     전체
                   </button>
                   {connectedMalls.map((mall) => {
-                    const selected = selectedMallIds.has(mall.mallId);
+                    const selected = selectedAccountIds.has(mall.accountId);
                     return (
                       <button
-                        key={mall.mallId}
+                        key={mall.accountId}
                         type="button"
                         title={mall.accountName}
-                        onClick={() => toggleMall(mall.mallId)}
+                        onClick={() => toggleAccount(mall.accountId)}
                         className={`${mallChipClass(selected)} min-w-[5rem] gap-1`}
                       >
                         {selected ? <Check className="h-3.5 w-3.5 shrink-0" aria-hidden /> : null}
-                        <span className="truncate">{mall.name}</span>
+                        <span className="truncate">
+                          {mall.name}
+                          {mall.accountName ? ` · ${mall.accountName}` : ''}
+                        </span>
                       </button>
                     );
                   })}
@@ -917,10 +929,10 @@ export default function OrderIntegrationFetchPanel() {
                     />
                   ))}
                 </div>
-                {connectedMalls.some((mall) => selectedMallIds.has(mall.mallId)) ? (
+                {connectedMalls.some((mall) => selectedAccountIds.has(mall.accountId)) ? (
                   <div className="mt-1 space-y-1">
                     {connectedMalls
-                      .filter((mall) => selectedMallIds.has(mall.mallId))
+                      .filter((mall) => selectedAccountIds.has(mall.accountId))
                       .map((mall) => (
                         <MallHealthNotice
                           key={mall.accountId}
@@ -938,7 +950,7 @@ export default function OrderIntegrationFetchPanel() {
                       key={`authp-${mall.accountId}`}
                       mall={mall}
                       entry={healthByAccount[mall.accountId]}
-                      selected={selectedMallIds.has(mall.mallId)}
+                      selected={selectedAccountIds.has(mall.accountId)}
                     />
                   ))}
               </div>
@@ -1469,7 +1481,7 @@ const EMPTY_HEALTH_ENTRY: ClientHealthEntry = {
  */
 function useMallHealth(
   connectedMalls: ConnectedMall[],
-  selectedMallIdsRef: { current: Set<OrderIntegrationMallId> },
+  selectedAccountIdsRef: { current: Set<string> },
 ) {
   const [healthByAccount, setHealthByAccount] = useState<Record<string, ClientHealthEntry>>({});
   const inFlight = useRef<Set<string>>(new Set());
@@ -1565,9 +1577,9 @@ function useMallHealth(
       const checkable = connectedMalls.filter(
         (m) => m.status !== 'INACTIVE' && autoCheckAccountIds.has(m.accountId),
       );
-      const selected = selectedMallIdsRef.current;
+      const selected = selectedAccountIdsRef.current;
       const selectedAccountIds = new Set(
-        checkable.filter((m) => selected.has(m.mallId)).map((m) => m.accountId),
+        checkable.filter((m) => selected.has(m.accountId)).map((m) => m.accountId),
       );
       const orderedIds = orderAccountIdsForCheck(
         checkable.map((m) => m.accountId),

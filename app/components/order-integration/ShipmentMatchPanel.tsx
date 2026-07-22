@@ -1263,8 +1263,8 @@ export default function ShipmentMatchPanel({
                 {buildRecentTransmitGuidance(recentTransmitView.summary)}
               </p>
               <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-                {RECENT_TRANSMIT_COMMON_HINT} 방금 전송에 성공한 쿠팡·스마트스토어 주문만 확인합니다.
-                반영 대기 중에는 송장을 다시 전송하지 마세요.
+                {RECENT_TRANSMIT_COMMON_HINT} 전송 성공·불확실(UNCERTAIN)한 쿠팡·스마트스토어
+                건을 확인할 수 있습니다. 반영 대기·송장 불일치 시 자동 재전송하지 마세요.
               </p>
               {verifyTransmitMessage ? (
                 <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-300">
