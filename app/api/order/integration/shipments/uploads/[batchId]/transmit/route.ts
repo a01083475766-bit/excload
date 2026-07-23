@@ -10,6 +10,7 @@ import { parseTransmitDryRunBody } from '@/app/lib/order-integration/transmissio
 import {
   createShipmentTransmissionReadRepository,
   prepareFailedShipmentMatchRetry,
+  prepareNoneShipmentMatchForTransmit,
   type ShipmentTransmissionReadPrismaClient,
 } from '@/app/lib/order-integration/transmission/read-repository';
 import {
@@ -71,6 +72,12 @@ export async function POST(
         },
         prepareFailedRetry: ({ matchId }) =>
           prepareFailedShipmentMatchRetry(readClient, {
+            userId,
+            batchId: validatedBatchId,
+            matchId,
+          }),
+        prepareNoneForTransmit: ({ matchId }) =>
+          prepareNoneShipmentMatchForTransmit(readClient, {
             userId,
             batchId: validatedBatchId,
             matchId,

@@ -145,4 +145,122 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
     expect(coupangTransmit).not.toHaveBeenCalled();
     expect(runPersisted).not.toHaveBeenCalled();
   });
+
+  it('promotes eligible NONE to READY before SMARTSTORE batch transmit', async () => {
+    const prepareNoneForTransmit = vi.fn(async () => true);
+    const accountBatch = vi.fn(async ({ entries }: { entries: Array<{ candidate: { matchId: string } }> }) =>
+      entries.map((entry) => ({
+        matchId: entry.candidate.matchId,
+        success: true,
+        outcomeKind: 'success' as const,
+        errorCode: null,
+        errorMessage: null,
+        providerRequestId: null,
+        retryable: false,
+        externallyPosted: true,
+        responseSummary: null,
+      })),
+    );
+
+    const result = await runShipmentTransmitService(
+      {
+        enabled: true,
+        readRepository: {
+          findBatchForMockTransmit: async () => ({
+            id: 'batch-1',
+            userId: 'user-1',
+            provider: 'SMARTSTORE',
+            integrationAccountId: 'acct-1',
+            status: SHIPMENT_UPLOAD_BATCH_READY_STATUS,
+          }),
+          findMatchesForMockTransmit: async () => [
+            {
+              id: 'm-none',
+              userId: 'user-1',
+              uploadBatchId: 'batch-1',
+              orderSyncOrderId: 'order-1',
+              provider: 'SMARTSTORE',
+              integrationAccountId: 'acct-1',
+              userConfirmationStatus: 'CONFIRMED',
+              transmissionStatus: 'NONE',
+              finalTrackingNumber: '123456789012',
+              finalCarrierCode: 'CJ',
+              finalCarrierName: 'CJ대한통운',
+              uploadRow: null,
+              orderSyncOrder: {
+                id: 'order-1',
+                userId: 'user-1',
+                provider: 'SMARTSTORE',
+                integrationAccountId: 'acct-1',
+                mallOrderNo: 'ORDER-1',
+                excloadOrderNo: 'EXC-1',
+                mallLineItemIds: ['PO-1'],
+              },
+            },
+          ],
+        } as never,
+        persistClient: {
+          $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+            fn({
+              shipmentMatch: {
+                updateMany: async () => ({ count: 1 }),
+                findFirst: async () => ({
+                  id: 'm-none',
+                  userId: 'user-1',
+                  uploadBatchId: 'batch-1',
+                  provider: 'SMARTSTORE',
+                  integrationAccountId: 'acct-1',
+                  orderSyncOrderId: 'order-1',
+                  transmissionStatus: 'PROCESSING',
+                  transmissionLeaseToken: 'tok',
+                  transmissionLeaseExpiresAt: new Date('2099-01-01T00:00:00.000Z'),
+                  lastTransmissionAttemptAt: null,
+                  transmissionErrorMessage: null,
+                }),
+                findMany: async () => [{ transmissionStatus: 'PROCESSING' }],
+              },
+              shipmentTransmissionAttempt: {
+                create: async ({ data }: { data: Record<string, unknown> }) => ({
+                  id: 'attempt-1',
+                  ...data,
+                }),
+                findFirst: async () => ({
+                  id: 'attempt-1',
+                  userId: 'user-1',
+                  shipmentMatchId: 'm-none',
+                  attemptNo: 1,
+                  status: 'PENDING',
+                  executionToken: 'tok',
+                  dispatchedAt: null,
+                  orderSyncOrderId: 'order-1',
+                }),
+                updateMany: async () => ({ count: 1 }),
+              },
+              orderSyncOrder: {
+                updateMany: async () => ({ count: 1 }),
+              },
+            }),
+        } as never,
+        resolveAdapter: () =>
+          ({
+            provider: 'SMARTSTORE',
+            buildPayload: () => ({}),
+            transmit: async () => {
+              throw new Error('single transmit must not run');
+            },
+            transmitAccountBatch: accountBatch,
+          }) as ShipmentTransmissionAdapter,
+        prepareNoneForTransmit,
+      },
+      {
+        userId: 'user-1',
+        batchId: 'batch-1',
+        parsedBody: { matchIds: ['m-none'], retryFailed: false },
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(prepareNoneForTransmit).toHaveBeenCalledWith({ matchId: 'm-none' });
+    expect(accountBatch).toHaveBeenCalledTimes(1);
+  });
 });

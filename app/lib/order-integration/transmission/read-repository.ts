@@ -131,6 +131,31 @@ export async function prepareFailedShipmentMatchRetry(
   return updated?.count === 1;
 }
 
+/**
+ * 확정·연결만 되고 transmissionStatus가 NONE인 행을 실전송 직전에 READY로 승격.
+ * (확정 API가 READY를 못 올린 기존 배치·MANUALLY_LINKED 등 대비)
+ */
+export async function prepareNoneShipmentMatchForTransmit(
+  client: ShipmentTransmissionReadPrismaClient,
+  input: { userId: string; batchId: string; matchId: string },
+): Promise<boolean> {
+  const updated = await client.shipmentMatch.updateMany?.({
+    where: {
+      id: input.matchId,
+      userId: input.userId,
+      uploadBatchId: input.batchId,
+      transmissionStatus: 'NONE',
+    },
+    data: {
+      transmissionStatus: 'READY',
+      transmissionErrorMessage: null,
+      transmissionLeaseToken: null,
+      transmissionLeaseExpiresAt: null,
+    },
+  });
+  return updated?.count === 1;
+}
+
 export type ShipmentTransmissionAttemptQueryClient = {
   shipmentTransmissionAttempt: {
     findMany: (args: {

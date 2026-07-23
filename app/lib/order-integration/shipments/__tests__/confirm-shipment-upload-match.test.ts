@@ -238,6 +238,7 @@ describe('confirmShipmentUploadMatch', () => {
       data: expect.objectContaining({
         userConfirmationStatus: 'CONFIRMED',
         confirmedByUserId: 'user-a',
+        transmissionStatus: 'READY',
       }),
     });
     expect(result.body.confirmedMatchId).toBe('match-1');

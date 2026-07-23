@@ -232,6 +232,9 @@ export async function confirmShipmentUploadMatch(
         userConfirmationStatus: 'CONFIRMED',
         confirmedAt: new Date(),
         confirmedByUserId: input.userId,
+        // 확정 = 전송 준비. lease/실전송은 transmissionStatus=READY만 예약한다.
+        transmissionStatus: 'READY',
+        transmissionErrorMessage: null,
       },
     });
   }
