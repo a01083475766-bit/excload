@@ -20,7 +20,10 @@ import type { PreviewRow, MergePipelineResult, RunMergePipelineParams } from './
 import { buildPreviewRowFromStandardRow } from './build-preview-row';
 import { enrichFixedInputByTemplate } from './resolve-fixed-input';
 import { validateMergeInputs, validatePreviewRow, logValidationResult, throwIfInvalid } from '../utils/validation';
-import { mergeOrderAndInvoiceStandardFiles } from '../invoice/merge-order-invoice-standard';
+import {
+  mergeOrderAndInvoiceStandardFiles,
+  type InvoiceRowMatchStatus,
+} from '../invoice/merge-order-invoice-standard';
 
 /**
  * Merge Pipeline을 실행합니다.
@@ -56,6 +59,10 @@ export async function runMergePipeline({
   const stage3Source = invoiceData
     ? mergeOrderAndInvoiceStandardFiles(orderData, invoiceData)
     : orderData;
+  const invoiceRowMatchStatuses: InvoiceRowMatchStatus[] | undefined =
+    invoiceData && 'rowMatchStatuses' in stage3Source
+      ? stage3Source.rowMatchStatuses
+      : undefined;
 
   // 0. 입력 통합 검증 체크포인트
   const inputValidation = validateMergeInputs(template, stage3Source, fixedInput);
@@ -110,5 +117,6 @@ export async function runMergePipeline({
   return {
     courierHeaders,
     previewRows,
+    invoiceRowMatchStatuses,
   };
 }

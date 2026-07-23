@@ -120,6 +120,7 @@ import {
 } from '@/app/lib/order-standard-row-snapshot';
 import { reapplyFixedInputToPreviewRows } from '@/app/lib/reapply-fixed-input-preview';
 import { mergeOrderAndInvoiceStandardFiles } from '@/app/pipeline/invoice/merge-order-invoice-standard';
+import type { InvoiceRowMatchStatus } from '@/app/pipeline/invoice/merge-order-invoice-standard';
 import { useInvoiceFileConvertTrialMode } from '@/app/invoice-file-convert/trial-mode-context';
 import {
   buildCourierTemplateFromHeaders,
@@ -130,6 +131,21 @@ type PreviewRowWithId = {
   rowId: string;
   data: PreviewRow;
 };
+
+function collectInvoiceMatchConfirmRowIds(
+  rowIds: readonly string[],
+  statuses: readonly InvoiceRowMatchStatus[] | undefined,
+): Set<string> {
+  const next = new Set<string>();
+  if (!statuses) return next;
+  statuses.forEach((status, index) => {
+    if (status === 'NEEDS_CONFIRMATION') {
+      const rowId = rowIds[index];
+      if (rowId) next.add(rowId);
+    }
+  });
+  return next;
+}
 
 type UnknownHeaderSamples = Record<string, string[]>;
 type UnknownHeaderSampleInput = {
@@ -532,6 +548,9 @@ export default function InvoiceFileConvertPage() {
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
   const [unknownHeadersExpanded, setUnknownHeadersExpanded] = useState(false);
+  const [invoiceMatchConfirmRowIds, setInvoiceMatchConfirmRowIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [fileProcessingStatus, setFileProcessingStatus] = useState<"idle" | "processing" | "done">("idle");
   const [previewReady, setPreviewReady] = useState(false);
   const [conversionProgress, setConversionProgress] = useState(0);
@@ -892,6 +911,7 @@ export default function InvoiceFileConvertPage() {
       }
       if (!guestToUserLogin) {
       setPreviewRows([]);
+      setInvoiceMatchConfirmRowIds(new Set());
       setOrderStandardRowsByRowId({});
       setCourierHeaders([]);
       setOrderStandardFile(null);
@@ -1094,6 +1114,7 @@ export default function InvoiceFileConvertPage() {
 
   const handleInvoiceTemplateBridgeChanged = useCallback(() => {
     setPreviewRows([]);
+    setInvoiceMatchConfirmRowIds(new Set());
     setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
     setPreviewReady(false);
@@ -1705,16 +1726,19 @@ export default function InvoiceFileConvertPage() {
     if (!templateBridgeFile || previewRows.length === 0) return;
 
     if (orderStandardFile && invoiceStandardFile) {
+      const mergedSource = mergeOrderAndInvoiceStandardFiles(
+        orderStandardFile,
+        invoiceStandardFile,
+      );
       const stage3Result = await runMergePipeline({
         template: templateBridgeFile,
-        orderData: orderStandardFile,
-        invoiceData: invoiceStandardFile,
+        orderData: mergedSource,
         fixedInput: fixedHeaderValues,
       });
 
       setPreviewRows((prev) => {
         const prevIds = prev.map((r) => r.rowId);
-        return stage3Result.previewRows.map((row, index) => {
+        const nextRows = stage3Result.previewRows.map((row, index) => {
           const rowId = prevIds[index] ?? crypto.randomUUID();
           const overrideRow = userOverrides[rowId];
           return {
@@ -1722,6 +1746,13 @@ export default function InvoiceFileConvertPage() {
             data: overrideRow ? { ...row, ...overrideRow } : row,
           };
         });
+        setInvoiceMatchConfirmRowIds(
+          collectInvoiceMatchConfirmRowIds(
+            nextRows.map((row) => row.rowId),
+            mergedSource.rowMatchStatuses,
+          ),
+        );
+        return nextRows;
       });
       return;
     }
@@ -2175,6 +2206,7 @@ export default function InvoiceFileConvertPage() {
     setPreviewReady(false);
     setConversionProgress(5);
     setPreviewRows([]);
+    setInvoiceMatchConfirmRowIds(new Set());
     setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
     setSelectedRows([]);
@@ -2266,24 +2298,26 @@ export default function InvoiceFileConvertPage() {
       const bridgeNow = templateBridgeFileRef.current;
       if (bridgeNow) {
         setConversionProgress(85);
-        const stage3Result = await runMergePipeline({
-          template: bridgeNow,
-          orderData: orderStage2,
-          fixedInput: fixedHeaderValues,
-          invoiceData: invoiceStage2,
-        });
-
-        const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
-        const stage3Source = mergeOrderAndInvoiceStandardFiles(
+        const mergedSource = mergeOrderAndInvoiceStandardFiles(
           orderStage2,
           invoiceStage2,
         );
+        const stage3Result = await runMergePipeline({
+          template: bridgeNow,
+          orderData: mergedSource,
+          fixedInput: fixedHeaderValues,
+        });
+
+        const newRowIds = stage3Result.previewRows.map(() => crypto.randomUUID());
         setOrderStandardRowsByRowId((prev) =>
           registerOrderSnapshotsForPreviewChunk(
             prev,
             newRowIds,
-            stage3Source.rows ?? [],
+            mergedSource.rows ?? [],
           ),
+        );
+        setInvoiceMatchConfirmRowIds(
+          collectInvoiceMatchConfirmRowIds(newRowIds, mergedSource.rowMatchStatuses),
         );
         setConversionProgress(95);
         setPreviewRows(
@@ -2516,6 +2550,7 @@ export default function InvoiceFileConvertPage() {
 
           // 🔥 기존 초기화 유지
           setPreviewRows([]);
+          setInvoiceMatchConfirmRowIds(new Set());
           setOrderStandardRowsByRowId({});
           setUserOverrides({});
           setSortConfig(null);
@@ -2553,6 +2588,7 @@ export default function InvoiceFileConvertPage() {
     clearPreviewWorkspace('invoice-file-convert', storageUserId);
     void clearWorkspaceFiles('invoice-file-convert', storageUserId);
     setPreviewRows([]);
+    setInvoiceMatchConfirmRowIds(new Set());
     setOrderStandardRowsByRowId({});
     setCourierHeaders([]);
     setUserOverrides({});
@@ -3022,6 +3058,18 @@ export default function InvoiceFileConvertPage() {
                 variant="invoice"
               />
 
+              {invoiceMatchConfirmRowIds.size > 0 ? (
+                <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <p className="font-semibold">
+                    송장 매칭 확인이 필요한 주문 {invoiceMatchConfirmRowIds.size}건
+                  </p>
+                  <p className="mt-1 text-amber-800">
+                    동일한 이름·연락처·주소로 여러 송장 후보가 있어 첫 후보로 연결했습니다.
+                    다운로드 전 송장번호를 확인해 주세요.
+                  </p>
+                </div>
+              ) : null}
+
               {/*
                 미리보기 렌더링 데이터 소스: previewRows / courierHeaders
                 - courierHeaders 기준으로 전체 컬럼 구조 표시
@@ -3115,6 +3163,7 @@ export default function InvoiceFileConvertPage() {
                       )}
                       {virtualRows.map((row) => {
                         const isNewRow = newRows.has(row.rowId);
+                        const needsInvoiceConfirm = invoiceMatchConfirmRowIds.has(row.rowId);
                         return (
                         <tr
                           key={row.rowId}
@@ -3122,6 +3171,8 @@ export default function InvoiceFileConvertPage() {
                             ${
                               selectedRows.includes(row.rowId)
                                 ? "bg-blue-100"
+                                : needsInvoiceConfirm
+                                ? "bg-amber-50"
                                 : isNewRow
                                 ? "bg-green-100 animate-pulse"
                                 : "hover:bg-gray-50"

@@ -180,7 +180,7 @@ test('주소만 부분 일치(포함)인 경우 보조 매칭하지 않음', () 
   assert.equal(m.rows[0].운송장번호, '');
 });
 
-test('보조 매칭 동점 후보가 2개면 자동 매칭하지 않음', () => {
+test('보조 매칭 동점 후보가 2개면 첫 후보로 연결하고 확인 필요', () => {
   const order = ofile([
     {
       주문번호: '',
@@ -214,5 +214,28 @@ test('보조 매칭 동점 후보가 2개면 자동 매칭하지 않음', () => 
   ]);
 
   const m = mergeOrderAndInvoiceStandardFiles(order, inv);
-  assert.equal(m.rows[0].운송장번호, '');
+  assert.equal(m.rows[0].운송장번호, 'TRACK-1');
+  assert.equal(m.rowMatchStatuses[0], 'NEEDS_CONFIRMATION');
+});
+
+test('유일 보조 매칭은 확정', () => {
+  const order = ofile([
+    {
+      주문번호: '',
+      받는사람: '조은영',
+      운송장번호: '',
+      택배사: '',
+    } as Record<string, string>,
+  ]);
+  const inv = ofile([
+    {
+      주문번호: '',
+      받는사람: '조은영',
+      운송장번호: '260577467533',
+      택배사: '롯데택배',
+    } as Record<string, string>,
+  ]);
+
+  const m = mergeOrderAndInvoiceStandardFiles(order, inv);
+  assert.equal(m.rowMatchStatuses[0], 'CONFIDENT');
 });

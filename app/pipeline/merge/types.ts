@@ -1,5 +1,6 @@
 import type { TemplateBridgeFile } from '../template/types';
 import type { OrderStandardFile } from '../order/order-pipeline';
+import type { InvoiceRowMatchStatus } from '../invoice/merge-order-invoice-standard';
 
 /**
  * EXCLOAD Merge Pipeline 타입 정의
@@ -39,6 +40,9 @@ export interface MergePipelineResult {
   
   /** 미리보기 행 데이터 배열 */
   previewRows: PreviewRow[];
+
+  /** 송장 병합 시 행별 매칭 판정 (orderData.rows와 동일 길이) */
+  invoiceRowMatchStatuses?: InvoiceRowMatchStatus[];
 }
 
 /**

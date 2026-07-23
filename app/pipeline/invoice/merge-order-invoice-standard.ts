@@ -4,7 +4,8 @@
  *
  * 규칙:
  * - 조인 키: 기준헤더 `주문번호` → 교집합 없으면 `상품주문번호`
- * - 번호 키 실패 시 보조 매칭: 받는사람·전화·주소 중 **1개 이상** 일치 + 동점 유일 후보
+ * - 번호 키 실패 시 보조 매칭: 받는사람·전화·주소 중 **1개 이상** 일치
+ * - 보조 매칭 동점 후보가 여러 개면 첫 후보로 연결하되 `NEEDS_CONFIRMATION`
  * - 행 병합: 주문 행이 베이스. 송장 행에서는 `운송장번호`·`택배사`만 비어 있지 않으면 덮어씀
  * - `주문번호` 값은 항상 주문 파일 행 기준 유지
  * - 1:N (동일 주문번호에 송장 여러 행): 주문 행을 송장 행 수만큼 복제하여 각각 병합
@@ -12,6 +13,12 @@
  */
 
 import type { OrderStandardFile } from '@/app/pipeline/order/order-pipeline';
+
+export type InvoiceRowMatchStatus = 'CONFIDENT' | 'NEEDS_CONFIRMATION' | 'UNMATCHED';
+
+export type InvoiceMergeResult = OrderStandardFile & {
+  rowMatchStatuses: InvoiceRowMatchStatus[];
+};
 
 const JOIN_HEADER = '주문번호';
 const FALLBACK_JOIN_HEADER = '상품주문번호';
@@ -135,11 +142,16 @@ function scorePersonalMatch(
   return score;
 }
 
+type PersonalMatchPick = {
+  entry: { row: Record<string, string>; idx: number };
+  status: Extract<InvoiceRowMatchStatus, 'CONFIDENT' | 'NEEDS_CONFIRMATION'>;
+};
+
 function findBestPersonalMatch(
   orderRow: Record<string, string>,
   invoiceRows: Array<{ row: Record<string, string>; idx: number }>,
   usedInvoiceIdx: Set<number>,
-): { row: Record<string, string>; idx: number } | null {
+): PersonalMatchPick | null {
   let best: { row: Record<string, string>; idx: number } | null = null;
   let bestScore = -1;
   let bestCount = 0;
@@ -157,12 +169,18 @@ function findBestPersonalMatch(
     }
     if (score === bestScore) {
       bestCount += 1;
+      if (best && entry.idx < best.idx) {
+        best = entry;
+      }
     }
   }
 
-  // 동점 후보가 여러 개인 경우는 오매핑 위험 때문에 자동 매칭하지 않음
-  if (!best || bestCount > 1) return null;
-  return best;
+  if (!best) return null;
+
+  return {
+    entry: best,
+    status: bestCount > 1 ? 'NEEDS_CONFIRMATION' : 'CONFIDENT',
+  };
 }
 
 function countIntersectKeys(
@@ -208,7 +226,7 @@ function selectJoinHeader(
 export function mergeOrderAndInvoiceStandardFiles(
   orderFile: OrderStandardFile,
   invoiceFile: OrderStandardFile,
-): OrderStandardFile {
+): InvoiceMergeResult {
   const baseHeaders = orderFile.baseHeaders;
   const invoiceEntries = invoiceFile.rows.map((row, idx) => ({ row, idx }));
   const joinHeader = selectJoinHeader(orderFile.rows, invoiceFile.rows);
@@ -216,31 +234,31 @@ export function mergeOrderAndInvoiceStandardFiles(
   const usedInvoiceIdx = new Set<number>();
 
   const mergedRows: Record<string, string>[] = [];
+  const rowMatchStatuses: InvoiceRowMatchStatus[] = [];
 
   for (const orderRow of orderFile.rows) {
     const key = normalizeJoinKey(orderRow[joinHeader]);
     const keyMatches = key ? invoiceByKey.get(key) : undefined;
-    const matches =
-      keyMatches && keyMatches.length > 0
-        ? keyMatches
-        : (() => {
-            const personal = findBestPersonalMatch(
-              orderRow,
-              invoiceEntries,
-              usedInvoiceIdx,
-            );
-            return personal ? [personal] : undefined;
-          })();
 
-    if (!matches || matches.length === 0) {
-      mergedRows.push({ ...orderRow });
+    if (keyMatches && keyMatches.length > 0) {
+      for (const m of keyMatches) {
+        usedInvoiceIdx.add(m.idx);
+        mergedRows.push(mergeStandardRowPair(orderRow, m.row, baseHeaders));
+        rowMatchStatuses.push('CONFIDENT');
+      }
       continue;
     }
 
-    for (const m of matches) {
-      usedInvoiceIdx.add(m.idx);
-      mergedRows.push(mergeStandardRowPair(orderRow, m.row, baseHeaders));
+    const personal = findBestPersonalMatch(orderRow, invoiceEntries, usedInvoiceIdx);
+    if (!personal) {
+      mergedRows.push({ ...orderRow });
+      rowMatchStatuses.push('UNMATCHED');
+      continue;
     }
+
+    usedInvoiceIdx.add(personal.entry.idx);
+    mergedRows.push(mergeStandardRowPair(orderRow, personal.entry.row, baseHeaders));
+    rowMatchStatuses.push(personal.status);
   }
 
   const unknownHeaders = [
@@ -251,5 +269,6 @@ export function mergeOrderAndInvoiceStandardFiles(
     baseHeaders,
     rows: mergedRows,
     unknownHeaders,
+    rowMatchStatuses,
   };
 }
