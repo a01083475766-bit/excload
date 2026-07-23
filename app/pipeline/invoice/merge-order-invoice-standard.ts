@@ -1,10 +1,11 @@
 /**
  * 송장파일변환 — 주문 OrderStandardFile + 택배 송장 OrderStandardFile 병합
- * 기준헤더 행 단위로 통일된 뒤, 주문번호로 조인합니다.
+ * 기준헤더 행 단위로 통일된 뒤, 주문번호(또는 보조 키)로 조인합니다.
  *
  * 규칙:
- * - 조인 키: 기준헤더 `주문번호` (값은 공백 제거 후 비교)
- * - 행 병합: 주문 행이 베이스. 송장 행에서는 `운송장번호`(및 동일 의미의 송장 전용 필드)만 비어 있지 않으면 덮어씀
+ * - 조인 키: 기준헤더 `주문번호` → 교집합 없으면 `상품주문번호`
+ * - 번호 키 실패 시 보조 매칭: 받는사람·전화·주소 중 **1개 이상** 일치 + 동점 유일 후보
+ * - 행 병합: 주문 행이 베이스. 송장 행에서는 `운송장번호`·`택배사`만 비어 있지 않으면 덮어씀
  * - `주문번호` 값은 항상 주문 파일 행 기준 유지
  * - 1:N (동일 주문번호에 송장 여러 행): 주문 행을 송장 행 수만큼 복제하여 각각 병합
  * - 송장에만 있고 주문에 없는 행: 출력에서 제외 (주문 중심)
@@ -14,10 +15,11 @@ import type { OrderStandardFile } from '@/app/pipeline/order/order-pipeline';
 
 const JOIN_HEADER = '주문번호';
 const FALLBACK_JOIN_HEADER = '상품주문번호';
-const PERSONAL_MATCH_MIN_SCORE = 80;
+/** 전화(50)·이름(25)·주소(25) 중 최소 1개 신호 */
+const PERSONAL_MATCH_MIN_SCORE = 25;
 
 /** 송장 엑셀에서만 덮어쓸 기준헤더 (주문 원본 유지) */
-const OVERLAY_FROM_INVOICE_HEADERS = new Set<string>(['운송장번호']);
+const OVERLAY_FROM_INVOICE_HEADERS = new Set<string>(['운송장번호', '택배사']);
 const NAME_HEADERS = ['받는사람'];
 const PHONE_HEADERS = ['받는사람전화1', '받는사람전화2', '주문자연락처'];
 const ADDRESS_HEADERS = ['받는사람주소1', '받는사람주소2'];
@@ -111,16 +113,25 @@ function scorePersonalMatch(
   const orderAddr = normalizeAddress(pickFirstNonEmpty(orderRow, ADDRESS_HEADERS));
   const invAddr = normalizeAddress(pickFirstNonEmpty(invoiceRow, ADDRESS_HEADERS));
 
-  let score = 0;
-  if (orderPhone && invPhone && orderPhone === invPhone) score += 50;
-  if (orderName && invName && orderName === invName) score += 25;
-  if (
+  const phoneHit = Boolean(orderPhone && invPhone && orderPhone === invPhone);
+  const nameHit = Boolean(orderName && invName && orderName === invName);
+  const addressExact = Boolean(orderAddr && invAddr && orderAddr === invAddr);
+  const addressFuzzy = Boolean(
     orderAddr &&
-    invAddr &&
-    (orderAddr === invAddr || orderAddr.includes(invAddr) || invAddr.includes(orderAddr))
-  ) {
-    score += 25;
-  }
+      invAddr &&
+      !addressExact &&
+      (orderAddr.includes(invAddr) || invAddr.includes(orderAddr)),
+  );
+
+  let score = 0;
+  if (phoneHit) score += 50;
+  if (nameHit) score += 25;
+  if (addressExact) score += 25;
+  else if (addressFuzzy) score += 25;
+
+  // 주소만 맞고 이름·전화가 없을 때는 포함 비교(짧은 공통 문자열)로 오매핑되기 쉬워 제외
+  if (!phoneHit && !nameHit && addressFuzzy) return 0;
+
   return score;
 }
 
