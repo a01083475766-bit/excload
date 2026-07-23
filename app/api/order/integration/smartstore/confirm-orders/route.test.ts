@@ -38,12 +38,12 @@ vi.mock('@/app/lib/integration-proxy/config', () => ({
   isIntegrationProxyConfigured: () => proxyConfiguredMock(),
 }));
 
-vi.mock('@/app/lib/order-integration/snapshots/persist-order-fetch-result', () => ({
-  isOrderSyncSnapshotPersistEnabled: () => false,
-  persistOrderSyncSnapshotsFromStandardRows: vi.fn(),
-}));
+const persistSnapshotsMock = vi.fn();
 
-vi.mock('@/app/lib/prisma', () => ({ prisma: {} }));
+vi.mock('@/app/lib/order-integration/snapshots/persist-order-fetch-result', () => ({
+  isOrderSyncSnapshotPersistEnabled: () => true,
+  persistOrderSyncSnapshotsFromStandardRows: (...args: unknown[]) => persistSnapshotsMock(...args),
+}));
 
 import { POST } from '@/app/api/order/integration/smartstore/confirm-orders/route';
 
@@ -145,6 +145,41 @@ describe('POST /api/order/integration/smartstore/confirm-orders', () => {
     expect(JSON.stringify(body.results)).not.toContain('secret');
     expect(JSON.stringify(body.results)).not.toContain('client');
     expect(body.summary.confirmed).toBe(1);
+    expect(body.patches).toHaveLength(1);
+    expect(body.patches[0]?.productOrderId).toBe('PO-1');
+    expect(body.snapshotPersist).toBeUndefined();
+    expect(persistSnapshotsMock).not.toHaveBeenCalled();
+  });
+
+  it('does not persist OrderSyncOrder even when snapshot flag would be on', async () => {
+    let fetchCalls = 0;
+    fetchByIdsMock.mockImplementation(async (input: { productOrderIds: string[] }) => {
+      fetchCalls += 1;
+      return input.productOrderIds.map((productOrderId) => ({
+        order: { orderId: `ORDER-${productOrderId}` },
+        productOrder: {
+          productOrderId,
+          productOrderStatus: 'PAYED',
+          placeOrderStatus: fetchCalls === 1 ? 'NOT_YET' : 'OK',
+          productName: '상품',
+          remainQuantity: 1,
+          shippingAddress: { name: '수취인', baseAddress: '서울' },
+        },
+      }));
+    });
+
+    const res = await POST(
+      new Request('http://localhost/api', {
+        method: 'POST',
+        body: JSON.stringify({ productOrderIds: ['PO-1'] }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.summary.confirmed).toBe(1);
+    expect(body.patches?.length).toBeGreaterThan(0);
+    expect(body.snapshotPersist).toBeUndefined();
+    expect(persistSnapshotsMock).not.toHaveBeenCalled();
   });
 
   it('does not call confirm when preflight status is not PAYED+NOT_YET', async () => {

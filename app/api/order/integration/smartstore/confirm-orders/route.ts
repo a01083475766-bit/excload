@@ -1,4 +1,3 @@
-import { OrderIntegrationProvider } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
 import {
@@ -18,16 +17,11 @@ import {
   resolveSmartstoreAccountForRequest,
   toSmartstoreCredentials,
 } from '@/app/lib/order-integration/smartstore-account';
-import {
-  isOrderSyncSnapshotPersistEnabled,
-  persistOrderSyncSnapshotsFromStandardRows,
-} from '@/app/lib/order-integration/snapshots/persist-order-fetch-result';
 import { sanitizePublicIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 import {
   isOrderIntegrationUserAuthFailure,
   requireOrderIntegrationUser,
 } from '@/app/lib/order-integration/user-api-auth';
-import { prisma } from '@/app/lib/prisma';
 import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
 
 type PublicConfirmItem = {
@@ -126,6 +120,7 @@ export async function POST(request: Request) {
         }),
     });
 
+    // OrderSyncOrder 저장은 택배양식 다운로드(from-download)에서만 수행한다.
     const patches = result.results
       .filter((row) => row.standardRows && row.views)
       .map((row) => ({
@@ -133,24 +128,6 @@ export async function POST(request: Request) {
         standardRows: row.standardRows!,
         views: row.views!,
       }));
-
-    let snapshotPersist: Awaited<ReturnType<typeof persistOrderSyncSnapshotsFromStandardRows>> | null =
-      null;
-    if (isOrderSyncSnapshotPersistEnabled() && patches.length > 0) {
-      const mergedRows = patches.flatMap((patch) => patch.standardRows);
-      snapshotPersist = await persistOrderSyncSnapshotsFromStandardRows({
-        client: prisma,
-        enabled: true,
-        userId: auth.userId,
-        provider: OrderIntegrationProvider.SMARTSTORE,
-        integrationAccountId: account.id,
-        orderStandardFile: {
-          rows: mergedRows,
-        },
-        fetchedAt: new Date(),
-        memo: 'smartstore-confirm-refetch',
-      });
-    }
 
     return NextResponse.json({
       success: true,
@@ -181,7 +158,6 @@ export async function POST(request: Request) {
         }
         return null;
       })(),
-      snapshotPersist,
     });
   } catch (error) {
     const message = sanitizePublicIntegrationErrorMessage(toUserFacingSmartstoreErrorMessage(error));

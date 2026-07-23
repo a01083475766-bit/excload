@@ -24,12 +24,12 @@ vi.mock('@/app/lib/coupang/client', () => ({
   patchCoupangOrderSheetAcknowledgement: (input: unknown) => patchMock(input),
 }));
 
-vi.mock('@/app/lib/order-integration/snapshots/persist-order-fetch-result', () => ({
-  isOrderSyncSnapshotPersistEnabled: () => false,
-  persistOrderSyncSnapshotsFromStandardRows: vi.fn(),
-}));
+const persistSnapshotsMock = vi.fn();
 
-vi.mock('@/app/lib/prisma', () => ({ prisma: {} }));
+vi.mock('@/app/lib/order-integration/snapshots/persist-order-fetch-result', () => ({
+  isOrderSyncSnapshotPersistEnabled: () => true,
+  persistOrderSyncSnapshotsFromStandardRows: (...args: unknown[]) => persistSnapshotsMock(...args),
+}));
 
 import { POST } from '@/app/api/order/integration/coupang/acknowledge-orders/route';
 
@@ -116,6 +116,26 @@ describe('POST /api/order/integration/coupang/acknowledge-orders', () => {
       `/v2/providers/openapi/apis/api/v4/vendors/${SERVER_VENDOR_ID}/ordersheets/acknowledgement`,
     );
     expect(fetchMock.mock.calls.every((call) => call[0]?.vendorId === SERVER_VENDOR_ID)).toBe(true);
+    expect(Array.isArray(body.patches)).toBe(true);
+    expect(body.snapshotPersist).toBeUndefined();
+    expect(persistSnapshotsMock).not.toHaveBeenCalled();
+  });
+
+  it('does not persist OrderSyncOrder even when snapshot flag would be on', async () => {
+    const res = await POST(
+      new Request('http://localhost/api', {
+        method: 'POST',
+        body: JSON.stringify({ shipmentBoxIds: ['123'] }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(patchMock).toHaveBeenCalledTimes(1);
+    const body = await res.json();
+    expect(body.summary.requested).toBe(1);
+    expect(Array.isArray(body.results)).toBe(true);
+    expect(Array.isArray(body.patches)).toBe(true);
+    expect(body.snapshotPersist).toBeUndefined();
+    expect(persistSnapshotsMock).not.toHaveBeenCalled();
   });
 
   it('does not call PATCH when preflight single fetch fails', async () => {
