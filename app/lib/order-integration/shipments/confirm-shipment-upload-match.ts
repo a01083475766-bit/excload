@@ -57,6 +57,8 @@ export type ConfirmShipmentUploadMatchClient = ShipmentUploadBatchDetailLoadClie
         userConfirmationStatus: 'CONFIRMED';
         confirmedAt: Date;
         confirmedByUserId: string;
+        transmissionStatus: 'READY';
+        transmissionErrorMessage: null;
       };
     }) => Promise<LoadedShipmentMatch>;
   };
