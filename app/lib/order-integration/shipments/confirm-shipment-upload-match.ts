@@ -59,14 +59,24 @@ export type ConfirmShipmentUploadMatchClient = ShipmentUploadBatchDetailLoadClie
         confirmedByUserId: string;
         transmissionStatus: 'READY';
         transmissionErrorMessage: null;
+        provider: import('@prisma/client').OrderIntegrationProvider;
+        integrationAccountId: string | null;
       };
     }) => Promise<LoadedShipmentMatch>;
   };
   orderSyncOrder: {
     findFirst: (args: {
       where: { id: string; userId: string };
-      select: { id: true };
-    }) => Promise<{ id: string } | null>;
+      select: {
+        id: true;
+        provider: true;
+        integrationAccountId: true;
+      };
+    }) => Promise<{
+      id: string;
+      provider: import('@prisma/client').OrderIntegrationProvider;
+      integrationAccountId: string | null;
+    } | null>;
   };
 };
 
@@ -220,7 +230,11 @@ export async function confirmShipmentUploadMatch(
       id: linkedOrderId,
       userId: input.userId,
     },
-    select: { id: true },
+    select: {
+      id: true,
+      provider: true,
+      integrationAccountId: true,
+    },
   });
 
   if (!linkedOrder) {
@@ -234,9 +248,11 @@ export async function confirmShipmentUploadMatch(
         userConfirmationStatus: 'CONFIRMED',
         confirmedAt: new Date(),
         confirmedByUserId: input.userId,
-        // 확정 = 전송 준비. lease/실전송은 transmissionStatus=READY만 예약한다.
+        // 확정 = 전송 준비. lease는 match의 provider/account까지 READY 행과 일치해야 한다.
         transmissionStatus: 'READY',
         transmissionErrorMessage: null,
+        provider: linkedOrder.provider,
+        integrationAccountId: linkedOrder.integrationAccountId,
       },
     });
   }

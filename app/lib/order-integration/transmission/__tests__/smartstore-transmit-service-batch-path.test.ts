@@ -146,8 +146,8 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
     expect(runPersisted).not.toHaveBeenCalled();
   });
 
-  it('promotes eligible NONE to READY before SMARTSTORE batch transmit', async () => {
-    const prepareNoneForTransmit = vi.fn(async () => true);
+  it('aligns provider/account and promotes NONE/READY before SMARTSTORE batch transmit', async () => {
+    const prepareForTransmit = vi.fn(async () => true);
     const accountBatch = vi.fn(async ({ entries }: { entries: Array<{ candidate: { matchId: string } }> }) =>
       entries.map((entry) => ({
         matchId: entry.candidate.matchId,
@@ -170,19 +170,19 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
             id: 'batch-1',
             userId: 'user-1',
             provider: 'SMARTSTORE',
-            integrationAccountId: 'acct-1',
+            integrationAccountId: null,
             status: SHIPMENT_UPLOAD_BATCH_READY_STATUS,
           }),
           findMatchesForMockTransmit: async () => [
             {
-              id: 'm-none',
+              id: 'm-ready-null-scope',
               userId: 'user-1',
               uploadBatchId: 'batch-1',
               orderSyncOrderId: 'order-1',
-              provider: 'SMARTSTORE',
-              integrationAccountId: 'acct-1',
+              provider: null,
+              integrationAccountId: null,
               userConfirmationStatus: 'CONFIRMED',
-              transmissionStatus: 'NONE',
+              transmissionStatus: 'READY',
               finalTrackingNumber: '123456789012',
               finalCarrierCode: 'CJ',
               finalCarrierName: 'CJ대한통운',
@@ -205,7 +205,7 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
               shipmentMatch: {
                 updateMany: async () => ({ count: 1 }),
                 findFirst: async () => ({
-                  id: 'm-none',
+                  id: 'm-ready-null-scope',
                   userId: 'user-1',
                   uploadBatchId: 'batch-1',
                   provider: 'SMARTSTORE',
@@ -227,7 +227,7 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
                 findFirst: async () => ({
                   id: 'attempt-1',
                   userId: 'user-1',
-                  shipmentMatchId: 'm-none',
+                  shipmentMatchId: 'm-ready-null-scope',
                   attemptNo: 1,
                   status: 'PENDING',
                   executionToken: 'tok',
@@ -250,17 +250,21 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
             },
             transmitAccountBatch: accountBatch,
           }) as ShipmentTransmissionAdapter,
-        prepareNoneForTransmit,
+        prepareForTransmit,
       },
       {
         userId: 'user-1',
         batchId: 'batch-1',
-        parsedBody: { matchIds: ['m-none'], retryFailed: false },
+        parsedBody: { matchIds: ['m-ready-null-scope'], retryFailed: false },
       },
     );
 
     expect(result.ok).toBe(true);
-    expect(prepareNoneForTransmit).toHaveBeenCalledWith({ matchId: 'm-none' });
+    expect(prepareForTransmit).toHaveBeenCalledWith({
+      matchId: 'm-ready-null-scope',
+      provider: 'SMARTSTORE',
+      integrationAccountId: 'acct-1',
+    });
     expect(accountBatch).toHaveBeenCalledTimes(1);
   });
 });

@@ -100,10 +100,27 @@ function buildDetailBody() {
 function buildClient(input: {
   batch?: { id: string; status?: 'MATCHED' | 'READY' } | null;
   match?: ReturnType<typeof buildMatch> | null;
-  order?: { id: string } | null;
+  order?: {
+    id: string;
+    provider?: 'SMARTSTORE' | 'COUPANG';
+    integrationAccountId?: string | null;
+  } | null;
   allMatches?: Array<{ userConfirmationStatus: ShipmentUserConfirmationStatus }>;
 }) {
   const batchRecord = input.batch ?? null;
+  const orderRecord =
+    input.order === null
+      ? null
+      : input.order
+        ? {
+            id: input.order.id,
+            provider: input.order.provider ?? 'SMARTSTORE',
+            integrationAccountId:
+              input.order.integrationAccountId === undefined
+                ? 'acc-1'
+                : input.order.integrationAccountId,
+          }
+        : null;
 
   return {
     shipmentUploadBatch: {
@@ -136,7 +153,7 @@ function buildClient(input: {
       ),
     },
     orderSyncOrder: {
-      findFirst: vi.fn().mockResolvedValue(input.order ?? null),
+      findFirst: vi.fn().mockResolvedValue(orderRecord),
     },
   } satisfies ConfirmShipmentUploadMatchClient;
 }
@@ -239,6 +256,8 @@ describe('confirmShipmentUploadMatch', () => {
         userConfirmationStatus: 'CONFIRMED',
         confirmedByUserId: 'user-a',
         transmissionStatus: 'READY',
+        provider: 'SMARTSTORE',
+        integrationAccountId: 'acc-1',
       }),
     });
     expect(result.body.confirmedMatchId).toBe('match-1');

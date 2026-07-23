@@ -132,9 +132,40 @@ export async function prepareFailedShipmentMatchRetry(
 }
 
 /**
- * 확정·연결만 되고 transmissionStatus가 NONE인 행을 실전송 직전에 READY로 승격.
- * (확정 API가 READY를 못 올린 기존 배치·MANUALLY_LINKED 등 대비)
+ * 실전송 직전: eligibility가 확정한 provider/account를 Match에 맞추고 READY로 둔다.
+ * 다운로드 번들만으로 업로드하면 Match.provider/account가 null인 채로
+ * Order 쪽 값으로만 eligibility가 통과해 lease where가 실패할 수 있다.
  */
+export async function prepareShipmentMatchForTransmit(
+  client: ShipmentTransmissionReadPrismaClient,
+  input: {
+    userId: string;
+    batchId: string;
+    matchId: string;
+    provider: OrderIntegrationProvider;
+    integrationAccountId: string;
+  },
+): Promise<boolean> {
+  const updated = await client.shipmentMatch.updateMany?.({
+    where: {
+      id: input.matchId,
+      userId: input.userId,
+      uploadBatchId: input.batchId,
+      transmissionStatus: { in: ['NONE', 'READY'] },
+    },
+    data: {
+      provider: input.provider,
+      integrationAccountId: input.integrationAccountId,
+      transmissionStatus: 'READY',
+      transmissionErrorMessage: null,
+      transmissionLeaseToken: null,
+      transmissionLeaseExpiresAt: null,
+    },
+  });
+  return updated?.count === 1;
+}
+
+/** @deprecated use prepareShipmentMatchForTransmit */
 export async function prepareNoneShipmentMatchForTransmit(
   client: ShipmentTransmissionReadPrismaClient,
   input: { userId: string; batchId: string; matchId: string },

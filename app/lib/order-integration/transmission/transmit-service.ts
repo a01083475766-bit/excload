@@ -46,8 +46,12 @@ export type ShipmentTransmitServiceDeps = {
   resolveAdapter: (input: { provider: OrderIntegrationProvider }) => ShipmentTransmissionAdapter;
   runPersisted?: RunPersistedShipmentTransmissionFn;
   prepareFailedRetry?: (input: { matchId: string }) => Promise<boolean>;
-  /** NONE → READY. lease는 READY만 예약하므로 eligibility 통과 후 호출 */
-  prepareNoneForTransmit?: (input: { matchId: string }) => Promise<boolean>;
+  /** eligibility candidate의 provider/account를 Match에 맞추고 READY로 준비 */
+  prepareForTransmit?: (input: {
+    matchId: string;
+    provider: OrderIntegrationProvider;
+    integrationAccountId: string;
+  }) => Promise<boolean>;
   /** 실전송 성공 후 주문 단위 PII 정리. mock 경로에는 주입하지 않음. */
   piiClearClient?: ClearTransmittedOrderPiiClient;
   /** SMARTSTORE 재처리 시 이전 productOrderId 성공 이력 로드 */
@@ -258,24 +262,30 @@ export async function runShipmentTransmitService(
       continue;
     }
 
-    if (row.transmissionStatus === 'NONE') {
-      const prepared = await deps.prepareNoneForTransmit?.({ matchId });
-      if (!prepared) {
+    if (row.transmissionStatus === 'NONE' || row.transmissionStatus === 'READY') {
+      const prepared = await deps.prepareForTransmit?.({
+        matchId,
+        provider: eligibility.candidate.provider,
+        integrationAccountId: eligibility.candidate.integrationAccountId,
+      });
+      if (deps.prepareForTransmit && !prepared) {
         resultByMatchId.set(
           matchId,
           toResult({
             matchId,
             attempted: false,
-            previousStatus: 'NONE',
-            nextStatus: 'NONE',
+            previousStatus: row.transmissionStatus,
+            nextStatus: row.transmissionStatus,
             success: false,
             errorCode: 'TRANSMIT_PREPARE_FAILED',
-            errorMessage: 'transmissionStatus=NONE 을 READY로 준비하지 못했습니다.',
+            errorMessage: '전송 예약(provider/account/READY) 준비에 실패했습니다.',
           }),
         );
         continue;
       }
       row.transmissionStatus = 'READY';
+      row.provider = eligibility.candidate.provider;
+      row.integrationAccountId = eligibility.candidate.integrationAccountId;
     }
 
     const adapter = deps.resolveAdapter({ provider: eligibility.candidate.provider });

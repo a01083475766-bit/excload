@@ -10,7 +10,7 @@ import { parseTransmitDryRunBody } from '@/app/lib/order-integration/transmissio
 import {
   createShipmentTransmissionReadRepository,
   prepareFailedShipmentMatchRetry,
-  prepareNoneShipmentMatchForTransmit,
+  prepareShipmentMatchForTransmit,
   type ShipmentTransmissionReadPrismaClient,
 } from '@/app/lib/order-integration/transmission/read-repository';
 import {
@@ -76,11 +76,13 @@ export async function POST(
             batchId: validatedBatchId,
             matchId,
           }),
-        prepareNoneForTransmit: ({ matchId }) =>
-          prepareNoneShipmentMatchForTransmit(readClient, {
+        prepareForTransmit: ({ matchId, provider, integrationAccountId }) =>
+          prepareShipmentMatchForTransmit(readClient, {
             userId,
             batchId: validatedBatchId,
             matchId,
+            provider,
+            integrationAccountId,
           }),
         loadPriorSmartstoreItemResults: createPrismaPriorSmartstoreItemResultsLoader(prisma),
       },
