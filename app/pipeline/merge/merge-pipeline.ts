@@ -56,13 +56,18 @@ export async function runMergePipeline({
   // Stage 경계 고정:
   // - Stage2: 파일별 표준화까지만 수행
   // - Stage3: 주문/송장 병합 + 템플릿 매핑을 단일 책임으로 처리
-  const stage3Source = invoiceData
-    ? mergeOrderAndInvoiceStandardFiles(orderData, invoiceData)
-    : orderData;
-  const invoiceRowMatchStatuses: InvoiceRowMatchStatus[] | undefined =
-    invoiceData && 'rowMatchStatuses' in stage3Source
-      ? stage3Source.rowMatchStatuses
-      : undefined;
+  // invoiceData가 있을 때만 InvoiceMergeResult를 만들어 rowMatchStatuses 타입을 유지한다.
+  // (`'rowMatchStatuses' in union`은 TS가 unknown으로 넓혀 Production 빌드가 깨진다.)
+  let stage3Source: OrderStandardFile;
+  let invoiceRowMatchStatuses: InvoiceRowMatchStatus[] | undefined;
+  if (invoiceData) {
+    const merged = mergeOrderAndInvoiceStandardFiles(orderData, invoiceData);
+    stage3Source = merged;
+    invoiceRowMatchStatuses = merged.rowMatchStatuses;
+  } else {
+    stage3Source = orderData;
+    invoiceRowMatchStatuses = undefined;
+  }
 
   // 0. 입력 통합 검증 체크포인트
   const inputValidation = validateMergeInputs(template, stage3Source, fixedInput);
