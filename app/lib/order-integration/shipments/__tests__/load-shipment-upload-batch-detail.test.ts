@@ -61,9 +61,11 @@ function buildRow(overrides: Record<string, unknown> = {}) {
       matchScore: 100,
       matchReason: 'excloadOrderNo exact',
       provider: OrderIntegrationProvider.SMARTSTORE,
+      integrationAccountId: 'acc-from-match',
       orderSyncOrder: {
         id: 'order-1',
         provider: OrderIntegrationProvider.SMARTSTORE,
+        integrationAccountId: 'acc-from-order',
         excloadOrderNo: 'EXC-20260709-000001',
         mallOrderNo: 'ORD-1001',
         receiverName: '홍길동',
@@ -130,6 +132,37 @@ describe('mapShipmentUploadBatchDetailRow', () => {
     expect(mapped.remainQuantity).toBe(1);
     expect(mapped.hasTrackingNumber).toBe(true);
     expect(mapped.trackingNumberValue).toBeNull();
+    expect(mapped.integrationAccountId).toBe('acc-from-match');
+  });
+
+  it('falls back to order.integrationAccountId when match lacks it', () => {
+    const mapped = mapShipmentUploadBatchDetailRow({
+      row: buildRow({
+        match: {
+          ...buildRow().match!,
+          integrationAccountId: null,
+        },
+      }),
+      batchProvider: OrderIntegrationProvider.SMARTSTORE,
+    });
+    expect(mapped.integrationAccountId).toBe('acc-from-order');
+  });
+
+  it('keeps integrationAccountId null when match/order both lack it (batch not copied onto row)', () => {
+    const mapped = mapShipmentUploadBatchDetailRow({
+      row: buildRow({
+        match: {
+          ...buildRow().match!,
+          integrationAccountId: null,
+          orderSyncOrder: {
+            ...buildRow().match!.orderSyncOrder!,
+            integrationAccountId: null,
+          },
+        },
+      }),
+      batchProvider: OrderIntegrationProvider.SMARTSTORE,
+    });
+    expect(mapped.integrationAccountId).toBeNull();
   });
 
   it('sets hasTrackingNumber false and remainQuantity null when missing', () => {

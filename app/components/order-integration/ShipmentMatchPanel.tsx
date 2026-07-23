@@ -80,6 +80,7 @@ import {
   LIVE_TRANSMIT_IN_PROGRESS_LABEL,
   MOCK_TRANSMIT_BUTTON_LABEL,
   decideRealTransmitClick,
+  resolveIntegrationAccountIdForLiveTransmitConfirm,
   shouldExecuteLiveTransmitAfterConfirm,
   type SmartstoreLiveTransmitConfirmOrderInput,
   type SmartstoreLiveTransmitConfirmView,
@@ -776,10 +777,18 @@ export default function ShipmentMatchPanel({
     if (isTransmitting || liveTransmitInFlightRef.current) {
       return;
     }
+    const selected = new Set(selectedTransmitMatchIds);
+    const selectedRows = viewState.displayRows.filter(
+      (row) => row.matchId && selected.has(row.matchId),
+    );
+    const resolvedAccountId = resolveIntegrationAccountIdForLiveTransmitConfirm({
+      batchIntegrationAccountId: viewState.integrationAccountId,
+      selectedRowIntegrationAccountIds: selectedRows.map((row) => row.integrationAccountId),
+    });
     const decision = decideRealTransmitClick({
       selectedOrders: buildSelectedLiveTransmitOrders(),
       batchProvider: viewState.batchProvider,
-      integrationAccountId: viewState.integrationAccountId,
+      integrationAccountId: resolvedAccountId,
       accountDisplayName: null,
       isMockMode: false,
     });
@@ -798,6 +807,7 @@ export default function ShipmentMatchPanel({
     buildSelectedLiveTransmitOrders,
     handleTransmit,
     isTransmitting,
+    selectedTransmitMatchIds,
     sessionStatus,
     viewState,
   ]);

@@ -39,6 +39,11 @@ export type ShipmentUploadBatchDetailRow = {
   remainQuantity: number | null;
   /** 서버가 원문 송장 존재 여부만 계산. 원문은 노출하지 않음 */
   hasTrackingNumber: boolean;
+  /**
+   * Dry-run eligibility와 동일: match → order.
+   * 배치 값은 포함하지 않음(확인창에서 배치와 합쳐 해석).
+   */
+  integrationAccountId: string | null;
 };
 
 export type ShipmentUploadBatchDetailResponse = {
@@ -68,6 +73,7 @@ export type ShipmentUploadBatchDetailResponse = {
 type LoadedOrderSyncOrder = {
   id: string;
   provider: OrderIntegrationProvider;
+  integrationAccountId: string | null;
   excloadOrderNo: string;
   mallOrderNo: string;
   receiverName: string | null;
@@ -89,6 +95,7 @@ type LoadedShipmentMatch = {
   matchScore: number;
   matchReason: string | null;
   provider: OrderIntegrationProvider | null;
+  integrationAccountId: string | null;
   orderSyncOrder: LoadedOrderSyncOrder | null;
 };
 
@@ -219,6 +226,10 @@ export function mapShipmentUploadBatchDetailRow(input: {
         ? order.remainQuantity
         : null,
     hasTrackingNumber: trackingRaw.length > 0,
+    integrationAccountId:
+      match?.integrationAccountId?.trim() ||
+      order?.integrationAccountId?.trim() ||
+      null,
   };
 }
 
@@ -293,10 +304,12 @@ export async function loadShipmentUploadBatchDetail(
           matchScore: true,
           matchReason: true,
           provider: true,
+          integrationAccountId: true,
           orderSyncOrder: {
             select: {
               id: true,
               provider: true,
+              integrationAccountId: true,
               excloadOrderNo: true,
               mallOrderNo: true,
               receiverName: true,

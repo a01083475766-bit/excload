@@ -111,6 +111,40 @@ export type RealTransmitClickDecision =
   | { action: 'transmit-direct' }
   | { action: 'noop'; reason: string };
 
+/**
+ * Dry-run eligibility와 같은 우선순위 축:
+ * 선택 행(match → order로 정규화된 ID) → 배치.
+ * 행 간·행/배치 불일치 시 null로 차단(추정하지 않음).
+ * 표시용 계정명은 사용하지 않는다.
+ */
+export function resolveIntegrationAccountIdForLiveTransmitConfirm(input: {
+  batchIntegrationAccountId: string | null | undefined;
+  selectedRowIntegrationAccountIds: ReadonlyArray<string | null | undefined>;
+}): string | null {
+  const batchId = input.batchIntegrationAccountId?.trim() || '';
+  const fromRows = [
+    ...new Set(
+      input.selectedRowIntegrationAccountIds
+        .map((id) => id?.trim() || '')
+        .filter((id) => id.length > 0),
+    ),
+  ];
+
+  if (fromRows.length > 1) {
+    return null;
+  }
+
+  if (fromRows.length === 1) {
+    const id = fromRows[0]!;
+    if (batchId && batchId !== id) {
+      return null;
+    }
+    return id;
+  }
+
+  return batchId || null;
+}
+
 export function isSmartstoreProviderValue(value: string | null | undefined): boolean {
   const raw = String(value ?? '').trim();
   if (!raw) return false;

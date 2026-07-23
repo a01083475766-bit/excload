@@ -12,6 +12,7 @@ import {
   decideRealTransmitClick,
   maskIntegrationAccountIdForConfirm,
   maskMallOrderNoForConfirm,
+  resolveIntegrationAccountIdForLiveTransmitConfirm,
   resolveRemainQuantityUiStatus,
   shouldExecuteLiveTransmitAfterConfirm,
 } from '@/app/lib/order-integration/transmission/smartstore-live-transmit-confirm';
@@ -110,6 +111,70 @@ describe('SMARTSTORE-C2b/C2c live transmit confirm', () => {
     });
     expect(view.canConfirmFinal).toBe(false);
     expect(view.blockReasons.some((r) => /integrationAccountId/.test(r))).toBe(true);
+  });
+
+  it('resolves confirm account id from selected match/order rows when batch is null', () => {
+    expect(
+      resolveIntegrationAccountIdForLiveTransmitConfirm({
+        batchIntegrationAccountId: null,
+        selectedRowIntegrationAccountIds: [null, 'acc-from-order'],
+      }),
+    ).toBe('acc-from-order');
+  });
+
+  it('prefers selected row account over empty batch and opens confirm with canConfirmFinal', () => {
+    const resolved = resolveIntegrationAccountIdForLiveTransmitConfirm({
+      batchIntegrationAccountId: null,
+      selectedRowIntegrationAccountIds: ['acc-from-match'],
+    });
+    expect(resolved).toBe('acc-from-match');
+
+    const decision = decideRealTransmitClick({
+      selectedOrders: [order()],
+      batchProvider: 'SMARTSTORE',
+      integrationAccountId: resolved,
+      accountDisplayName: null,
+    });
+    expect(decision.action).toBe('open-confirm');
+    if (decision.action === 'open-confirm') {
+      expect(decision.view.canConfirmFinal).toBe(true);
+      expect(decision.view.accountLabel).not.toBe('확인 불가');
+    }
+  });
+
+  it('does not use accountDisplayName as account id source', () => {
+    expect(
+      resolveIntegrationAccountIdForLiveTransmitConfirm({
+        batchIntegrationAccountId: null,
+        selectedRowIntegrationAccountIds: [null],
+      }),
+    ).toBeNull();
+
+    const view = buildSmartstoreLiveTransmitConfirmView({
+      batchProvider: 'SMARTSTORE',
+      integrationAccountId: null,
+      accountDisplayName: '표시용 계정명',
+      orders: [order()],
+      isMockMode: false,
+    });
+    expect(view.canConfirmFinal).toBe(false);
+    expect(view.accountLabel).toBe('표시용 계정명');
+    expect(view.blockReasons.some((r) => /integrationAccountId/.test(r))).toBe(true);
+  });
+
+  it('blocks resolve when selected rows disagree or conflict with batch', () => {
+    expect(
+      resolveIntegrationAccountIdForLiveTransmitConfirm({
+        batchIntegrationAccountId: null,
+        selectedRowIntegrationAccountIds: ['acc-a', 'acc-b'],
+      }),
+    ).toBeNull();
+    expect(
+      resolveIntegrationAccountIdForLiveTransmitConfirm({
+        batchIntegrationAccountId: 'acc-batch',
+        selectedRowIntegrationAccountIds: ['acc-other'],
+      }),
+    ).toBeNull();
   });
 
   it('allows remainQuantity=1 with snapshot wording', () => {

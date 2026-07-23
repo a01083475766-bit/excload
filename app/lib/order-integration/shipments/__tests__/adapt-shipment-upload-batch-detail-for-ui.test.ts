@@ -62,6 +62,7 @@ function buildDetail(): ShipmentUploadBatchDetailResponse {
         matchScore: 100,
         remainQuantity: 1,
         hasTrackingNumber: true,
+        integrationAccountId: 'acc-1',
       },
       {
         uploadRowId: 'row-2',
@@ -86,6 +87,7 @@ function buildDetail(): ShipmentUploadBatchDetailResponse {
         matchScore: 0,
         remainQuantity: null,
         hasTrackingNumber: true,
+        integrationAccountId: null,
       },
     ],
     summary: {
@@ -154,6 +156,7 @@ describe('adaptShipmentUploadBatchDetailRowForDisplay', () => {
       hasLinkedOrder: true,
       remainQuantity: 1,
       hasTrackingNumber: true,
+      integrationAccountId: 'acc-1',
     });
     expect(JSON.stringify(mapped)).not.toContain('rawRowJson');
     expect(JSON.stringify(mapped)).not.toContain('candidateOrdersJson');

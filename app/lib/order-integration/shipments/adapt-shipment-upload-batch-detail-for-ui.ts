@@ -32,6 +32,8 @@ export type ShipmentMatchPanelDisplayRow = ShipmentMatchDisplayRow & {
   carrierCode: string | null;
   remainQuantity: number | null;
   hasTrackingNumber: boolean;
+  /** match/order SSOT. 표에 원문 노출하지 않음 — 실제 전송 확인용 */
+  integrationAccountId: string | null;
 };
 
 export type ShipmentMatchPanelViewState = {
@@ -95,6 +97,7 @@ export function adaptShipmentUploadBatchDetailRowForDisplay(
     hasLinkedOrder,
     remainQuantity: row.remainQuantity ?? null,
     hasTrackingNumber: row.hasTrackingNumber === true,
+    integrationAccountId: row.integrationAccountId ?? null,
   };
 }
 
