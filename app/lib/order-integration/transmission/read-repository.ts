@@ -18,10 +18,33 @@ export type ShipmentTransmissionReadPrismaClient = {
       where: { uploadBatchId: string; userId: string; id: { in: string[] } };
       select: Record<string, unknown>;
     }) => Promise<MockTransmitMatchRecord[]>;
+    findFirst?: (args: {
+      where: Record<string, unknown>;
+      select: Record<string, boolean>;
+    }) => Promise<{
+      id: string;
+      userId: string;
+      uploadBatchId: string;
+      orderSyncOrderId: string | null;
+      provider: OrderIntegrationProvider | null;
+      integrationAccountId: string | null;
+      transmissionStatus: string;
+    } | null>;
     updateMany?: (args: {
       where: Record<string, unknown>;
       data: Record<string, unknown>;
     }) => Promise<{ count: number }>;
+  };
+  orderSyncOrder?: {
+    findFirst: (args: {
+      where: { id: string; userId: string };
+      select: Record<string, boolean>;
+    }) => Promise<{
+      id: string;
+      userId: string;
+      provider: OrderIntegrationProvider;
+      integrationAccountId: string | null;
+    } | null>;
   };
   orderIntegrationAccount: {
     findFirst: (args: {
@@ -131,10 +154,34 @@ export async function prepareFailedShipmentMatchRetry(
   return updated?.count === 1;
 }
 
+export type PrepareShipmentMatchForTransmitReasonCode =
+  | 'MATCH_NOT_FOUND'
+  | 'STATUS_NOT_PREPARABLE'
+  | 'SCOPE_CONFLICT'
+  | 'ORDER_NOT_LINKED'
+  | 'ORDER_SCOPE_MISMATCH'
+  | 'UPDATE_FAILED';
+
+export type PrepareShipmentMatchForTransmitResult =
+  | { ok: true; reasonCode: null }
+  | { ok: false; reasonCode: PrepareShipmentMatchForTransmitReasonCode };
+
+function sameNullableScope(
+  existing: string | null | undefined,
+  expected: string,
+): boolean {
+  const left = existing?.trim() || '';
+  if (!left) return true;
+  return left === expected.trim();
+}
+
 /**
- * 실전송 직전: eligibility가 확정한 provider/account를 Match에 맞추고 READY로 둔다.
- * 다운로드 번들만으로 업로드하면 Match.provider/account가 null인 채로
- * Order 쪽 값으로만 eligibility가 통과해 lease where가 실패할 수 있다.
+ * 실전송 직전 Match scope 준비.
+ * - null provider/account만 candidate로 보완
+ * - 기존 값이 candidate와 같으면 유지(READY 승격만)
+ * - 기존 값이 다르면 덮어쓰지 않고 차단
+ * - SENT/PROCESSING/UNKNOWN 등 변경 금지
+ * - updateMany where로 null|equal 원자 조건 적용
  */
 export async function prepareShipmentMatchForTransmit(
   client: ShipmentTransmissionReadPrismaClient,
@@ -145,24 +192,105 @@ export async function prepareShipmentMatchForTransmit(
     provider: OrderIntegrationProvider;
     integrationAccountId: string;
   },
-): Promise<boolean> {
+): Promise<PrepareShipmentMatchForTransmitResult> {
+  const provider = input.provider;
+  const integrationAccountId = input.integrationAccountId.trim();
+  if (!integrationAccountId) {
+    return { ok: false, reasonCode: 'SCOPE_CONFLICT' };
+  }
+
+  const match = await client.shipmentMatch.findFirst?.({
+    where: {
+      id: input.matchId,
+      userId: input.userId,
+      uploadBatchId: input.batchId,
+    },
+    select: {
+      id: true,
+      userId: true,
+      uploadBatchId: true,
+      orderSyncOrderId: true,
+      provider: true,
+      integrationAccountId: true,
+      transmissionStatus: true,
+    },
+  });
+
+  if (!match) {
+    return { ok: false, reasonCode: 'MATCH_NOT_FOUND' };
+  }
+
+  if (match.transmissionStatus !== 'NONE' && match.transmissionStatus !== 'READY') {
+    return { ok: false, reasonCode: 'STATUS_NOT_PREPARABLE' };
+  }
+
+  if (!sameNullableScope(match.provider, provider)) {
+    return { ok: false, reasonCode: 'SCOPE_CONFLICT' };
+  }
+  if (!sameNullableScope(match.integrationAccountId, integrationAccountId)) {
+    return { ok: false, reasonCode: 'SCOPE_CONFLICT' };
+  }
+
+  const orderId = match.orderSyncOrderId?.trim() || '';
+  if (!orderId) {
+    return { ok: false, reasonCode: 'ORDER_NOT_LINKED' };
+  }
+
+  const order = await client.orderSyncOrder?.findFirst({
+    where: { id: orderId, userId: input.userId },
+    select: {
+      id: true,
+      userId: true,
+      provider: true,
+      integrationAccountId: true,
+    },
+  });
+
+  if (!order) {
+    return { ok: false, reasonCode: 'ORDER_NOT_LINKED' };
+  }
+
+  if (order.provider !== provider) {
+    return { ok: false, reasonCode: 'ORDER_SCOPE_MISMATCH' };
+  }
+  if (
+    order.integrationAccountId?.trim() &&
+    order.integrationAccountId.trim() !== integrationAccountId
+  ) {
+    return { ok: false, reasonCode: 'ORDER_SCOPE_MISMATCH' };
+  }
+
   const updated = await client.shipmentMatch.updateMany?.({
     where: {
       id: input.matchId,
       userId: input.userId,
       uploadBatchId: input.batchId,
       transmissionStatus: { in: ['NONE', 'READY'] },
+      AND: [
+        { OR: [{ provider: null }, { provider }] },
+        {
+          OR: [
+            { integrationAccountId: null },
+            { integrationAccountId },
+          ],
+        },
+      ],
     },
     data: {
-      provider: input.provider,
-      integrationAccountId: input.integrationAccountId,
+      provider,
+      integrationAccountId,
       transmissionStatus: 'READY',
       transmissionErrorMessage: null,
       transmissionLeaseToken: null,
       transmissionLeaseExpiresAt: null,
     },
   });
-  return updated?.count === 1;
+
+  if (updated?.count !== 1) {
+    return { ok: false, reasonCode: 'UPDATE_FAILED' };
+  }
+
+  return { ok: true, reasonCode: null };
 }
 
 /** @deprecated use prepareShipmentMatchForTransmit */

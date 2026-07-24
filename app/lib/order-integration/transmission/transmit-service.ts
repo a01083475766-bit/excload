@@ -20,6 +20,8 @@ import type {
   ShipmentTransmissionAdapter,
   ShipmentTransmissionCandidate,
 } from '@/app/lib/order-integration/transmission/types';
+import { evaluateLiveTransmitCandidateAllowlist } from '@/app/lib/order-integration/transmission/live-transmit-guard';
+import type { PrepareShipmentMatchForTransmitResult } from '@/app/lib/order-integration/transmission/read-repository';
 
 export type ShipmentTransmitServiceResult =
   | { ok: false; status: 403 | 404 | 409 | 500; reasonCode: string; safeMessage: string }
@@ -41,17 +43,20 @@ export type ShipmentTransmitServiceResult =
 
 export type ShipmentTransmitServiceDeps = {
   enabled: boolean;
+  /** Live allowlists — empty → block all external transmits when enabled */
+  allowedProviders: ReadonlyArray<string>;
+  allowedIntegrationAccountIds: ReadonlyArray<string>;
   readRepository: MockTransmitReadRepository;
   persistClient: ShipmentTransmissionPersistClient;
   resolveAdapter: (input: { provider: OrderIntegrationProvider }) => ShipmentTransmissionAdapter;
   runPersisted?: RunPersistedShipmentTransmissionFn;
   prepareFailedRetry?: (input: { matchId: string }) => Promise<boolean>;
-  /** eligibility candidate의 provider/account를 Match에 맞추고 READY로 준비 */
+  /** eligibility candidate의 provider/account를 Match에 안전하게 맞추고 READY로 준비 */
   prepareForTransmit?: (input: {
     matchId: string;
     provider: OrderIntegrationProvider;
     integrationAccountId: string;
-  }) => Promise<boolean>;
+  }) => Promise<boolean | PrepareShipmentMatchForTransmitResult>;
   /** 실전송 성공 후 주문 단위 PII 정리. mock 경로에는 주입하지 않음. */
   piiClearClient?: ClearTransmittedOrderPiiClient;
   /** SMARTSTORE 재처리 시 이전 productOrderId 성공 이력 로드 */
@@ -135,6 +140,19 @@ export async function runShipmentTransmitService(
       status: 403,
       reasonCode: 'NOT_CONFIGURED',
       safeMessage: 'Real shipment transmission is disabled. No external request was sent.',
+    };
+  }
+
+  if (
+    deps.allowedProviders.length === 0 ||
+    deps.allowedIntegrationAccountIds.length === 0
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      reasonCode: 'LIVE_ALLOWLIST_NOT_CONFIGURED',
+      safeMessage:
+        'Live shipment transmission allowlist is not configured. No external request was sent.',
     };
   }
 
@@ -262,13 +280,41 @@ export async function runShipmentTransmitService(
       continue;
     }
 
+    const candidateGate = evaluateLiveTransmitCandidateAllowlist({
+      allowedProviders: deps.allowedProviders,
+      allowedAccountIds: deps.allowedIntegrationAccountIds,
+      provider: eligibility.candidate.provider,
+      integrationAccountId: eligibility.candidate.integrationAccountId,
+    });
+    if (!candidateGate.allowed) {
+      resultByMatchId.set(
+        matchId,
+        toResult({
+          matchId,
+          attempted: false,
+          previousStatus: row.transmissionStatus,
+          nextStatus: row.transmissionStatus,
+          success: false,
+          errorCode: candidateGate.reasonCode,
+          errorMessage: candidateGate.safeMessage,
+        }),
+      );
+      continue;
+    }
+
     if (row.transmissionStatus === 'NONE' || row.transmissionStatus === 'READY') {
       const prepared = await deps.prepareForTransmit?.({
         matchId,
         provider: eligibility.candidate.provider,
         integrationAccountId: eligibility.candidate.integrationAccountId,
       });
-      if (deps.prepareForTransmit && !prepared) {
+      const prepareOk =
+        prepared == null
+          ? true
+          : typeof prepared === 'boolean'
+            ? prepared
+            : prepared.ok;
+      if (deps.prepareForTransmit && !prepareOk) {
         resultByMatchId.set(
           matchId,
           toResult({

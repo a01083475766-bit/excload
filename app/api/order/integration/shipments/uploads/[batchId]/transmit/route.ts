@@ -21,6 +21,7 @@ import {
 import type { ClearTransmittedOrderPiiClient } from '@/app/lib/order-integration/snapshots/clear-transmitted-order-pii';
 import type { ShipmentTransmissionPersistClient } from '@/app/lib/order-integration/transmission/repository';
 import { createPrismaPriorSmartstoreItemResultsLoader } from '@/app/lib/order-integration/transmission/load-prior-smartstore-item-results';
+import { readLiveTransmitAllowlistsFromEnv } from '@/app/lib/order-integration/transmission/live-transmit-guard';
 import { runShipmentTransmitService } from '@/app/lib/order-integration/transmission/transmit-service';
 import { prisma } from '@/app/lib/prisma';
 
@@ -59,9 +60,12 @@ export async function POST(
         prisma as unknown as ShipmentTransmissionAccountPrismaClient,
       ),
     });
+    const allowlists = readLiveTransmitAllowlistsFromEnv();
     const result = await runShipmentTransmitService(
       {
         enabled: process.env.ORDER_TRANSMISSION_ENABLED === 'true',
+        allowedProviders: allowlists.allowedProviders,
+        allowedIntegrationAccountIds: allowlists.allowedAccountIds,
         readRepository: createShipmentTransmissionReadRepository(readClient),
         persistClient: prisma as unknown as ShipmentTransmissionPersistClient,
         piiClearClient: prisma as unknown as ClearTransmittedOrderPiiClient,

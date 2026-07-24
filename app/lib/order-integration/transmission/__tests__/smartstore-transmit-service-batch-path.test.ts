@@ -52,6 +52,8 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
     const result = await runShipmentTransmitService(
       {
         enabled: true,
+        allowedProviders: ['SMARTSTORE'],
+        allowedIntegrationAccountIds: ['acct-1'],
         readRepository: {
           findBatchForMockTransmit: async () => ({
             id: 'batch-1',
@@ -131,6 +133,7 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
         resolveAdapter: ({ provider }) =>
           provider === 'SMARTSTORE' ? smartstoreAdapter : coupangAdapter,
         runPersisted,
+        prepareForTransmit: async () => ({ ok: true, reasonCode: null }),
       },
       {
         userId: 'user-1',
@@ -165,6 +168,8 @@ describe('SMARTSTORE transmit-service uses account batch path', () => {
     const result = await runShipmentTransmitService(
       {
         enabled: true,
+        allowedProviders: ['SMARTSTORE'],
+        allowedIntegrationAccountIds: ['acct-1'],
         readRepository: {
           findBatchForMockTransmit: async () => ({
             id: 'batch-1',
