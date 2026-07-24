@@ -353,6 +353,70 @@ IP/키 변경 후 최대 **30분** 반영 지연 가능.
 
 ---
 
+## Step 13. 워치독(자동 재시작·먹통 리부트)
+
+프로세스만 죽으면 systemd `Restart=always`로 충분합니다.  
+**머신 전체가 굳는 경우**(512MB OOM 등)는 사람이 Lightsail에서 리부트해야 했는데, 워치독이 그 역할을 대신합니다.
+
+| 동작 | 조건 |
+|------|------|
+| 서비스 재시작 | 로컬 `http://127.0.0.1:8787/healthz` 실패 |
+| 머신 리부트 | 연속 **3회**(기본, 약 6분) 실패 + 재시작으로도 미복구 |
+| 리부트 쿨다운 | 기본 **1시간**에 1회만 (재부팅 루프 방지) |
+
+### 서버에 설치 (Lightsail SSH)
+
+`services/coupang-proxy/` 를 `/opt/excload-coupang-proxy/` 에 동기화한 뒤:
+
+```bash
+cd /opt/excload-coupang-proxy
+sudo bash install-watchdog.sh
+```
+
+수동 설치:
+
+```bash
+sudo install -m 755 /opt/excload-coupang-proxy/watchdog.sh \
+  /usr/local/bin/excload-proxy-watchdog.sh
+sudo cp /opt/excload-coupang-proxy/excload-proxy-watchdog.service.example \
+  /etc/systemd/system/excload-proxy-watchdog.service
+sudo cp /opt/excload-coupang-proxy/excload-proxy-watchdog.timer.example \
+  /etc/systemd/system/excload-proxy-watchdog.timer
+sudo cp /opt/excload-coupang-proxy/excload-coupang-proxy.service.example \
+  /etc/systemd/system/excload-coupang-proxy.service
+sudo systemctl daemon-reload
+sudo systemctl restart excload-coupang-proxy
+sudo systemctl enable --now excload-proxy-watchdog.timer
+```
+
+### 검증
+
+```bash
+sudo systemctl list-timers | grep excload
+sudo systemctl start excload-proxy-watchdog.service
+sudo journalctl -t excload-proxy-watchdog -n 20 --no-pager
+curl -s http://127.0.0.1:8787/healthz
+```
+
+정상일 때 워치독은 로그 없이 조용히 끝납니다(실패 카운트 0).
+
+### 리부트 끄기 (테스트용)
+
+`/etc/systemd/system/excload-proxy-watchdog.service`에:
+
+```ini
+Environment=EXCLOAD_PROXY_WATCHDOG_ALLOW_REBOOT=0
+```
+
+적용: `sudo systemctl daemon-reload`
+
+### 권장 (장기)
+
+- Lightsail **1GB RAM** 이상 — 먹통 빈도 자체를 줄임
+- 외부 업타임 모니터에 `https://coupang-proxy.excload.com/healthz` 등록(알림용)
+
+---
+
 ## 전체 체크리스트 (한 페이지)
 
 | # | 항목 | 확인 |
@@ -369,6 +433,7 @@ IP/키 변경 후 최대 **30분** 반영 지연 가능.
 | 10 | Vercel env 3종 + Redeploy | ☐ |
 | 11 | WING IP = Static IP | ☐ |
 | 12 | 관리자 연결 테스트 성공 | ☐ |
+| 13 | `excload-proxy-watchdog.timer` active | ☐ |
 
 ---
 
@@ -382,6 +447,7 @@ IP/키 변경 후 최대 **30분** 반영 지연 가능.
 | 「WING 고정 IP…」 | WING에 **Vercel IP 넣지 않았는지**, Static IP 맞는지 |
 | 「API Key / Secret…」 | Wing 키·업체코드 재확인 |
 | invalid proxy signature | Vercel·서버 `COUPANG_PROXY_SHARED_SECRET` 동일 여부 |
+| 자주 먹통·리부트 | RAM 512MB → 1GB+, `journalctl -t excload-proxy-watchdog` |
 
 ---
 
@@ -397,6 +463,12 @@ sudo journalctl -u excload-coupang-proxy -f
 sudo systemctl status caddy
 sudo systemctl reload caddy
 sudo journalctl -u caddy -f
+
+# 워치독
+sudo systemctl status excload-proxy-watchdog.timer
+sudo systemctl list-timers | grep excload
+sudo journalctl -t excload-proxy-watchdog -f
+sudo systemctl start excload-proxy-watchdog.service   # 즉시 1회 실행
 ```
 
 ---
@@ -406,7 +478,7 @@ sudo journalctl -u caddy -f
 | 문서 | 내용 |
 |------|------|
 | [`coupang-proxy-transport.md`](./coupang-proxy-transport.md) | Vercel↔프록시 API 계약 |
-| [`services/coupang-proxy/`](../services/coupang-proxy/) | `server.mjs`, systemd·env 예시 |
+| [`services/coupang-proxy/`](../services/coupang-proxy/) | `server.mjs`, systemd·워치독 예시 |
 
 ---
 
@@ -423,3 +495,4 @@ sudo journalctl -u caddy -f
 | 날짜 | 내용 |
 |------|------|
 | 2026-07-06 | 서울 Lightsail · coupang-proxy.excload.com · Caddy 순서 가이드 |
+| 2026-07-24 | Step 13 워치독(healthz→재시작→리부트) · systemd MemoryMax |

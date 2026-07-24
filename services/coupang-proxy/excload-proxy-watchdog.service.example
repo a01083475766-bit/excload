@@ -1,0 +1,20 @@
+# /etc/systemd/system/excload-proxy-watchdog.service
+# oneshot — timer가 주기적으로 실행한다.
+# sudo systemctl daemon-reload
+# sudo systemctl enable --now excload-proxy-watchdog.timer
+
+[Unit]
+Description=Excload proxy health watchdog (restart or reboot)
+After=network-online.target excload-coupang-proxy.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/excload-proxy-watchdog.sh
+# 워치독은 root로 실행(리부트·systemctl restart 필요)
+User=root
+
+# 선택 환경변수(기본값으로도 동작)
+# Environment=EXCLOAD_PROXY_WATCHDOG_MAX_FAIL=3
+# Environment=EXCLOAD_PROXY_WATCHDOG_REBOOT_COOLDOWN_SEC=3600
+# Environment=EXCLOAD_PROXY_WATCHDOG_ALLOW_REBOOT=1

@@ -67,3 +67,20 @@ curl -s http://127.0.0.1:8787/healthz
 - [ ] Static IP → 각 몰·허브 IP 등록 + `NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP`
 - [ ] `INTEGRATION_PROXY_SHARED_SECRET` Vercel과 동일
 - [ ] credential·주문본문 로그 미노출
+- [ ] `excload-proxy-watchdog.timer` 활성 (아래)
+
+## 자동 복구 (워치독)
+
+| 층 | 역할 |
+|----|------|
+| systemd `Restart=always` | Node 프로세스 크래시 시 재시작 |
+| `watchdog.sh` + timer | `/healthz` 실패 → 서비스 재시작 → 연속 실패 시 **머신 리부트** |
+
+머신 전체가 굳으면 프로세스 재시작만으로는 안 되므로, 워치독이 로컬 health를 보고 필요 시 리부트합니다.  
+설치·검증: [`docs/coupang-proxy-lightsail-ec2-deploy.md`](../docs/coupang-proxy-lightsail-ec2-deploy.md) **Step 13**.
+
+파일:
+
+- `watchdog.sh`
+- `excload-proxy-watchdog.service.example`
+- `excload-proxy-watchdog.timer.example`

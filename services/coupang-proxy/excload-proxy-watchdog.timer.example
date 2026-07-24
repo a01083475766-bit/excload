@@ -1,0 +1,17 @@
+# /etc/systemd/system/excload-proxy-watchdog.timer
+# sudo systemctl daemon-reload
+# sudo systemctl enable --now excload-proxy-watchdog.timer
+# sudo systemctl list-timers | grep excload
+
+[Unit]
+Description=Run Excload proxy watchdog every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=30s
+Persistent=true
+Unit=excload-proxy-watchdog.service
+
+[Install]
+WantedBy=timers.target

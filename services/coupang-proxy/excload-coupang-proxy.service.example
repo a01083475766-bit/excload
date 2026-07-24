@@ -2,8 +2,10 @@
 # sudo systemctl daemon-reload && sudo systemctl enable --now excload-coupang-proxy
 
 [Unit]
-Description=Excload Coupang API Proxy
-After=network.target
+Description=Excload order-integration fixed-IP proxy
+Documentation=https://github.com/
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -11,8 +13,22 @@ User=ubuntu
 WorkingDirectory=/opt/excload-coupang-proxy
 EnvironmentFile=/etc/excload-coupang-proxy.env
 ExecStart=/usr/bin/node /opt/excload-coupang-proxy/server.mjs
+
+# 프로세스 크래시 시 자동 재시작 (머신 먹통은 watchdog.timer가 처리)
 Restart=always
 RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+# 512MB Lightsail에서 OOM으로 전체가 굳는 것을 줄이기 위한 상한
+# 1GB 이상으로 올린 뒤에도 유지해도 무방하다.
+MemoryMax=350M
+MemoryHigh=280M
+OOMPolicy=stop
+
+# 종료 시 정리
+TimeoutStopSec=20
+KillMode=mixed
 
 [Install]
 WantedBy=multi-user.target
