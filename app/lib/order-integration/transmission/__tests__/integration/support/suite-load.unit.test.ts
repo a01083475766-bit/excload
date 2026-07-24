@@ -13,6 +13,7 @@ const FAKE_TEST = 'testref11111111111111';
 describe('transmission integration suite-load (no DB)', () => {
   it('loads integration config without suite setup hook errors', () => {
     const cwd = process.cwd();
+    // 중첩 Vitest 프로세스를 spawn하므로 기본 5초로는 전체 스위트 부하에서 부족하다.
     const vitestEntry = path.join(cwd, 'node_modules', 'vitest', 'vitest.mjs');
     const config = path.join(cwd, 'vitest.integration.config.ts');
 
@@ -54,5 +55,5 @@ describe('transmission integration suite-load (no DB)', () => {
     // Skipped smoke suite exits cleanly (no executed tests required)
     expect(blob).toMatch(/skipped|skip/i);
     expect(result.status).toBe(0);
-  });
+  }, 30_000);
 });
