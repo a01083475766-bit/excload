@@ -91,6 +91,113 @@ export function buildSmartstoreTokenRequestBody(credentials: SmartstoreCredentia
   };
 }
 
+/** 한 번의 주문조회(또는 동일 세션 요청)에만 묶는 토큰 재사용 범위. 전역 캐시 금지. */
+export type SmartstoreFetchSession = {
+  credentials: SmartstoreCredentials;
+  accessToken: string | null;
+  tokenIssueCount: number;
+  /** 401로 인한 토큰 재발급 횟수 */
+  authRefreshCount: number;
+  /** 429 백오프 재시도 누적 횟수 */
+  rateLimitRetryCount: number;
+  startedAtMs: number;
+  sleep: (ms: number) => Promise<void>;
+};
+
+/** 429 추가 재시도 상한(최초 실패 제외). */
+export const SMARTSTORE_RATE_LIMIT_MAX_RETRIES = 2;
+/** Retry-After / 지수 백오프 대기 상한(ms). */
+export const SMARTSTORE_RATE_LIMIT_BACKOFF_MAX_MS = 10_000;
+const SMARTSTORE_RATE_LIMIT_BACKOFF_BASE_MS = 400;
+
+export type SmartstoreFetchDiagnostic = {
+  stage: SmartstoreApiErrorStage | 'ORDER' | 'TOKEN';
+  httpStatus?: number;
+  code?: string;
+  windowCount?: number;
+  failedWindowIndex?: number;
+  failedPage?: number;
+  tokenIssueCount?: number;
+  authRefreshCount?: number;
+  rateLimitRetryCount?: number;
+  durationMs?: number;
+};
+
+/** 민감정보 없이 진단용 필드만 기록한다. */
+export function logSmartstoreFetchDiagnostic(input: SmartstoreFetchDiagnostic): void {
+  console.error('[Smartstore Fetch]', {
+    stage: input.stage,
+    httpStatus: input.httpStatus ?? null,
+    code: input.code ?? null,
+    windowCount: input.windowCount ?? null,
+    failedWindowIndex: input.failedWindowIndex ?? null,
+    failedPage: input.failedPage ?? null,
+    tokenIssueCount: input.tokenIssueCount ?? null,
+    authRefreshCount: input.authRefreshCount ?? null,
+    rateLimitRetryCount: input.rateLimitRetryCount ?? null,
+    durationMs: input.durationMs ?? null,
+  });
+}
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+export function createSmartstoreFetchSession(input: {
+  credentials: SmartstoreCredentials;
+  sleep?: (ms: number) => Promise<void>;
+  nowMs?: number;
+}): SmartstoreFetchSession {
+  return {
+    credentials: input.credentials,
+    accessToken: null,
+    tokenIssueCount: 0,
+    authRefreshCount: 0,
+    rateLimitRetryCount: 0,
+    startedAtMs: input.nowMs ?? Date.now(),
+    sleep: input.sleep ?? defaultSleep,
+  };
+}
+
+/**
+ * Retry-After 헤더 값을 ms로 변환. 초 단위 숫자만 허용(날짜 형식은 무시).
+ * 상한을 넘는 값은 상한으로 자른다.
+ */
+export function parseRetryAfterMs(
+  raw: string | null | undefined,
+  maxMs: number = SMARTSTORE_RATE_LIMIT_BACKOFF_MAX_MS,
+): number | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null;
+  const seconds = Number(trimmed);
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  return Math.min(Math.ceil(seconds * 1000), maxMs);
+}
+
+/** attemptIndex 0 = 첫 429 재시도. Retry-After 우선, 없으면 지수 백오프. */
+export function computeRateLimitBackoffMs(input: {
+  attemptIndex: number;
+  retryAfterHeader?: string | null;
+}): number {
+  const fromHeader = parseRetryAfterMs(input.retryAfterHeader);
+  if (fromHeader != null) return fromHeader;
+  const exp = SMARTSTORE_RATE_LIMIT_BACKOFF_BASE_MS * 2 ** Math.max(0, input.attemptIndex);
+  return Math.min(exp, SMARTSTORE_RATE_LIMIT_BACKOFF_MAX_MS);
+}
+
+function readRetryAfterHeader(
+  headers: Record<string, string> | null | undefined,
+): string | null {
+  if (!headers) return null;
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'retry-after') return value;
+  }
+  return null;
+}
+
 export async function requestSmartstoreAccessToken(
   credentials: SmartstoreCredentials,
 ): Promise<{ accessToken: string; expiresIn?: number }> {
@@ -161,47 +268,53 @@ export async function requestSmartstoreAccessToken(
   };
 }
 
-export async function smartstoreAuthorizedRequest<T>(input: {
-  credentials: SmartstoreCredentials;
-  method: string;
-  pathWithQuery: string;
-  body?: string;
-  contentType?: string;
-}): Promise<T> {
-  const { accessToken } = await requestSmartstoreAccessToken(input.credentials);
-  const url = `${SMARTSTORE_API_ORIGIN}${input.pathWithQuery}`;
+async function ensureSmartstoreSessionToken(session: SmartstoreFetchSession): Promise<string> {
+  if (session.accessToken) return session.accessToken;
+  const issued = await requestSmartstoreAccessToken(session.credentials);
+  session.accessToken = issued.accessToken;
+  session.tokenIssueCount += 1;
+  return session.accessToken;
+}
 
+type SmartstoreHttpResult = {
+  httpStatus: number;
+  bodyText: string;
+  responseHeaders?: Record<string, string> | null;
+};
+
+async function invokeSmartstoreOrderHttp(input: {
+  method: string;
+  url: string;
+  accessToken: string;
+  body?: string | null;
+  contentType?: string;
+}): Promise<SmartstoreHttpResult> {
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${accessToken}`,
+    Authorization: `Bearer ${input.accessToken}`,
   };
   if (input.body != null) {
     headers['Content-Type'] = input.contentType ?? 'application/json';
   }
 
-  let response: { httpStatus: number; bodyText: string };
   try {
-    response = await invokeIntegrationHttp({
+    const response = await invokeIntegrationHttp({
       method: input.method,
-      url,
+      url: input.url,
       headers,
       body: input.body ?? null,
     });
+    return {
+      httpStatus: response.httpStatus,
+      bodyText: response.bodyText,
+      responseHeaders:
+        (response as { responseHeaders?: Record<string, string> }).responseHeaders ?? null,
+    };
   } catch (cause) {
     throw new SmartstoreApiError({ stage: 'ORDER', networkFailure: true, cause });
   }
+}
 
-  const { httpStatus, bodyText } = response;
-
-  if (httpStatus < 200 || httpStatus >= 300) {
-    const parsed = parseSmartstoreError(bodyText);
-    throw new SmartstoreApiError({
-      stage: 'ORDER',
-      httpStatus,
-      code: parsed.code,
-      rawMessage: parsed.message,
-    });
-  }
-
+function parseOrderSuccessBody<T>(httpStatus: number, bodyText: string): T {
   try {
     return JSON.parse(bodyText) as T;
   } catch {
@@ -209,6 +322,69 @@ export async function smartstoreAuthorizedRequest<T>(input: {
       stage: 'ORDER',
       httpStatus,
       code: 'RESPONSE_INVALID',
+    });
+  }
+}
+
+/**
+ * 주문 API 호출. session이 있으면 토큰을 재사용한다.
+ * - 401: 토큰 재발급 1회 후 해당 요청만 1회 재시도
+ * - 429: 최대 2회 추가 재시도(짧은 백오프 / Retry-After)
+ */
+export async function smartstoreAuthorizedRequest<T>(input: {
+  credentials: SmartstoreCredentials;
+  method: string;
+  pathWithQuery: string;
+  body?: string;
+  contentType?: string;
+  session?: SmartstoreFetchSession;
+}): Promise<T> {
+  const session = input.session ?? createSmartstoreFetchSession({ credentials: input.credentials });
+  const url = `${SMARTSTORE_API_ORIGIN}${input.pathWithQuery}`;
+
+  let accessToken = await ensureSmartstoreSessionToken(session);
+  let authRetried = false;
+  let rateLimitAttempt = 0;
+
+  for (;;) {
+    const response = await invokeSmartstoreOrderHttp({
+      method: input.method,
+      url,
+      accessToken,
+      body: input.body,
+      contentType: input.contentType,
+    });
+
+    if (response.httpStatus >= 200 && response.httpStatus < 300) {
+      return parseOrderSuccessBody<T>(response.httpStatus, response.bodyText);
+    }
+
+    const parsed = parseSmartstoreError(response.bodyText);
+
+    if (response.httpStatus === 401 && !authRetried) {
+      authRetried = true;
+      session.accessToken = null;
+      session.authRefreshCount += 1;
+      accessToken = await ensureSmartstoreSessionToken(session);
+      continue;
+    }
+
+    if (response.httpStatus === 429 && rateLimitAttempt < SMARTSTORE_RATE_LIMIT_MAX_RETRIES) {
+      const backoffMs = computeRateLimitBackoffMs({
+        attemptIndex: rateLimitAttempt,
+        retryAfterHeader: readRetryAfterHeader(response.responseHeaders),
+      });
+      rateLimitAttempt += 1;
+      session.rateLimitRetryCount += 1;
+      await session.sleep(backoffMs);
+      continue;
+    }
+
+    throw new SmartstoreApiError({
+      stage: 'ORDER',
+      httpStatus: response.httpStatus,
+      code: parsed.code,
+      rawMessage: parsed.message,
     });
   }
 }
@@ -397,8 +573,79 @@ function toSafeErrorMessage(error: unknown): string {
   return '알 수 없는 오류';
 }
 
-function collectionError(message: string, cause: unknown): Error {
-  return new Error(message, { cause });
+export type SmartstoreCollectionFailureMeta = {
+  windowCount: number;
+  failedWindowIndex?: number;
+  failedPage?: number;
+};
+
+const SMARTSTORE_COLLECTION_META = Symbol.for('excload.smartstore.collectionMeta');
+
+function collectionError(
+  message: string,
+  cause: unknown,
+  meta?: SmartstoreCollectionFailureMeta,
+): Error {
+  const error = new Error(message, { cause });
+  if (meta) {
+    Object.defineProperty(error, SMARTSTORE_COLLECTION_META, {
+      value: meta,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return error;
+}
+
+export function getSmartstoreCollectionFailureMeta(
+  error: unknown,
+): SmartstoreCollectionFailureMeta | null {
+  let current: unknown = error;
+  for (let depth = 0; depth < 8 && current; depth += 1) {
+    if (current instanceof Error) {
+      const meta = (current as Error & { [SMARTSTORE_COLLECTION_META]?: SmartstoreCollectionFailureMeta })[
+        SMARTSTORE_COLLECTION_META
+      ];
+      if (meta) return meta;
+      current = current.cause;
+      continue;
+    }
+    break;
+  }
+  return null;
+}
+
+function findSmartstoreApiError(error: unknown): SmartstoreApiError | null {
+  let current: unknown = error;
+  for (let depth = 0; depth < 8 && current; depth += 1) {
+    if (current instanceof SmartstoreApiError) return current;
+    if (current instanceof Error) {
+      current = current.cause;
+      continue;
+    }
+    break;
+  }
+  return null;
+}
+
+function logFetchSessionFailure(input: {
+  session: SmartstoreFetchSession;
+  error: unknown;
+}): void {
+  const apiError = findSmartstoreApiError(input.error);
+  const meta = getSmartstoreCollectionFailureMeta(input.error);
+  logSmartstoreFetchDiagnostic({
+    stage: apiError?.stage ?? 'ORDER',
+    httpStatus: apiError?.httpStatus,
+    code: apiError?.code,
+    windowCount: meta?.windowCount,
+    failedWindowIndex: meta?.failedWindowIndex,
+    failedPage: meta?.failedPage,
+    tokenIssueCount: input.session.tokenIssueCount,
+    authRefreshCount: input.session.authRefreshCount,
+    rateLimitRetryCount: input.session.rateLimitRetryCount,
+    durationMs: Date.now() - input.session.startedAtMs,
+  });
 }
 
 /**
@@ -452,6 +699,11 @@ export async function collectSmartstoreProductOrders(input: {
         throw collectionError(
           `스마트스토어 주문 변경내역 조회에 실패했습니다. (${windowLabel}, 페이지 ${page}) 원인: ${toSafeErrorMessage(error)}`,
           error,
+          {
+            windowCount: windows.length,
+            failedWindowIndex: windowIndex,
+            failedPage: page,
+          },
         );
       }
 
@@ -503,6 +755,7 @@ export async function collectSmartstoreProductOrders(input: {
       throw collectionError(
         `스마트스토어 주문 상세 조회에 실패했습니다. (상세 배치 ${batch}/${batchCount}) 원인: ${toSafeErrorMessage(error)}`,
         error,
+        { windowCount: windows.length },
       );
     }
 
@@ -517,15 +770,33 @@ export async function fetchSmartstoreProductOrders(input: {
   days?: number;
   /** 날짜 직접 선택 시 명시적인 조회 범위(epoch ms). 지정되면 days 대신 사용한다. */
   range?: { fromMs: number; toMs: number };
+  /** 테스트용: 세션 sleep/시작시각 주입 */
+  session?: SmartstoreFetchSession;
 }): Promise<SmartstoreProductOrderDetail[]> {
+  const session =
+    input.session ?? createSmartstoreFetchSession({ credentials: input.credentials });
   const request: SmartstoreApiRequestFn = <T,>(req: {
     method: string;
     pathWithQuery: string;
     body?: string;
     contentType?: string;
-  }) => smartstoreAuthorizedRequest<T>({ credentials: input.credentials, ...req });
+  }) =>
+    smartstoreAuthorizedRequest<T>({
+      credentials: input.credentials,
+      session,
+      ...req,
+    });
 
-  return collectSmartstoreProductOrders({ request, days: input.days, range: input.range });
+  try {
+    return await collectSmartstoreProductOrders({
+      request,
+      days: input.days,
+      range: input.range,
+    });
+  } catch (error) {
+    logFetchSessionFailure({ session, error });
+    throw error;
+  }
 }
 
 /**
@@ -535,6 +806,7 @@ export async function fetchSmartstoreProductOrders(input: {
 export async function fetchSmartstoreProductOrdersByIds(input: {
   credentials: SmartstoreCredentials;
   productOrderIds: ReadonlyArray<string>;
+  session?: SmartstoreFetchSession;
 }): Promise<SmartstoreProductOrderDetail[]> {
   const ids = [
     ...new Set(
@@ -545,6 +817,8 @@ export async function fetchSmartstoreProductOrdersByIds(input: {
   ];
   if (!ids.length) return [];
 
+  const session =
+    input.session ?? createSmartstoreFetchSession({ credentials: input.credentials });
   const details: SmartstoreProductOrderDetail[] = [];
   const batchCount = Math.ceil(ids.length / SMARTSTORE_DETAIL_BATCH_SIZE);
 
@@ -553,6 +827,7 @@ export async function fetchSmartstoreProductOrdersByIds(input: {
     try {
       const detailResponse = await smartstoreAuthorizedRequest<{ data?: SmartstoreProductOrderDetail[] }>({
         credentials: input.credentials,
+        session,
         method: 'POST',
         pathWithQuery: '/external/v1/pay-order/seller/product-orders/query',
         body: JSON.stringify({ productOrderIds: batchIds, quantityClaimCompatibility: true }),
@@ -560,6 +835,7 @@ export async function fetchSmartstoreProductOrdersByIds(input: {
       });
       details.push(...(detailResponse.data ?? []));
     } catch (error) {
+      logFetchSessionFailure({ session, error });
       throw collectionError(
         `스마트스토어 상품주문 상세 조회에 실패했습니다. (배치 ${batch}/${batchCount}) 원인: ${toSafeErrorMessage(error)}`,
         error,
