@@ -19,6 +19,7 @@ import { MallSetupGuidePanel } from '@/app/components/order-integration/MallSetu
 import { MALL_SETUP_GUIDES } from '@/app/lib/order-integration/mall-setup-guides';
 import { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
 import { EXCLOAD_MAKESHOP_OUTBOUND_IP } from '@/app/lib/makeshop/api-spec';
+import { EXCLOAD_GODOMALL_OUTBOUND_IP } from '@/app/lib/godomall/api-spec';
 
 type AvailableMallId = Exclude<OrderIntegrationMallId, 'gmarket'>;
 
@@ -33,33 +34,108 @@ function chipClass(selected: boolean): string {
   return 'border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50';
 }
 
+/** 몰별로 판매자센터에 실제로 등록하는 항목만 표시 */
+function excloadInfoOptionsForMall(mallId: AvailableMallId | null): {
+  showCompany: boolean;
+  showUrl: boolean;
+  showIp: boolean;
+  ipLabel: string;
+  registerHint: string;
+} {
+  if (mallId === 'shopby') {
+    return {
+      showCompany: false,
+      showUrl: false,
+      showIp: false,
+      ipLabel: 'IP 주소 (outbound)',
+      registerHint: '샵바이는 systemKey·mallKey 입력이 핵심입니다. 고정 IP·URL 등록 단계는 없습니다.',
+    };
+  }
+  if (mallId === 'cafe24') {
+    return {
+      showCompany: false,
+      showUrl: true,
+      showIp: false,
+      ipLabel: 'IP 주소 (outbound)',
+      registerHint: '카페24는 Redirect URI·Scope가 핵심입니다. 고정 IP 등록 단계는 없습니다.',
+    };
+  }
+  if (mallId === 'makeshop') {
+    return {
+      showCompany: true,
+      showUrl: true,
+      showIp: true,
+      ipLabel: 'APP 접근 허용 IP',
+      registerHint: '메이크샵은 엑클로드 APP 접근 허용 IP와 shop_uid가 핵심입니다.',
+    };
+  }
+  if (mallId === 'godomall') {
+    return {
+      showCompany: true,
+      showUrl: true,
+      showIp: true,
+      ipLabel: '호출 IP (제휴사·openhub)',
+      registerHint: 'partner_key는 엑클로드가 보유합니다. 판매자는 user key를 입력합니다.',
+    };
+  }
+  if (mallId === 'ssg' || mallId === 'lotteon' || mallId === 'cjonstyle' || mallId === 'eleven') {
+    return {
+      showCompany: true,
+      showUrl: false,
+      showIp: true,
+      ipLabel: 'IP 주소 (outbound)',
+      registerHint: '판매자센터에는 주로 엑클로드 고정 IP를 등록합니다. (일반 URL 등록 단계는 없음)',
+    };
+  }
+  return {
+    showCompany: true,
+    showUrl: true,
+    showIp: true,
+    ipLabel: 'IP 주소 (outbound)',
+    registerHint: '판매자센터(또는 개발자센터)에 아래 값을 등록한 뒤, 발급 키를 입력합니다.',
+  };
+}
+
 function ExcloadInfoList({
   outboundIp,
   extras = [],
+  showCompany = true,
+  showUrl = true,
+  showIp = true,
+  ipLabel = 'IP 주소 (outbound)',
 }: {
   outboundIp: string;
   extras?: { label: string; value: string }[];
+  showCompany?: boolean;
+  showUrl?: boolean;
+  showIp?: boolean;
+  ipLabel?: string;
 }) {
-  const rows = [
-    { label: '업체명', value: EXCLOAD_INTEGRATION_INFO.companyName },
-    { label: 'URL', value: EXCLOAD_INTEGRATION_INFO.url },
-    {
-      label: 'IP 주소 (outbound)',
+  const rows: { label: string; value: string; placeholder?: string }[] = [];
+  if (showCompany) {
+    rows.push({ label: '업체명', value: EXCLOAD_INTEGRATION_INFO.companyName });
+  }
+  if (showUrl) {
+    rows.push({ label: 'URL', value: EXCLOAD_INTEGRATION_INFO.url });
+  }
+  if (showIp) {
+    rows.push({
+      label: ipLabel,
       value: outboundIp,
       placeholder: 'NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 설정 필요',
-    },
-    ...extras,
-  ];
+    });
+  }
+  rows.push(...extras);
+
+  if (rows.length === 0) {
+    return null;
+  }
 
   return (
     <dl className="divide-y divide-zinc-100 border border-zinc-200 bg-white">
       {rows.map((row) => (
         <div key={row.label} className="px-3 py-2.5 sm:px-4">
-          <CopyableInfoRow
-            label={row.label}
-            value={row.value}
-            placeholder={'placeholder' in row ? row.placeholder : undefined}
-          />
+          <CopyableInfoRow label={row.label} value={row.value} placeholder={row.placeholder} />
         </div>
       ))}
     </dl>
@@ -83,6 +159,22 @@ export default function OrderIntegrationPanel() {
 
   const selectedMall =
     selectedMallId === 'all' ? null : availableMalls.find((m) => m.id === selectedMallId) ?? null;
+
+  const selectedMallInfoOpts = selectedMall ? excloadInfoOptionsForMall(selectedMall.id) : null;
+  const selectedMallOutboundIp = selectedMall
+    ? selectedMall.id === 'makeshop'
+      ? EXCLOAD_MAKESHOP_OUTBOUND_IP || outboundIp
+      : selectedMall.id === 'godomall'
+        ? EXCLOAD_GODOMALL_OUTBOUND_IP || outboundIp
+        : outboundIp
+    : outboundIp;
+  const selectedMallExtras =
+    selectedMall?.id === 'cafe24'
+      ? [
+          { label: 'Redirect URI', value: CAFE24_OAUTH_REDIRECT_URI },
+          { label: 'Scope (1차)', value: CAFE24_OAUTH_SCOPES },
+        ]
+      : [];
 
   const refreshConnectedMalls = useCallback(async () => {
     try {
@@ -141,7 +233,8 @@ export default function OrderIntegrationPanel() {
       <header className="mb-6 border-b border-gray-200 pb-5">
         <h1 className="text-xl font-semibold text-gray-900">쇼핑몰 연동 설정</h1>
         <p className="mt-2 text-sm leading-relaxed text-gray-600">
-          판매자센터에서 API 키를 발급한 뒤, 아래 엑클로드 정보를 등록하고 쇼핑몰을 선택해 연동합니다.
+          쇼핑몰을 선택한 뒤, 판매자센터(또는 개발자센터)에서 키를 발급·등록하고 엑클로드에 입력해
+          연동합니다. 등록할 항목(IP·URL 등)은 쇼핑몰마다 다릅니다.
         </p>
         <p className="mt-3 text-sm text-gray-500">
           <Link
@@ -164,23 +257,24 @@ export default function OrderIntegrationPanel() {
           </li>
           <li className="flex gap-3">
             <span className="w-5 shrink-0 font-medium text-gray-400">2</span>
-            <span>판매자센터에 아래 엑클로드 업체명·URL·IP를 등록합니다.</span>
+            <span>쇼핑몰별로 필요한 엑클로드 정보(IP·Redirect URI 등)만 등록합니다.</span>
           </li>
           <li className="flex gap-3">
             <span className="w-5 shrink-0 font-medium text-gray-400">3</span>
-            <span>쇼핑몰을 선택한 뒤 키를 입력하고 API 테스트 후 저장합니다.</span>
+            <span>발급 키를 입력하고 연결 테스트 후 저장합니다.</span>
           </li>
         </ol>
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">
-          판매자센터에 등록할 엑클로드 정보
-        </h2>
+        <h2 className="mb-3 text-sm font-semibold text-gray-900">엑클로드 공통 정보</h2>
         <ExcloadInfoList outboundIp={outboundIp} />
+        <p className="mt-2 text-xs text-zinc-500">
+          쇼핑몰을 선택하면, 그 몰에서 실제로 쓰는 등록 항목만 아래에 다시 표시됩니다.
+        </p>
         {!outboundIp ? (
           <p className="mt-2 text-xs text-amber-700">
-            운영 고정 IP가 없으면 판매자센터 화이트리스트 등록이 불가할 수 있습니다.
+            운영 고정 IP가 없으면 IP 등록이 필요한 몰에서는 연동이 불가할 수 있습니다.
           </p>
         ) : null}
       </section>
@@ -247,21 +341,16 @@ export default function OrderIntegrationPanel() {
                   {selectedMall.name} · 엑클로드 등록 정보
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                  판매자센터(또는 개발자센터)에 아래 값을 등록한 뒤, 아래에서 쇼핑몰 발급 키를 입력합니다.
+                  {selectedMallInfoOpts?.registerHint}
                 </p>
                 <div className="mt-5">
                   <ExcloadInfoList
-                    outboundIp={outboundIp}
-                    extras={
-                      selectedMall.id === 'cafe24'
-                        ? [
-                            { label: 'Redirect URI', value: CAFE24_OAUTH_REDIRECT_URI },
-                            { label: 'Scope (1차)', value: CAFE24_OAUTH_SCOPES },
-                          ]
-                        : selectedMall.id === 'makeshop'
-                          ? [{ label: 'APP 접근 허용 IP', value: EXCLOAD_MAKESHOP_OUTBOUND_IP }]
-                          : []
-                    }
+                    outboundIp={selectedMallOutboundIp}
+                    showCompany={selectedMallInfoOpts?.showCompany}
+                    showUrl={selectedMallInfoOpts?.showUrl}
+                    showIp={selectedMallInfoOpts?.showIp}
+                    ipLabel={selectedMallInfoOpts?.ipLabel}
+                    extras={selectedMallExtras}
                   />
                 </div>
               </div>

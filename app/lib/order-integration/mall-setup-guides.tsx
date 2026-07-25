@@ -9,7 +9,7 @@ export type MallSetupGuide = {
   notes?: string[];
 };
 
-/** 오른쪽 안내 패널용 — 기존 폼 CollapsibleGuide 내용을 기준으로 정리 */
+/** 오른쪽 안내 패널용 — 공식으로 확인된 주소·방법만 유지 (로그인 후 세부 클릭은 추후 스크린샷으로 보완) */
 export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetupGuide>> = {
   coupang: {
     title: '쿠팡 판매자센터 설정 방법',
@@ -50,16 +50,28 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     steps: [
       {
         title: 'OpenAPI 접속',
-        body: '11번가 OpenAPI 사이트에서 판매자 API를 신청·발급합니다.',
+        body: (
+          <>
+            <strong>https://openapi.11st.co.kr</strong> (OPEN API CENTER)에 로그인합니다.
+          </>
+        ),
       },
       {
-        title: '엑클로드 정보',
-        body: '필요 시 엑클로드 URL·IP를 등록합니다.',
+        title: '서비스 등록·IP',
+        body: (
+          <>
+            서비스 등록·확인 후, 상용/개발 서버 IP에 엑클로드 고정 IP(
+            <strong>54.180.45.46</strong>)를 등록합니다.
+          </>
+        ),
       },
       {
         title: '키 입력',
-        body: '발급된 값을 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
+        body: '발급된 11ST OPEN API KEY를 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
       },
+    ],
+    notes: [
+      '셀러오피스에서 OpenAPI로 들어가는 화면이 있으면 그 경로로도 진입할 수 있습니다. 메뉴 위치가 다르면 스크린샷으로 확인해 주세요.',
     ],
   },
   smartstore: {
@@ -136,6 +148,9 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
         body: 'Client ID / Secret과 mallId를 왼쪽에 저장한 뒤 「카페24 연동 시작」으로 권한 동의를 완료합니다.',
       },
     ],
+    notes: [
+      '카페24는 판매자센터에 엑클로드 고정 IP를 등록하는 단계가 없습니다. Redirect URI·권한 동의가 핵심입니다.',
+    ],
   },
   lotteon: {
     title: '롯데ON 설정 방법',
@@ -143,16 +158,22 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '롯데ON 스토어',
     steps: [
       {
-        title: '판매자 센터',
-        body: '롯데ON 판매자 센터에서 OpenAPI 키를 발급합니다.',
+        title: 'OpenAPI 관리',
+        body: '스토어센터 로그인 → 판매자정보 → OpenAPI관리 → 정보설정으로 이동합니다.',
       },
       {
-        title: '엑클로드 정보',
-        body: '필요 시 엑클로드 URL·IP를 등록합니다.',
+        title: 'IP 또는 셀러툴 등록',
+        body: (
+          <>
+            서버 IP에 엑클로드 고정 IP(<strong>54.180.45.46</strong>)를 등록하거나, 호스팅/셀러툴에서
+            엑클로드를 선택합니다. 저장 후 키 발급 버튼이 활성화됩니다. (일반 판매자 URL 등록 단계는
+            없습니다)
+          </>
+        ),
       },
       {
         title: '키 입력·테스트',
-        body: '발급 값을 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
+        body: '발급된 인증키·판매자 ID·거래처번호(tr_no)를 왼쪽에 넣고 연결 테스트 후 저장합니다. 인증키는 보통 1년 유효합니다.',
       },
     ],
   },
@@ -163,17 +184,27 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     steps: [
       {
         title: '파트너 오피스',
-        body: 'SSG 파트너 오피스에서 API 키를 발급합니다.',
+        body: (
+          <>
+            <strong>https://po.ssgadm.com</strong>에 로그인합니다. (입점·계약이 끝난 계정)
+          </>
+        ),
       },
       {
-        title: 'IP·URL 등록',
-        body: '엑클로드 outbound IP와 URL을 등록합니다.',
+        title: 'IP 등록·키 활성화',
+        body: (
+          <>
+            API 회원정보에 운영·테스트 서버 IP로 엑클로드 고정 IP(<strong>54.180.45.46</strong>)를
+            등록하고, 이메일로 받은 API 인증키를 활성화합니다. (서비스 URL 등록 단계는 없습니다)
+          </>
+        ),
       },
       {
         title: '키 입력·테스트',
-        body: '왼쪽 입력란에 값을 넣고 연결 테스트 후 저장합니다.',
+        body: '협력사코드(로그인 ID)와 API 인증키를 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
       },
     ],
+    notes: ['메뉴 이름이 화면과 다르면 로그인 후 스크린샷으로 확인해 주세요.'],
   },
   cjonstyle: {
     title: 'CJ온스타일 설정 방법',
@@ -181,17 +212,26 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: 'CJ온스타일 API 가이드',
     steps: [
       {
-        title: '표준 API 안내',
-        body: '파트너 사이트 표준 API 가이드를 확인합니다.',
+        title: '파트너시스템',
+        body: '입점 협력사 계정으로 파트너시스템에 로그인합니다.',
       },
       {
-        title: '인증 정보',
-        body: '벤더 코드·인증키 등을 발급받아 왼쪽 입력란에 입력합니다.',
+        title: 'API 정보관리',
+        body: (
+          <>
+            <strong>API 관리 → API 정보관리</strong>에서 기본정보를 등록한 뒤, 직접개발이면 운영(필요
+            시 개발) IP에 엑클로드 고정 IP(<strong>54.180.45.46</strong>)를 등록하거나 셀러툴을
+            선택합니다.
+          </>
+        ),
       },
       {
-        title: '테스트 후 저장',
-        body: '연결 테스트 성공 후 저장합니다.',
+        title: '인증키 발급',
+        body: 'API 인증키 발급 후 vendorCode(6자)·authenticationKey를 왼쪽에 넣고 저장합니다.',
       },
+    ],
+    notes: [
+      '입점 협력사 전용입니다. 주문 API Path는 파트너 Docs 확인이 필요할 수 있습니다.',
     ],
   },
   shopby: {
@@ -200,13 +240,21 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '샵바이 Server API 안내',
     steps: [
       {
-        title: 'Server API',
-        body: 'NHN커머스/샵바이 Server API 키를 발급합니다.',
+        title: 'systemKey',
+        body: '워크스페이스 → 셀러어드민 → 상품 → (앱 클릭) → 앱 수정에서 systemKey를 확인합니다.',
+      },
+      {
+        title: 'mallKey',
+        body: '서비스어드민 → 서비스 관리 → 쇼핑몰 관리 → (쇼핑몰 선택) → 개발연동 정보 → 외부 연동 키(mallKey)를 확인합니다.',
       },
       {
         title: '키 입력',
-        body: '발급 값을 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
+        body: 'systemKey·mallKey를 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
       },
+    ],
+    notes: [
+      '샵바이는 판매자센터에 엑클로드 고정 IP·URL을 등록하는 단계가 없습니다.',
+      '파트너어드민의 「외부시스템 연동코드」는 mallKey와 다릅니다.',
     ],
   },
   godomall: {
@@ -215,13 +263,20 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '고도몰 개발자센터',
     steps: [
       {
-        title: '개발자센터',
-        body: '고도몰 개발자센터에서 partner_key·user_key를 발급합니다.',
+        title: '제휴사 키 (엑클로드)',
+        body: 'partner_key는 엑클로드가 NHN커머스 개발자센터에 제휴사로 등록해 보유합니다. 판매자가 직접 발급하지 않습니다.',
       },
       {
-        title: '키 입력·테스트',
-        body: '왼쪽 입력란에 값을 넣고 연결 테스트 후 저장합니다.',
+        title: '사용자키',
+        body: '엑클로드(또는 NHN)에서 안내하는 사용자키 신청 URL로 쇼핑몰을 선택·신청하고, 승인된 user key를 왼쪽에 입력합니다.',
       },
+      {
+        title: '연결 테스트',
+        body: '쇼핑몰 도메인·user key를 넣고 연결 테스트 후 저장합니다.',
+      },
+    ],
+    notes: [
+      '엑클로드 제휴사(partner_key) 준비가 끝나기 전에는 연결이 되지 않을 수 있습니다.',
     ],
   },
   makeshop: {
@@ -230,13 +285,20 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '메이크샵 Developers',
     steps: [
       {
-        title: 'APP API',
-        body: '메이크샵 Developers에서 APP API 연동 정보를 확인합니다.',
+        title: '엑클로드 APP',
+        body: '엑클로드가 Developers에서 APP을 등록·심사하고 접근 허용 IP를 넣습니다. (판매자가 Client ID/Secret을 발급하는 방식이 아닙니다)',
       },
       {
-        title: '도메인·키 등록',
-        body: 'shop_domain·shop_key 등을 왼쪽 입력란에 넣고 테스트 후 저장합니다.',
+        title: '앱 설치',
+        body: '심사·출시된 엑클로드 APP을 샵스토어(또는 안내된 설치 경로)에서 설치하고 권한에 동의합니다.',
       },
+      {
+        title: 'shop_uid 입력',
+        body: '상점 ID(shop_uid)를 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
+      },
+    ],
+    notes: [
+      '레거시 shop_domain·shop_key 방식이 아닙니다. APP 심사 전에는 연결이 되지 않을 수 있습니다.',
     ],
   },
 };
