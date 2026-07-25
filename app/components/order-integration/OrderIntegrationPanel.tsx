@@ -159,17 +159,21 @@ export default function OrderIntegrationPanel() {
 
   const selectedMall =
     selectedMallId === 'all' ? null : availableMalls.find((m) => m.id === selectedMallId) ?? null;
+  const selectedAvailableMallId =
+    selectedMall && isAvailableMallId(selectedMall.id) ? selectedMall.id : null;
 
-  const selectedMallInfoOpts = selectedMall ? excloadInfoOptionsForMall(selectedMall.id) : null;
-  const selectedMallOutboundIp = selectedMall
-    ? selectedMall.id === 'makeshop'
+  const selectedMallInfoOpts = selectedAvailableMallId
+    ? excloadInfoOptionsForMall(selectedAvailableMallId)
+    : null;
+  const selectedMallOutboundIp = selectedAvailableMallId
+    ? selectedAvailableMallId === 'makeshop'
       ? EXCLOAD_MAKESHOP_OUTBOUND_IP || outboundIp
-      : selectedMall.id === 'godomall'
+      : selectedAvailableMallId === 'godomall'
         ? EXCLOAD_GODOMALL_OUTBOUND_IP || outboundIp
         : outboundIp
     : outboundIp;
   const selectedMallExtras =
-    selectedMall?.id === 'cafe24'
+    selectedAvailableMallId === 'cafe24'
       ? [
           { label: 'Redirect URI', value: CAFE24_OAUTH_REDIRECT_URI },
           { label: 'Scope (1차)', value: CAFE24_OAUTH_SCOPES },
