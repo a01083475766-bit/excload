@@ -1,6 +1,17 @@
 import type { OrderIntegrationAccount, OrderIntegrationProvider } from '@prisma/client';
 
 import {
+  fetchCafe24Carriers,
+  fetchCafe24OrderShipments,
+  postCafe24OrderShipment,
+} from '@/app/lib/cafe24/client';
+import { createCafe24CarrierListCache } from '@/app/lib/cafe24/cafe24-carrier-resolve';
+import { runCafe24InvoiceTransmission } from '@/app/lib/cafe24/cafe24-invoice';
+import {
+  ensureCafe24AccessToken,
+  toCafe24Credentials,
+} from '@/app/lib/order-integration/cafe24-account';
+import {
   fetchCoupangOrderSheetByShipmentBoxId,
   postCoupangOrderInvoices,
 } from '@/app/lib/coupang/client';
@@ -134,11 +145,6 @@ const DEFERRED_SPECS: ProviderDeferredSpec[] = [
     provider: 'ELEVEN',
     missingInfo:
       'delivery registration XML endpoint, field names, and success/error XML schema are not confirmed in repository specs.',
-  },
-  {
-    provider: 'CAFE24',
-    missingInfo:
-      'shipment creation endpoint, required OAuth scope, item fields, and result schema are not confirmed in repository specs.',
   },
   {
     provider: 'LOTTEON',
@@ -532,12 +538,107 @@ function createSmartstoreLiveAdapter(
   };
 }
 
+function createCafe24LiveAdapter(
+  options: CreateRealShipmentTransmissionAdaptersOptions,
+): ShipmentTransmissionAdapter {
+  const carrierCache = createCafe24CarrierListCache();
+
+  return {
+    provider: 'CAFE24',
+    buildPayload(candidate: ShipmentTransmissionCandidate) {
+      return {
+        provider: 'CAFE24',
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        trackingNumber: candidate.trackingNumber,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+      };
+    },
+    async transmit(candidate): Promise<ShipmentTransmissionAdapterResult> {
+      const account = await options.loadAccount({
+        userId: options.userId,
+        accountId: candidate.integrationAccountId,
+        provider: 'CAFE24',
+      });
+      if (!account) {
+        return buildFailure({
+          provider: 'CAFE24',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account is not connected.',
+        });
+      }
+
+      const inactive = rejectIfAccountNotActiveForLiveTransmit({
+        provider: 'CAFE24',
+        matchId: candidate.matchId,
+        status: account.status,
+      });
+      if (inactive) return inactive;
+
+      let credentials;
+      let accessToken: string;
+      let tokenScopes: string[] | undefined;
+      try {
+        credentials = toCafe24Credentials(account);
+        const ensured = await ensureCafe24AccessToken(account);
+        accessToken = ensured.accessToken;
+        tokenScopes = ensured.tokens.scopes;
+      } catch {
+        return buildFailure({
+          provider: 'CAFE24',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account credentials are not configured.',
+        });
+      }
+
+      const result = await runCafe24InvoiceTransmission({
+        credentials,
+        accessToken,
+        tokenScopes,
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+        trackingNumber: candidate.trackingNumber,
+        accountCacheKey: candidate.integrationAccountId,
+        carrierCache,
+        fetchCarriers: (shopNo) =>
+          fetchCafe24Carriers({ credentials, accessToken, shopNo }),
+        fetchShipments: ({ orderId, shopNo }) =>
+          fetchCafe24OrderShipments({ credentials, accessToken, orderId, shopNo }),
+        postShipment: ({ orderId, body }) =>
+          postCafe24OrderShipment({ credentials, accessToken, orderId, body }),
+      });
+
+      return {
+        success: result.success,
+        provider: 'CAFE24',
+        matchId: candidate.matchId,
+        providerRequestId: result.providerRequestId,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        retryable: result.retryable,
+        responseSummary: {
+          httpStatus: result.responseSummary.httpStatus,
+          providerStatusCode: result.responseSummary.providerStatusCode,
+          message: result.responseSummary.message,
+        },
+        outcomeKind: result.outcomeKind,
+      };
+    },
+  };
+}
+
 export function createRealShipmentTransmissionAdapters(
   options: CreateRealShipmentTransmissionAdaptersOptions,
 ): ShipmentTransmissionAdapter[] {
   return [
     createCoupangLiveAdapter(options),
     createSmartstoreLiveAdapter(options),
+    createCafe24LiveAdapter(options),
     ...DEFERRED_SPECS.map((spec) => createDeferredAdapter(spec, options)),
   ];
 }

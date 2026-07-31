@@ -74,6 +74,8 @@ export function mapCafe24OrderRowToStandardRow(input: {
   row['주문번호'] = order.order_id ?? '';
   row['상품주문번호'] = item?.order_item_code ?? order.order_id ?? '';
   row['주문상태'] = mapStatusLabel(order.order_status);
+  // 비민감 식별자: shop_no → 스냅샷 mallLineItemIds(`shop_no:N`)·normalizedPayloadJson.shopNo
+  row['센터코드'] = String(Number(order.shop_no) > 0 ? Number(order.shop_no) : 1);
   row['주문일시'] = order.order_date ?? '';
   row['결제일시'] = order.payment_date ?? '';
   row['주문자'] = buyer.name ?? '';

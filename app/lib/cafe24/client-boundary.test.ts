@@ -22,7 +22,7 @@ describe('Cafe24 browser import boundary', () => {
     expect(CAFE24_OAUTH_REDIRECT_URI).toBe(
       'https://www.excload.com/api/order/integration/cafe24/callback',
     );
-    expect(CAFE24_OAUTH_SCOPES).toBe('mall.read_order');
+    expect(CAFE24_OAUTH_SCOPES).toBe('mall.read_order mall.write_order mall.read_shipping');
   });
 
   it('does not import the server-heavy Cafe24 client from client components', () => {

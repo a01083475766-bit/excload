@@ -271,11 +271,11 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     channelName: '카페24',
     integrationType: 'direct_api',
     authType: 'oauth2',
-    supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],
+    supportedActions: [...PHASE1_ACTIONS, 'order_confirm', 'invoice_upload'],
     apiStatus: 'available',
     phase: 'beta',
     requiredSellerAction:
-      '카페24 개발자센터 App 등록 → Client ID/Secret, Redirect URI https://www.excload.com/api/order/integration/cafe24/callback, scope mall.read_order',
+      '계정명·mallId 저장 후 엑클로드 공유 앱 OAuth 동의 (Redirect URI https://www.excload.com/api/order/integration/cafe24/callback, scope mall.read_order mall.write_order mall.read_shipping)',
     tokenExpirePolicy: 'access_token ~2h, refresh_token ~2주(갱신 시 기존 refresh 폐기)',
     rateLimitMemo: 'Admin API Rate Limit — cafe24 문서 준수',
     proxyDomains: [
@@ -290,10 +290,8 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     requiredInputs: [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'mallId', label: '쇼핑몰 ID (mallId)', required: true, storage: 'vendorId' },
-      { key: 'clientId', label: 'Client ID', required: true, storage: 'accessKey' },
-      { key: 'clientSecret', label: 'Client Secret', required: true, secret: true, storage: 'secretKey' },
     ],
-    memo: '베타. OAuth 연동·주문 수집 코드 배포. 개발자센터 App + Lightsail suffix whitelist 1회 반영 후 실연동.',
+    memo: '베타. 공유 앱 OAuth·주문 수집·송장 전송. scope mall.read_order mall.write_order mall.read_shipping. Lightsail suffix whitelist 1회 반영 후 실연동.',
     marketplaceGroupId: 'cafe24',
     requiresFixedIpProxy: true,
   },

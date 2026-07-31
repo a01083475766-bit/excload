@@ -5,7 +5,10 @@ import {
 } from '@/app/lib/order-integration/user-api-auth';
 import { buildCafe24AuthorizeUrl } from '@/app/lib/cafe24/client';
 import { createCafe24OAuthState } from '@/app/lib/cafe24/oauth-state';
-import { decryptClientId, getCafe24AccountForUser } from '@/app/lib/order-integration/cafe24-account';
+import {
+  getCafe24AccountForUser,
+  toCafe24Credentials,
+} from '@/app/lib/order-integration/cafe24-account';
 
 export async function GET() {
   const auth = await requireOrderIntegrationUser();
@@ -20,7 +23,7 @@ export async function GET() {
   }
 
   try {
-    const clientId = decryptClientId(account);
+    const credentials = toCafe24Credentials(account);
     const state = createCafe24OAuthState({
       userId: auth.userId,
       accountId: account.id,
@@ -28,8 +31,8 @@ export async function GET() {
     });
 
     const authorizeUrl = buildCafe24AuthorizeUrl({
-      mallId: account.vendorId ?? '',
-      clientId,
+      mallId: credentials.mallId,
+      clientId: credentials.clientId,
       state,
     });
 

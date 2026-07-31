@@ -130,26 +130,28 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '카페24 Developers',
     steps: [
       {
-        title: '앱 등록',
-        body: '카페24 Developers에서 앱을 등록하고 OAuth 연동을 준비합니다.',
+        title: 'mallId 저장',
+        body: '계정명과 카페24 mallId만 입력·저장합니다. Client ID/Secret은 판매자가 입력하지 않습니다(엑클로드 공유 앱).',
       },
       {
         title: 'Redirect URI · Scope',
         body: (
           <>
-            Redirect URI에{' '}
-            <strong>https://www.excload.com/api/order/integration/cafe24/callback</strong> 를
-            등록하고, Scope에 <strong>mall.read_order</strong> 를 포함합니다.
+            엑클로드 공유 앱 OAuth Redirect URI는{' '}
+            <strong>https://www.excload.com/api/order/integration/cafe24/callback</strong>
+            이며, Scope는{' '}
+            <strong>mall.read_order mall.write_order mall.read_shipping</strong> 입니다.
           </>
         ),
       },
       {
-        title: '키 입력·연동 시작',
-        body: 'Client ID / Secret과 mallId를 왼쪽에 저장한 뒤 「카페24 연동 시작」으로 권한 동의를 완료합니다.',
+        title: '권한 동의·연동 시작',
+        body: '「카페24 연동 시작」으로 엑클로드 공유 앱에 권한을 동의합니다. 권한이 부족하면 「권한 추가 재연동」을 진행하세요.',
       },
     ],
     notes: [
-      '카페24는 판매자센터에 엑클로드 고정 IP를 등록하는 단계가 없습니다. Redirect URI·권한 동의가 핵심입니다.',
+      '주문(Order) 읽기+쓰기, 배송(Shipping) 읽기.',
+      '카페24는 판매자센터에 엑클로드 고정 IP를 등록하는 단계가 없습니다. 공유 앱 OAuth 권한 동의가 핵심입니다.',
     ],
   },
   lotteon: {

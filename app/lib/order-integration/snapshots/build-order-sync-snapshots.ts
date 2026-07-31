@@ -145,6 +145,16 @@ export function collectMallLineItemIds(rows: ReadonlyArray<Record<string, string
   const seen = new Set<string>();
 
   for (const row of rows) {
+    // Cafe24 shop_no 보존 (비민감). 센터코드에 숫자 shop_no를 넣어 둔 경우.
+    const center = String(row['센터코드'] ?? '').trim();
+    if (/^\d+$/.test(center)) {
+      const shopKey = `shop_no:${center}`;
+      if (!seen.has(shopKey)) {
+        seen.add(shopKey);
+        ids.push(shopKey);
+      }
+    }
+
     const lineId = String(row['상품주문번호'] ?? '').trim();
     if (lineId && !seen.has(lineId)) {
       seen.add(lineId);
@@ -184,6 +194,20 @@ function buildNormalizedPayloadJson(
     .filter(Boolean);
   if (optionIds.length > 0) {
     payload.optionIds = [...new Set(optionIds)];
+  }
+
+  const shopNos = rows
+    .map((row) => String(row['센터코드'] ?? '').trim())
+    .filter((value) => /^\d+$/.test(value));
+  if (shopNos.length > 0) {
+    payload.shopNo = Number(shopNos[0]);
+  }
+
+  const shippingCodes = rows
+    .map((row) => String(row['출고번호'] ?? '').trim())
+    .filter(Boolean);
+  if (shippingCodes.length > 0) {
+    payload.shippingCodes = [...new Set(shippingCodes)];
   }
 
   return payload;

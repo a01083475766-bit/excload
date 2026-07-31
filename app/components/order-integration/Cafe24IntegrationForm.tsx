@@ -9,7 +9,7 @@ import {
   getExcloadOutboundIp,
 } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
-import { CAFE24_OAUTH_REDIRECT_URI } from '@/app/lib/cafe24/constants';
+import { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
 import { SecretInput } from '@/app/components/order-integration/SecretInput';
 
@@ -27,23 +27,28 @@ type Cafe24AccountResponse = {
   lastTestedAt: string | null;
   lastSyncedAt: string | null;
   lastErrorMessage: string | null;
+  hasRequiredScopes?: boolean;
+  missingScopes?: string[];
+  needsReauthForScopes?: boolean;
+  reauthMessage?: string | null;
+  usesSharedApp?: boolean;
 };
 
 function CollapsibleGuide({ title, children }: { title: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700">
+    <div className="rounded border border-zinc-200 dark:border-zinc-700">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold text-zinc-900 dark:text-zinc-100"
       >
         {title}
         {open ? <ChevronUp className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
       </button>
       {open ? (
-        <div className="border-t border-zinc-200 px-4 py-3 text-sm leading-relaxed text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+        <div className="border-t border-zinc-200 px-3 py-2 text-sm leading-relaxed text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
           {children}
         </div>
       ) : null}
@@ -51,12 +56,15 @@ function CollapsibleGuide({ title, children }: { title: string; children: ReactN
   );
 }
 
-function statusBannerClass(kind: 'success' | 'error' | 'info'): string {
+function statusBannerClass(kind: 'success' | 'error' | 'info' | 'warning'): string {
   if (kind === 'success') {
     return 'border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/40 dark:text-green-100';
   }
   if (kind === 'error') {
     return 'border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100';
+  }
+  if (kind === 'warning') {
+    return 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100';
   }
   return 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100';
 }
@@ -71,8 +79,6 @@ export function Cafe24IntegrationForm({
   const [savedAccount, setSavedAccount] = useState<Cafe24AccountResponse | null>(null);
   const [accountName, setAccountName] = useState('');
   const [mallId, setMallId] = useState('');
-  const [clientId, setClientId] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
   const [busyAction, setBusyAction] = useState<'save' | 'test' | 'disconnect' | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(
     null,
@@ -84,7 +90,10 @@ export function Cafe24IntegrationForm({
   } | null>(null);
 
   const inputClass =
-    'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
+    'w-full rounded border border-zinc-300 bg-white px-2.5 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
+
+  const needsReauth = Boolean(savedAccount?.needsReauthForScopes);
+  const oauthButtonLabel = needsReauth ? '권한 추가 재연동' : '카페24 연동 시작';
 
   const loadSavedAccount = useCallback(async () => {
     setLoading(true);
@@ -99,7 +108,6 @@ export function Cafe24IntegrationForm({
       if (account) {
         setAccountName(account.accountName);
         setMallId(account.mallId);
-        setClientSecret('');
       }
     } catch (error) {
       setStatusMessage({
@@ -162,8 +170,6 @@ export function Cafe24IntegrationForm({
         body: JSON.stringify({
           accountName,
           mallId,
-          clientId,
-          clientSecret: clientSecret || undefined,
         }),
       });
       const data = (await res.json()) as {
@@ -175,7 +181,6 @@ export function Cafe24IntegrationForm({
       if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
 
       setSavedAccount(data.account ?? null);
-      setClientSecret('');
       setStatusMessage({
         kind: 'success',
         text: data.message ?? '카페24 연동 정보가 저장되었습니다.',
@@ -230,8 +235,6 @@ export function Cafe24IntegrationForm({
       setSavedAccount(null);
       setAccountName('');
       setMallId('');
-      setClientId('');
-      setClientSecret('');
       setStatusMessage({
         kind: 'info',
         text: data.message ?? '카페24 연동이 해제되었습니다.',
@@ -248,39 +251,42 @@ export function Cafe24IntegrationForm({
   }
 
   return (
-    <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
-{!embedded ? (
-      <Link
-        href="/order/integration/connect"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        주문연동 목록
-      </Link>
+    <div className={embedded ? 'w-full' : 'mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6'}>
+      {!embedded ? (
+        <Link
+          href="/order/integration/connect"
+          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          주문연동 목록
+        </Link>
       ) : null}
 
-{!embedded ? (
-      <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">카페24 연동</h1>
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베타
-        </span>
-      </div>
+      {!embedded ? (
+        <div className="mb-2 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">카페24 연동</h1>
+          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            베타
+          </span>
+        </div>
       ) : (
         <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">연동 정보 입력</h2>
       )}
-{!embedded ? (
-      <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        카페24 OAuth 연동 후 연결 테스트를 진행할 수 있습니다. 실제 주문 조회·수집은 주문연동 화면에서 진행합니다.
-        발주확인·송장 전송·주문 상태 변경은 포함하지 않습니다.
-      </p>      ) : (
-        <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
+      {!embedded ? (
+        <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          카페24 OAuth 동의 시 주문(Order) 읽기·쓰기와 배송(Shipping) 읽기 권한이 포함됩니다. 전체 스코프로
+          재연동하면 송장 전송도 사용할 수 있습니다. 실제 주문 조회·수집은 주문연동 화면에서 진행합니다.
+        </p>
+      ) : (
+        <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          계정명과 mallId를 입력한 뒤 저장하고, 엑클로드 공유 앱 OAuth 동의·연결 테스트를 진행합니다.
+        </p>
       )}
 
       {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
       {transportInfo ? (
-        <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
+        <p className={`mb-3 rounded border px-2.5 py-1.5 text-sm ${statusBannerClass('info')}`}>
           API 호출 경로:{' '}
           <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
           {transportInfo.suffixRules?.length ? (
@@ -291,65 +297,67 @@ export function Cafe24IntegrationForm({
         </p>
       ) : null}
 
+      {needsReauth ? (
+        <p className={`mb-3 rounded border px-2.5 py-1.5 text-sm ${statusBannerClass('warning')}`}>
+          {savedAccount?.reauthMessage?.trim() ||
+            '카페24 주문 쓰기권한이 필요합니다. 다시 연동해 주세요'}
+          {savedAccount?.missingScopes?.length ? (
+            <span className="mt-1 block text-xs opacity-90">
+              부족 scope: {savedAccount.missingScopes.join(', ')}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+
       {savedAccount?.hasOAuthTokens ? (
-        <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('success')}`}>
+        <p className={`mb-3 rounded border px-2.5 py-1.5 text-sm ${statusBannerClass('success')}`}>
           OAuth 연결됨
           {savedAccount.tokenExpiresAt
             ? ` · access_token 만료: ${new Date(savedAccount.tokenExpiresAt).toLocaleString('ko-KR')}`
             : null}
         </p>
       ) : savedAccount ? (
-        <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          OAuth 미연결 — 계정 저장 후 「카페24 연동 시작」을 눌러 권한 동의를 완료해 주세요.
+        <p className={`mb-3 rounded border px-2.5 py-1.5 text-sm ${statusBannerClass('info')}`}>
+          OAuth 미연결 — 계정 저장 후 「{oauthButtonLabel}」을 눌러 권한 동의를 완료해 주세요.
         </p>
       ) : null}
 
       {savedAccount?.lastErrorMessage ? (
-        <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
+        <p className={`mb-3 rounded border px-2.5 py-1.5 text-sm ${statusBannerClass('error')}`}>
           최근 오류: {savedAccount.lastErrorMessage}
         </p>
       ) : null}
 
-{!embedded ? (
-      <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <h2 className="mb-3 text-sm font-bold text-blue-900 dark:text-blue-100">개발자센터 등록용</h2>
-        <dl className="space-y-3">
-          <CopyableInfoRow label="Redirect URI" value={CAFE24_OAUTH_REDIRECT_URI} />
-          <CopyableInfoRow label="Scope (1차)" value="mall.read_order" />
-          <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
-          <CopyableInfoRow
-            label="IP 주소 (필요 시)"
-            value={outboundIp}
-            placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 환경변수 설정 필요"
-          />
-        </dl>
-      </section>
+      {!embedded ? (
+        <section className="mb-4 rounded border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+          <h2 className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">OAuth 연동 정보</h2>
+          <dl className="space-y-2">
+            <CopyableInfoRow label="Redirect URI" value={CAFE24_OAUTH_REDIRECT_URI} />
+            <CopyableInfoRow label="Scope" value={CAFE24_OAUTH_SCOPES} />
+            <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
+            <CopyableInfoRow
+              label="IP 주소 (필요 시)"
+              value={outboundIp}
+              placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 환경변수 설정 필요"
+            />
+          </dl>
+        </section>
       ) : null}
 
-{!embedded ? (
-      <CollapsibleGuide title="API 발급 방법 보기 (카페24)">
-        <ol className="list-decimal space-y-2 pl-5">
-          <li>
-            <a
-              href="https://developers.cafe24.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 underline dark:text-blue-400"
-            >
-              카페24 개발자센터
-            </a>
-            에 App을 등록합니다.
-          </li>
-          <li>
-            Redirect URI에 <strong>{CAFE24_OAUTH_REDIRECT_URI}</strong> 를 등록합니다.
-          </li>
-          <li>Scope에 <strong>mall.read_order</strong> 를 포함합니다.</li>
-          <li>발급된 Client ID / Client Secret과 쇼핑몰 mallId를 아래에 입력합니다.</li>
-        </ol>
-      </CollapsibleGuide>
+      {!embedded ? (
+        <CollapsibleGuide title="연동 방법 보기 (카페24)">
+          <ol className="list-decimal space-y-2 pl-5">
+            <li>계정명과 카페24 mallId만 입력·저장합니다. Client ID/Secret은 입력하지 않습니다(엑클로드 공유 앱).</li>
+            <li>
+              「{oauthButtonLabel}」으로 엑클로드 공유 앱에 권한을 동의합니다. Scope:{' '}
+              <strong>{CAFE24_OAUTH_SCOPES}</strong> (주문 읽기·쓰기, 배송 읽기).
+            </li>
+            <li>권한 동의 후 연결 테스트를 진행합니다. 기존 연동에 권한이 부족하면 「권한 추가 재연동」을 진행하세요.</li>
+          </ol>
+        </CollapsibleGuide>
       ) : null}
 
-      <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
+      <form className="mt-4 space-y-3" onSubmit={(e) => e.preventDefault()}>
         <div>
           <label htmlFor="accountName" className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             계정명
@@ -379,46 +387,18 @@ export function Cafe24IntegrationForm({
           resetSignal={savedAccount}
         />
 
-        <SecretInput
-          id="clientId"
-          label="Client ID"
-          confirmLabel="Client ID"
-          secret={false}
-          value={clientId}
-          onChange={setClientId}
-          hasSaved={Boolean(savedAccount?.hasClientId)}
-          savedMasked={savedAccount?.clientIdMasked}
-          newPlaceholder="개발자센터 App Client ID"
-          inputClass={inputClass}
-          disabled={busyAction !== null}
-          resetSignal={savedAccount}
-        />
-
-        <SecretInput
-          id="clientSecret"
-          label="Client Secret"
-          value={clientSecret}
-          onChange={setClientSecret}
-          hasSaved={Boolean(savedAccount?.hasClientSecret)}
-          savedMasked={savedAccount?.clientSecretMasked}
-          newPlaceholder="Client Secret 입력 (저장 후 전체 노출되지 않습니다)"
-          inputClass={inputClass}
-          disabled={busyAction !== null}
-          resetSignal={savedAccount}
-        />
-
         {statusMessage ? (
-          <p className={`rounded-lg border px-3 py-2 text-sm ${statusBannerClass(statusMessage.kind)}`}>
+          <p className={`rounded border px-2.5 py-1.5 text-sm ${statusBannerClass(statusMessage.kind)}`}>
             {statusMessage.text}
           </p>
         ) : null}
 
-        <div className="flex flex-wrap gap-2 pt-2">
+        <div className="flex flex-wrap gap-1.5 pt-1">
           <button
             type="button"
             disabled={busyAction !== null}
             onClick={() => void handleSave()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+            className="inline-flex h-8 items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             저장
@@ -427,15 +407,15 @@ export function Cafe24IntegrationForm({
             type="button"
             disabled={busyAction !== null || !savedAccount}
             onClick={handleStartOAuth}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-60"
+            className="inline-flex h-8 items-center gap-1.5 rounded bg-blue-600 px-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
-            카페24 연동 시작
+            {oauthButtonLabel}
           </button>
           <button
             type="button"
             disabled={busyAction !== null || !savedAccount?.hasOAuthTokens}
             onClick={() => void handleTest()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+            className="inline-flex h-8 items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             연결 테스트
@@ -444,7 +424,7 @@ export function Cafe24IntegrationForm({
             type="button"
             disabled={busyAction !== null || !savedAccount}
             onClick={() => void handleDisconnect()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            className="inline-flex h-8 items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             {busyAction === 'disconnect' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             연동 해제

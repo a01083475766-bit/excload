@@ -2,8 +2,15 @@ import { assertIntegrationProxyConfigReady, isIntegrationProxyConfigured } from 
 import { invokeIntegrationHttp } from '@/app/lib/integration-proxy/http-transport';
 import { assertValidCafe24MallId, buildCafe24ApiOrigin } from '@/app/lib/cafe24/mall-id';
 import { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
+import { listMissingCafe24Scopes } from '@/app/lib/cafe24/scopes';
 
 export { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
+export { CAFE24_REQUIRED_SCOPES, CAFE24_TRACKING_NO_MAX_LENGTH } from '@/app/lib/cafe24/constants';
+export {
+  hasAllCafe24RequiredScopes,
+  listMissingCafe24Scopes,
+  normalizeCafe24ScopeList,
+} from '@/app/lib/cafe24/scopes';
 
 export type Cafe24ClientCredentials = {
   mallId: string;
@@ -86,14 +93,15 @@ function assertCafe24HttpSuccess(httpStatus: number, bodyText: string): void {
   throw new Error(`카페24 API 호출에 실패했습니다. (HTTP ${httpStatus})`);
 }
 
-export async function cafe24HttpRequest(input: {
+/** 호출부에서 HTTP 상태별 분기할 때 사용. 토큰·본문 원문은 그대로 반환하되 로깅은 호출부 책임. */
+export async function cafe24HttpRequestRaw(input: {
   mallId: string;
   method: string;
   pathWithQuery: string;
   headers?: Record<string, string>;
   body?: string;
   contentType?: string;
-}): Promise<string> {
+}): Promise<{ httpStatus: number; bodyText: string }> {
   if (!isIntegrationProxyConfigured()) {
     throw new Error('카페24 API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.');
   }
@@ -108,13 +116,23 @@ export async function cafe24HttpRequest(input: {
     headers['Content-Type'] = input.contentType ?? 'application/x-www-form-urlencoded';
   }
 
-  const { httpStatus, bodyText } = await invokeIntegrationHttp({
+  return invokeIntegrationHttp({
     method: input.method,
     url,
     headers,
     body: input.body ?? null,
   });
+}
 
+export async function cafe24HttpRequest(input: {
+  mallId: string;
+  method: string;
+  pathWithQuery: string;
+  headers?: Record<string, string>;
+  body?: string;
+  contentType?: string;
+}): Promise<string> {
+  const { httpStatus, bodyText } = await cafe24HttpRequestRaw(input);
   assertCafe24HttpSuccess(httpStatus, bodyText);
   return bodyText;
 }
@@ -257,8 +275,11 @@ export async function testCafe24Connection(input: {
   accessToken: string;
 }): Promise<{ ok: true; scopes: string[] }> {
   const scopes = await fetchCafe24TokenScopes(input);
-  if (!scopes.includes('mall.read_order')) {
-    throw new Error('mall.read_order 권한이 없습니다. 카페24 App scope 설정을 확인해 주세요.');
+  const missing = listMissingCafe24Scopes(scopes);
+  if (missing.length > 0) {
+    throw new Error(
+      `카페24 권한이 부족합니다 (${missing.join(', ')}). 권한 추가를 위해 다시 연동해 주세요.`,
+    );
   }
   return { ok: true, scopes };
 }
@@ -312,6 +333,89 @@ export async function fetchCafe24Orders(input: {
   }
 
   return collected;
+}
+
+export type Cafe24Carrier = {
+  shop_no?: number;
+  carrier_id?: number | string;
+  shipping_company_code?: string;
+  shipping_company_name?: string;
+  /** 일부 응답에서 별칭으로 올 수 있음 */
+  company_name?: string;
+};
+
+export type Cafe24Shipment = {
+  shop_no?: number;
+  shipping_code?: string;
+  order_id?: string;
+  tracking_no?: string;
+  shipping_company_code?: string;
+  status?: string;
+  order_item_code?: string | string[];
+  items?: Array<{ order_item_code?: string }>;
+};
+
+export async function fetchCafe24Carriers(input: {
+  credentials: Cafe24ClientCredentials;
+  accessToken: string;
+  shopNo?: number;
+}): Promise<Cafe24Carrier[]> {
+  const shopNo = input.shopNo && input.shopNo > 0 ? input.shopNo : 1;
+  const query = new URLSearchParams({ shop_no: String(shopNo) });
+  const response = await cafe24AuthorizedRequest<{ carriers?: Cafe24Carrier[] }>({
+    credentials: input.credentials,
+    accessToken: input.accessToken,
+    method: 'GET',
+    pathWithQuery: `/api/v2/admin/carriers?${query.toString()}`,
+  });
+  return response.carriers ?? [];
+}
+
+export async function fetchCafe24OrderShipments(input: {
+  credentials: Cafe24ClientCredentials;
+  accessToken: string;
+  orderId: string;
+  shopNo?: number;
+}): Promise<Cafe24Shipment[]> {
+  const orderId = encodeURIComponent(input.orderId.trim());
+  const shopNo = input.shopNo && input.shopNo > 0 ? input.shopNo : 1;
+  const query = new URLSearchParams({ shop_no: String(shopNo) });
+  const response = await cafe24AuthorizedRequest<{ shipments?: Cafe24Shipment[] }>({
+    credentials: input.credentials,
+    accessToken: input.accessToken,
+    method: 'GET',
+    pathWithQuery: `/api/v2/admin/orders/${orderId}/shipments?${query.toString()}`,
+  });
+  return response.shipments ?? [];
+}
+
+export type Cafe24CreateShipmentRequest = {
+  shop_no: number;
+  request: {
+    tracking_no: string;
+    shipping_company_code: string;
+    order_item_code: string[];
+    status: 'shipping' | 'standby';
+  };
+};
+
+export async function postCafe24OrderShipment(input: {
+  credentials: Cafe24ClientCredentials;
+  accessToken: string;
+  orderId: string;
+  body: Cafe24CreateShipmentRequest;
+}): Promise<{ httpStatus: number; bodyText: string }> {
+  const orderId = encodeURIComponent(input.orderId.trim());
+  return cafe24HttpRequestRaw({
+    mallId: input.credentials.mallId,
+    method: 'POST',
+    pathWithQuery: `/api/v2/admin/orders/${orderId}/shipments`,
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+    },
+    body: JSON.stringify(input.body),
+    contentType: 'application/json',
+  });
 }
 
 export function toUserFacingCafe24ErrorMessage(error: unknown): string {

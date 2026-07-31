@@ -15,6 +15,25 @@ import {
   toCoupangCredentials,
   type CoupangCredentials,
 } from '@/app/lib/order-integration/coupang-account';
+import {
+  ensureCafe24AccessToken,
+  toCafe24Credentials,
+} from '@/app/lib/order-integration/cafe24-account';
+import {
+  fetchCafe24Carriers,
+  fetchCafe24OrderShipments,
+  toUserFacingCafe24ErrorMessage,
+  type Cafe24ClientCredentials,
+  type Cafe24Shipment,
+} from '@/app/lib/cafe24/client';
+import {
+  extractCafe24OrderItemCodes,
+  extractCafe24ShopNoFromMallLineItemIds,
+  findConflictingCafe24Shipment,
+  findMatchingCafe24Shipment,
+  mapCafe24ShipmentVerifyStatus,
+} from '@/app/lib/cafe24/cafe24-invoice';
+import { resolveCafe24ShippingCompanyCode } from '@/app/lib/cafe24/cafe24-carrier-resolve';
 import { toSmartstoreCredentials } from '@/app/lib/order-integration/smartstore-account';
 import {
   fetchSmartstoreProductOrdersByIds,
@@ -115,8 +134,12 @@ export type VerifyTransmissionServiceDeps = {
   }) => Promise<OrderIntegrationAccount | null>;
   resolveSmartstoreCredentials?: (account: OrderIntegrationAccount) => SmartstoreCredentials;
   resolveCoupangCredentials?: (account: OrderIntegrationAccount) => CoupangCredentials;
+  resolveCafe24Credentials?: (account: OrderIntegrationAccount) => Cafe24ClientCredentials;
+  ensureCafe24AccessToken?: typeof ensureCafe24AccessToken;
   fetchSmartstoreByIds?: typeof fetchSmartstoreProductOrdersByIds;
   fetchCoupangByBoxId?: typeof fetchCoupangOrderSheetByShipmentBoxId;
+  fetchCafe24Shipments?: typeof fetchCafe24OrderShipments;
+  fetchCafe24Carriers?: typeof fetchCafe24Carriers;
   /** SMARTSTORE 부분 결과 보존·Match SENT 정리 (선택) */
   persistSmartstoreVerification?: (
     input: PersistSmartstoreVerificationInput,
@@ -383,6 +406,145 @@ async function verifyCoupangAttempt(
   }
 }
 
+async function verifyCafe24Attempt(
+  deps: VerifyTransmissionServiceDeps,
+  record: VerifyTransmissionAttemptRecord,
+  account: OrderIntegrationAccount,
+): Promise<VerifyTransmissionResultItem> {
+  const lineIds =
+    (Array.isArray(record.mallLineItemIdsJson)
+      ? (record.mallLineItemIdsJson as string[])
+      : null) ??
+    (Array.isArray(record.orderSyncOrder?.mallLineItemIds)
+      ? (record.orderSyncOrder!.mallLineItemIds as string[])
+      : []);
+  const orderItemCodes = extractCafe24OrderItemCodes(lineIds);
+  const shopNo = extractCafe24ShopNoFromMallLineItemIds(lineIds);
+  const orderId = String(record.mallOrderNo ?? '').trim();
+  const trackingNo = String(record.trackingNumberNormalized ?? '').trim();
+
+  if (!orderId) {
+    return failedItem(record.id, '확인에 필요한 주문번호가 없습니다.');
+  }
+
+  let credentials: Cafe24ClientCredentials;
+  let accessToken: string;
+  try {
+    credentials = (deps.resolveCafe24Credentials ?? toCafe24Credentials)(account);
+    const ensured = await (deps.ensureCafe24AccessToken ?? ensureCafe24AccessToken)(account);
+    accessToken = ensured.accessToken;
+  } catch {
+    return failedItem(record.id, '쇼핑몰 연결을 확인하세요.');
+  }
+
+  const fetchShipments = deps.fetchCafe24Shipments ?? fetchCafe24OrderShipments;
+  const fetchCarriers = deps.fetchCafe24Carriers ?? fetchCafe24Carriers;
+
+  try {
+    let shippingCompanyCode = '';
+    try {
+      const carriers = await fetchCarriers({ credentials, accessToken, shopNo });
+      const mapped = resolveCafe24ShippingCompanyCode({
+        carriers,
+        courierCode: record.courierCode,
+        courierName: record.courierName,
+      });
+      if (mapped.ok) shippingCompanyCode = mapped.shippingCompanyCode;
+    } catch {
+      // 배송사 조회 실패 시에도 송장번호 기준으로 확인 시도
+    }
+
+    const shipments: Cafe24Shipment[] = await fetchShipments({
+      credentials,
+      accessToken,
+      orderId,
+      shopNo,
+    });
+
+    if (trackingNo && shippingCompanyCode) {
+      const conflict = findConflictingCafe24Shipment({
+        shipments,
+        trackingNo,
+        orderItemCodes,
+      });
+      if (conflict) {
+        return {
+          attemptId: record.id,
+          status: 'ATTENTION',
+          mallStatusCode: conflict.status ?? null,
+          mallStatusLabel: conflict.status ?? null,
+          confirmedItems: 0,
+          totalItems: orderItemCodes.length || null,
+          message: '다른 송장이 이미 등록되어 있습니다.',
+        };
+      }
+
+      const matched = findMatchingCafe24Shipment({
+        shipments,
+        trackingNo,
+        shippingCompanyCode,
+        orderItemCodes,
+      });
+      if (!matched) {
+        return {
+          attemptId: record.id,
+          status: 'PENDING',
+          mallStatusCode: null,
+          mallStatusLabel: null,
+          confirmedItems: 0,
+          totalItems: orderItemCodes.length || null,
+          message: '배송정보에 송장이 아직 보이지 않습니다. 잠시 후 다시 확인해 주세요.',
+        };
+      }
+
+      const mapped = mapCafe24ShipmentVerifyStatus(matched.status);
+      if (mapped.verifyKind === 'confirmed') {
+        return {
+          attemptId: record.id,
+          status: 'CONFIRMED',
+          mallStatusCode: mapped.label,
+          mallStatusLabel: mapped.label,
+          confirmedItems: orderItemCodes.length || 1,
+          totalItems: orderItemCodes.length || 1,
+          message: '카페24 배송정보에서 송장 등록이 확인되었습니다.',
+        };
+      }
+      if (mapped.verifyKind === 'standby') {
+        return {
+          attemptId: record.id,
+          status: 'PENDING',
+          mallStatusCode: 'standby',
+          mallStatusLabel: 'standby',
+          confirmedItems: 0,
+          totalItems: orderItemCodes.length || 1,
+          message: '송장이 등록됐으며 배송대기(standby) 상태입니다.',
+        };
+      }
+      return {
+        attemptId: record.id,
+        status: 'PENDING',
+        mallStatusCode: mapped.label,
+        mallStatusLabel: mapped.label,
+        confirmedItems: 0,
+        totalItems: orderItemCodes.length || 1,
+        message: '송장 등록 확인 대기 중입니다.',
+      };
+    }
+
+    return {
+      attemptId: record.id,
+      status: 'PENDING',
+      mallStatusCode: null,
+      mallStatusLabel: null,
+      confirmedItems: 0,
+      totalItems: orderItemCodes.length || null,
+      message: '확인에 필요한 송장·배송사 정보가 부족합니다.',
+    };
+  } catch (error) {
+    return failedItem(record.id, toUserFacingCafe24ErrorMessage(error));
+  }
+}
+
 export async function runVerifyTransmissionService(
   deps: VerifyTransmissionServiceDeps,
   input: { userId: string; batchId: string; attemptIds: string[] },
@@ -424,6 +586,11 @@ export async function runVerifyTransmissionService(
         );
         continue;
       }
+    } else if (record.provider === 'CAFE24') {
+      if (record.status !== 'SUCCESS' && record.status !== 'UNKNOWN') {
+        results.push(unsupportedItem(attemptId, '전송 성공·확인대기 건만 확인할 수 있습니다.'));
+        continue;
+      }
     } else {
       results.push(
         unsupportedItem(attemptId, '이 쇼핑몰은 상태 확인을 아직 지원하지 않습니다. 상태 확인 지원 예정.'),
@@ -453,6 +620,8 @@ export async function runVerifyTransmissionService(
 
     if (record.provider === 'SMARTSTORE') {
       results.push(await verifySmartstoreAttempt(deps, record, account));
+    } else if (record.provider === 'CAFE24') {
+      results.push(await verifyCafe24Attempt(deps, record, account));
     } else {
       results.push(await verifyCoupangAttempt(deps, record, account));
     }

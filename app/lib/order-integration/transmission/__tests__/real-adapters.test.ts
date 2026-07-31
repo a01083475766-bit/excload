@@ -143,4 +143,21 @@ describe('real shipment transmission adapters', () => {
     expect(result.success).toBe(false);
     expect(result.errorCode).toBe('PROVIDER_SPEC_INCOMPLETE');
   });
+
+  it('registers Cafe24 as a live adapter (not PROVIDER_SPEC_INCOMPLETE stub)', async () => {
+    const adapter = registry({
+      loadAccount: async ({ provider }) => ({
+        ...account(provider),
+        vendorId: 'demo',
+        apiKeyCiphertext: 'x',
+        accessKeyCiphertext: 'x',
+        secretKeyCiphertext: 'x',
+      }),
+    }).get('CAFE24')!;
+
+    expect(adapter.provider).toBe('CAFE24');
+    const payload = adapter.buildPayload(candidate({ provider: 'CAFE24' }));
+    expect(payload).toMatchObject({ provider: 'CAFE24' });
+    expect(JSON.stringify(payload)).not.toMatch(/PROVIDER_SPEC_INCOMPLETE/);
+  });
 });
