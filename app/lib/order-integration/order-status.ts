@@ -181,3 +181,32 @@ export function resolvePlaceOrderSecondaryHint(
   if (view.placeOrderStatus === 'OK') return 'OK';
   return null;
 }
+
+const INVOICE_MISSING_AFTER_SHIP_TITLE =
+  '주문은 배송 이후 상태이지만, 쇼핑몰 조회 결과에 송장번호가 없습니다. 직접배송·방문수령 등의 주문일 수 있습니다.';
+
+export type InvoiceInfoDisplay = {
+  text: string;
+  title?: string;
+};
+
+/**
+ * 주문조회 표의 「송장 정보」열 문구.
+ * 송장번호 원문은 사용하지 않고 hasTracking boolean만 본다.
+ */
+export function resolveInvoiceInfoDisplay(input: {
+  hasTracking: boolean;
+  status: ExcloadOrderStatus;
+}): InvoiceInfoDisplay {
+  if (input.hasTracking) return { text: '등록됨' };
+  if (input.status === 'PAYED') return { text: '미등록' };
+  if (
+    input.status === 'DELIVERING' ||
+    input.status === 'DELIVERED' ||
+    input.status === 'PURCHASE_DECIDED'
+  ) {
+    return { text: '송장번호 없음', title: INVOICE_MISSING_AFTER_SHIP_TITLE };
+  }
+  // 그 밖(취소·반품 등): 기존과 동일하게 미등록
+  return { text: '미등록' };
+}

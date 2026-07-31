@@ -7,6 +7,7 @@ import {
   normalizeSmartstoreOrderStatus,
   normalizeSmartstorePlaceOrderStatus,
   ORDER_WORK_TARGET_LABEL,
+  resolveInvoiceInfoDisplay,
   resolvePlaceOrderSecondaryHint,
 } from '@/app/lib/order-integration/order-status';
 
@@ -153,5 +154,37 @@ describe('resolvePlaceOrderSecondaryHint', () => {
     expect(
       resolvePlaceOrderSecondaryHint({ status: 'CANCELED', placeOrderStatus: 'OK' }),
     ).toBeNull();
+  });
+});
+
+describe('resolveInvoiceInfoDisplay', () => {
+  it('shows 등록됨 whenever hasTracking is true', () => {
+    expect(resolveInvoiceInfoDisplay({ hasTracking: true, status: 'PAYED' }).text).toBe('등록됨');
+    expect(
+      resolveInvoiceInfoDisplay({ hasTracking: true, status: 'PURCHASE_DECIDED' }).text,
+    ).toBe('등록됨');
+    expect(resolveInvoiceInfoDisplay({ hasTracking: true, status: 'DELIVERING' }).text).toBe(
+      '등록됨',
+    );
+  });
+
+  it('shows 미등록 for PAYED without tracking', () => {
+    expect(resolveInvoiceInfoDisplay({ hasTracking: false, status: 'PAYED' })).toEqual({
+      text: '미등록',
+    });
+  });
+
+  it('shows 송장번호 없음 for post-ship statuses without tracking', () => {
+    for (const status of ['DELIVERING', 'DELIVERED', 'PURCHASE_DECIDED'] as const) {
+      const display = resolveInvoiceInfoDisplay({ hasTracking: false, status });
+      expect(display.text).toBe('송장번호 없음');
+      expect(display.title).toMatch(/송장번호가 없습니다/);
+    }
+  });
+
+  it('keeps 미등록 for other statuses without tracking', () => {
+    expect(resolveInvoiceInfoDisplay({ hasTracking: false, status: 'CANCELED' }).text).toBe(
+      '미등록',
+    );
   });
 });

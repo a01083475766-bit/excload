@@ -49,6 +49,7 @@ import {
   matchesWorkTarget,
   ORDER_WORK_TARGET_LABEL,
   ORDER_WORK_TARGET_ORDER,
+  resolveInvoiceInfoDisplay,
   resolvePlaceOrderSecondaryHint,
   type OrderWorkTarget,
 } from '@/app/lib/order-integration/order-status';
@@ -1279,7 +1280,7 @@ export default function OrderIntegrationFetchPanel() {
                       <th className="w-[22rem] px-2 py-2 font-medium">배송지</th>
                       <th className="w-[14rem] px-2 py-2 font-medium">배송요청</th>
                       <th className="w-[6.5rem] px-2 py-2 text-right font-medium">결제금액</th>
-                      <th className="w-[6rem] px-2 py-2 font-medium">배송/송장</th>
+                      <th className="w-[6rem] px-2 py-2 font-medium">송장 정보</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
@@ -1378,6 +1379,7 @@ function FetchRow({
   onToggleCheck: () => void;
 }) {
   const placeHint = resolvePlaceOrderSecondaryHint(row);
+  const invoiceInfo = resolveInvoiceInfoDisplay(row);
   return (
     <tr className={checked ? 'bg-blue-50/40' : undefined}>
       <td className="px-2 py-2 align-top">
@@ -1459,7 +1461,7 @@ function FetchRow({
         {formatAmount(row.paymentAmount)}
       </td>
       <td className="px-2 py-2 align-top text-zinc-600">
-        {row.hasTracking ? '송장 등록' : '미등록'}
+        <span title={invoiceInfo.title}>{invoiceInfo.text}</span>
         {row.claimLabel ? <span className="ml-1 text-red-600">· {row.claimLabel}</span> : null}
       </td>
     </tr>

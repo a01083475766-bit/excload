@@ -156,3 +156,50 @@ describe('수량 클레임 대응 매핑', () => {
     expect(view?.paymentMeans).toBe('신용카드');
   });
 });
+
+describe('mapSmartstoreOrdersToFetchViews hasTracking', () => {
+  it('sets hasTracking true when trackingNumber is present', () => {
+    const [view] = mapSmartstoreOrdersToFetchViews([
+      {
+        order: { orderId: 'ORD-T1' },
+        productOrder: { productOrderId: 'PO-T1', productOrderStatus: 'PURCHASE_DECIDED' },
+        delivery: { trackingNumber: '123456789012', deliveryCompanyCode: 'CJGLS' },
+      },
+    ]);
+    expect(view?.hasTracking).toBe(true);
+    expect(JSON.stringify(view)).not.toContain('123456789012');
+  });
+
+  it('sets hasTracking false for missing / empty / whitespace trackingNumber', () => {
+    const cases = [
+      undefined,
+      { trackingNumber: undefined, deliveryCompanyCode: 'CJGLS' },
+      { trackingNumber: '', deliveryCompanyCode: 'CJGLS' },
+      { trackingNumber: '   ', deliveryCompanyCode: 'CJGLS' },
+      { deliveryCompanyCode: 'CJGLS' },
+    ] as const;
+
+    for (const delivery of cases) {
+      const [view] = mapSmartstoreOrdersToFetchViews([
+        {
+          order: { orderId: 'ORD-T0' },
+          productOrder: { productOrderId: 'PO-T0', productOrderStatus: 'DELIVERED' },
+          ...(delivery ? { delivery } : {}),
+        },
+      ]);
+      expect(view?.hasTracking).toBe(false);
+    }
+  });
+
+  it('does not treat PURCHASE_DECIDED alone as hasTracking', () => {
+    const [view] = mapSmartstoreOrdersToFetchViews([
+      {
+        order: { orderId: 'ORD-T2' },
+        productOrder: { productOrderId: 'PO-T2', productOrderStatus: 'PURCHASE_DECIDED' },
+      },
+    ]);
+    expect(view?.status).toBe('PURCHASE_DECIDED');
+    expect(view?.hasTracking).toBe(false);
+    expect(isShipmentTarget(view!)).toBe(false);
+  });
+});

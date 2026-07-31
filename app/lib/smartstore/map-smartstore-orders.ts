@@ -160,7 +160,7 @@ export function mapSmartstoreOrdersToFetchViews(
       receiverName: shipping.name ?? '',
       paymentAmount: pickPaymentAmount(productOrder),
       paymentMeans: order.paymentMeans ?? '',
-      hasTracking: false,
+      hasTracking: Boolean(detail.delivery?.trackingNumber?.trim()),
       claimLabel: claimLabelOf(productOrder),
       detail: {
         ordererName: order.ordererName ?? '',
