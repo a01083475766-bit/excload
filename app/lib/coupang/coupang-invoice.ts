@@ -9,7 +9,6 @@ import { resolveProviderCourierCode } from '@/app/lib/order-integration/transmis
 
 export const COUPANG_INVOICE_PATH_SUFFIX = '/orders/invoices';
 
-const AMBIGUOUS_HTTP_STATUSES = new Set([500, 502, 503, 504, 521]);
 const CONFIRMED_SHIP_STATUSES = new Set(['DEPARTURE', 'DELIVERING', 'FINAL_DELIVERY']);
 const ALLOWED_SHIPMENT_TYPE = 'THIRD_PARTY';
 
@@ -90,7 +89,8 @@ export function buildCoupangInvoicePath(vendorId: string): string {
 }
 
 export function isAmbiguousInvoiceHttpStatus(httpStatus: number): boolean {
-  return AMBIGUOUS_HTTP_STATUSES.has(httpStatus) || httpStatus === 0;
+  // 송장 POST 이후 5xx는 반영 여부를 확정할 수 없으므로 전부 UNKNOWN.
+  return httpStatus === 0 || (httpStatus >= 500 && httpStatus <= 599);
 }
 
 export function isConfirmedCoupangShipStatus(status: string | null | undefined): boolean {

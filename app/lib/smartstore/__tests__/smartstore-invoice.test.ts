@@ -6,6 +6,7 @@ import {
   buildSmartstoreDispatchDate,
   classifySmartstoreDispatchPreflight,
   extractSmartstoreDispatchProductOrderIds,
+  isAmbiguousDispatchHttpStatus,
   parseSmartstoreDispatchResponse,
   resolveSmartstoreDeliveryCompanyCode,
   runSmartstoreInvoiceTransmission,
@@ -438,6 +439,48 @@ describe('runSmartstoreInvoiceTransmission', () => {
     expect(dispatchBatch).not.toHaveBeenCalled();
     expect(result.success).toBe(false);
     expect(result.itemResults[0]?.status).toBe('UNCERTAIN');
+  });
+});
+
+describe('smartstore invoice ambiguous HTTP classification', () => {
+  it('treats every 5xx as unknown and keeps 429 unknown', () => {
+    for (const status of [500, 501, 502, 503, 504, 520, 521, 522, 599]) {
+      expect(isAmbiguousDispatchHttpStatus(status)).toBe(true);
+    }
+    expect(isAmbiguousDispatchHttpStatus(429)).toBe(true);
+    expect(isAmbiguousDispatchHttpStatus(400)).toBe(false);
+    expect(isAmbiguousDispatchHttpStatus(403)).toBe(false);
+  });
+
+  it('returns unknown on 501/520/522 without FAILED outcome', async () => {
+    for (const httpStatus of [501, 520, 522]) {
+      const dispatchBatch = vi.fn(async () => ({ httpStatus, bodyText: '{}' }));
+      const result = await runSmartstoreInvoiceTransmission({
+        mallOrderNo: 'ORDER-1',
+        mallLineItemIds: ['PO-1'],
+        courierCode: 'CJ',
+        courierName: null,
+        trackingNumber: '123456789012',
+        fetchByIds: async () => [detail()],
+        dispatchBatch,
+      });
+      expect(dispatchBatch).toHaveBeenCalledTimes(1);
+      expect(result.outcomeKind).toBe('unknown');
+    }
+  });
+
+  it('keeps definitive 4xx as failure', async () => {
+    const dispatchBatch = vi.fn(async () => ({ httpStatus: 400, bodyText: '{}' }));
+    const result = await runSmartstoreInvoiceTransmission({
+      mallOrderNo: 'ORDER-1',
+      mallLineItemIds: ['PO-1'],
+      courierCode: 'CJ',
+      courierName: null,
+      trackingNumber: '123456789012',
+      fetchByIds: async () => [detail()],
+      dispatchBatch,
+    });
+    expect(result.outcomeKind).toBe('failure');
   });
 });
 

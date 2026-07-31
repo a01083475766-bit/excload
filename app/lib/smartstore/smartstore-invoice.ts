@@ -15,8 +15,6 @@ import { normalizeFingerprintTrackingNumber } from '@/app/lib/order-integration/
 
 export { SMARTSTORE_DISPATCH_MAX_BATCH, SMARTSTORE_DISPATCH_PATH };
 
-const AMBIGUOUS_HTTP_STATUSES = new Set([429, 500, 502, 503, 504, 521]);
-
 const BLOCKED_PRODUCT_ORDER_STATUSES = new Set([
   'CANCELED',
   'CANCELED_BY_NOPAYMENT',
@@ -81,7 +79,8 @@ function sanitizeMessage(raw: string | null | undefined, fallback: string): stri
 }
 
 export function isAmbiguousDispatchHttpStatus(httpStatus: number): boolean {
-  return AMBIGUOUS_HTTP_STATUSES.has(httpStatus) || httpStatus === 0;
+  // 429는 기존 정책 유지. 5xx는 송장 POST 후 반영 여부를 확정할 수 없어 전부 UNKNOWN.
+  return httpStatus === 0 || httpStatus === 429 || (httpStatus >= 500 && httpStatus <= 599);
 }
 
 export function isSafeSmartstoreTrackingNumber(value: string): boolean {

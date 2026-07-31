@@ -6,6 +6,8 @@ import {
   collectShipableVendorItemIds,
   confirmInvoiceByRefetch,
   evaluateCoupangInvoicePreflight,
+  isAmbiguousInvoiceHttpStatus,
+  judgeCoupangInvoiceHttpResponse,
   judgeCoupangInvoiceParsedResponse,
   parseCoupangInvoiceResponse,
   requireSingleShipmentBoxId,
@@ -416,6 +418,59 @@ describe('runCoupangInvoiceTransmission', () => {
       postInvoices: post,
     });
 
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(result.outcomeKind).toBe('unknown');
+  });
+});
+
+describe('coupang invoice ambiguous HTTP classification', () => {
+  it('treats every 5xx (including 501/520/522/599) as unknown', () => {
+    for (const status of [500, 501, 502, 503, 504, 520, 521, 522, 599]) {
+      expect(isAmbiguousInvoiceHttpStatus(status)).toBe(true);
+      expect(
+        judgeCoupangInvoiceHttpResponse({
+          httpStatus: status,
+          bodyText: '{}',
+          requestedShipmentBoxId: BOX,
+        }).outcomeKind,
+      ).toBe('unknown');
+    }
+  });
+
+  it('keeps definitive 4xx as failure', () => {
+    expect(isAmbiguousInvoiceHttpStatus(400)).toBe(false);
+    expect(isAmbiguousInvoiceHttpStatus(403)).toBe(false);
+    expect(isAmbiguousInvoiceHttpStatus(429)).toBe(false);
+    expect(
+      judgeCoupangInvoiceHttpResponse({
+        httpStatus: 400,
+        bodyText: '{}',
+        requestedShipmentBoxId: BOX,
+      }).outcomeKind,
+    ).toBe('failure');
+    expect(
+      judgeCoupangInvoiceHttpResponse({
+        httpStatus: 403,
+        bodyText: '{}',
+        requestedShipmentBoxId: BOX,
+      }).outcomeKind,
+    ).toBe('failure');
+  });
+
+  it('returns unknown from transmission on non-whitelist 5xx without treating as failure', async () => {
+    const post = vi.fn(async () => ({ httpStatus: 522, bodyText: '' }));
+    const result = await runCoupangInvoiceTransmission({
+      vendorId: 'A00012345',
+      accessKey: 'access',
+      secretKey: 'secret',
+      mallOrderNo: ORDER,
+      mallLineItemIds: [`bundle:${BOX}`],
+      courierCode: 'CJ',
+      courierName: null,
+      invoiceNumber: INVOICE,
+      fetchByBoxId: async () => baseSheet(),
+      postInvoices: post,
+    });
     expect(post).toHaveBeenCalledTimes(1);
     expect(result.outcomeKind).toBe('unknown');
   });

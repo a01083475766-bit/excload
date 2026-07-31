@@ -384,6 +384,16 @@ describe('evaluateShipmentTransmissionEligibility', () => {
     ).toBe(false);
   });
 
+  it('does not allow UNKNOWN even when retryFailed=true', () => {
+    const result = evaluate({
+      match: buildMatch({ transmissionStatus: 'UNKNOWN' }),
+      options: { retryFailed: true },
+    });
+    expect(result.eligible).toBe(false);
+    if (result.eligible) return;
+    expect(result.reasonCode).toBe('TRANSMISSION_SKIPPED');
+  });
+
   it('blocks SENT retransmission', () => {
     const result = evaluate({
       match: buildMatch({ transmissionStatus: 'SENT' }),

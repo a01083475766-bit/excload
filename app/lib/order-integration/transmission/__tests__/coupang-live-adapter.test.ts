@@ -176,4 +176,29 @@ describe('COUPANG live shipment transmission adapter', () => {
     expect(smartstoreResult.errorCode).not.toBe('PROVIDER_SPEC_INCOMPLETE');
     expect(postInvoicesMock).not.toHaveBeenCalled();
   });
+
+  it('blocks INACTIVE and ERROR accounts before any Coupang external call', async () => {
+    for (const status of ['INACTIVE', 'ERROR'] as const) {
+      vi.clearAllMocks();
+      const registry = createRealShipmentTransmissionAdapterRegistry({
+        userId: 'user-1',
+        loadAccount: async () => ({ ...account(), status }),
+        resolveAccountSecrets: () => ({
+          accountId: 'acct-1',
+          vendorId: 'A00012345',
+          sellerId: null,
+          accessKey: 'access',
+          secretKey: 'secret',
+          apiKey: null,
+        }),
+      });
+
+      const result = await registry.get('COUPANG')!.transmit(candidate());
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('ACCOUNT_NOT_ACTIVE');
+      expect(result.errorMessage).toMatch(/not active/i);
+      expect(postInvoicesMock).not.toHaveBeenCalled();
+      expect(fetchByBoxMock).not.toHaveBeenCalled();
+    }
+  });
 });

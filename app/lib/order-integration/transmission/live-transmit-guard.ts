@@ -15,6 +15,8 @@ export type LiveTransmitAllowlistReasonCode =
   | 'LIVE_PROVIDER_NOT_ALLOWED'
   | 'LIVE_ACCOUNT_NOT_ALLOWED';
 
+export type LiveTransmitAccountStatusReasonCode = 'ACCOUNT_NOT_ACTIVE';
+
 export type LiveTransmitAllowlistResult =
   | { allowed: true; reasonCode: null; safeMessage: string }
   | {
@@ -22,6 +24,43 @@ export type LiveTransmitAllowlistResult =
       reasonCode: LiveTransmitAllowlistReasonCode;
       safeMessage: string;
     };
+
+export type LiveTransmitAccountStatusResult =
+  | { allowed: true; reasonCode: null; safeMessage: string }
+  | {
+      allowed: false;
+      reasonCode: LiveTransmitAccountStatusReasonCode;
+      safeMessage: string;
+    };
+
+/** Live 송장 전송은 계정 status가 정확히 ACTIVE일 때만 허용한다. */
+export function isLiveTransmitAccountStatusActive(
+  status: string | null | undefined,
+): boolean {
+  return status === 'ACTIVE';
+}
+
+/**
+ * INACTIVE·ERROR 등 비활성 계정은 외부 API 호출 전에 차단한다.
+ * healthStatus·soft failure 정책과는 무관하다.
+ */
+export function evaluateLiveTransmitAccountStatus(
+  status: string | null | undefined,
+): LiveTransmitAccountStatusResult {
+  if (isLiveTransmitAccountStatusActive(status)) {
+    return {
+      allowed: true,
+      reasonCode: null,
+      safeMessage: 'Integration account is active for live transmission.',
+    };
+  }
+  return {
+    allowed: false,
+    reasonCode: 'ACCOUNT_NOT_ACTIVE',
+    safeMessage:
+      'Integration account is not active. Activate the account before transmitting. No external request was sent.',
+  };
+}
 
 /** Comma-separated tokens; trim; drop empties. Case preserved for account IDs. */
 export function parseLiveTransmitAllowlist(

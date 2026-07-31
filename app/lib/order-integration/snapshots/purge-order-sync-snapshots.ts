@@ -14,6 +14,8 @@ import {
 
 const DELETE_BATCH = 200;
 const PII_CLEAR_BATCH = 100;
+/** SENT PII 루프 상한 — scrubExpiredShipmentUploadPii의 maxBatches와 같은 진행 보장 패턴. */
+export const SENT_PII_CLEAR_MAX_BATCHES = 50;
 
 export type PurgeOrderSyncSnapshotsClient = ScrubLinkedShipmentPiiClient &
   ClearTransmittedOrderPiiClient & {
@@ -39,19 +41,39 @@ export type PurgeOrderSyncSnapshotsResult = {
   /** 만료 삭제 직전 연관 Match/UploadRow PII 스크럽 건수 */
   scrubbedExpiredMatches: number;
   scrubbedExpiredUploadRows: number;
+  /** SENT PII 루프가 조회한 배치 수(상한 도달 여부 진단용) */
+  sentPiiBatchesAttempted: number;
+  /** SENT PII 루프 종료 사유 */
+  sentPiiStoppedReason: 'complete' | 'max_batches';
 };
+
+function buildSentPiiWhere(skipIds: ReadonlyArray<string>): Record<string, unknown> {
+  const where: Record<string, unknown> = {
+    transmissionStatus: 'SENT',
+    piiClearedAt: null,
+  };
+  if (skipIds.length > 0) {
+    where.id = { notIn: [...skipIds] };
+  }
+  return where;
+}
 
 /**
  * 1) expiresAt < now → 연관 Match/UploadRow PII 스크럽 후 OrderSyncOrder hard delete
  *    Match/Attempt.orderSyncOrderId = SetNull (전송 이력 행 유지)
  * 2) SENT + piiClearedAt null → 완전 전송 확인 후 Order+연관 PII 정리
+ *    incomplete는 skipIds로 제외해 한 실행 안 재조회·고착을 막고, maxBatches로 종료를 보장한다.
  */
 export async function purgeOrderSyncSnapshots(input?: {
   now?: Date;
   client?: PurgeOrderSyncSnapshotsClient;
+  sentPiiBatchSize?: number;
+  sentPiiMaxBatches?: number;
 }): Promise<PurgeOrderSyncSnapshotsResult> {
   const now = input?.now ?? new Date();
   const client = (input?.client ?? prisma) as PurgeOrderSyncSnapshotsClient;
+  const sentPiiBatchSize = input?.sentPiiBatchSize ?? PII_CLEAR_BATCH;
+  const sentPiiMaxBatches = input?.sentPiiMaxBatches ?? SENT_PII_CLEAR_MAX_BATCHES;
   let deletedExpiredOrders = 0;
   let clearedSentPiiOrders = 0;
   let clearedUploadRows = 0;
@@ -59,6 +81,8 @@ export async function purgeOrderSyncSnapshots(input?: {
   let clearedAttempts = 0;
   let scrubbedExpiredMatches = 0;
   let scrubbedExpiredUploadRows = 0;
+  let sentPiiBatchesAttempted = 0;
+  let sentPiiStoppedReason: PurgeOrderSyncSnapshotsResult['sentPiiStoppedReason'] = 'complete';
 
   for (;;) {
     const expired = await client.orderSyncOrder.findMany({
@@ -82,33 +106,51 @@ export async function purgeOrderSyncSnapshots(input?: {
     if (expired.length < DELETE_BATCH) break;
   }
 
+  const skipIds: string[] = [];
   for (;;) {
+    if (sentPiiBatchesAttempted >= sentPiiMaxBatches) {
+      sentPiiStoppedReason = 'max_batches';
+      break;
+    }
+
     const targets = await client.orderSyncOrder.findMany({
-      where: {
-        transmissionStatus: 'SENT',
-        piiClearedAt: null,
-      },
+      where: buildSentPiiWhere(skipIds),
       select: { id: true, userId: true },
-      take: PII_CLEAR_BATCH,
+      take: sentPiiBatchSize,
       orderBy: { updatedAt: 'asc' },
     });
-    if (targets.length === 0) break;
+    if (targets.length === 0) {
+      sentPiiStoppedReason = 'complete';
+      break;
+    }
+
+    sentPiiBatchesAttempted += 1;
 
     for (const target of targets) {
-      if (!target.userId) continue;
+      if (!target.userId) {
+        // userId 없으면 clear 불가 — 같은 실행에서 재조회하지 않도록 skip
+        skipIds.push(target.id);
+        continue;
+      }
       const result = await clearTransmittedOrderPiiIfComplete(client, {
         userId: target.userId,
         orderSyncOrderId: target.id,
         now,
       });
-      if (result.skippedIncomplete) continue;
+      if (result.skippedIncomplete) {
+        skipIds.push(target.id);
+        continue;
+      }
       if (result.clearedOrder) clearedSentPiiOrders += 1;
       clearedUploadRows += result.clearedUploadRows;
       clearedMatches += result.clearedMatches;
       clearedAttempts += result.clearedAttempts;
     }
 
-    if (targets.length < PII_CLEAR_BATCH) break;
+    if (targets.length < sentPiiBatchSize) {
+      sentPiiStoppedReason = 'complete';
+      break;
+    }
   }
 
   return {
@@ -119,5 +161,7 @@ export async function purgeOrderSyncSnapshots(input?: {
     clearedAttempts,
     scrubbedExpiredMatches,
     scrubbedExpiredUploadRows,
+    sentPiiBatchesAttempted,
+    sentPiiStoppedReason,
   };
 }

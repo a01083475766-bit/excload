@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  evaluateLiveTransmitAccountStatus,
   evaluateLiveTransmitAllowlistsConfigured,
   evaluateLiveTransmitCandidateAllowlist,
+  isLiveTransmitAccountStatusActive,
   ORDER_TRANSMISSION_ALLOWED_INTEGRATION_ACCOUNT_IDS,
   ORDER_TRANSMISSION_ALLOWED_PROVIDERS,
   parseLiveTransmitAllowlist,
@@ -75,5 +77,17 @@ describe('live-transmit-guard', () => {
     const parsed = readLiveTransmitAllowlistsFromEnv(env);
     expect(parsed.allowedProviders).toEqual(['SMARTSTORE']);
     expect(parsed.allowedAccountIds).toHaveLength(1);
+  });
+
+  it('allows only ACTIVE account status for live transmit', () => {
+    expect(isLiveTransmitAccountStatusActive('ACTIVE')).toBe(true);
+    expect(isLiveTransmitAccountStatusActive('INACTIVE')).toBe(false);
+    expect(isLiveTransmitAccountStatusActive('ERROR')).toBe(false);
+    expect(isLiveTransmitAccountStatusActive(null)).toBe(false);
+
+    expect(evaluateLiveTransmitAccountStatus('ACTIVE').allowed).toBe(true);
+    expect(evaluateLiveTransmitAccountStatus('INACTIVE').reasonCode).toBe('ACCOUNT_NOT_ACTIVE');
+    expect(evaluateLiveTransmitAccountStatus('ERROR').reasonCode).toBe('ACCOUNT_NOT_ACTIVE');
+    expect(evaluateLiveTransmitAccountStatus('INACTIVE').safeMessage).toMatch(/not active/i);
   });
 });

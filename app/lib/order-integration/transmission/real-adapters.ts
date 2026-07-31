@@ -20,6 +20,7 @@ import {
 import { toSmartstoreCredentials } from '@/app/lib/order-integration/smartstore-account';
 import { decryptIntegrationSecret } from '@/app/lib/order-integration/encryption';
 import { createShipmentTransmissionAdapterRegistry } from '@/app/lib/order-integration/transmission/adapter-registry';
+import { evaluateLiveTransmitAccountStatus } from '@/app/lib/order-integration/transmission/live-transmit-guard';
 import type {
   ShipmentTransmissionAdapter,
   ShipmentTransmissionAdapterResult,
@@ -113,6 +114,21 @@ function buildFailure(input: {
   };
 }
 
+function rejectIfAccountNotActiveForLiveTransmit(input: {
+  provider: OrderIntegrationProvider;
+  matchId: string;
+  status: string | null | undefined;
+}): ShipmentTransmissionAdapterResult | null {
+  const statusGate = evaluateLiveTransmitAccountStatus(input.status);
+  if (statusGate.allowed) return null;
+  return buildFailure({
+    provider: input.provider,
+    matchId: input.matchId,
+    errorCode: statusGate.reasonCode,
+    errorMessage: statusGate.safeMessage,
+  });
+}
+
 const DEFERRED_SPECS: ProviderDeferredSpec[] = [
   {
     provider: 'ELEVEN',
@@ -200,6 +216,13 @@ function createDeferredAdapter(
         });
       }
 
+      const inactive = rejectIfAccountNotActiveForLiveTransmit({
+        provider: spec.provider,
+        matchId: candidate.matchId,
+        status: account.status,
+      });
+      if (inactive) return inactive;
+
       const secrets = options.resolveAccountSecrets?.(account) ?? toSecretBundle(account);
       if (!hasAnyCredential(secrets)) {
         return buildFailure({
@@ -249,6 +272,13 @@ function createCoupangLiveAdapter(
           errorMessage: 'Integration account is not connected.',
         });
       }
+
+      const inactive = rejectIfAccountNotActiveForLiveTransmit({
+        provider: 'COUPANG',
+        matchId: candidate.matchId,
+        status: account.status,
+      });
+      if (inactive) return inactive;
 
       const secrets = options.resolveAccountSecrets?.(account) ?? toSecretBundle(account);
       if (!hasCoupangCredentials(secrets)) {
@@ -356,6 +386,14 @@ function createSmartstoreLiveAdapter(
     });
     if (!account) {
       return { ok: false as const, errorCode: 'NOT_CONFIGURED', errorMessage: 'Integration account is not connected.' };
+    }
+    const statusGate = evaluateLiveTransmitAccountStatus(account.status);
+    if (!statusGate.allowed) {
+      return {
+        ok: false as const,
+        errorCode: statusGate.reasonCode,
+        errorMessage: statusGate.safeMessage,
+      };
     }
     let credentials;
     try {
@@ -515,6 +553,8 @@ export function createRealShipmentTransmissionAdapterRegistry(
 export function createPrismaShipmentTransmissionAccountLoader(
   client: ShipmentTransmissionAccountPrismaClient,
 ): RealShipmentAdapterAccountLoader {
+  // status는 loader에서 필터하지 않는다. ACTIVE 여부는 adapter가 외부 API 직전에
+  // evaluateLiveTransmitAccountStatus로 판별해 ACCOUNT_NOT_ACTIVE를 반환한다.
   return ({ userId, accountId, provider }) =>
     client.orderIntegrationAccount.findFirst({
       where: { id: accountId, userId, provider },

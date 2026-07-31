@@ -203,4 +203,28 @@ describe('SMARTSTORE live shipment transmission adapter', () => {
     expect(dispatchMock).not.toHaveBeenCalled();
     expect(confirmMock).not.toHaveBeenCalled();
   });
+
+  it('blocks INACTIVE and ERROR accounts before any Smartstore external call', async () => {
+    for (const status of ['INACTIVE', 'ERROR'] as const) {
+      vi.clearAllMocks();
+      toCredentialsMock.mockReturnValue({
+        clientId: 'client',
+        clientSecret: 'secret',
+        authType: 'SELF',
+      });
+
+      const registry = createRealShipmentTransmissionAdapterRegistry({
+        userId: 'user-1',
+        loadAccount: async () => ({ ...account(), status }),
+      });
+
+      const result = await registry.get('SMARTSTORE')!.transmit(candidate());
+      expect(result.success).toBe(false);
+      expect(result.errorCode).toBe('ACCOUNT_NOT_ACTIVE');
+      expect(result.errorMessage).toMatch(/not active/i);
+      expect(dispatchMock).not.toHaveBeenCalled();
+      expect(fetchByIdsMock).not.toHaveBeenCalled();
+      expect(toCredentialsMock).not.toHaveBeenCalled();
+    }
+  });
 });
