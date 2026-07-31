@@ -6,6 +6,8 @@ import {
   normalizeOrderStatusFromKoreanLabel,
   normalizeSmartstoreOrderStatus,
   normalizeSmartstorePlaceOrderStatus,
+  ORDER_WORK_TARGET_LABEL,
+  resolvePlaceOrderSecondaryHint,
 } from '@/app/lib/order-integration/order-status';
 
 describe('normalizeSmartstoreOrderStatus', () => {
@@ -109,5 +111,47 @@ describe('matchesWorkTarget', () => {
     expect(matchesWorkTarget('DELIVERING', { status: 'DELIVERING' })).toBe(true);
     expect(matchesWorkTarget('DELIVERED', { status: 'DELIVERED' })).toBe(true);
     expect(matchesWorkTarget('DELIVERING', { status: 'DELIVERED' })).toBe(false);
+  });
+
+  it('DELIVERED work target includes PURCHASE_DECIDED and excludes others', () => {
+    expect(matchesWorkTarget('DELIVERED', { status: 'DELIVERED' })).toBe(true);
+    expect(matchesWorkTarget('DELIVERED', { status: 'PURCHASE_DECIDED' })).toBe(true);
+    expect(matchesWorkTarget('DELIVERED', { status: 'DELIVERING' })).toBe(false);
+    expect(matchesWorkTarget('DELIVERED', { status: 'PAYED' })).toBe(false);
+    expect(matchesWorkTarget('DELIVERED', { status: 'CANCELED' })).toBe(false);
+    expect(ORDER_WORK_TARGET_LABEL.DELIVERED).toBe('배송 완료·구매확정');
+  });
+
+  it('does not put PURCHASE_DECIDED into shipment/new-paid/place-order targets', () => {
+    const decided = { status: 'PURCHASE_DECIDED' as const, placeOrderStatus: 'OK' as const };
+    expect(matchesWorkTarget('SHIPMENT_TARGET', decided)).toBe(false);
+    expect(matchesWorkTarget('NEW_PAID', decided)).toBe(false);
+    expect(matchesWorkTarget('PLACE_ORDER_WAITING', decided)).toBe(false);
+    expect(matchesWorkTarget('PLACE_ORDER_NOT_YET', decided)).toBe(false);
+    expect(isShipmentTarget(decided)).toBe(false);
+  });
+});
+
+describe('resolvePlaceOrderSecondaryHint', () => {
+  it('shows hints only for PAYED', () => {
+    expect(resolvePlaceOrderSecondaryHint({ status: 'PAYED', placeOrderStatus: 'OK' })).toBe('OK');
+    expect(
+      resolvePlaceOrderSecondaryHint({ status: 'PAYED', placeOrderStatus: 'NOT_YET' }),
+    ).toBe('NOT_YET');
+  });
+
+  it('hides hints for delivering / delivered / purchase-decided even when placeOrder is OK', () => {
+    expect(
+      resolvePlaceOrderSecondaryHint({ status: 'DELIVERING', placeOrderStatus: 'OK' }),
+    ).toBeNull();
+    expect(
+      resolvePlaceOrderSecondaryHint({ status: 'DELIVERED', placeOrderStatus: 'OK' }),
+    ).toBeNull();
+    expect(
+      resolvePlaceOrderSecondaryHint({ status: 'PURCHASE_DECIDED', placeOrderStatus: 'OK' }),
+    ).toBeNull();
+    expect(
+      resolvePlaceOrderSecondaryHint({ status: 'CANCELED', placeOrderStatus: 'OK' }),
+    ).toBeNull();
   });
 });

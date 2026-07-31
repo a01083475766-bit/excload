@@ -49,6 +49,7 @@ import {
   matchesWorkTarget,
   ORDER_WORK_TARGET_LABEL,
   ORDER_WORK_TARGET_ORDER,
+  resolvePlaceOrderSecondaryHint,
   type OrderWorkTarget,
 } from '@/app/lib/order-integration/order-status';
 
@@ -1376,6 +1377,7 @@ function FetchRow({
   confirmMessage?: string;
   onToggleCheck: () => void;
 }) {
+  const placeHint = resolvePlaceOrderSecondaryHint(row);
   return (
     <tr className={checked ? 'bg-blue-50/40' : undefined}>
       <td className="px-2 py-2 align-top">
@@ -1394,10 +1396,10 @@ function FetchRow({
         >
           {row.statusLabel || EXCLOAD_ORDER_STATUS_LABEL[row.status]}
         </span>
-        {row.placeOrderStatus === 'NOT_YET' ? (
+        {placeHint === 'NOT_YET' ? (
           <span className="mt-1 block text-[11px] text-amber-600">발주 미확인</span>
         ) : null}
-        {row.placeOrderStatus === 'OK' ? (
+        {placeHint === 'OK' ? (
           <span className="mt-1 block text-[11px] text-emerald-700">발주 확인·발송 대기</span>
         ) : null}
         {acknowledgeMessage ? (

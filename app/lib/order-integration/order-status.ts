@@ -47,7 +47,7 @@ export const ORDER_WORK_TARGET_LABEL: Record<OrderWorkTarget, string> = {
   PLACE_ORDER_NOT_YET: '발주 미확인',
   PLACE_ORDER_WAITING: '발주 확인·발송 대기',
   DELIVERING: '배송 중',
-  DELIVERED: '배송 완료',
+  DELIVERED: '배송 완료·구매확정',
   CLAIM: '취소·반품·교환',
   ALL: '전체 주문',
 };
@@ -161,10 +161,23 @@ export function matchesWorkTarget(target: OrderWorkTarget, view: OrderStatusView
     case 'DELIVERING':
       return view.status === 'DELIVERING';
     case 'DELIVERED':
-      return view.status === 'DELIVERED';
+      return view.status === 'DELIVERED' || view.status === 'PURCHASE_DECIDED';
     case 'CLAIM':
       return isClaimStatus(view.status);
     default:
       return false;
   }
+}
+
+/**
+ * 발주 관련 보조문구는 결제완료(PAYED)일 때만 노출한다.
+ * 배송중·배송완료·구매확정·클레임 등에서는 placeOrderStatus와 무관하게 숨긴다.
+ */
+export function resolvePlaceOrderSecondaryHint(
+  view: OrderStatusView,
+): 'NOT_YET' | 'OK' | null {
+  if (view.status !== 'PAYED') return null;
+  if (view.placeOrderStatus === 'NOT_YET') return 'NOT_YET';
+  if (view.placeOrderStatus === 'OK') return 'OK';
+  return null;
 }
