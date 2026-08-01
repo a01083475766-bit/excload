@@ -88,6 +88,6 @@ describe('live-transmit-guard', () => {
     expect(evaluateLiveTransmitAccountStatus('ACTIVE').allowed).toBe(true);
     expect(evaluateLiveTransmitAccountStatus('INACTIVE').reasonCode).toBe('ACCOUNT_NOT_ACTIVE');
     expect(evaluateLiveTransmitAccountStatus('ERROR').reasonCode).toBe('ACCOUNT_NOT_ACTIVE');
-    expect(evaluateLiveTransmitAccountStatus('INACTIVE').safeMessage).toMatch(/not active/i);
+    expect(evaluateLiveTransmitAccountStatus('INACTIVE').safeMessage).toMatch(/비활성/);
   });
 });

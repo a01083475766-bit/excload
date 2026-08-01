@@ -128,9 +128,9 @@ describe('buildRecentTransmitResultView', () => {
       body: {
         batchId: 'batch-1',
         summary: {
-          requestedCount: 6,
+          requestedCount: 7,
           successCount: 1,
-          failureCount: 5,
+          failureCount: 6,
           skippedCount: 0,
         },
         results: [
@@ -212,6 +212,19 @@ describe('buildRecentTransmitResultView', () => {
             providerRequestId: null,
             requiresRetryPreparation: false,
           },
+          {
+            matchId: 'inactive',
+            attemptId: 'a6',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'FAILED',
+            success: false,
+            retryable: false,
+            errorCode: 'ACCOUNT_NOT_ACTIVE',
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
         ],
       },
     });
@@ -222,6 +235,7 @@ describe('buildRecentTransmitResultView', () => {
       '택배사 확인이 필요합니다. 스마트스토어에서 지원하는 택배사로 연결해 주세요.',
       '송장 연결 충돌이 있어 전송하지 않았습니다.',
       '아직 전송하지 않았습니다. 이전 묶음 오류로 요청하지 않았습니다.',
+      '연동 계정이 비활성(또는 오류) 상태입니다. 계정을 활성화한 뒤 다시 전송해 주세요.',
     ]);
   });
 

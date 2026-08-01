@@ -221,7 +221,7 @@ describe('SMARTSTORE live shipment transmission adapter', () => {
       const result = await registry.get('SMARTSTORE')!.transmit(candidate());
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe('ACCOUNT_NOT_ACTIVE');
-      expect(result.errorMessage).toMatch(/not active/i);
+      expect(result.errorMessage).toMatch(/비활성/);
       expect(dispatchMock).not.toHaveBeenCalled();
       expect(fetchByIdsMock).not.toHaveBeenCalled();
       expect(toCredentialsMock).not.toHaveBeenCalled();

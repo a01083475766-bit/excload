@@ -51,14 +51,14 @@ export function evaluateLiveTransmitAccountStatus(
     return {
       allowed: true,
       reasonCode: null,
-      safeMessage: 'Integration account is active for live transmission.',
+      safeMessage: '연동 계정이 활성 상태입니다.',
     };
   }
   return {
     allowed: false,
     reasonCode: 'ACCOUNT_NOT_ACTIVE',
     safeMessage:
-      'Integration account is not active. Activate the account before transmitting. No external request was sent.',
+      '연동 계정이 비활성(또는 오류) 상태입니다. 계정을 활성화한 뒤 다시 전송해 주세요. 외부 요청은 보내지 않았습니다.',
   };
 }
 

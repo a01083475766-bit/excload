@@ -137,6 +137,11 @@ function resolveMessage(row: MockTransmitMatchResult, outcome: RecentTransmitOut
         raw ??
         '전송 여부를 확인하지 못했습니다. 자동으로 다시 전송하지 않습니다.'
       );
+    case 'ACCOUNT_NOT_ACTIVE':
+      return (
+        raw ??
+        '연동 계정이 비활성(또는 오류) 상태입니다. 계정을 활성화한 뒤 다시 전송해 주세요.'
+      );
     default:
       break;
   }

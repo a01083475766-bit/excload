@@ -196,7 +196,7 @@ describe('COUPANG live shipment transmission adapter', () => {
       const result = await registry.get('COUPANG')!.transmit(candidate());
       expect(result.success).toBe(false);
       expect(result.errorCode).toBe('ACCOUNT_NOT_ACTIVE');
-      expect(result.errorMessage).toMatch(/not active/i);
+      expect(result.errorMessage).toMatch(/비활성/);
       expect(postInvoicesMock).not.toHaveBeenCalled();
       expect(fetchByBoxMock).not.toHaveBeenCalled();
     }
