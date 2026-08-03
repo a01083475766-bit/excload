@@ -621,7 +621,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     tokenExpirePolicy: 'API Key + setLogin 세션(sId) — 호출마다 로그인, 세션 미저장',
     rateLimitMemo: '도매꾹 Open API 호출 제한 — 429 시 재시도',
     proxyDomains: [
-      proxyDomain('domeggook.com', ['https'], 'deployed', '/ssl/api/ — Lightsail 1회 반영 대기'),
+      proxyDomain('domeggook.com', ['https'], 'deployed', '/ssl/api/ — getOrderList·getOrderView'),
     ],
     requiredInputs: [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
@@ -630,7 +630,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'apiKey', label: '도매꾹 API Key', required: true, secret: true, storage: 'apiKey' },
     ],
     memo:
-      '베타. 1차: setLogin + getOrderList(for=sell) 연결 테스트·읽기 전용. 상태변경 API 제외. sId/cId 미저장·미응답.',
+      '베타. 2차: setLogin + getOrderList(for=sell, 전체 페이지) + getOrderView v4.1(for=sell) 순차 상세. 목록 0건이면 View 미호출. 상세 실패 시 전체 중단. 상태변경 API 제외. sId/cId 미저장·미응답.',
     marketplaceGroupId: 'domeggook',
     requiresFixedIpProxy: true,
   },

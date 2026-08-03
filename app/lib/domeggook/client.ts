@@ -9,6 +9,15 @@ export const DOMEGGOOK_API_URL = `${DOMEGGOOK_API_ORIGIN}${DOMEGGOOK_API_PATH}`;
 export const DOMEGGOOK_USER_AGENT = 'EXCLOAD';
 export const DOMEGGOOK_DEVICE = 'Third Party';
 
+/** 주문 목록 페이지당 건수(현재 운영 최대 설정 유지) */
+export const DOMEGGOOK_LIST_PAGE_SIZE = 50;
+/**
+ * 목록 페이지네이션 클라이언트 안전 한도.
+ * 스마트스토어 구간별 최대 페이지(`SMARTSTORE_MAX_PAGES_PER_WINDOW = 1000`)와 동일.
+ * 초과 시 일부만 반환하지 않고 명시적 오류로 중단한다.
+ */
+export const DOMEGGOOK_MAX_LIST_PAGES = 1000;
+
 export type DomeggookCredentials = {
   /** 도매꾹 회원 ID */
   memberId: string;
@@ -25,11 +34,17 @@ export type DomeggookSession = {
 
 export type DomeggookOrderRecord = {
   orderNo: string;
+  /** getOrderList/getOrderView의 orderUid — View 호출 시 uid 우선 */
+  orderUid: string;
   productName: string;
+  productOption: string;
   quantity: string;
   receiverName: string;
   receiverPhone: string;
   receiverAddress: string;
+  receiverAddress1: string;
+  receiverAddress2: string;
+  postalCode: string;
   orderStatus: string;
   orderedAt: string;
   deliveryMemo: string;
@@ -196,51 +211,132 @@ function normalizeItemNodes(value: unknown): Record<string, unknown>[] {
   return single ? [single] : [];
 }
 
+/**
+ * 수취인(택배 라벨용)은 공식 getOrderView의 items.consumer 를 우선한다.
+ * 응답에 없는 필드는 빈 문자열로 두고 임의 생성하지 않는다.
+ * buyerInfo는 구매자 정보이므로 수취인 대체로 쓰지 않는다.
+ */
 function extractReceiverFields(record: Record<string, unknown>): {
   receiverName: string;
   receiverPhone: string;
   receiverAddress: string;
+  receiverAddress1: string;
+  receiverAddress2: string;
+  postalCode: string;
   deliveryMemo: string;
 } {
   const consumer = asRecord(record.consumer);
-  const buyerInfo = asRecord(record.buyerInfo);
 
-  // getOrderList v4.0은 수취인·전화·주소를 보장하지 않는다. 없는 값을 임의 생성하지 않는다.
+  const addrFull = firstString(consumer?.address, record.recvAddr, record.receiverAddress, record.rcvrAddr);
+  const addr1 = firstString(consumer?.addr1);
+  const addr2 = firstString(consumer?.addr2);
+  const receiverAddress1 = addrFull || addr1;
+  const receiverAddress2 = addrFull ? '' : addr2;
+  const receiverAddress =
+    addrFull || [addr1, addr2].filter(Boolean).join(' ') || firstString(record.recvAddr, record.receiverAddress);
+
   return {
-    receiverName: firstString(
-      record.recvName,
-      record.receiverName,
-      record.rcvrNm,
-      consumer?.name,
-      consumer?.nm,
-      buyerInfo?.buyerName,
-    ),
+    receiverName: firstString(consumer?.name, consumer?.nm, record.recvName, record.receiverName, record.rcvrNm),
+    // 휴대전화 우선, 없으면 유선
     receiverPhone: firstString(
-      record.recvPhone,
-      record.receiverPhone,
-      record.rcvrTel,
+      consumer?.mobile,
       consumer?.phone,
       consumer?.hp,
       consumer?.tel,
-      buyerInfo?.buyerPhone,
+      record.recvPhone,
+      record.receiverPhone,
+      record.rcvrTel,
     ),
-    receiverAddress: firstString(
-      record.recvAddr,
-      record.receiverAddress,
-      record.rcvrAddr,
-      consumer?.addr,
-      consumer?.address,
-      buyerInfo?.buyerAddr,
-    ),
+    receiverAddress,
+    receiverAddress1,
+    receiverAddress2,
+    postalCode: firstString(consumer?.zipcode, consumer?.zip, record.zipcode, record.postalCode),
     deliveryMemo: firstString(
+      consumer?.deliReq,
+      record.orderMemo,
       record.memo,
       record.deliveryMemo,
       record.dlvMsg,
-      consumer?.deliReq,
-      buyerInfo?.buyerDeliReq,
     ),
   };
 }
+
+/** getOrderView items.selectOpt.opt — 단건 객체 또는 배열 */
+export function formatDomeggookSelectOpt(selectOpt: unknown): string {
+  const root = asRecord(selectOpt);
+  if (!root) return '';
+  const optNodes = normalizeItemNodes(root.opt);
+  const parts: string[] = [];
+  for (const opt of optNodes) {
+    const name = firstString(opt.name, opt.optName, opt.title);
+    if (!name) continue;
+    const qty = firstString(opt.qty, opt.quantity);
+    parts.push(qty && qty !== '1' ? `${name} x${qty}` : name);
+  }
+  return parts.join(' / ');
+}
+
+/** 공식: no 파라미터는 OR 접두 제외 후 숫자만. 알파벳 섞인 값은 숫자로 추정하지 않는다. */
+export function toDomeggookOrderNoQueryValue(orderNo: string): string {
+  const trimmed = orderNo.trim();
+  if (!trimmed) return '';
+  const withoutOr = trimmed.replace(/^OR/i, '');
+  return /^\d+$/.test(withoutOr) ? withoutOr : '';
+}
+
+export function dedupeDomeggookOrders(orders: DomeggookOrderRecord[]): DomeggookOrderRecord[] {
+  const seen = new Set<string>();
+  const out: DomeggookOrderRecord[] = [];
+  for (const order of orders) {
+    const key = order.orderUid.trim() || order.orderNo.trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(order);
+  }
+  return out;
+}
+
+function parseDomeggookInt(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.trunc(value);
+  if (typeof value === 'string' && value.trim() && /^-?\d+$/.test(value.trim())) {
+    return Number.parseInt(value.trim(), 10);
+  }
+  return null;
+}
+
+/** header.currentPage / numberOfPages / numberOfItems */
+export function extractDomeggookListPagination(root: unknown): {
+  currentPage: number | null;
+  numberOfPages: number | null;
+  numberOfItems: number | null;
+} {
+  let currentPage: number | null = null;
+  let numberOfPages: number | null = null;
+  let numberOfItems: number | null = null;
+
+  for (const node of collectObjects(root)) {
+    const record = asRecord(node);
+    if (!record) continue;
+    if (!('currentPage' in record || 'numberOfPages' in record || 'numberOfItems' in record)) {
+      continue;
+    }
+    const cp = parseDomeggookInt(record.currentPage);
+    const np = parseDomeggookInt(record.numberOfPages);
+    const ni = parseDomeggookInt(record.numberOfItems);
+    if (cp != null) currentPage = cp;
+    if (np != null) numberOfPages = np;
+    if (ni != null) numberOfItems = ni;
+  }
+
+  return { currentPage, numberOfPages, numberOfItems };
+}
+
+export type DomeggookListPageResult = {
+  orders: DomeggookOrderRecord[];
+  currentPage: number | null;
+  numberOfPages: number | null;
+  numberOfItems: number | null;
+};
 
 export function extractDomeggookOrderRecords(root: unknown): DomeggookOrderRecord[] {
   const candidates: Record<string, unknown>[] = [];
@@ -274,16 +370,18 @@ export function extractDomeggookOrderRecords(root: unknown): DomeggookOrderRecor
       record.oNo,
       record.ono,
       record.dealNo,
-      record.orderUid,
     );
-    if (!orderNo || seen.has(orderNo)) continue;
-    seen.add(orderNo);
+    const orderUid = firstString(record.orderUid, record.ordUid, record.uid);
+    const dedupeKey = orderNo || orderUid;
+    if (!dedupeKey || seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
 
     const receiver = extractReceiverFields(record);
     const nestedItem = asRecord(record.item);
 
     orders.push({
-      orderNo,
+      orderNo: orderNo || orderUid,
+      orderUid,
       productName: firstString(
         record.itemTitle,
         record.itemName,
@@ -294,11 +392,15 @@ export function extractDomeggookOrderRecords(root: unknown): DomeggookOrderRecor
         nestedItem?.title,
         nestedItem?.name,
       ),
+      productOption: formatDomeggookSelectOpt(record.selectOpt),
       // 수량 누락 시 1로 채우지 않는다(임의 완성 금지).
       quantity: firstString(record.orderQty, record.qty, record.quantity, record.amount, record.cnt),
       receiverName: receiver.receiverName,
       receiverPhone: receiver.receiverPhone,
       receiverAddress: receiver.receiverAddress,
+      receiverAddress1: receiver.receiverAddress1,
+      receiverAddress2: receiver.receiverAddress2,
+      postalCode: receiver.postalCode,
       orderStatus: firstString(record.status, record.ordStatus, record.stateNm, record.statusName),
       orderedAt: firstString(record.date, record.orderDate, record.ordDt, record.regDate, record.orderedAt),
       deliveryMemo: receiver.deliveryMemo,
@@ -467,14 +569,14 @@ export async function domeggookSetLogin(input: {
   return { sId };
 }
 
-export async function domeggookGetOrderList(input: {
+export async function domeggookGetOrderListPage(input: {
   credentials: DomeggookCredentials;
   session: DomeggookSession;
   day?: number;
   page?: number;
   pageSize?: number;
   http?: DomeggookHttpFn;
-}): Promise<DomeggookOrderRecord[]> {
+}): Promise<DomeggookListPageResult> {
   const http = input.http ?? invokeIntegrationHttp;
   if (!input.http) {
     if (!isIntegrationProxyConfigured()) {
@@ -487,7 +589,7 @@ export async function domeggookGetOrderList(input: {
   const secrets = [input.credentials.password, apiKey, memberId, input.session.sId];
   const day = Math.max(1, Math.min(input.day ?? 1, 30));
   const page = Math.max(1, input.page ?? 1);
-  const pageSize = Math.max(1, Math.min(input.pageSize ?? 10, 100));
+  const pageSize = Math.max(1, Math.min(input.pageSize ?? DOMEGGOOK_LIST_PAGE_SIZE, DOMEGGOOK_LIST_PAGE_SIZE));
 
   const url = buildQueryUrl({
     ver: '4.0',
@@ -523,12 +625,185 @@ export async function domeggookGetOrderList(input: {
     secrets,
   });
 
-  return extractDomeggookOrderRecords(envelope.root);
+  const pagination = extractDomeggookListPagination(envelope.root);
+  return {
+    orders: extractDomeggookOrderRecords(envelope.root),
+    currentPage: pagination.currentPage,
+    numberOfPages: pagination.numberOfPages,
+    numberOfItems: pagination.numberOfItems,
+  };
+}
+
+/** 단일 페이지 조회(연결 테스트용). 전체 수집은 domeggookGetAllOrderList 사용. */
+export async function domeggookGetOrderList(input: {
+  credentials: DomeggookCredentials;
+  session: DomeggookSession;
+  day?: number;
+  page?: number;
+  pageSize?: number;
+  http?: DomeggookHttpFn;
+}): Promise<DomeggookOrderRecord[]> {
+  const page = await domeggookGetOrderListPage(input);
+  return page.orders;
+}
+
+/**
+ * getOrderList를 pg=1…numberOfPages까지 순차 조회한다.
+ * header가 비정상이거나 안전 한도 초과 시 일부만 반환하지 않고 중단한다.
+ */
+export async function domeggookGetAllOrderList(input: {
+  credentials: DomeggookCredentials;
+  session: DomeggookSession;
+  day?: number;
+  pageSize?: number;
+  http?: DomeggookHttpFn;
+}): Promise<DomeggookOrderRecord[]> {
+  const pageSize = Math.max(1, Math.min(input.pageSize ?? DOMEGGOOK_LIST_PAGE_SIZE, DOMEGGOOK_LIST_PAGE_SIZE));
+
+  const first = await domeggookGetOrderListPage({
+    ...input,
+    page: 1,
+    pageSize,
+  });
+
+  if (first.orders.length === 0) {
+    if (first.numberOfPages != null && first.numberOfPages > 1) {
+      throw new Error(
+        '도매꾹 주문 목록 페이지 정보가 올바르지 않습니다. (주문이 없는데 여러 페이지로 표시됨)',
+      );
+    }
+    return [];
+  }
+
+  if (first.numberOfPages == null || !Number.isFinite(first.numberOfPages) || first.numberOfPages < 1) {
+    throw new Error(
+      '도매꾹 주문 목록 페이지 정보(numberOfPages)를 확인할 수 없어 조회를 중단했습니다. 주문이 누락될 수 있어 일부만 반환하지 않습니다.',
+    );
+  }
+  if (first.currentPage != null && first.currentPage !== 1) {
+    throw new Error(
+      '도매꾹 주문 목록 페이지 정보(currentPage)가 올바르지 않아 조회를 중단했습니다.',
+    );
+  }
+  if (first.numberOfPages > DOMEGGOOK_MAX_LIST_PAGES) {
+    throw new Error(
+      `도매꾹 주문 목록 페이지 수가 안전 한도(${DOMEGGOOK_MAX_LIST_PAGES}페이지)를 초과해 조회를 중단했습니다.`,
+    );
+  }
+
+  const collected: DomeggookOrderRecord[] = [...first.orders];
+
+  for (let pg = 2; pg <= first.numberOfPages; pg += 1) {
+    if (pg > DOMEGGOOK_MAX_LIST_PAGES) {
+      throw new Error(
+        `도매꾹 주문 목록 페이지 수가 안전 한도(${DOMEGGOOK_MAX_LIST_PAGES}페이지)를 초과해 조회를 중단했습니다.`,
+      );
+    }
+
+    const page = await domeggookGetOrderListPage({
+      ...input,
+      page: pg,
+      pageSize,
+    });
+
+    if (page.currentPage != null && page.currentPage !== pg) {
+      throw new Error(
+        `도매꾹 주문 목록 ${pg}페이지 응답의 currentPage가 일치하지 않아 조회를 중단했습니다.`,
+      );
+    }
+    if (page.numberOfPages != null && page.numberOfPages !== first.numberOfPages) {
+      throw new Error(
+        '도매꾹 주문 목록 총 페이지 수가 조회 중 달라져 조회를 중단했습니다. 주문이 누락될 수 있어 일부만 반환하지 않습니다.',
+      );
+    }
+
+    collected.push(...page.orders);
+  }
+
+  return dedupeDomeggookOrders(collected);
+}
+
+/**
+ * 판매 주문서 상세 조회 (getOrderView v4.1, for=sell).
+ * no 또는 uid 중 하나 필수. 상태 변경 API는 호출하지 않는다.
+ */
+export async function domeggookGetOrderView(input: {
+  credentials: DomeggookCredentials;
+  session: DomeggookSession;
+  orderNo?: string;
+  orderUid?: string;
+  http?: DomeggookHttpFn;
+}): Promise<DomeggookOrderRecord> {
+  const http = input.http ?? invokeIntegrationHttp;
+  if (!input.http) {
+    if (!isIntegrationProxyConfigured()) {
+      throw new Error('도매꾹 API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.');
+    }
+    assertIntegrationProxyConfigReady();
+  }
+
+  const { memberId, apiKey } = input.credentials;
+  const secrets = [input.credentials.password, apiKey, memberId, input.session.sId];
+  const orderUid = input.orderUid?.trim() ?? '';
+  const orderNoParam = toDomeggookOrderNoQueryValue(input.orderNo ?? '');
+
+  if (!orderUid && !orderNoParam) {
+    throw new Error(
+      '도매꾹 주문 상세조회에 필요한 주문 식별값(orderUid 또는 숫자 주문번호)이 없어 조회를 중단했습니다.',
+    );
+  }
+
+  const params: Record<string, string> = {
+    ver: '4.1',
+    mode: 'getOrderView',
+    aid: apiKey.trim(),
+    id: memberId.trim(),
+    sId: input.session.sId,
+    for: 'sell',
+    oe: 'utf-8',
+    om: 'json',
+  };
+  // uid가 있으면 우선 사용(숫자 no 파싱 모호성 회피)
+  if (orderUid) {
+    params.uid = orderUid;
+  } else {
+    params.no = orderNoParam;
+  }
+
+  const url = buildQueryUrl(params);
+
+  let res: { httpStatus: number; bodyText: string };
+  try {
+    res = await http({
+      method: 'GET',
+      url,
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+      },
+      body: null,
+    });
+  } catch {
+    throw new Error('도매꾹 주문 상세 API 네트워크 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+
+  const envelope = assertDomeggookHttpAndBody({
+    httpStatus: res.httpStatus,
+    bodyText: res.bodyText,
+    secrets,
+  });
+
+  const orders = extractDomeggookOrderRecords(envelope.root);
+  const detail = orders[0];
+  if (!detail) {
+    throw new Error('도매꾹 주문 상세 응답에서 주문 정보를 찾지 못했습니다.');
+  }
+  return detail;
 }
 
 /**
  * 연결 테스트: setLogin 성공 후 getOrderList까지 성공해야 완료.
  * 주문 0건이어도 정상 응답이면 성공. 상태 변경 API는 호출하지 않는다.
+ * 연결 테스트에서는 getOrderView를 호출하지 않는다.
  */
 export async function testDomeggookConnection(input: {
   credentials: DomeggookCredentials;
@@ -570,14 +845,48 @@ export async function fetchDomeggookOrders(input: {
   });
 
   try {
-    return await domeggookGetOrderList({
+    const list = await domeggookGetAllOrderList({
       credentials: input.credentials,
       session,
       day: input.days ?? 1,
-      page: 1,
-      pageSize: 50,
+      pageSize: DOMEGGOOK_LIST_PAGE_SIZE,
       http: input.http,
     });
+
+    // 주문이 0건이면 상세조회 API를 호출하지 않는다.
+    if (list.length === 0) return [];
+
+    // 스마트스토어식 무제한 병렬 금지 — 순차 상세조회. 한 건 실패 시 전체 중단.
+    const detailed: DomeggookOrderRecord[] = [];
+    for (const order of list) {
+      if (!order.orderUid.trim() && !toDomeggookOrderNoQueryValue(order.orderNo)) {
+        throw new Error(
+          '도매꾹 주문 목록에 상세조회용 식별값(orderUid/숫자 주문번호)이 없는 주문이 있어 조회를 중단했습니다. 불완전한 주문으로 성공 처리하지 않습니다.',
+        );
+      }
+
+      try {
+        const detail = await domeggookGetOrderView({
+          credentials: input.credentials,
+          session,
+          orderNo: order.orderNo,
+          orderUid: order.orderUid,
+          http: input.http,
+        });
+        detailed.push(detail);
+      } catch (error) {
+        const safe = toUserFacingDomeggookClientError(error, [
+          input.credentials.password,
+          input.credentials.apiKey,
+          input.credentials.memberId,
+          session.sId,
+        ]);
+        throw new Error(
+          `도매꾹 주문 상세조회에 실패해 전체 주문 조회를 중단했습니다. 빈 수취인 정보로 성공 처리하지 않습니다. (${safe})`,
+        );
+      }
+    }
+    return detailed;
   } finally {
     (session as { sId?: string }).sId = undefined;
   }

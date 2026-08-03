@@ -111,7 +111,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
   {
     id: 'domeggook',
     name: '도매꾹',
-    description: '도매꾹 Open API로 판매 주문을 조회합니다. (베타·연결 테스트·읽기 전용)',
+    description: '도매꾹 Open API로 판매 주문 목록·상세를 조회합니다. (베타·읽기 전용)',
     status: 'available',
     badge: 'beta',
     priority: 11,

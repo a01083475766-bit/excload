@@ -244,7 +244,8 @@ export function DomeggookIntegrationForm({
       {!embedded ? (
         <p className="mb-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           도매꾹 회원 ID·비밀번호·API Key를 저장한 뒤 연결 테스트를 진행합니다. 연결 테스트는 로그인(setLogin) 후
-          판매 주문 목록(getOrderList) 조회까지 성공해야 완료됩니다. 발주확인·배송처리 등 상태 변경은 포함하지 않습니다.
+          판매 주문 목록(getOrderList) 조회까지 성공해야 완료됩니다. 주문 조회 시에는 상세(getOrderView)로 수취인·주소를
+          보강합니다. 발주확인·배송처리 등 상태 변경은 포함하지 않습니다.
         </p>
       ) : (
         <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -401,7 +402,7 @@ export function DomeggookIntegrationForm({
         <section className="mt-5 rounded border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/40">
           <p className="text-sm font-semibold text-green-900 dark:text-green-100">도매꾹 연동 정보가 저장되었습니다.</p>
           <p className="mt-1 text-sm leading-relaxed text-green-800 dark:text-green-200">
-            현재 단계는 연결 테스트와 판매 주문 목록 읽기 전용입니다. 수취인·주소 상세·발주확인·송장 전송은 아직
+            현재 단계는 연결 테스트와 판매 주문 조회(목록+상세) 읽기 전용입니다. 발주확인·송장 전송 등 상태 변경은
             포함되지 않습니다.
           </p>
           <Link

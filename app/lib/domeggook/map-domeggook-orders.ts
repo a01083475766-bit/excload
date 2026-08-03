@@ -7,8 +7,10 @@ export const DOMEGGOOK_PREVIEW_HEADERS = [
   '주문상태',
   '받는사람',
   '받는사람전화1',
+  '받는사람우편번호',
   '받는사람주소1',
   '상품명',
+  '상품옵션',
   '수량',
   '결제일시',
   '배송메시지',
@@ -26,15 +28,18 @@ export function mapDomeggookOrderToStandardRow(order: DomeggookOrderRecord): Bas
   const qty = Number.parseInt(order.quantity, 10);
 
   row['주문번호'] = order.orderNo;
-  row['상품주문번호'] = order.orderNo;
+  row['상품주문번호'] = order.orderUid || order.orderNo;
   row['주문상태'] = order.orderStatus;
   row['결제일시'] = order.orderedAt;
-  // getOrderList만으로는 수취인·전화·주소가 비어 있을 수 있다. 빈 값을 임의로 채우지 않는다.
+  // getOrderView consumer 기준. 응답에 없으면 빈 값 유지(임의 채움 금지).
   row['받는사람'] = order.receiverName;
   row['받는사람전화1'] = normalizePhone(order.receiverPhone);
-  row['받는사람주소1'] = order.receiverAddress;
+  row['받는사람우편번호'] = order.postalCode;
+  row['받는사람주소1'] = order.receiverAddress1 || order.receiverAddress;
+  row['받는사람주소2'] = order.receiverAddress2;
   row['배송메시지'] = order.deliveryMemo;
   row['상품명'] = order.productName;
+  row['상품옵션'] = order.productOption;
   row['수량'] = Number.isFinite(qty) && qty > 0 ? String(qty) : order.quantity;
   row['판매처'] = '도매꾹';
 
@@ -47,8 +52,10 @@ export function mapDomeggookOrdersToPreviewRows(orders: DomeggookOrderRecord[]):
     주문상태: order.orderStatus,
     받는사람: order.receiverName,
     받는사람전화1: normalizePhone(order.receiverPhone),
-    받는사람주소1: order.receiverAddress,
+    받는사람우편번호: order.postalCode,
+    받는사람주소1: order.receiverAddress1 || order.receiverAddress,
     상품명: order.productName,
+    상품옵션: order.productOption,
     수량: order.quantity,
     결제일시: order.orderedAt,
     배송메시지: order.deliveryMemo,
