@@ -174,6 +174,20 @@ export const PROVIDER_CONNECTION_HELP: Partial<
     permissionRequiredChecks: ['주문조회 권한'],
     approvalRequiredChecks: ['앱 설치·승인 상태'],
   },
+  domeggook: {
+    mallId: 'domeggook',
+    providerLabel: '도매꾹',
+    externalCenterLabel: '도매꾹 Open API',
+    externalCenterUrl: 'https://domeggook.com',
+    settingsUrl: settingsPath('domeggook'),
+    credentialLabels: ['회원 ID', '비밀번호', 'API Key'],
+    authRequiredTitle: '도매꾹 연결 정보 확인 필요',
+    authRequiredDescription:
+      '도매꾹 회원 ID·비밀번호·API Key와 Private API(판매관리·로그인) 승인 상태를 확인해 주세요. 정보가 변경됐다면 엑클로드 연동 설정에서도 수정한 뒤 다시 확인해 주세요.',
+    authRequiredChecks: ['회원 ID', '비밀번호', 'API Key', 'Private API 승인 상태', '판매 주문조회 권한'],
+    permissionRequiredChecks: ['Private API 판매관리·로그인 권한'],
+    approvalRequiredChecks: ['Private API 승인 상태'],
+  },
 };
 
 export function getProviderConnectionHelp(

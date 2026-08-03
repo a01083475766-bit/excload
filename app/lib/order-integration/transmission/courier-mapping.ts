@@ -20,6 +20,7 @@ const PROVIDER_COURIER_CODES: Record<OrderIntegrationProvider, Record<string, st
   GODOMALL: { CJ: 'cjgls', HANJIN: 'hanjin', LOTTE: 'lotte', LOGEN: 'logen', EPOST: 'epost' },
   MAKESHOP: { CJ: 'CJ', HANJIN: 'HANJIN', LOTTE: 'LOTTE', LOGEN: 'LOGEN', EPOST: 'EPOST' },
   SHOPIFY: { CJ: 'CJ Logistics', HANJIN: 'Hanjin', LOTTE: 'Lotte Global Logistics', LOGEN: 'Logen', EPOST: 'Korea Post' },
+  DOMEGGOOK: {},
 };
 
 function normalizeText(value: string | null | undefined): string {

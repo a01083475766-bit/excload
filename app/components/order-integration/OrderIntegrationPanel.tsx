@@ -87,6 +87,15 @@ function excloadInfoOptionsForMall(mallId: AvailableMallId | null): {
       registerHint: '판매자센터에는 주로 엑클로드 고정 IP를 등록합니다. (일반 URL 등록 단계는 없음)',
     };
   }
+  if (mallId === 'domeggook') {
+    return {
+      showCompany: true,
+      showUrl: true,
+      showIp: true,
+      ipLabel: '고정 IP (로그인 ip 파라미터)',
+      registerHint: '도매꾹 setLogin의 ip 파라미터에 엑클로드 고정 IP를 사용합니다.',
+    };
+  }
   return {
     showCompany: true,
     showUrl: true,

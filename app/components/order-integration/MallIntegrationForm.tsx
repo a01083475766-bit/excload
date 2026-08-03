@@ -7,6 +7,7 @@ import { ElevenIntegrationForm } from '@/app/components/order-integration/Eleven
 import { CjonstyleIntegrationForm } from '@/app/components/order-integration/CjonstyleIntegrationForm';
 import { GodomallIntegrationForm } from '@/app/components/order-integration/GodomallIntegrationForm';
 import { MakeshopIntegrationForm } from '@/app/components/order-integration/MakeshopIntegrationForm';
+import { DomeggookIntegrationForm } from '@/app/components/order-integration/DomeggookIntegrationForm';
 import { ShopbyIntegrationForm } from '@/app/components/order-integration/ShopbyIntegrationForm';
 import { LotteonIntegrationForm } from '@/app/components/order-integration/LotteonIntegrationForm';
 import { SsgIntegrationForm } from '@/app/components/order-integration/SsgIntegrationForm';
@@ -26,6 +27,7 @@ type Props = {
     | 'shopby'
     | 'godomall'
     | 'makeshop'
+    | 'domeggook'
   >;
   mallName: string;
   embedded?: boolean;
@@ -72,6 +74,10 @@ export function MallIntegrationForm({ mallId, embedded = false, onConnectionChan
 
   if (mallId === 'makeshop') {
     return <MakeshopIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
+  }
+
+  if (mallId === 'domeggook') {
+    return <DomeggookIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;
   }
 
   return <ElevenIntegrationForm embedded={embedded} onConnectionChange={onConnectionChange} />;

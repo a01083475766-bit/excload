@@ -21,6 +21,7 @@ describe('Lightsail allowed-hosts.mjs', () => {
         'server-api.e-ncp.com',
         'openhub.godo.co.kr',
         'connect.makeshop.co.kr',
+        'domeggook.com',
         'sbadmin.sabangnet.co.kr',
       ].sort(),
     );

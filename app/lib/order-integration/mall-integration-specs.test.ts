@@ -40,6 +40,7 @@ const LIGHTSAIL_ONE_SHOT_EXACT_HOSTS = [
   'server-api.e-ncp.com',
   'openhub.godo.co.kr',
   'connect.makeshop.co.kr',
+  'domeggook.com',
 ] as const;
 
 const HUB_UPSTREAM_HOST = 'sbadmin.sabangnet.co.kr';
@@ -255,6 +256,14 @@ describe('channel integration registry', () => {
     expect(getIntegrationProxyAllowedHostnames()).toContain('eapi.ssgadm.com');
   });
 
+  it('tracks domeggook host in Vercel whitelist before Lightsail 1-shot deploy', () => {
+    expect(getIntegrationProxyAllowedHostnames()).toContain('domeggook.com');
+    expect(getChannelIntegrationSpec('domeggook')).toMatchObject({
+      phase: 'beta',
+      apiStatus: 'available',
+    });
+  });
+
   it('tracks cjonstyle host in planned proxy domains before deploy', () => {
     const planned = getAllPlannedProxyDomains();
     expect(planned.some((d) => d.hostname === 'api.cjonstyle.com')).toBe(true);
@@ -294,6 +303,7 @@ describe('direct channel phase helpers', () => {
     'godomall',
     'shopby',
     'makeshop',
+    'domeggook',
   ] as const;
 
   it('getLiveDirectApiChannels returns only live/beta operational channels', () => {
@@ -314,7 +324,6 @@ describe('direct channel phase helpers', () => {
     expect(codes).toEqual(
       expect.arrayContaining([
         'ably',
-        'domeggook',
         'gmarket',
         'kakao_talkstore',
         'musinsa',
@@ -324,9 +333,11 @@ describe('direct channel phase helpers', () => {
       ]),
     );
     expect(codes).not.toContain('shopify');
+    expect(codes).not.toContain('domeggook');
     expect(getPartnershipDirectChannels().map((c) => c.channelCode)).toEqual(
-      expect.arrayContaining(['ably', 'domeggook', 'gmarket', 'kakao_talkstore', 'musinsa', 'tenbyten', 'zigzag']),
+      expect.arrayContaining(['ably', 'gmarket', 'kakao_talkstore', 'musinsa', 'tenbyten', 'zigzag']),
     );
+    expect(getPartnershipDirectChannels().map((c) => c.channelCode)).not.toContain('domeggook');
   });
 
   it('getInquiryApprovalDirectChannelsForUi follows INQUIRY_APPROVAL_UI_ORDER', () => {

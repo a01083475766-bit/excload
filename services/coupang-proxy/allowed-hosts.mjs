@@ -22,7 +22,7 @@ export const CAFE24_MALL_ID_REGEX = /^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/i;
 
 export const CAFE24_API_HOST_SUFFIX = 'cafe24api.com';
 
-/** @type {HostRule[]} — direct_api upstream (9) + hub_api upstream (1, 사방넷) */
+/** @type {HostRule[]} — direct_api upstream + hub_api upstream (사방넷) */
 export const INTEGRATION_PROXY_HOST_RULES = [
   // ── direct_api upstream (개별 몰 Open API) ─────────────────────
   { hostname: 'api-gateway.coupang.com', protocols: ['https'], malls: ['coupang'] },
@@ -34,6 +34,7 @@ export const INTEGRATION_PROXY_HOST_RULES = [
   { hostname: 'server-api.e-ncp.com', protocols: ['https'], malls: ['shopby'] },
   { hostname: 'openhub.godo.co.kr', protocols: ['https'], malls: ['godomall'] },
   { hostname: 'connect.makeshop.co.kr', protocols: ['https'], malls: ['makeshop'] },
+  { hostname: 'domeggook.com', protocols: ['https'], malls: ['domeggook'] },
   // ── hub_api upstream (허브 API — direct 몰 host 아님) ───────────
   { hostname: 'sbadmin.sabangnet.co.kr', protocols: ['https'], malls: ['sabangnet'] },
 ];

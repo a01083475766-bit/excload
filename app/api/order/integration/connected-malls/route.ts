@@ -21,6 +21,7 @@ const PROVIDER_TO_MALL_ID: Partial<Record<OrderIntegrationProvider, OrderIntegra
   SHOPBY: 'shopby',
   GODOMALL: 'godomall',
   MAKESHOP: 'makeshop',
+  DOMEGGOOK: 'domeggook',
 };
 
 /** 현재 사용자에게 저장된(연동된) 쇼핑몰 목록 */

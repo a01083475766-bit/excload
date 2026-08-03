@@ -9,6 +9,7 @@ import { cjonstyleHealthAdapter } from './cjonstyle';
 import { shopbyHealthAdapter } from './shopby';
 import { godomallHealthAdapter } from './godomall';
 import { makeshopHealthAdapter } from './makeshop';
+import { domeggookHealthAdapter } from './domeggook';
 
 let registered = false;
 
@@ -25,5 +26,6 @@ export function registerBuiltInHealthAdapters(): void {
   registerHealthAdapter(shopbyHealthAdapter);
   registerHealthAdapter(godomallHealthAdapter);
   registerHealthAdapter(makeshopHealthAdapter);
+  registerHealthAdapter(domeggookHealthAdapter);
   registered = true;
 }

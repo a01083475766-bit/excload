@@ -14,6 +14,7 @@ const MALLS = [
   'shopby',
   'godomall',
   'makeshop',
+  'domeggook',
 ] as const;
 
 function routeSource(mall: (typeof MALLS)[number], route: 'test' | 'fetch-orders'): string {
