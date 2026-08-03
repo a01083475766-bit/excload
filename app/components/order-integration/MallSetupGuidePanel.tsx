@@ -18,6 +18,7 @@ export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
   const [visualGuideOpen, setVisualGuideOpen] = useState(false);
   const showSmartstoreVisualGuide = mallId === 'smartstore';
   const showCoupangVisualGuide = mallId === 'coupang';
+  const showDomeggookGuide = mallId === 'domeggook';
   const showVisualGuide = showSmartstoreVisualGuide || showCoupangVisualGuide;
 
   if (!guide) {
@@ -36,7 +37,9 @@ export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
     ? '네이버에서 키를 발급한 뒤, 왼쪽 칸에 넣고 저장·연결 테스트를 하면 됩니다. 처음이시면 「설정 따라하기」를 눌러 화면을 따라 진행해 주세요.'
     : showCoupangVisualGuide
       ? '쿠팡 Wing에서 Open API 키를 발급한 뒤, 왼쪽 칸에 넣고 저장·연결 테스트를 하면 됩니다. 처음이시면 「설정 따라하기」를 눌러 화면을 따라 진행해 주세요.'
-      : '판매자센터에서 API(또는 앱)를 발급한 뒤, 엑클로드 정보를 등록하고 왼쪽 입력란에 키를 넣습니다.';
+      : showDomeggookGuide
+        ? '도매꾹 주문연동은 Open API Key 발급과 Private API 권한 승인이 모두 필요합니다.'
+        : '판매자센터에서 API(또는 앱)를 발급한 뒤, 엑클로드 정보를 등록하고 왼쪽 입력란에 키를 넣습니다.';
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
@@ -45,15 +48,27 @@ export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {guide.sellerCenterHref ? (
-          <a
-            href={guide.sellerCenterHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
-          >
-            {guide.sellerCenterLabel ?? '판매자센터 바로가기'}
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-          </a>
+          showDomeggookGuide ? (
+            <a
+              href={guide.sellerCenterHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-8 items-center gap-1.5 rounded border border-blue-600 bg-blue-600 px-2.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+            >
+              {guide.sellerCenterLabel ?? '판매자센터 바로가기'}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          ) : (
+            <a
+              href={guide.sellerCenterHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              {guide.sellerCenterLabel ?? '판매자센터 바로가기'}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          )
         ) : null}
 
         {showVisualGuide ? (

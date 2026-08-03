@@ -303,4 +303,112 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
       '레거시 shop_domain·shop_key 방식이 아닙니다. APP 심사 전에는 연결이 되지 않을 수 있습니다.',
     ],
   },
+  domeggook: {
+    title: '도매꾹 연동 준비',
+    sellerCenterHref: 'https://mobile.domeggook.com/APIs/gate',
+    sellerCenterLabel: '도매꾹 API 발급·관리 열기',
+    steps: [
+      {
+        title: 'Open API Key 발급',
+        body: (
+          <>
+            도매꾹에 로그인한 뒤 <strong>Open API → API Key 발급</strong>을 진행하세요.
+            <br />
+            카카오·네이버·애플 등 SNS로 가입한 계정은 API 로그인을 사용할 수 없습니다. 도매꾹 ID와
+            비밀번호로 로그인 가능한 계정이 필요합니다.{' '}
+            <a
+              href="https://openapi.domeggook.com/ko/articles/%EB%A1%9C%EA%B7%B8%EC%9D%B8-e4aaf7c2"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-blue-600 hover:text-blue-700"
+            >
+              도매꾹 공식 로그인 API 안내
+            </a>
+          </>
+        ),
+      },
+      {
+        title: 'Private API 권한 신청',
+        body: (
+          <>
+            <p>
+              <strong>Private API → 권한신청</strong>을 누르고 왼쪽의 엑클로드 등록 정보를
+              입력하세요.
+            </p>
+            <table className="mt-2 w-full border-collapse text-left text-xs text-zinc-700">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50">
+                  <th className="px-2 py-1.5 font-semibold">신청 항목</th>
+                  <th className="px-2 py-1.5 font-semibold">입력값</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-zinc-100">
+                  <td className="px-2 py-1.5">업체명·서비스명</td>
+                  <td className="px-2 py-1.5">엑클로드</td>
+                </tr>
+                <tr className="border-b border-zinc-100">
+                  <td className="px-2 py-1.5">서비스 URL</td>
+                  <td className="px-2 py-1.5">https://www.excload.com</td>
+                </tr>
+                <tr className="border-b border-zinc-100">
+                  <td className="px-2 py-1.5">고정 IP</td>
+                  <td className="px-2 py-1.5">54.180.45.46</td>
+                </tr>
+                <tr>
+                  <td className="px-2 py-1.5 align-top">연동 목적</td>
+                  <td className="px-2 py-1.5">
+                    엑클로드 이용 도매꾹 공급사의 판매 주문 수집, 발주확인 및 배송·송장정보 전송을
+                    위한 API 연동
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="mt-2 font-semibold text-zinc-800">엑클로드용 권장 권한 — 총 6개</p>
+            <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs">
+              <li>공통: 로그인, 로그인 체크</li>
+              <li>판매관리: 판매 주문서 목록 조회</li>
+              <li>판매관리: 판매 주문서 상세 조회</li>
+              <li>판매관리: 주문서 발주확인</li>
+              <li>판매관리: 주문서 발송정보 입력 및 수정</li>
+            </ul>
+            <p className="mt-1.5 text-xs text-zinc-500">
+              구매관리 권한과 판매취소·반품교환 권한은 선택하지 않아도 됩니다.
+            </p>
+          </>
+        ),
+      },
+      {
+        title: '승인 확인',
+        body: (
+          <>
+            Private API는 신청 후 도매꾹 관리자의 승인이 필요합니다. 보통 영업일 기준 1~3일이
+            소요되며 이메일과 도매꾹 알림으로 결과가 안내됩니다.{' '}
+            <a
+              href="https://openapi.domeggook.com/ko/articles/%EC%A4%91%EC%9A%94-%EB%8F%84%EB%A7%A4%EA%BE%B9-Private-API-%EA%B6%8C%ED%95%9C-%EC%8A%B9%EC%9D%B8%EC%A0%9C-%EB%8F%84%EC%9E%85-%EC%95%88%EB%82%B4-326-%EC%8B%9C%ED%96%89-1f097ec2"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-blue-600 hover:text-blue-700"
+            >
+              도매꾹 Private API 승인 안내
+            </a>
+          </>
+        ),
+      },
+      {
+        title: '엑클로드에 연결',
+        body: (
+          <>
+            승인이 완료되면 왼쪽 입력란에 계정명, 도매꾹 회원 ID, 비밀번호, 발급받은 전체 API Key를
+            입력하세요. 입력 후 <strong>저장 → 연결 테스트</strong> 순서로 진행하세요. 조회된 주문이
+            0건이어도 연결 성공 메시지가 나오면 정상입니다.
+          </>
+        ),
+      },
+    ],
+    notes: [
+      '비밀번호와 API Key는 다른 사람에게 공유하지 마세요.',
+      '현재 엑클로드는 판매 주문 목록·상세 조회만 제공하며, 발주확인과 송장전송 기능은 준비 중입니다.',
+    ],
+  },
 };
