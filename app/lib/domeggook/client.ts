@@ -46,6 +46,14 @@ export type DomeggookOrderRecord = {
   receiverAddress2: string;
   postalCode: string;
   orderStatus: string;
+  /** getOrderView items.statusMode (WAITCHK 등) */
+  statusMode: string;
+  /** items.item.market — dome=도매꾹, supply=도매매 */
+  market: string;
+  deliveryMethod: string;
+  deliveryCompany: string;
+  /** 운송장번호 — 항상 문자열 보존 */
+  deliveryCode: string;
   orderedAt: string;
   deliveryMemo: string;
   raw: Record<string, unknown>;
@@ -378,6 +386,7 @@ export function extractDomeggookOrderRecords(root: unknown): DomeggookOrderRecor
 
     const receiver = extractReceiverFields(record);
     const nestedItem = asRecord(record.item);
+    const delivery = asRecord(record.delivery);
 
     orders.push({
       orderNo: orderNo || orderUid,
@@ -402,6 +411,11 @@ export function extractDomeggookOrderRecords(root: unknown): DomeggookOrderRecor
       receiverAddress2: receiver.receiverAddress2,
       postalCode: receiver.postalCode,
       orderStatus: firstString(record.status, record.ordStatus, record.stateNm, record.statusName),
+      statusMode: firstString(record.statusMode, record.status_mode).toUpperCase(),
+      market: firstString(nestedItem?.market, record.market).toLowerCase(),
+      deliveryMethod: firstString(delivery?.method),
+      deliveryCompany: firstString(delivery?.company),
+      deliveryCode: firstString(delivery?.code),
       orderedAt: firstString(record.date, record.orderDate, record.ordDt, record.regDate, record.orderedAt),
       deliveryMemo: receiver.deliveryMemo,
       raw: record,
@@ -900,4 +914,283 @@ export function toUserFacingDomeggookClientError(
     return redactDomeggookSecrets(error.message, secrets);
   }
   return '도매꾹 연동 처리 중 오류가 발생했습니다.';
+}
+
+function normalizeDomeggookNoList(value: unknown): string[] {
+  if (value == null) return [];
+  if (typeof value === 'number' && Number.isFinite(value)) return [String(Math.trunc(value))];
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part) => /^\d+$/.test(part));
+  }
+  if (Array.isArray(value)) {
+    const out: string[] = [];
+    for (const item of value) {
+      out.push(...normalizeDomeggookNoList(item));
+    }
+    return [...new Set(out)];
+  }
+  const record = asRecord(value);
+  if (record && 'no' in record) {
+    return normalizeDomeggookNoList(record.no);
+  }
+  return [];
+}
+
+function coerceDomeggookResultFlag(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase();
+    if (v === 'true' || v === '1') return true;
+    if (v === 'false' || v === '0') return false;
+  }
+  return null;
+}
+
+export type DomeggookSetOrdChkResult = {
+  /** API result 플래그 — 1건 이상 성공 시 true. 전체 성공 여부와 다름 */
+  apiResultFlag: boolean;
+  successNos: string[];
+  failNos: string[];
+  rawBodyText: string;
+};
+
+export function parseDomeggookSetOrdChkResponse(bodyText: string): DomeggookSetOrdChkResult {
+  const trimmed = bodyText.trim();
+  let root: unknown = {};
+  try {
+    root = parseDomeggookJsonBody(trimmed);
+  } catch {
+    // XML fallback (om 미지정 시)
+    const resultMatch = /<result>\s*([^<]+)\s*<\/result>/i.exec(trimmed);
+    const successBlock = /<success>([\s\S]*?)<\/success>/i.exec(trimmed)?.[1] ?? '';
+    const failBlock = /<fail>([\s\S]*?)<\/fail>/i.exec(trimmed)?.[1] ?? '';
+    const successNos = [...successBlock.matchAll(/<no>\s*([^<]+)\s*<\/no>/gi)].map((m) =>
+      String(m[1] ?? '').trim(),
+    ).filter((n) => /^\d+$/.test(n));
+    const failNos = [...failBlock.matchAll(/<no>\s*([^<]+)\s*<\/no>/gi)].map((m) =>
+      String(m[1] ?? '').trim(),
+    ).filter((n) => /^\d+$/.test(n));
+    const flag = coerceDomeggookResultFlag(resultMatch?.[1] ?? null);
+    return {
+      apiResultFlag: flag === true,
+      successNos: [...new Set(successNos)],
+      failNos: [...new Set(failNos)],
+      rawBodyText: trimmed,
+    };
+  }
+
+  let apiResultFlag: boolean | null = null;
+  let successNos: string[] = [];
+  let failNos: string[] = [];
+  for (const node of collectObjects(root)) {
+    const record = asRecord(node);
+    if (!record) continue;
+    if (apiResultFlag == null && 'result' in record) {
+      apiResultFlag = coerceDomeggookResultFlag(record.result);
+    }
+    if ('success' in record) {
+      successNos = normalizeDomeggookNoList(record.success);
+    }
+    if ('fail' in record) {
+      failNos = normalizeDomeggookNoList(record.fail);
+    }
+  }
+
+  return {
+    apiResultFlag: apiResultFlag === true,
+    successNos,
+    failNos,
+    rawBodyText: trimmed,
+  };
+}
+
+export type DomeggookSetOrdOkDeliResult = {
+  ok: boolean;
+  resultFlag: boolean;
+  message: string;
+  rawBodyText: string;
+};
+
+export function parseDomeggookSetOrdOkDeliResponse(bodyText: string): DomeggookSetOrdOkDeliResult {
+  const trimmed = bodyText.trim();
+  let resultFlag: boolean | null = null;
+  let message = '';
+
+  try {
+    const root = parseDomeggookJsonBody(trimmed);
+    for (const node of collectObjects(root)) {
+      const record = asRecord(node);
+      if (!record) continue;
+      if (resultFlag == null && 'result' in record) {
+        resultFlag = coerceDomeggookResultFlag(record.result);
+      }
+      if (!message) {
+        message = firstString(record.message, record.msg, record.resultMessage, record.errMsg);
+      }
+    }
+  } catch {
+    const resultMatch = /<result>\s*([^<]+)\s*<\/result>/i.exec(trimmed);
+    resultFlag = coerceDomeggookResultFlag(resultMatch?.[1] ?? null);
+    const msgMatch = /<(?:message|msg|resultMessage)>\s*([^<]+)\s*<\/(?:message|msg|resultMessage)>/i.exec(
+      trimmed,
+    );
+    message = msgMatch?.[1]?.trim() ?? '';
+  }
+
+  const ok = resultFlag === true;
+  return {
+    ok,
+    resultFlag: resultFlag === true,
+    message: message || (ok ? 'ok' : '도매꾹 발송정보 등록에 실패했습니다.'),
+    rawBodyText: trimmed,
+  };
+}
+
+/**
+ * 주문서 발주확인 (setOrdChk v1.0).
+ * no: 숫자 주문번호 콤마 연결. OR 접두는 호출 전에 제거된 값만 전달.
+ */
+export async function domeggookSetOrdChk(input: {
+  credentials: DomeggookCredentials;
+  session: DomeggookSession;
+  /** API 전송용 숫자 주문번호들 */
+  apiOrderNos: string[];
+  http?: DomeggookHttpFn;
+}): Promise<DomeggookSetOrdChkResult> {
+  const http = input.http ?? invokeIntegrationHttp;
+  if (!input.http) {
+    if (!isIntegrationProxyConfigured()) {
+      throw new Error('도매꾹 API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.');
+    }
+    assertIntegrationProxyConfigReady();
+  }
+
+  const nos = [...new Set(input.apiOrderNos.map((n) => n.trim()).filter((n) => /^\d+$/.test(n)))];
+  if (nos.length === 0) {
+    throw new Error('발주확인할 숫자 주문번호가 없습니다.');
+  }
+
+  const { memberId, apiKey } = input.credentials;
+  const secrets = [input.credentials.password, apiKey, memberId, input.session.sId];
+  const body = buildFormBody({
+    ver: '1.0',
+    mode: 'setOrdChk',
+    aid: apiKey.trim(),
+    id: memberId.trim(),
+    sId: input.session.sId,
+    no: nos.join(','),
+  });
+
+  let res: { httpStatus: number; bodyText: string };
+  try {
+    res = await http({
+      method: 'POST',
+      url: DOMEGGOOK_API_URL,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json, application/xml, text/xml, text/plain, */*',
+      },
+      body,
+    });
+  } catch {
+    throw new Error('도매꾹 발주확인 API 네트워크 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+
+  if (res.httpStatus < 200 || res.httpStatus >= 300) {
+    throw new Error(
+      toUserFacingDomeggookErrorMessage(
+        { httpStatus: res.httpStatus, message: `HTTP ${res.httpStatus}` },
+        secrets,
+      ),
+    );
+  }
+
+  // result=false 도 유효 응답 — envelope success-code로 던지지 않는다.
+  return parseDomeggookSetOrdChkResponse(res.bodyText);
+}
+
+/**
+ * 주문서 발송정보 입력 (setOrdOkDeli v1.0, type=add).
+ * 공식 Request Example의 mode=getMyAsset 오기는 무시하고 표의 setOrdOkDeli 사용.
+ */
+export async function domeggookSetOrdOkDeli(input: {
+  credentials: DomeggookCredentials;
+  session: DomeggookSession;
+  apiOrderNo: string;
+  type: 'add' | 'edit';
+  deliMethod: string;
+  deliCompany: string;
+  deliCode: string;
+  deliWithTax: 0 | 1;
+  http?: DomeggookHttpFn;
+}): Promise<DomeggookSetOrdOkDeliResult> {
+  const http = input.http ?? invokeIntegrationHttp;
+  if (!input.http) {
+    if (!isIntegrationProxyConfigured()) {
+      throw new Error('도매꾹 API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.');
+    }
+    assertIntegrationProxyConfigReady();
+  }
+
+  const apiOrderNo = input.apiOrderNo.trim();
+  if (!/^\d+$/.test(apiOrderNo)) {
+    throw new Error('발송정보 등록에 필요한 숫자 주문번호가 없습니다.');
+  }
+  const deliCode = String(input.deliCode ?? '').trim();
+  if (!deliCode) {
+    throw new Error('운송장번호가 없습니다.');
+  }
+
+  const { memberId, apiKey } = input.credentials;
+  const secrets = [input.credentials.password, apiKey, memberId, input.session.sId];
+  const body = buildFormBody({
+    ver: '1.0',
+    mode: 'setOrdOkDeli',
+    aid: apiKey.trim(),
+    id: memberId.trim(),
+    sId: input.session.sId,
+    no: apiOrderNo,
+    type: input.type,
+    deliMethod: input.deliMethod,
+    deliCompany: input.deliCompany,
+    deliCode,
+    deliWithTax: String(input.deliWithTax),
+  });
+
+  let res: { httpStatus: number; bodyText: string };
+  try {
+    res = await http({
+      method: 'POST',
+      url: DOMEGGOOK_API_URL,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json, application/xml, text/xml, text/plain, */*',
+      },
+      body,
+    });
+  } catch {
+    throw new Error('도매꾹 발송정보 등록 API 네트워크 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+  }
+
+  if (res.httpStatus < 200 || res.httpStatus >= 300) {
+    throw new Error(
+      toUserFacingDomeggookErrorMessage(
+        { httpStatus: res.httpStatus, message: `HTTP ${res.httpStatus}` },
+        secrets,
+      ),
+    );
+  }
+
+  const parsed = parseDomeggookSetOrdOkDeliResponse(res.bodyText);
+  return {
+    ...parsed,
+    message: redactDomeggookSecrets(parsed.message, secrets),
+  };
 }

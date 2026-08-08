@@ -53,6 +53,27 @@ import {
   mergeSmartstoreVerifyItemResults,
   summarizeSmartstoreVerifyDecisions,
 } from '@/app/lib/order-integration/transmission/smartstore-verify-reconcile';
+import { toElevenCredentials } from '@/app/lib/order-integration/eleven-account';
+import { fetchElevenOrders, toUserFacingElevenErrorMessage } from '@/app/lib/eleven/client';
+import {
+  decideElevenVerifyFromOrders,
+  resolveElevenDeliveryEnterpriseCode,
+} from '@/app/lib/eleven/eleven-invoice';
+import { extractElevenLineIds } from '@/app/lib/eleven/eleven-ids';
+import {
+  toDomeggookCredentials,
+} from '@/app/lib/order-integration/domeggook-account';
+import {
+  domeggookGetOrderView,
+  domeggookSetLogin,
+  toUserFacingDomeggookClientError,
+} from '@/app/lib/domeggook/client';
+import {
+  decideDomeggookVerifyFromOrderView,
+  resolveDomeggookApiOrderNoFromCandidate,
+  resolveDomeggookDeliCompany,
+} from '@/app/lib/domeggook/domeggook-invoice';
+import { extractDomeggookOrderUid } from '@/app/lib/domeggook/domeggook-ids';
 
 export type VerifyTransmissionAttemptRecord = {
   id: string;
@@ -140,6 +161,11 @@ export type VerifyTransmissionServiceDeps = {
   fetchCoupangByBoxId?: typeof fetchCoupangOrderSheetByShipmentBoxId;
   fetchCafe24Shipments?: typeof fetchCafe24OrderShipments;
   fetchCafe24Carriers?: typeof fetchCafe24Carriers;
+  resolveElevenCredentials?: typeof toElevenCredentials;
+  fetchElevenOrders?: typeof fetchElevenOrders;
+  resolveDomeggookCredentials?: typeof toDomeggookCredentials;
+  domeggookSetLogin?: typeof domeggookSetLogin;
+  domeggookGetOrderView?: typeof domeggookGetOrderView;
   /** SMARTSTORE 부분 결과 보존·Match SENT 정리 (선택) */
   persistSmartstoreVerification?: (
     input: PersistSmartstoreVerificationInput,
@@ -545,6 +571,191 @@ async function verifyCafe24Attempt(
   }
 }
 
+export function extractElevenMallLineItemIds(
+  record: VerifyTransmissionAttemptRecord,
+): string[] {
+  const fromAttempt = asStringArray(record.mallLineItemIdsJson);
+  if (fromAttempt.length > 0) return fromAttempt;
+  return asStringArray(record.orderSyncOrder?.mallLineItemIds);
+}
+
+async function verifyElevenAttempt(
+  deps: VerifyTransmissionServiceDeps,
+  record: VerifyTransmissionAttemptRecord,
+  account: OrderIntegrationAccount,
+): Promise<VerifyTransmissionResultItem> {
+  const mallLineItemIds = extractElevenMallLineItemIds(record);
+  const lines = extractElevenLineIds(mallLineItemIds, record.mallOrderNo);
+  if (lines.length === 0) {
+    return failedItem(record.id, '확인에 필요한 11번가 주문·배송번호가 없습니다.');
+  }
+
+  let credentials;
+  try {
+    credentials = (deps.resolveElevenCredentials ?? toElevenCredentials)(account);
+  } catch {
+    return failedItem(record.id, '쇼핑몰 연결을 확인하세요.');
+  }
+  if (!credentials.openapikey?.trim()) {
+    return failedItem(record.id, '쇼핑몰 연결을 확인하세요.');
+  }
+
+  const expectedTracking = String(record.trackingNumberNormalized ?? '').trim();
+  const courier = resolveElevenDeliveryEnterpriseCode({
+    courierCode: record.courierCode ?? null,
+    courierName: record.courierName ?? null,
+  });
+  const expectedDlvEtprsCd = courier.ok ? courier.dlvEtprsCd : null;
+
+  const fetchOrders = deps.fetchElevenOrders ?? fetchElevenOrders;
+  try {
+    const orders = await fetchOrders({ credentials, days: 14 });
+    const decision = decideElevenVerifyFromOrders({
+      lines,
+      expectedTracking,
+      expectedDlvEtprsCd,
+      orders,
+    });
+    return {
+      attemptId: record.id,
+      status: decision.status,
+      mallStatusCode: decision.mallStatusCode,
+      mallStatusLabel: decision.mallStatusLabel,
+      confirmedItems: decision.status === 'CONFIRMED' ? lines.length : 0,
+      totalItems: lines.length,
+      message: decision.message,
+    };
+  } catch (error) {
+    const message = toUserFacingElevenErrorMessage(error);
+    if (/인증|권한|401|403|-997|등록된 API/i.test(message)) {
+      return {
+        attemptId: record.id,
+        status: 'CHECK_FAILED',
+        mallStatusCode: null,
+        mallStatusLabel: null,
+        confirmedItems: null,
+        totalItems: lines.length,
+        message: '11번가 인증·권한 오류로 반영 상태를 확인하지 못했습니다.',
+      };
+    }
+    if (/일시|timeout|429|5\d\d|잠시/i.test(message)) {
+      return {
+        attemptId: record.id,
+        status: 'PENDING',
+        mallStatusCode: null,
+        mallStatusLabel: null,
+        confirmedItems: null,
+        totalItems: lines.length,
+        message: '일시적인 오류로 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      };
+    }
+    return failedItem(record.id, message);
+  }
+}
+
+async function verifyDomeggookAttempt(
+  deps: VerifyTransmissionServiceDeps,
+  record: VerifyTransmissionAttemptRecord,
+  account: OrderIntegrationAccount,
+): Promise<VerifyTransmissionResultItem> {
+  const mallLineItemIds = asStringArray(record.mallLineItemIdsJson);
+  const fromOrder = asStringArray(record.orderSyncOrder?.mallLineItemIds);
+  const ids = mallLineItemIds.length > 0 ? mallLineItemIds : fromOrder;
+  const apiOrderNo = resolveDomeggookApiOrderNoFromCandidate({
+    mallOrderNo: record.mallOrderNo,
+    mallLineItemIds: ids,
+  });
+  if (!apiOrderNo) {
+    return failedItem(record.id, '확인에 필요한 도매꾹 숫자 주문번호가 없습니다.');
+  }
+
+  let credentials;
+  try {
+    credentials = (deps.resolveDomeggookCredentials ?? toDomeggookCredentials)(account);
+  } catch {
+    return failedItem(record.id, '쇼핑몰 연결을 확인하세요.');
+  }
+
+  const expectedTracking = String(record.trackingNumberNormalized ?? '').trim();
+  const courier = resolveDomeggookDeliCompany({
+    courierCode: record.courierCode ?? null,
+    courierName: record.courierName ?? null,
+  });
+  const expectedCompany = courier.ok ? courier.deliCompany : null;
+  const orderUid = extractDomeggookOrderUid(ids) ?? '';
+
+  const setLogin = deps.domeggookSetLogin ?? domeggookSetLogin;
+  const getView = deps.domeggookGetOrderView ?? domeggookGetOrderView;
+
+  try {
+    const session = await setLogin({ credentials });
+    try {
+      const order = await getView({
+        credentials,
+        session,
+        orderNo: apiOrderNo,
+        orderUid: orderUid || undefined,
+      });
+      const decision = decideDomeggookVerifyFromOrderView({
+        order,
+        expectedTracking,
+        expectedDeliCompany: expectedCompany,
+      });
+      return {
+        attemptId: record.id,
+        status: decision.status,
+        mallStatusCode: decision.mallStatusCode,
+        mallStatusLabel: decision.mallStatusLabel,
+        confirmedItems: decision.status === 'CONFIRMED' ? 1 : 0,
+        totalItems: 1,
+        message: decision.message,
+      };
+    } finally {
+      (session as { sId?: string }).sId = undefined;
+    }
+  } catch (error) {
+    const message = toUserFacingDomeggookClientError(error, [
+      credentials.password,
+      credentials.apiKey,
+      credentials.memberId,
+    ]);
+    if (/인증|권한|세션|401|403|api key|로그인/i.test(message)) {
+      return {
+        attemptId: record.id,
+        status: 'CHECK_FAILED',
+        mallStatusCode: null,
+        mallStatusLabel: null,
+        confirmedItems: null,
+        totalItems: 1,
+        message: '도매꾹 인증·세션 오류로 반영 상태를 확인하지 못했습니다.',
+      };
+    }
+    if (/일시|timeout|429|5\d\d|네트워크|잠시/i.test(message)) {
+      return {
+        attemptId: record.id,
+        status: 'PENDING',
+        mallStatusCode: null,
+        mallStatusLabel: null,
+        confirmedItems: null,
+        totalItems: 1,
+        message: '일시적인 오류로 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      };
+    }
+    if (/찾지 못|상세 응답에서 주문/i.test(message)) {
+      return {
+        attemptId: record.id,
+        status: 'CHECK_FAILED',
+        mallStatusCode: null,
+        mallStatusLabel: null,
+        confirmedItems: null,
+        totalItems: 1,
+        message: '도매꾹에서 주문을 찾지 못했습니다.',
+      };
+    }
+    return failedItem(record.id, message);
+  }
+}
+
 export async function runVerifyTransmissionService(
   deps: VerifyTransmissionServiceDeps,
   input: { userId: string; batchId: string; attemptIds: string[] },
@@ -591,6 +802,16 @@ export async function runVerifyTransmissionService(
         results.push(unsupportedItem(attemptId, '전송 성공·확인대기 건만 확인할 수 있습니다.'));
         continue;
       }
+    } else if (record.provider === 'ELEVEN') {
+      if (record.status !== 'SUCCESS') {
+        results.push(unsupportedItem(attemptId, '전송 성공 건만 확인할 수 있습니다.'));
+        continue;
+      }
+    } else if (record.provider === 'DOMEGGOOK') {
+      if (record.status !== 'SUCCESS') {
+        results.push(unsupportedItem(attemptId, '전송 성공 건만 확인할 수 있습니다.'));
+        continue;
+      }
     } else {
       results.push(
         unsupportedItem(attemptId, '이 쇼핑몰은 상태 확인을 아직 지원하지 않습니다. 상태 확인 지원 예정.'),
@@ -622,6 +843,10 @@ export async function runVerifyTransmissionService(
       results.push(await verifySmartstoreAttempt(deps, record, account));
     } else if (record.provider === 'CAFE24') {
       results.push(await verifyCafe24Attempt(deps, record, account));
+    } else if (record.provider === 'ELEVEN') {
+      results.push(await verifyElevenAttempt(deps, record, account));
+    } else if (record.provider === 'DOMEGGOOK') {
+      results.push(await verifyDomeggookAttempt(deps, record, account));
     } else {
       results.push(await verifyCoupangAttempt(deps, record, account));
     }

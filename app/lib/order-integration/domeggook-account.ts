@@ -26,11 +26,31 @@ export type DomeggookAccountPublic = {
   passwordMasked: string;
   hasApiKey: boolean;
   hasPassword: boolean;
+  /** 0=미포함, 1=포함, null=미선택 */
+  deliWithTax: 0 | 1 | null;
   status: 'active' | 'inactive' | 'error';
   lastTestedAt: string | null;
   lastSyncedAt: string | null;
   lastErrorMessage: string | null;
 };
+
+type AccountWithDomeggookTax = OrderIntegrationAccount & {
+  domeggookDeliWithTax?: number | null;
+};
+
+export function readDomeggookDeliWithTax(account: OrderIntegrationAccount): 0 | 1 | null {
+  const value = (account as AccountWithDomeggookTax).domeggookDeliWithTax;
+  if (value === 0 || value === 1) return value;
+  return null;
+}
+
+export function parseDomeggookDeliWithTaxInput(raw: unknown): 0 | 1 | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return null;
+  if (raw === 0 || raw === '0') return 0;
+  if (raw === 1 || raw === '1') return 1;
+  throw new Error('세금계산서 포함 여부는 미포함(0) 또는 포함(1)만 선택할 수 있습니다.');
+}
 
 function mapStatus(status: OrderIntegrationAccountStatus): DomeggookAccountPublic['status'] {
   switch (status) {
@@ -111,6 +131,7 @@ export function toDomeggookAccountPublic(account: OrderIntegrationAccount): Dome
     passwordMasked: maskIntegrationSecret(passwordPlain),
     hasApiKey: Boolean(apiKeyPlain),
     hasPassword: Boolean(passwordPlain),
+    deliWithTax: readDomeggookDeliWithTax(account),
     status: mapStatus(account.status),
     lastTestedAt: account.lastTestedAt?.toISOString() ?? null,
     lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
@@ -136,6 +157,8 @@ export async function saveDomeggookAccount(input: {
   memberId: string;
   password?: string;
   apiKey?: string;
+  /** undefined=기존값 유지, null=미선택으로 초기화, 0|1=저장 */
+  deliWithTax?: 0 | 1 | null;
 }): Promise<OrderIntegrationAccount> {
   const accountName = input.accountName.trim();
   const memberId = input.memberId.trim();
@@ -205,6 +228,11 @@ export async function saveDomeggookAccount(input: {
     throw new Error('도매꾹 비밀번호는 필수입니다.');
   }
 
+  const nextDeliWithTax =
+    input.deliWithTax === undefined
+      ? readDomeggookDeliWithTax(existingByUser as OrderIntegrationAccount)
+      : input.deliWithTax;
+
   const commonData = {
     accountName,
     vendorId: memberId,
@@ -218,12 +246,13 @@ export async function saveDomeggookAccount(input: {
     encryptionKeyVersion: apiKeyEncrypted.keyVersion,
     status: OrderIntegrationAccountStatus.INACTIVE,
     lastErrorMessage: null,
+    domeggookDeliWithTax: nextDeliWithTax,
   };
 
   if (existingByUser) {
     return prisma.orderIntegrationAccount.update({
       where: { id: existingByUser.id },
-      data: commonData,
+      data: commonData as never,
     });
   }
 
@@ -231,8 +260,8 @@ export async function saveDomeggookAccount(input: {
     data: {
       userId: input.userId,
       provider: OrderIntegrationProvider.DOMEGGOOK,
-      ...commonData,
-    },
+      ...(commonData as object),
+    } as never,
   });
 }
 

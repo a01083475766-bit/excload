@@ -2,6 +2,11 @@ import { BASE_HEADERS } from '@/app/pipeline/base/base-headers';
 import { createEmptyBaseHeaderRow, type BaseHeaderRow } from '@/app/pipeline/base/base-headers';
 import type { OrderStandardFile, StandardOrderRow } from '@/app/pipeline/order/order-pipeline';
 import type { ElevenOrderRecord } from '@/app/lib/eleven/client';
+import {
+  buildElevenProductOrderNo,
+  normalizeElevenAddPrdNoForPath,
+  normalizeElevenAddPrdYn,
+} from '@/app/lib/eleven/eleven-ids';
 
 const ELEVEN_STATUS_LABEL: Record<string, string> = {
   '101': '결제완료',
@@ -58,9 +63,11 @@ export function mapElevenOrderToStandardRow(order: ElevenOrderRecord): BaseHeade
   const ordererPhone = order.ordPrtblTel || order.ordTlphnNo;
   const productOption = order.slctPrdOptNm || order.ordOptWonStl;
   const deliveryMessage = order.ordDlvReqCont || order.dlvMsg;
+  const addPrdYn = normalizeElevenAddPrdYn(order.addPrdYn);
+  const addPrdNoPath = normalizeElevenAddPrdNoForPath(addPrdYn, order.addPrdNo);
 
   row['주문번호'] = order.ordNo ?? '';
-  row['상품주문번호'] = order.ordPrdSeq ? `${order.ordNo}-${order.ordPrdSeq}` : order.ordNo ?? '';
+  row['상품주문번호'] = buildElevenProductOrderNo(order.ordNo ?? '', order.ordPrdSeq ?? '');
   row['주문상태'] = mapStatusLabel(order);
   row['주문일시'] = formatElevenDateTime(order.ordDt);
   row['결제일시'] = formatElevenDateTime(order.ordStlEndDt);
@@ -77,6 +84,12 @@ export function mapElevenOrderToStandardRow(order: ElevenOrderRecord): BaseHeade
   row['수량'] = order.ordQty ? String(order.ordQty) : '1';
   row['결제금액'] = order.ordPayAmt ?? '';
   row['판매처'] = '11번가';
+  // dlvNo는 가이드상 배송번호 — 쿠팡 boxId와 같이 묶음배송번호 슬롯에 원문 보존(임의 생성 금지)
+  row['묶음배송번호'] = (order.dlvNo ?? '').trim();
+  // 추가구성: "Y|번호" 또는 "N|null"
+  row['추가상품'] = `${addPrdYn}|${addPrdNoPath}`;
+  if (order.invcNo) row['운송장번호'] = order.invcNo;
+  if (order.dlvEtprsCd) row['택배사'] = order.dlvEtprsCd;
 
   return row;
 }

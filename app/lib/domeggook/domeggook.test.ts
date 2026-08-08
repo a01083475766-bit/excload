@@ -212,6 +212,11 @@ describe('domeggook response parsing', () => {
       orderStatus: '',
       orderedAt: '',
       deliveryMemo: '',
+      statusMode: '',
+      market: '',
+      deliveryMethod: '',
+      deliveryCompany: '',
+      deliveryCode: '',
       raw: {},
     };
     const deduped = dedupeDomeggookOrders([

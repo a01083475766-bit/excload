@@ -194,7 +194,13 @@ export function isTransmissionVerifySupportedProvider(provider?: string | null):
   const normalized = String(provider ?? '')
     .trim()
     .toUpperCase();
-  return normalized === 'COUPANG' || normalized === 'SMARTSTORE';
+  return (
+    normalized === 'COUPANG' ||
+    normalized === 'SMARTSTORE' ||
+    normalized === 'CAFE24' ||
+    normalized === 'ELEVEN' ||
+    normalized === 'DOMEGGOOK'
+  );
 }
 
 export function resolveInitialVerificationStatus(input: {

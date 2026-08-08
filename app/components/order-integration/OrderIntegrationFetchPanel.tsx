@@ -43,6 +43,18 @@ import {
   isSmartstorePlaceOrderNotYetRow,
 } from '@/app/lib/smartstore/smartstore-fetch-panel-logic';
 import {
+  collectSelectedElevenConfirmSelection,
+  isElevenConfirmableRow,
+} from '@/app/lib/eleven/eleven-fetch-panel-logic';
+import { mergeElevenConfirmedOrdersIntoFetchResult } from '@/app/lib/eleven/eleven-confirm-merge';
+import type { ElevenConfirmItemStatus } from '@/app/lib/eleven/eleven-confirm';
+import {
+  collectSelectedDomeggookConfirmSelection,
+  isDomeggookConfirmableRow,
+} from '@/app/lib/domeggook/domeggook-fetch-panel-logic';
+import { mergeDomeggookConfirmedOrdersIntoFetchResult } from '@/app/lib/domeggook/domeggook-confirm-merge';
+import type { DomeggookConfirmItemStatus } from '@/app/lib/domeggook/domeggook-confirm';
+import {
   EXCLOAD_ORDER_STATUS_LABEL,
   isClaimStatus,
   isShipmentTarget,
@@ -670,6 +682,69 @@ export default function OrderIntegrationFetchPanel() {
     [allDisplayRows],
   );
 
+  const elevenConfirmRows = useMemo(() => {
+    if (!results) return [];
+    return filteredRows.map((row) => {
+      const mall = results.find(
+        (m) => m.mallId === row.mallId && m.accountId === row.accountId,
+      );
+      const standard = mall?.rows[row.rowIndex];
+      return {
+        ...row,
+        shipmentBoxId:
+          row.shipmentBoxId ||
+          String(standard?.['묶음배송번호'] ?? '').trim() ||
+          undefined,
+        addPrdRaw: String(standard?.['추가상품'] ?? '').trim() || undefined,
+      };
+    });
+  }, [filteredRows, results]);
+
+  const selectedElevenConfirmSelection = useMemo(
+    () => collectSelectedElevenConfirmSelection(elevenConfirmRows, selectedRowKeys, rowKey),
+    [elevenConfirmRows, selectedRowKeys],
+  );
+  const selectedElevenConfirmCount = selectedElevenConfirmSelection.ok
+    ? selectedElevenConfirmSelection.items.length
+    : 0;
+
+  const hasElevenConfirmableRows = useMemo(
+    () => allDisplayRows.some((row) => isElevenConfirmableRow(row)),
+    [allDisplayRows],
+  );
+
+  const domeggookConfirmRows = useMemo(() => {
+    if (!results) return [];
+    return filteredRows.map((row) => {
+      const mall = results.find(
+        (m) => m.mallId === row.mallId && m.accountId === row.accountId,
+      );
+      const standard = mall?.rows[row.rowIndex];
+      return {
+        ...row,
+        apiOrderNo: String(standard?.['출고번호'] ?? '').trim() || undefined,
+        mallOrderStatusCode:
+          row.mallOrderStatusCode ||
+          String(standard?.['센터코드'] ?? '').trim() ||
+          undefined,
+      };
+    });
+  }, [filteredRows, results]);
+
+  const selectedDomeggookConfirmSelection = useMemo(
+    () =>
+      collectSelectedDomeggookConfirmSelection(domeggookConfirmRows, selectedRowKeys, rowKey),
+    [domeggookConfirmRows, selectedRowKeys],
+  );
+  const selectedDomeggookConfirmCount = selectedDomeggookConfirmSelection.ok
+    ? selectedDomeggookConfirmSelection.items.length
+    : 0;
+
+  const hasDomeggookConfirmableRows = useMemo(
+    () => allDisplayRows.some((row) => isDomeggookConfirmableRow(row)),
+    [allDisplayRows],
+  );
+
   const runAcknowledgement = async () => {
     if (acknowledging || confirmingPlaceOrders) return;
     if (selectedAcknowledgementBoxIds.length === 0) {
@@ -868,6 +943,186 @@ export default function OrderIntegrationFetchPanel() {
         );
       }
       // 처리 직후 선택 해제 — 구주소·불확실 주문을 그대로 담기/다운로드하지 않도록 한다.
+      setSelectedRowKeys(new Set());
+    } catch {
+      setConfirmNotice('발주확인 처리 중 오류가 발생했습니다.');
+    } finally {
+      setConfirmingPlaceOrders(false);
+    }
+  };
+
+  const runElevenConfirm = async () => {
+    if (confirmingPlaceOrders || acknowledging) return;
+    if (!selectedElevenConfirmSelection.ok) {
+      setConfirmNotice(
+        selectedElevenConfirmSelection.reason === 'MIXED_ACCOUNTS'
+          ? '계정을 정확히 선택할 수 없어 처리하지 않았습니다. 같은 11번가 계정 주문만 선택해 주세요.'
+          : selectedElevenConfirmSelection.reason === 'MISSING_IDS'
+            ? '배송번호(dlvNo) 또는 상품주문번호가 없어 발주확인할 수 없습니다. 주문을 다시 조회해 주세요.'
+            : '발주확인할 11번가 결제완료 주문을 선택해 주세요.',
+      );
+      return;
+    }
+    const { accountId, items } = selectedElevenConfirmSelection;
+    const confirmed = window.confirm(
+      `선택한 ${items.length}건을 11번가 발주확인합니다.\n결제완료 → 배송준비중으로 전환됩니다.\n계속하시겠습니까?`,
+    );
+    if (!confirmed) return;
+
+    setConfirmingPlaceOrders(true);
+    setConfirmNotice(null);
+    setConfirmItemMessages({});
+
+    try {
+      const res = await fetch('/api/order/integration/eleven/confirm-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, items }),
+        cache: 'no-store',
+      });
+      const data = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        summary?: {
+          requested: number;
+          confirmed: number;
+          alreadyConfirmed: number;
+          failed: number;
+          skipped: number;
+        };
+        results?: Array<{
+          productOrderNo: string;
+          status: ElevenConfirmItemStatus;
+          message: string;
+        }>;
+      };
+
+      if (!res.ok || !data.success) {
+        setConfirmNotice(data.error || '발주확인 처리에 실패했습니다.');
+        return;
+      }
+
+      const itemMessages: Record<string, string> = {};
+      for (const row of data.results ?? []) {
+        itemMessages[row.productOrderNo] = row.message;
+      }
+      setConfirmItemMessages(itemMessages);
+
+      const summaryParts: string[] = [];
+      if (data.summary) {
+        summaryParts.push(`완료 ${data.summary.confirmed}건`);
+        summaryParts.push(`이미 확인 ${data.summary.alreadyConfirmed}건`);
+        summaryParts.push(`실패 ${data.summary.failed}건`);
+        summaryParts.push(`대상 아님 ${data.summary.skipped}건`);
+      }
+      setConfirmNotice(
+        summaryParts.length > 0 ? summaryParts.join(' · ') : '처리가 완료되었습니다.',
+      );
+
+      if (results && data.results?.length) {
+        setResults(
+          results.map((mall) => {
+            if (mall.mallId !== 'eleven' || !mall.ok) return mall;
+            const merged = mergeElevenConfirmedOrdersIntoFetchResult({
+              rows: mall.rows,
+              views: mall.views,
+              results: data.results ?? [],
+            });
+            return { ...mall, rows: merged.rows, views: merged.views };
+          }),
+        );
+      }
+      setSelectedRowKeys(new Set());
+    } catch {
+      setConfirmNotice('발주확인 처리 중 오류가 발생했습니다.');
+    } finally {
+      setConfirmingPlaceOrders(false);
+    }
+  };
+
+  const runDomeggookConfirm = async () => {
+    if (confirmingPlaceOrders || acknowledging) return;
+    if (!selectedDomeggookConfirmSelection.ok) {
+      setConfirmNotice(
+        selectedDomeggookConfirmSelection.reason === 'MIXED_ACCOUNTS'
+          ? '계정을 정확히 선택할 수 없어 처리하지 않았습니다. 같은 도매꾹 계정 주문만 선택해 주세요.'
+          : selectedDomeggookConfirmSelection.reason === 'MISSING_IDS'
+            ? '숫자 주문번호가 없어 발주확인할 수 없습니다. 주문을 다시 조회해 주세요.'
+            : '발주확인할 도매꾹 결제완료 주문을 선택해 주세요.',
+      );
+      return;
+    }
+    const { accountId, items } = selectedDomeggookConfirmSelection;
+    const confirmed = window.confirm(
+      `선택한 ${items.length}건을 도매꾹 발주확인합니다.\n결제완료(WAITCHK) → 배송준비중(WAITDELI)으로 전환됩니다.\n계속하시겠습니까?`,
+    );
+    if (!confirmed) return;
+
+    setConfirmingPlaceOrders(true);
+    setConfirmNotice(null);
+    setConfirmItemMessages({});
+
+    try {
+      const res = await fetch('/api/order/integration/domeggook/confirm-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, items }),
+        cache: 'no-store',
+      });
+      const data = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        summary?: {
+          requested: number;
+          confirmed: number;
+          alreadyConfirmed: number;
+          failed: number;
+          skipped: number;
+        };
+        results?: Array<{
+          displayOrderNo: string;
+          apiOrderNo: string;
+          status: DomeggookConfirmItemStatus;
+          message: string;
+        }>;
+      };
+
+      if (!res.ok || !data.success) {
+        setConfirmNotice(data.error || '발주확인 처리에 실패했습니다.');
+        return;
+      }
+
+      const itemMessages: Record<string, string> = {};
+      for (const row of data.results ?? []) {
+        itemMessages[row.displayOrderNo] = row.message;
+        itemMessages[row.apiOrderNo] = row.message;
+      }
+      setConfirmItemMessages(itemMessages);
+
+      const summaryParts: string[] = [];
+      if (data.summary) {
+        summaryParts.push(`완료 ${data.summary.confirmed}건`);
+        summaryParts.push(`이미 확인 ${data.summary.alreadyConfirmed}건`);
+        summaryParts.push(`실패 ${data.summary.failed}건`);
+        summaryParts.push(`대상 아님 ${data.summary.skipped}건`);
+      }
+      setConfirmNotice(
+        summaryParts.length > 0 ? summaryParts.join(' · ') : '처리가 완료되었습니다.',
+      );
+
+      if (results && data.results?.length) {
+        setResults(
+          results.map((mall) => {
+            if (mall.mallId !== 'domeggook' || !mall.ok) return mall;
+            const merged = mergeDomeggookConfirmedOrdersIntoFetchResult({
+              rows: mall.rows,
+              views: mall.views,
+              results: data.results ?? [],
+            });
+            return { ...mall, rows: merged.rows, views: merged.views };
+          }),
+        );
+      }
       setSelectedRowKeys(new Set());
     } catch {
       setConfirmNotice('발주확인 처리 중 오류가 발생했습니다.');
@@ -1290,11 +1545,58 @@ export default function OrderIntegrationFetchPanel() {
                       : ''}
                   </button>
                 ) : null}
+                {hasElevenConfirmableRows ? (
+                  <button
+                    type="button"
+                    disabled={
+                      confirmingPlaceOrders ||
+                      acknowledging ||
+                      selectedElevenConfirmCount === 0
+                    }
+                    onClick={() => void runElevenConfirm()}
+                    className={`${
+                      hasCoupangAcceptRows || hasSmartstorePlaceOrderNotYetRows ? '' : 'ml-auto '
+                    }inline-flex h-8 items-center justify-center gap-1 rounded-md border border-amber-600 bg-white px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50`}
+                  >
+                    {confirmingPlaceOrders ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    11번가 발주확인
+                    {selectedElevenConfirmCount > 0 ? ` (${selectedElevenConfirmCount})` : ''}
+                  </button>
+                ) : null}
+                {hasDomeggookConfirmableRows ? (
+                  <button
+                    type="button"
+                    disabled={
+                      confirmingPlaceOrders ||
+                      acknowledging ||
+                      selectedDomeggookConfirmCount === 0
+                    }
+                    onClick={() => void runDomeggookConfirm()}
+                    className={`${
+                      hasCoupangAcceptRows ||
+                      hasSmartstorePlaceOrderNotYetRows ||
+                      hasElevenConfirmableRows
+                        ? ''
+                        : 'ml-auto '
+                    }inline-flex h-8 items-center justify-center gap-1 rounded-md border border-amber-600 bg-white px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50`}
+                  >
+                    {confirmingPlaceOrders ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    도매꾹 발주확인
+                    {selectedDomeggookConfirmCount > 0
+                      ? ` (${selectedDomeggookConfirmCount})`
+                      : ''}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={toggleSelectAllFiltered}
                   className={`text-xs font-medium text-blue-700 hover:underline ${
-                    hasCoupangAcceptRows || hasSmartstorePlaceOrderNotYetRows ? '' : 'ml-auto'
+                    hasCoupangAcceptRows ||
+                    hasSmartstorePlaceOrderNotYetRows ||
+                    hasElevenConfirmableRows ||
+                    hasDomeggookConfirmableRows
+                      ? ''
+                      : 'ml-auto'
                   }`}
                 >
                   {allFilteredSelected ? '전체 선택 해제' : '이 결과 전체 선택'}

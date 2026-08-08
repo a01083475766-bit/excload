@@ -84,6 +84,7 @@ function account(): OrderIntegrationAccount {
     healthCheckLeaseUntil: null,
     authorizationPeriodStart: null,
     authorizationPeriodEnd: null,
+    domeggookDeliWithTax: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -160,7 +161,7 @@ describe('SMARTSTORE live shipment transmission adapter', () => {
     expect(confirmMock).not.toHaveBeenCalled();
   });
 
-  it('keeps other deferred providers incomplete', async () => {
+  it('keeps cjonstyle deferred and registers Eleven as live adapter', async () => {
     const registry = createRealShipmentTransmissionAdapterRegistry({
       userId: 'user-1',
       loadAccount: async ({ provider }) => ({ ...account(), provider }),
@@ -177,7 +178,13 @@ describe('SMARTSTORE live shipment transmission adapter', () => {
     const eleven = await registry.get('ELEVEN')!.transmit({
       ...candidate({ provider: 'ELEVEN' }),
     });
-    expect(eleven.errorCode).toBe('PROVIDER_SPEC_INCOMPLETE');
+    expect(eleven.errorCode).not.toBe('PROVIDER_SPEC_INCOMPLETE');
+    expect(eleven.errorCode).toBe('NOT_CONFIGURED');
+
+    const cjon = await registry.get('CJONSTYLE')!.transmit({
+      ...candidate({ provider: 'CJONSTYLE' }),
+    });
+    expect(cjon.errorCode).toBe('PROVIDER_SPEC_INCOMPLETE');
   });
 
   it('does not call confirm API on ORDER_CONFIRMATION_REQUIRED', async () => {

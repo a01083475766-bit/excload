@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       provider: OrderIntegrationProvider.ELEVEN,
       integrationAccountId: account.id,
       orderStandardFile,
-      rawOrders: undefined,
+      rawOrders: orders,
       fetchedAt: new Date(),
     });
 

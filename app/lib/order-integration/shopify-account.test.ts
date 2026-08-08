@@ -177,6 +177,7 @@ describe('upsertShopifyAccount', () => {
         healthCheckLeaseUntil: null,
         authorizationPeriodStart: null,
         authorizationPeriodEnd: null,
+        domeggookDeliWithTax: null,
         createdAt: new Date('2026-07-08T09:00:00.000Z'),
         updatedAt: new Date('2026-07-08T09:00:00.000Z'),
       };

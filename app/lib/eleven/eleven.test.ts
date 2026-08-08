@@ -121,6 +121,12 @@ describe('dedupeElevenOrders', () => {
     ordStlEndDt: '',
     ordPayAmt: '',
     memID: '',
+    dlvNo: '',
+    addPrdYn: 'N',
+    addPrdNo: '',
+    invcNo: '',
+    dlvEtprsCd: '',
+    dlvMthdCd: '',
   };
 
   it('removes boundary duplicates by ordNo|ordPrdSeq', () => {
@@ -394,6 +400,12 @@ describe('mapElevenOrdersToPreviewRows', () => {
         ordStlEndDt: '20260701103000',
         ordPayAmt: '',
         memID: '',
+        dlvNo: 'DLV-1',
+        addPrdYn: 'N',
+        addPrdNo: '',
+        invcNo: '',
+        dlvEtprsCd: '',
+        dlvMthdCd: '',
       },
     ]);
 

@@ -20,7 +20,8 @@ const PROVIDER_COURIER_CODES: Record<OrderIntegrationProvider, Record<string, st
   GODOMALL: { CJ: 'cjgls', HANJIN: 'hanjin', LOTTE: 'lotte', LOGEN: 'logen', EPOST: 'epost' },
   MAKESHOP: { CJ: 'CJ', HANJIN: 'HANJIN', LOTTE: 'LOTTE', LOGEN: 'LOGEN', EPOST: 'EPOST' },
   SHOPIFY: { CJ: 'CJ Logistics', HANJIN: 'Hanjin', LOTTE: 'Lotte Global Logistics', LOGEN: 'Logen', EPOST: 'Korea Post' },
-  DOMEGGOOK: {},
+  // 공식: DAEHAN=CJ대한통운, KGBL=로젠, HYUNDAI=롯데택배. 명칭만 비슷한 코드는 추측 매핑하지 않음.
+  DOMEGGOOK: { CJ: 'DAEHAN', HANJIN: 'HANJIN', LOTTE: 'HYUNDAI', LOGEN: 'KGBL', EPOST: 'EPOST' },
 };
 
 function normalizeText(value: string | null | undefined): string {

@@ -281,6 +281,9 @@ model OrderIntegrationAccount {
   /// 시간대 변환으로 날짜가 밀리지 않도록 시간 없는 DATE(@db.Date)로 저장한다.
   authorizationPeriodStart       DateTime? @db.Date
   authorizationPeriodEnd         DateTime? @db.Date
+  /// 도매꾹 발송정보(setOrdOkDeli) 세금계산서 포함 여부. 0=미포함, 1=포함, null=미선택(비밀 아님).
+  /// DB 미적용 상태로 둘 수 있음 — migration만 추가.
+  domeggookDeliWithTax           Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

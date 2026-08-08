@@ -70,6 +70,7 @@ function account(provider = 'COUPANG'): OrderIntegrationAccount {
     healthCheckLeaseUntil: null,
     authorizationPeriodStart: null,
     authorizationPeriodEnd: null,
+    domeggookDeliWithTax: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

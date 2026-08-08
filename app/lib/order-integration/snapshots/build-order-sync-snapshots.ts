@@ -169,6 +169,80 @@ export function collectMallLineItemIds(rows: ReadonlyArray<Record<string, string
         ids.push(bundleKey);
       }
     }
+
+    // 11번가 추가구성 — "Y|번호" / "N|null" (map-eleven-orders)
+    const addPrd = String(row['추가상품'] ?? '').trim();
+    let addPrdYn = 'N';
+    let addPrdNo = 'null';
+    if (addPrd.includes('|')) {
+      const [ynRaw, noRaw = 'null'] = addPrd.split('|');
+      addPrdYn = ynRaw.trim().toUpperCase() === 'Y' ? 'Y' : 'N';
+      addPrdNo = (noRaw || 'null').trim() || 'null';
+      const ynKey = `addPrdYn:${addPrdYn}`;
+      const noKey = `addPrdNo:${addPrdNo}`;
+      if (!seen.has(ynKey)) {
+        seen.add(ynKey);
+        ids.push(ynKey);
+      }
+      if (!seen.has(noKey)) {
+        seen.add(noKey);
+        ids.push(noKey);
+      }
+    }
+
+    // 라인 단위 복합키 (복수 품목·추가구성 혼재 시 전송용)
+    const ordNo = String(row['주문번호'] ?? '').trim();
+    const productOrderNo = String(row['상품주문번호'] ?? '').trim();
+    const dash = productOrderNo.lastIndexOf('-');
+    const ordPrdSeq =
+      dash > 0 ? productOrderNo.slice(dash + 1).trim() : '';
+    if (ordNo && ordPrdSeq && bundleId) {
+      const lineKey = `elevenLine:${ordNo}|${ordPrdSeq}|${bundleId}|${addPrdYn}|${addPrdNo}`;
+      if (!seen.has(lineKey)) {
+        seen.add(lineKey);
+        ids.push(lineKey);
+      }
+    }
+
+    // 도매꾹 — 출고번호=API숫자주문번호, 센터코드=statusMode(WAIT*), 출고타입=market
+    const apiOrderNo = String(row['출고번호'] ?? '').trim();
+    const statusMode = String(row['센터코드'] ?? '').trim().toUpperCase();
+    const market = String(row['출고타입'] ?? '').trim().toLowerCase();
+    const isDomeggookMeta =
+      (/^\d+$/.test(apiOrderNo) && /^WAIT[A-Z]+$|^DONE$|^DENY|^BACK$/.test(statusMode)) ||
+      market === 'dome' ||
+      market === 'supply';
+    if (isDomeggookMeta) {
+      if (/^\d+$/.test(apiOrderNo)) {
+        const apiKey = `apiOrderNo:${apiOrderNo}`;
+        if (!seen.has(apiKey)) {
+          seen.add(apiKey);
+          ids.push(apiKey);
+        }
+      }
+      if (statusMode) {
+        const modeKey = `statusMode:${statusMode}`;
+        if (!seen.has(modeKey)) {
+          seen.add(modeKey);
+          ids.push(modeKey);
+        }
+      }
+      if (market === 'dome' || market === 'supply') {
+        const marketKey = `market:${market}`;
+        if (!seen.has(marketKey)) {
+          seen.add(marketKey);
+          ids.push(marketKey);
+        }
+      }
+      const uid = String(row['상품주문번호'] ?? '').trim();
+      if (uid && uid !== String(row['주문번호'] ?? '').trim()) {
+        const uidKey = `orderUid:${uid}`;
+        if (!seen.has(uidKey)) {
+          seen.add(uidKey);
+          ids.push(uidKey);
+        }
+      }
+    }
   }
 
   return ids;
@@ -187,6 +261,7 @@ function buildNormalizedPayloadJson(
     .filter(Boolean);
   if (bundleIds.length > 0) {
     payload.shipmentBoxIds = [...new Set(bundleIds)];
+    payload.elevenDlvNos = [...new Set(bundleIds)];
   }
 
   const optionIds = rows
@@ -208,6 +283,71 @@ function buildNormalizedPayloadJson(
     .filter(Boolean);
   if (shippingCodes.length > 0) {
     payload.shippingCodes = [...new Set(shippingCodes)];
+  }
+
+  // 11번가 전용 메타 — 다른 몰(스마트스토어 PO-1 등)의 하이픈 상품주문번호를 오인하지 않도록
+  // map-eleven의 추가상품(Y|…/N|null) 또는 묶음배송번호+ordNo-seq 형태일 때만 저장.
+  const elevenLines = rows
+    .map((row) => {
+      const productOrderNo = String(row['상품주문번호'] ?? '').trim();
+      const ordNo = String(row['주문번호'] ?? '').trim();
+      const bundleId = String(row['묶음배송번호'] ?? '').trim();
+      const addPrd = String(row['추가상품'] ?? '').trim();
+      const dash = productOrderNo.lastIndexOf('-');
+      const hasElevenAddPrd = addPrd.includes('|');
+      const hasElevenLineShape = Boolean(bundleId) && dash > 0;
+      if (!hasElevenAddPrd && !hasElevenLineShape) return null;
+      if (!productOrderNo && !ordNo) return null;
+      const parsedOrdNo = dash > 0 ? productOrderNo.slice(0, dash) : ordNo || productOrderNo;
+      const parsedSeq = dash > 0 ? productOrderNo.slice(dash + 1) : '';
+      let addPrdYn = 'N';
+      let addPrdNo = 'null';
+      if (hasElevenAddPrd) {
+        const [ynRaw, noRaw = 'null'] = addPrd.split('|');
+        addPrdYn = ynRaw.trim().toUpperCase() === 'Y' ? 'Y' : 'N';
+        addPrdNo = (noRaw || 'null').trim() || 'null';
+      }
+      return {
+        ordNo: parsedOrdNo,
+        ordPrdSeq: parsedSeq,
+        dlvNo: bundleId,
+        addPrdYn,
+        addPrdNo,
+        ordStatNm: String(row['주문상태'] ?? '').trim(),
+      };
+    })
+    .filter(Boolean);
+  if (elevenLines.length > 0) {
+    payload.elevenLines = elevenLines;
+  }
+
+  const domeggookLines = rows
+    .map((row) => {
+      const displayOrderNo = String(row['주문번호'] ?? '').trim();
+      const apiOrderNo = String(row['출고번호'] ?? '').trim();
+      const statusMode = String(row['센터코드'] ?? '').trim().toUpperCase();
+      const market = String(row['출고타입'] ?? '').trim().toLowerCase();
+      const orderUid = String(row['상품주문번호'] ?? '').trim();
+      const looksDomeggook =
+        (/^\d+$/.test(apiOrderNo) && /^WAIT|^DONE$|^DENY|^BACK$/.test(statusMode)) ||
+        market === 'dome' ||
+        market === 'supply';
+      if (!looksDomeggook || (!displayOrderNo && !apiOrderNo)) return null;
+      return {
+        displayOrderNo,
+        apiOrderNo: /^\d+$/.test(apiOrderNo) ? apiOrderNo : '',
+        orderUid: orderUid && orderUid !== displayOrderNo ? orderUid : '',
+        statusMode,
+        market,
+        deliveryCompany: String(row['택배사'] ?? '').trim(),
+        deliveryCode: String(row['운송장번호'] ?? '').trim(),
+        deliveryMethod: String(row['배송방법'] ?? '').trim(),
+        ordStatNm: String(row['주문상태'] ?? '').trim(),
+      };
+    })
+    .filter(Boolean);
+  if (domeggookLines.length > 0) {
+    payload.domeggookLines = domeggookLines;
   }
 
   return payload;

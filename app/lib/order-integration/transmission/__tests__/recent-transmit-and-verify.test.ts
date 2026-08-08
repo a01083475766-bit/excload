@@ -239,10 +239,39 @@ describe('buildRecentTransmitResultView', () => {
     ]);
   });
 
-  it('marks non-Coupang/Smartstore success as 상태 확인 지원 예정', () => {
+  it('marks unsupported-provider success as 상태 확인 지원 예정', () => {
     const view = buildRecentTransmitResultView({
       body: {
         batchId: 'batch-2',
+        summary: { requestedCount: 1, successCount: 1, failureCount: 0, skippedCount: 0 },
+        results: [
+          {
+            matchId: 'm-lo',
+            attemptId: 'a-lo',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'SENT',
+            success: true,
+            retryable: false,
+            errorCode: null,
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
+        ],
+      },
+      displayRows: [{ matchId: 'm-lo', providerLabel: 'LOTTEON', mallOrderNo: 'L-1' }],
+    });
+
+    expect(view?.results[0]?.verificationStatus).toBe('UNSUPPORTED');
+    expect(verificationStatusLabel('UNSUPPORTED')).toBe('상태 확인 지원 예정');
+    expect(collectVerifiableAttemptIds(view!.results)).toEqual([]);
+  });
+
+  it('marks Eleven success as verifiable (not UNSUPPORTED)', () => {
+    const view = buildRecentTransmitResultView({
+      body: {
+        batchId: 'batch-11',
         summary: { requestedCount: 1, successCount: 1, failureCount: 0, skippedCount: 0 },
         results: [
           {
@@ -260,12 +289,11 @@ describe('buildRecentTransmitResultView', () => {
           },
         ],
       },
-      displayRows: [{ matchId: 'm-11', providerLabel: 'ELEVEN', mallOrderNo: 'E-1' }],
+      displayRows: [{ matchId: 'm-11', provider: 'ELEVEN', providerLabel: '11번가', mallOrderNo: 'E-1' }],
     });
 
-    expect(view?.results[0]?.verificationStatus).toBe('UNSUPPORTED');
-    expect(verificationStatusLabel('UNSUPPORTED')).toBe('상태 확인 지원 예정');
-    expect(collectVerifiableAttemptIds(view!.results)).toEqual([]);
+    expect(view?.results[0]?.verificationStatus).toBeNull();
+    expect(collectVerifiableAttemptIds(view!.results)).toEqual(['a-11']);
   });
 });
 
@@ -371,12 +399,12 @@ describe('runVerifyTransmissionService', () => {
             orderSyncOrder: { mallLineItemIds: ['PO-1'], normalizedPayloadJson: null },
           },
           {
-            id: 'a-11',
+            id: 'a-lo',
             userId: 'u1',
             uploadBatchId: 'b1',
-            shipmentMatchId: 'm-11',
-            provider: 'ELEVEN',
-            integrationAccountId: 'acc-11',
+            shipmentMatchId: 'm-lo',
+            provider: 'LOTTEON',
+            integrationAccountId: 'acc-lo',
             status: 'SUCCESS',
             mallOrderNo: 'ORD-2',
             mallLineItemIdsJson: ['X'],
@@ -400,14 +428,14 @@ describe('runVerifyTransmissionService', () => {
         ],
         now: () => new Date('2026-07-21T06:00:00.000Z'),
       },
-      { userId: 'u1', batchId: 'b1', attemptIds: ['a-ss', 'a-11', 'missing'] },
+      { userId: 'u1', batchId: 'b1', attemptIds: ['a-ss', 'a-lo', 'missing'] },
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.body.results).toEqual([
       expect.objectContaining({ attemptId: 'a-ss', status: 'CONFIRMED' }),
-      expect.objectContaining({ attemptId: 'a-11', status: 'UNSUPPORTED' }),
+      expect.objectContaining({ attemptId: 'a-lo', status: 'UNSUPPORTED' }),
       expect.objectContaining({ attemptId: 'missing', status: 'CHECK_FAILED' }),
     ]);
   });

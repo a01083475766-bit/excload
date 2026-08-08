@@ -234,8 +234,8 @@ export function ElevenIntegrationForm({
       )}
 {!embedded ? (
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        11번가 OPEN API KEY를 저장한 뒤 연결 테스트를 진행할 수 있습니다. 실제 주문 조회·수집은 주문연동 화면에서
-        진행합니다. 발주확인·송장 전송·배송중 변경 등 상태 변경 기능은 포함하지 않습니다.
+        11번가 OPEN API KEY를 저장한 뒤 연결 테스트를 진행할 수 있습니다. 실제 주문 조회·발주확인·송장 전송은
+        주문연동 화면에서 진행합니다. (취소·반품·교환은 포함하지 않습니다.)
       </p>      ) : (
         <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
       )}

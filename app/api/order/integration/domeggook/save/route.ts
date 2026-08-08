@@ -6,6 +6,7 @@ import {
 } from '@/app/lib/order-integration/user-api-auth';
 import { isIntegrationEncryptionConfigured } from '@/app/lib/order-integration/encryption';
 import {
+  parseDomeggookDeliWithTaxInput,
   saveDomeggookAccount,
   toDomeggookAccountPublic,
 } from '@/app/lib/order-integration/domeggook-account';
@@ -27,7 +28,23 @@ export async function POST(request: NextRequest) {
       memberId?: string;
       password?: string;
       apiKey?: string;
+      deliWithTax?: unknown;
     };
+
+    let deliWithTax: 0 | 1 | null | undefined;
+    try {
+      deliWithTax = parseDomeggookDeliWithTaxInput(body.deliWithTax);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : '세금계산서 포함 여부가 올바르지 않습니다.',
+        },
+        { status: 400 },
+      );
+    }
 
     const account = await saveDomeggookAccount({
       userId: auth.userId,
@@ -35,6 +52,7 @@ export async function POST(request: NextRequest) {
       memberId: body.memberId ?? '',
       password: body.password,
       apiKey: body.apiKey,
+      deliWithTax,
     });
 
     return NextResponse.json({

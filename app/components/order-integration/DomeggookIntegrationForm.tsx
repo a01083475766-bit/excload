@@ -18,6 +18,7 @@ type DomeggookAccountResponse = {
   passwordMasked: string;
   hasApiKey: boolean;
   hasPassword: boolean;
+  deliWithTax?: 0 | 1 | null;
   status: 'active' | 'inactive' | 'error';
   lastTestedAt: string | null;
   lastSyncedAt: string | null;
@@ -67,6 +68,7 @@ export function DomeggookIntegrationForm({
   const [memberId, setMemberId] = useState('');
   const [password, setPassword] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [deliWithTax, setDeliWithTax] = useState<'' | '0' | '1'>('');
   const [busyAction, setBusyAction] = useState<'save' | 'test' | 'disconnect' | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(
     null,
@@ -94,6 +96,11 @@ export function DomeggookIntegrationForm({
         setMemberId(account.memberId);
         setPassword('');
         setApiKey('');
+        setDeliWithTax(
+          account.deliWithTax === 0 || account.deliWithTax === 1
+            ? (String(account.deliWithTax) as '0' | '1')
+            : '',
+        );
       }
     } catch (error) {
       setStatusMessage({
@@ -139,6 +146,7 @@ export function DomeggookIntegrationForm({
           memberId,
           password: password || undefined,
           apiKey: apiKey || undefined,
+          deliWithTax: deliWithTax === '' ? null : Number(deliWithTax),
         }),
       });
       const data = (await res.json()) as {
@@ -204,6 +212,7 @@ export function DomeggookIntegrationForm({
       setMemberId('');
       setPassword('');
       setApiKey('');
+      setDeliWithTax('');
       setStatusMessage({
         kind: 'info',
         text: data.message ?? '도매꾹 연동이 해제되었습니다.',
@@ -243,9 +252,8 @@ export function DomeggookIntegrationForm({
       )}
       {!embedded ? (
         <p className="mb-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          도매꾹 회원 ID·비밀번호·API Key를 저장한 뒤 연결 테스트를 진행합니다. 연결 테스트는 로그인(setLogin) 후
-          판매 주문 목록(getOrderList) 조회까지 성공해야 완료됩니다. 주문 조회 시에는 상세(getOrderView)로 수취인·주소를
-          보강합니다. 발주확인·배송처리 등 상태 변경은 포함하지 않습니다.
+          도매꾹 회원 ID·비밀번호·API Key를 저장한 뒤 연결 테스트를 진행합니다. 주문연동 화면에서 주문조회·발주확인·송장
+          전송·반영 확인까지 진행할 수 있습니다. (송장 수정·취소·반품·교환은 포함하지 않습니다.)
         </p>
       ) : (
         <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -361,6 +369,29 @@ export function DomeggookIntegrationForm({
           resetSignal={savedAccount}
         />
 
+        <div>
+          <label
+            htmlFor="domeggook-deliWithTax"
+            className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            세금계산서 포함 여부 (송장전송 필수)
+          </label>
+          <select
+            id="domeggook-deliWithTax"
+            value={deliWithTax}
+            onChange={(e) => setDeliWithTax(e.target.value as '' | '0' | '1')}
+            className={inputClass}
+            disabled={busyAction !== null}
+          >
+            <option value="">선택해 주세요</option>
+            <option value="0">미포함 (0)</option>
+            <option value="1">포함 (1)</option>
+          </select>
+          <p className="mt-1 text-xs text-zinc-500">
+            도매꾹 발송정보 등록(setOrdOkDeli)의 deliWithTax 값입니다. 미선택 시 송장 실전송을 하지 않습니다.
+          </p>
+        </div>
+
         {statusMessage ? (
           <p className={`rounded border px-3 py-2 text-sm ${statusBannerClass(statusMessage.kind)}`}>
             {statusMessage.text}
@@ -402,8 +433,8 @@ export function DomeggookIntegrationForm({
         <section className="mt-5 rounded border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/40">
           <p className="text-sm font-semibold text-green-900 dark:text-green-100">도매꾹 연동 정보가 저장되었습니다.</p>
           <p className="mt-1 text-sm leading-relaxed text-green-800 dark:text-green-200">
-            현재 단계는 연결 테스트와 판매 주문 조회(목록+상세) 읽기 전용입니다. 발주확인·송장 전송 등 상태 변경은
-            포함되지 않습니다.
+            주문연동에서 결제완료 발주확인 → 택배양식·송장 매칭 → 도매꾹 송장전송 → 반영 확인 순으로 진행하세요. 송장
+            수정·취소·반품·교환은 포함되지 않습니다.
           </p>
           <Link
             href="/order/integration"

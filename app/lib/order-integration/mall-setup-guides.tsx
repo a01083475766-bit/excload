@@ -408,7 +408,8 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     ],
     notes: [
       '비밀번호와 API Key는 다른 사람에게 공유하지 마세요.',
-      '현재 엑클로드는 판매 주문 목록·상세 조회만 제공하며, 발주확인과 송장전송 기능은 준비 중입니다.',
+      '주문조회 → 발주확인(setOrdChk) → 택배양식·송장 매칭 → 송장전송(setOrdOkDeli type=add) → getOrderView 반영 확인 순으로 진행합니다. 송장 수정(type=edit)·취소·반품·교환은 이번 범위에 포함되지 않습니다.',
+      '송장전송 전에 연동 설정의 세금계산서 포함 여부(미포함/포함)를 선택해야 합니다.',
     ],
   },
 };

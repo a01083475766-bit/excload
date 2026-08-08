@@ -113,6 +113,8 @@ export function normalizeOrderStatusFromKoreanLabel(label?: string | null): Excl
   if (value.includes('반품')) return 'RETURNED';
   if (value.includes('교환')) return 'EXCHANGED';
   if (value.includes('결제완료') || value.includes('발송대기') || value.includes('신규주문')) return 'PAYED';
+  // 11번가 발주확인 후(배송준비중)도 송장 처리 대상
+  if (value.includes('배송준비') || value.includes('상품준비') || value.includes('발주확인')) return 'PAYED';
   return 'UNKNOWN';
 }
 

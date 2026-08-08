@@ -262,7 +262,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '접속별칭', required: true, storage: 'accountName' },
       { key: 'openapikey', label: '11ST OPEN API KEY', required: true, secret: true, storage: 'apiKey' },
     ],
-    memo: '베타. 연결 테스트·주문 수집 구현 완료. Lightsail invoke 1회 배포 후 실연동.',
+    memo: '베타. 연결 테스트·주문 수집·발주확인(reqpackaging)·송장전송(reqdelivery)·반영확인(complete/packaging 재조회) 구현. Lightsail invoke 배포 후 실연동.',
     marketplaceGroupId: 'eleven',
     requiresFixedIpProxy: true,
   },
@@ -613,15 +613,20 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     channelName: '도매꾹',
     integrationType: 'direct_api',
     authType: 'api_key',
-    supportedActions: [...PHASE1_ACTIONS],
+    supportedActions: [...PHASE1_ACTIONS, 'order_confirm', 'invoice_upload'],
     apiStatus: 'available',
     phase: 'beta',
     requiredSellerAction:
-      'Open API Key 발급 + Private API 판매용 권한(판매관리·로그인) 승인 후 회원 ID·비밀번호·API Key 입력',
+      'Open API Key 발급 + Private API 판매용 권한(판매관리·로그인) 승인 후 회원 ID·비밀번호·API Key 입력. 송장전송 전 세금계산서 포함 여부 선택 필요',
     tokenExpirePolicy: 'API Key + setLogin 세션(sId) — 호출마다 로그인, 세션 미저장',
     rateLimitMemo: '도매꾹 Open API 호출 제한 — 429 시 재시도',
     proxyDomains: [
-      proxyDomain('domeggook.com', ['https'], 'deployed', '/ssl/api/ — getOrderList·getOrderView'),
+      proxyDomain(
+        'domeggook.com',
+        ['https'],
+        'deployed',
+        '/ssl/api/ — getOrderList·getOrderView·setOrdChk·setOrdOkDeli',
+      ),
     ],
     requiredInputs: [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
@@ -630,7 +635,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'apiKey', label: '도매꾹 API Key', required: true, secret: true, storage: 'apiKey' },
     ],
     memo:
-      '베타. 2차: setLogin + getOrderList(for=sell, 전체 페이지) + getOrderView v4.1(for=sell) 순차 상세. 목록 0건이면 View 미호출. 상세 실패 시 전체 중단. 상태변경 API 제외. sId/cId 미저장·미응답.',
+      '베타. setLogin + 주문조회 + 발주확인(setOrdChk) + 송장등록(setOrdOkDeli type=add) + getOrderView 반영확인. deliWithTax는 OrderIntegrationAccount.domeggookDeliWithTax(0/1). 송장수정(type=edit)·취소/반품/교환 제외. sId 미저장.',
     marketplaceGroupId: 'domeggook',
     requiresFixedIpProxy: true,
   },

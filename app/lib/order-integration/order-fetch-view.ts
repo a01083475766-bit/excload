@@ -63,17 +63,34 @@ export function buildOrderFetchViewFromStandardRow(
   row: Record<string, unknown>,
   rowIndex: number,
 ): OrderFetchView {
-  const status = normalizeOrderStatusFromKoreanLabel(str(row, '주문상태'));
+  const statusLabelRaw = str(row, '주문상태');
+  const status = normalizeOrderStatusFromKoreanLabel(statusLabelRaw);
   const address = [str(row, '받는사람주소1'), str(row, '받는사람주소2')]
     .filter(Boolean)
     .join(' ')
     .trim();
   const tracking = str(row, '운송장번호');
+  const bundleId = str(row, '묶음배송번호').trim();
+  const centerOrStatusMode = str(row, '센터코드').trim();
+  const mallOrderStatusCode = /^WAIT|^DONE$|^DENY|^BACK$/i.test(centerOrStatusMode)
+    ? centerOrStatusMode.toUpperCase()
+    : undefined;
+  let placeOrderStatus: ExcloadPlaceOrderStatus = 'UNKNOWN';
+  if (statusLabelRaw.includes('결제완료') || mallOrderStatusCode === 'WAITCHK') {
+    placeOrderStatus = 'NOT_YET';
+  } else if (
+    statusLabelRaw.includes('배송준비') ||
+    statusLabelRaw.includes('상품준비') ||
+    statusLabelRaw.includes('발주확인') ||
+    mallOrderStatusCode === 'WAITDELI'
+  ) {
+    placeOrderStatus = 'OK';
+  }
   return {
     rowIndex,
     status,
-    statusLabel: str(row, '주문상태') || EXCLOAD_ORDER_STATUS_LABEL[status],
-    placeOrderStatus: 'UNKNOWN',
+    statusLabel: statusLabelRaw || EXCLOAD_ORDER_STATUS_LABEL[status],
+    placeOrderStatus,
     orderNo: str(row, '주문번호'),
     productOrderNo: str(row, '상품주문번호') || str(row, '주문번호'),
     paidAt: str(row, '결제일시'),
@@ -86,6 +103,8 @@ export function buildOrderFetchViewFromStandardRow(
     paymentMeans: str(row, '결제구분'),
     hasTracking: Boolean(tracking),
     claimLabel: '',
+    shipmentBoxId: bundleId || undefined,
+    mallOrderStatusCode,
     detail: {
       ordererName: str(row, '주문자'),
       receiverPhone: str(row, '받는사람전화1'),

@@ -4,7 +4,7 @@ const PUBLIC_ERROR_MAX = 500;
 const INTERNAL_IDENTIFIER_PATTERN =
   /\b(?:EXCLOAD_[A-Z0-9_]+|INTEGRATION_[A-Z0-9_]+|COUPANG_PROXY_[A-Z0-9_]+|MAKESHOP_[A-Z0-9_]+|GODOMALL_[A-Z0-9_]+)\b/gi;
 const SECRET_ASSIGNMENT_PATTERN =
-  /\b(?:authorization|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|signature)\s*[:=]\s*[^\s,;]+/gi;
+  /\b(?:authorization|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|signature|openapikey|openapi[_-]?key)\s*[:=]\s*[^\s,;]+/gi;
 const INTERNAL_CODE_PATTERN = /\b(?:GW\.AUTHN|invalid_client)\b/gi;
 const INTERNAL_PATH_PATTERN = /\/(?:internal|api)\/[a-z0-9_./-]+/gi;
 const URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;

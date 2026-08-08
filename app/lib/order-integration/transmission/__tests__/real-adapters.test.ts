@@ -60,6 +60,7 @@ function account(provider = 'SMARTSTORE'): OrderIntegrationAccount {
     healthCheckLeaseUntil: null,
     authorizationPeriodStart: null,
     authorizationPeriodEnd: null,
+    domeggookDeliWithTax: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -86,6 +87,7 @@ describe('real shipment transmission adapters', () => {
       'CAFE24',
       'CJONSTYLE',
       'COUPANG',
+      'DOMEGGOOK',
       'ELEVEN',
       'GODOMALL',
       'LOTTEON',
@@ -115,7 +117,7 @@ describe('real shipment transmission adapters', () => {
     expect(result.errorCode).toBe('NOT_CONFIGURED');
   });
 
-  it('keeps other providers deferred when official provider spec is incomplete', async () => {
+  it('registers Eleven live adapter (no longer PROVIDER_SPEC_INCOMPLETE stub)', async () => {
     const adapter = registry({
       loadAccount: async ({ provider }) => ({
         ...account(provider),
@@ -126,8 +128,25 @@ describe('real shipment transmission adapters', () => {
     const result = await adapter.transmit(candidate({ provider: 'ELEVEN' }));
 
     expect(result.success).toBe(false);
-    expect(result.errorCode).toBe('PROVIDER_SPEC_INCOMPLETE');
-    expect(result.responseSummary?.message).toContain('not confirmed');
+    expect(result.errorCode).not.toBe('PROVIDER_SPEC_INCOMPLETE');
+    // ciphertext 미설정 mock 계정 → 자격증명 해독 실패 (실 HTTP 미호출)
+    expect(result.errorCode).toBe('NOT_CONFIGURED');
+  });
+
+  it('registers Domeggook live adapter (no longer PROVIDER_SPEC_INCOMPLETE stub)', async () => {
+    const adapter = registry({
+      loadAccount: async ({ provider }) => ({
+        ...account(provider),
+        apiKeyCiphertext: 'x',
+      }),
+    }).get('DOMEGGOOK')!;
+
+    const result = await adapter.transmit(candidate({ provider: 'DOMEGGOOK' }));
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).not.toBe('PROVIDER_SPEC_INCOMPLETE');
+    expect(result.errorCode).not.toBe('ADAPTER_NOT_REGISTERED');
+    expect(result.errorCode).toBe('NOT_CONFIGURED');
   });
 
   it('keeps cjonstyle deferred until official shipment endpoint is confirmed', async () => {

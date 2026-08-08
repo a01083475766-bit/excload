@@ -6,6 +6,7 @@ import {
   extractXmlBlocks,
   parseXmlRecord,
 } from '@/app/lib/eleven/xml-parser';
+import { sanitizePublicIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 
 export const ELEVEN_API_ORIGIN = 'https://api.11st.co.kr';
 export const ELEVEN_DEFAULT_VENDOR_ID = 'default';
@@ -40,6 +41,14 @@ export const ELEVEN_ORDER_XML_FIELDS = [
   'ordStlEndDt',
   'ordPayAmt',
   'memID',
+  /** 발주확인·송장전송 필수 (가이드 reqpackaging/reqdelivery) */
+  'dlvNo',
+  'addPrdYn',
+  'addPrdNo',
+  /** 송장 반영 확인용(목록 응답에 있을 때) */
+  'invcNo',
+  'dlvEtprsCd',
+  'dlvMthdCd',
 ] as const;
 
 export type ElevenOrderRecord = Record<(typeof ELEVEN_ORDER_XML_FIELDS)[number], string>;
@@ -61,7 +70,7 @@ export class ElevenRequestError extends Error {
     message: string;
     apiCode?: string;
   }) {
-    super(formatElevenEndpointErrorMessage(input.endpoint, input.message));
+    super(formatElevenEndpointErrorMessage(input.endpoint, redactElevenSecrets(input.message)));
     this.name = 'ElevenRequestError';
     this.endpoint = input.endpoint;
     this.apiCode = input.apiCode;
@@ -98,6 +107,88 @@ export function buildElevenOrderPath(
   end: Date,
 ): string {
   return `/rest/ordservices/${endpoint}/${formatElevenApiDateTime(start)}/${formatElevenApiDateTime(end)}`;
+}
+
+/** path 세그먼트 — 슬래시 혼입 방지. null 리터럴은 가이드대로 유지. */
+export function encodeElevenPathSegment(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === 'null') return 'null';
+  return encodeURIComponent(trimmed);
+}
+
+/**
+ * 발주확인 처리 (가이드).
+ * GET /rest/ordservices/reqpackaging/[ordNo]/[ordPrdSeq]/[addPrdYn]/[addPrdNo]/[dlvNo]
+ */
+export function buildElevenReqPackagingPath(input: {
+  ordNo: string;
+  ordPrdSeq: string;
+  addPrdYn: 'Y' | 'N';
+  addPrdNo: string;
+  dlvNo: string;
+}): string {
+  return [
+    '/rest/ordservices/reqpackaging',
+    encodeElevenPathSegment(input.ordNo),
+    encodeElevenPathSegment(input.ordPrdSeq),
+    encodeElevenPathSegment(input.addPrdYn),
+    encodeElevenPathSegment(input.addPrdNo),
+    encodeElevenPathSegment(input.dlvNo),
+  ].join('/');
+}
+
+/**
+ * 발송처리·송장등록 (가이드 — 부분발송 포함 형식).
+ * GET /rest/ordservices/reqdelivery/[sendDt]/[dlvMthdCd]/[dlvEtprsCd]/[invcNo]/[dlvNo]/[partDlvYn]/[ordNo]/[ordPrdSeq]
+ * sendDt: YYYYMMDDhhmm (KST)
+ * dlvMthdCd: 01=택배
+ */
+export function buildElevenReqDeliveryPath(input: {
+  sendDt: string;
+  dlvMthdCd: string;
+  dlvEtprsCd: string;
+  invcNo: string;
+  dlvNo: string;
+  partDlvYn: 'Y' | 'N';
+  ordNo: string;
+  ordPrdSeq: string;
+}): string {
+  return [
+    '/rest/ordservices/reqdelivery',
+    encodeElevenPathSegment(input.sendDt),
+    encodeElevenPathSegment(input.dlvMthdCd),
+    encodeElevenPathSegment(input.dlvEtprsCd),
+    encodeElevenPathSegment(input.invcNo),
+    encodeElevenPathSegment(input.dlvNo),
+    encodeElevenPathSegment(input.partDlvYn),
+    encodeElevenPathSegment(input.ordNo),
+    encodeElevenPathSegment(input.ordPrdSeq),
+  ].join('/');
+}
+
+export function isElevenXmlSuccessCode(code: string | null | undefined): boolean {
+  const c = String(code ?? '').trim();
+  return c === '0' || c === '00';
+}
+
+/**
+ * openapikey·URL query·헤더 표기 원문이 오류·로그에 남지 않게 한다.
+ * 알려진 비밀값과 openapikey= 패턴을 모두 마스킹한다.
+ */
+export function redactElevenSecrets(
+  text: string,
+  secrets: Array<string | null | undefined> = [],
+): string {
+  let out = String(text ?? '');
+  for (const secret of secrets) {
+    const value = secret?.trim();
+    if (!value || value.length < 2) continue;
+    out = out.split(value).join('[보호됨]');
+  }
+  out = out
+    .replace(/(["']?openapikey["']?\s*[:=]\s*["']?)([^"'&\s,;]+)(["']?)/gi, '$1[보호됨]$3')
+    .replace(/([?&]openapikey=)([^&\s"#]*)/gi, '$1[보호됨]');
+  return out;
 }
 
 /**
@@ -245,7 +336,7 @@ export async function fetchElevenOrdersByEndpoint(input: {
     const message = error instanceof Error ? error.message : String(error ?? '');
     throw new ElevenRequestError({
       endpoint: input.endpoint,
-      message,
+      message: redactElevenSecrets(message, [input.credentials.openapikey]),
     });
   }
 }
@@ -325,9 +416,188 @@ export async function testElevenConnection(credentials: ElevenCredentials): Prom
   return { ok: true };
 }
 
-export function toUserFacingElevenErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return '11번가 연동 처리 중 오류가 발생했습니다.';
+export type ElevenMutationResult = {
+  ok: boolean;
+  code: string;
+  message: string;
+  displayMessage: string;
+  bodyText: string;
+};
+
+/**
+ * reqpackaging / reqdelivery 응답 판정.
+ * HTTP 상태는 통신 성공 여부만, API 성공은 공식 result_code 0|00만 인정.
+ * 누락·빈 값·알 수 없는 코드·비XML은 성공 처리하지 않는다.
+ */
+export function evaluateElevenMutationHttpResponse(input: {
+  httpStatus: number;
+  bodyText: string;
+  secrets?: Array<string | null | undefined>;
+}): ElevenMutationResult {
+  const secrets = input.secrets ?? [];
+  const bodyText = String(input.bodyText ?? '');
+
+  const toFailure = (code: string, message: string): ElevenMutationResult => {
+    const safeMessage = redactElevenSecrets(message, secrets).trim();
+    const display = safeMessage
+      ? code && !safeMessage.startsWith('[')
+        ? `[${code}] ${safeMessage}`
+        : safeMessage
+      : `11번가 API 오류 (코드: ${code || 'UNKNOWN'})`;
+    return {
+      ok: false,
+      code,
+      message: safeMessage,
+      displayMessage: redactElevenSecrets(display, secrets),
+      bodyText: redactElevenSecrets(bodyText, secrets),
+    };
+  };
+
+  if (input.httpStatus < 200 || input.httpStatus >= 300) {
+    return toFailure(
+      String(input.httpStatus),
+      `11번가 API 호출에 실패했습니다. (HTTP ${input.httpStatus})`,
+    );
+  }
+
+  const trimmed = bodyText.trim();
+  if (!trimmed.startsWith('<')) {
+    return toFailure('INVALID_XML', '11번가 응답 XML을 해석하지 못했습니다.');
+  }
+
+  const apiError = extractElevenApiError(bodyText);
+  if (apiError) {
+    const text = apiError.message || apiError.displayMessage;
+    return toFailure(apiError.code, text);
+  }
+
+  const resultCode = (
+    extractFirstXmlTagValue(bodyText, 'result_code') ||
+    extractFirstXmlTagValue(bodyText, 'resultCode')
+  ).trim();
+
+  if (isElevenXmlSuccessCode(resultCode)) {
+    return {
+      ok: true,
+      code: resultCode,
+      message: '',
+      displayMessage: 'ok',
+      bodyText: redactElevenSecrets(bodyText, secrets),
+    };
+  }
+
+  const resultText = (
+    extractFirstXmlTagValue(bodyText, 'result_text') ||
+    extractFirstXmlTagValue(bodyText, 'resultMessage') ||
+    extractFirstXmlTagValue(bodyText, 'resultText') ||
+    ''
+  ).trim();
+
+  if (!resultCode) {
+    return toFailure(
+      'MISSING_RESULT_CODE',
+      resultText || '11번가 API 성공 코드(result_code)가 없어 실패로 처리했습니다.',
+    );
+  }
+
+  return toFailure(
+    resultCode,
+    resultText || `11번가 API 오류 (코드: ${resultCode})`,
+  );
+}
+
+async function elevenMutationRequest(input: {
+  credentials: ElevenCredentials;
+  pathWithQuery: string;
+  endpointLabel: ElevenOrderStatusEndpoint | 'reqpackaging' | 'reqdelivery';
+}): Promise<ElevenMutationResult> {
+  if (!isIntegrationProxyConfigured()) {
+    throw new Error('11번가 API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.');
+  }
+  assertIntegrationProxyConfigReady();
+
+  const apiKey = input.credentials.openapikey.trim();
+  const secrets = [apiKey];
+  const url = `${ELEVEN_API_ORIGIN}${input.pathWithQuery}`;
+
+  let httpStatus: number;
+  let bodyText: string;
+  try {
+    const res = await invokeIntegrationHttp({
+      method: 'GET',
+      url,
+      headers: {
+        openapikey: apiKey,
+        Accept: 'application/xml, text/xml, */*',
+      },
+      body: null,
+    });
+    httpStatus = res.httpStatus;
+    bodyText = res.bodyText;
+  } catch (error) {
+    const raw = error instanceof Error ? error.message : String(error ?? '');
+    const safe = redactElevenSecrets(raw, secrets);
+    return {
+      ok: false,
+      code: 'NETWORK',
+      message: safe || '11번가 API 네트워크 연결에 실패했습니다.',
+      displayMessage:
+        redactElevenSecrets(safe || '11번가 API 네트워크 연결에 실패했습니다.', secrets),
+      bodyText: '',
+    };
+  }
+
+  return evaluateElevenMutationHttpResponse({
+    httpStatus,
+    bodyText,
+    secrets,
+  });
+}
+
+export async function elevenReqPackaging(input: {
+  credentials: ElevenCredentials;
+  ordNo: string;
+  ordPrdSeq: string;
+  addPrdYn: 'Y' | 'N';
+  addPrdNo: string;
+  dlvNo: string;
+}): Promise<ElevenMutationResult> {
+  const path = buildElevenReqPackagingPath(input);
+  return elevenMutationRequest({
+    credentials: input.credentials,
+    pathWithQuery: path,
+    endpointLabel: 'reqpackaging',
+  });
+}
+
+export async function elevenReqDelivery(input: {
+  credentials: ElevenCredentials;
+  sendDt: string;
+  dlvMthdCd: string;
+  dlvEtprsCd: string;
+  invcNo: string;
+  dlvNo: string;
+  partDlvYn: 'Y' | 'N';
+  ordNo: string;
+  ordPrdSeq: string;
+}): Promise<ElevenMutationResult> {
+  const path = buildElevenReqDeliveryPath(input);
+  return elevenMutationRequest({
+    credentials: input.credentials,
+    pathWithQuery: path,
+    endpointLabel: 'reqdelivery',
+  });
+}
+
+export function toUserFacingElevenErrorMessage(
+  error: unknown,
+  secrets: Array<string | null | undefined> = [],
+): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : '11번가 연동 처리 중 오류가 발생했습니다.';
+  return sanitizePublicIntegrationErrorMessage(redactElevenSecrets(raw, secrets));
 }
 
 /** 사용자 메시지 앞의 `[코드]`를 분리한다. endpoint 접미사는 유지한다. */

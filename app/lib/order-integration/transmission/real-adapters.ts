@@ -29,6 +29,20 @@ import {
   runSmartstoreInvoiceTransmission,
 } from '@/app/lib/smartstore/smartstore-invoice';
 import { toSmartstoreCredentials } from '@/app/lib/order-integration/smartstore-account';
+import { toElevenCredentials } from '@/app/lib/order-integration/eleven-account';
+import {
+  readDomeggookDeliWithTax,
+  toDomeggookCredentials,
+} from '@/app/lib/order-integration/domeggook-account';
+import { runElevenInvoiceTransmission } from '@/app/lib/eleven/eleven-invoice';
+import {
+  domeggookSetLogin,
+} from '@/app/lib/domeggook/client';
+import {
+  assertDomeggookShipmentConsistency,
+  resolveDomeggookApiOrderNoFromCandidate,
+  runDomeggookInvoiceTransmission,
+} from '@/app/lib/domeggook/domeggook-invoice';
 import { decryptIntegrationSecret } from '@/app/lib/order-integration/encryption';
 import { createShipmentTransmissionAdapterRegistry } from '@/app/lib/order-integration/transmission/adapter-registry';
 import { evaluateLiveTransmitAccountStatus } from '@/app/lib/order-integration/transmission/live-transmit-guard';
@@ -106,6 +120,7 @@ function buildFailure(input: {
   matchId: string;
   errorCode: string;
   errorMessage: string;
+  retryable?: boolean;
   outcomeKind?: ShipmentTransmissionAdapterResult['outcomeKind'];
 }): ShipmentTransmissionAdapterResult {
   return {
@@ -115,7 +130,7 @@ function buildFailure(input: {
     providerRequestId: null,
     errorCode: input.errorCode,
     errorMessage: input.errorMessage,
-    retryable: false,
+    retryable: input.retryable ?? false,
     responseSummary: {
       httpStatus: null,
       providerStatusCode: input.errorCode,
@@ -141,11 +156,6 @@ function rejectIfAccountNotActiveForLiveTransmit(input: {
 }
 
 const DEFERRED_SPECS: ProviderDeferredSpec[] = [
-  {
-    provider: 'ELEVEN',
-    missingInfo:
-      'delivery registration XML endpoint, field names, and success/error XML schema are not confirmed in repository specs.',
-  },
   {
     provider: 'LOTTEON',
     missingInfo:
@@ -538,6 +548,250 @@ function createSmartstoreLiveAdapter(
   };
 }
 
+function createElevenLiveAdapter(
+  options: CreateRealShipmentTransmissionAdaptersOptions,
+): ShipmentTransmissionAdapter {
+  return {
+    provider: 'ELEVEN',
+    buildPayload(candidate: ShipmentTransmissionCandidate) {
+      return {
+        provider: 'ELEVEN',
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        trackingNumber: candidate.trackingNumber,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+      };
+    },
+    async transmit(candidate): Promise<ShipmentTransmissionAdapterResult> {
+      const account = await options.loadAccount({
+        userId: options.userId,
+        accountId: candidate.integrationAccountId,
+        provider: 'ELEVEN',
+      });
+      if (!account) {
+        return buildFailure({
+          provider: 'ELEVEN',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account is not connected.',
+        });
+      }
+
+      const inactive = rejectIfAccountNotActiveForLiveTransmit({
+        provider: 'ELEVEN',
+        matchId: candidate.matchId,
+        status: account.status,
+      });
+      if (inactive) return inactive;
+
+      let credentials;
+      try {
+        credentials = toElevenCredentials(account);
+      } catch {
+        return buildFailure({
+          provider: 'ELEVEN',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account credentials are not configured.',
+        });
+      }
+      if (!credentials.openapikey?.trim()) {
+        return buildFailure({
+          provider: 'ELEVEN',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account credentials are not configured.',
+        });
+      }
+
+      const result = await runElevenInvoiceTransmission({
+        credentials,
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+        trackingNumber: candidate.trackingNumber,
+      });
+
+      return {
+        success: result.success,
+        provider: 'ELEVEN',
+        matchId: candidate.matchId,
+        providerRequestId: result.providerRequestId,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        retryable: result.retryable,
+        responseSummary: {
+          httpStatus: result.responseSummary.httpStatus,
+          providerStatusCode: result.responseSummary.providerStatusCode,
+          message: result.responseSummary.message,
+        },
+        outcomeKind: result.outcomeKind,
+      };
+    },
+  };
+}
+
+/** 동일 주문번호 동시/연속 전송: 외부 setOrdOkDeli는 주문당 1회, 상충 송장은 호출 전 차단 */
+const domeggookInFlightByOrder = new Map<
+  string,
+  {
+    trackingNumber: string;
+    courierCode: string | null;
+    courierName: string | null;
+    promise: Promise<ShipmentTransmissionAdapterResult>;
+  }
+>();
+
+function createDomeggookLiveAdapter(
+  options: CreateRealShipmentTransmissionAdaptersOptions,
+): ShipmentTransmissionAdapter {
+  return {
+    provider: 'DOMEGGOOK',
+    buildPayload(candidate: ShipmentTransmissionCandidate) {
+      return {
+        provider: 'DOMEGGOOK',
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        trackingNumber: candidate.trackingNumber,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+      };
+    },
+    async transmit(candidate): Promise<ShipmentTransmissionAdapterResult> {
+      const apiOrderNo =
+        resolveDomeggookApiOrderNoFromCandidate({
+          mallOrderNo: candidate.mallOrderNo,
+          mallLineItemIds: candidate.mallLineItemIds,
+        }) ?? candidate.mallOrderNo.trim();
+      const flightKey = `${options.userId}:${candidate.integrationAccountId}:${apiOrderNo}`;
+      const existing = domeggookInFlightByOrder.get(flightKey);
+      if (existing) {
+        const consistency = assertDomeggookShipmentConsistency({
+          trackingNumbers: [existing.trackingNumber, candidate.trackingNumber],
+          courierCodes: [existing.courierCode, candidate.courierCode],
+          courierNames: [existing.courierName, candidate.courierName],
+        });
+        if (!consistency.ok) {
+          return buildFailure({
+            provider: 'DOMEGGOOK',
+            matchId: candidate.matchId,
+            errorCode: consistency.errorCode,
+            errorMessage: consistency.message,
+          });
+        }
+        const shared = await existing.promise;
+        return { ...shared, matchId: candidate.matchId };
+      }
+
+      let resolveFlight!: (result: ShipmentTransmissionAdapterResult) => void;
+      const flightPromise = new Promise<ShipmentTransmissionAdapterResult>((resolve) => {
+        resolveFlight = resolve;
+      });
+      // await 이전에 슬롯을 걸어 동시 요청이 같은 외부 호출을 공유·충돌 검사하게 한다.
+      domeggookInFlightByOrder.set(flightKey, {
+        trackingNumber: candidate.trackingNumber,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+        promise: flightPromise,
+      });
+
+      try {
+        const account = await options.loadAccount({
+          userId: options.userId,
+          accountId: candidate.integrationAccountId,
+          provider: 'DOMEGGOOK',
+        });
+        if (!account) {
+          const failure = buildFailure({
+            provider: 'DOMEGGOOK',
+            matchId: candidate.matchId,
+            errorCode: 'NOT_CONFIGURED',
+            errorMessage: 'Integration account is not connected.',
+          });
+          resolveFlight(failure);
+          return failure;
+        }
+
+        const inactive = rejectIfAccountNotActiveForLiveTransmit({
+          provider: 'DOMEGGOOK',
+          matchId: candidate.matchId,
+          status: account.status,
+        });
+        if (inactive) {
+          resolveFlight(inactive);
+          return inactive;
+        }
+
+        let credentials;
+        try {
+          credentials = toDomeggookCredentials(account);
+        } catch {
+          const failure = buildFailure({
+            provider: 'DOMEGGOOK',
+            matchId: candidate.matchId,
+            errorCode: 'NOT_CONFIGURED',
+            errorMessage: 'Integration account credentials are not configured.',
+          });
+          resolveFlight(failure);
+          return failure;
+        }
+
+        const deliWithTax = readDomeggookDeliWithTax(account);
+        const session = await domeggookSetLogin({ credentials });
+        try {
+          const result = await runDomeggookInvoiceTransmission({
+            credentials,
+            session,
+            mallOrderNo: candidate.mallOrderNo,
+            mallLineItemIds: candidate.mallLineItemIds,
+            courierCode: candidate.courierCode,
+            courierName: candidate.courierName,
+            trackingNumber: candidate.trackingNumber,
+            deliWithTax,
+          });
+
+          const adapterResult: ShipmentTransmissionAdapterResult = {
+            success: result.success,
+            provider: 'DOMEGGOOK',
+            matchId: candidate.matchId,
+            providerRequestId: result.providerRequestId,
+            errorCode: result.errorCode,
+            errorMessage: result.errorMessage,
+            retryable: result.retryable,
+            responseSummary: {
+              httpStatus: result.responseSummary.httpStatus,
+              providerStatusCode: result.responseSummary.providerStatusCode,
+              message: result.responseSummary.message,
+            },
+            outcomeKind: result.outcomeKind,
+          };
+          resolveFlight(adapterResult);
+          return adapterResult;
+        } finally {
+          (session as { sId?: string }).sId = undefined;
+        }
+      } catch (error) {
+        const failure = buildFailure({
+          provider: 'DOMEGGOOK',
+          matchId: candidate.matchId,
+          errorCode: 'PROVIDER_REQUEST_FAILED',
+          errorMessage:
+            error instanceof Error && error.message
+              ? error.message
+              : '도매꾹 송장 전송 중 오류가 발생했습니다.',
+          retryable: true,
+        });
+        resolveFlight(failure);
+        return failure;
+      } finally {
+        domeggookInFlightByOrder.delete(flightKey);
+      }
+    },
+  };
+}
+
 function createCafe24LiveAdapter(
   options: CreateRealShipmentTransmissionAdaptersOptions,
 ): ShipmentTransmissionAdapter {
@@ -639,6 +893,8 @@ export function createRealShipmentTransmissionAdapters(
     createCoupangLiveAdapter(options),
     createSmartstoreLiveAdapter(options),
     createCafe24LiveAdapter(options),
+    createElevenLiveAdapter(options),
+    createDomeggookLiveAdapter(options),
     ...DEFERRED_SPECS.map((spec) => createDeferredAdapter(spec, options)),
   ];
 }
