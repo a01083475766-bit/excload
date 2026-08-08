@@ -70,9 +70,14 @@ export async function POST() {
   } catch (error) {
     const rawMessage = toUserFacingElevenErrorMessage(error);
     const { code } = splitElevenErrorCode(rawMessage);
+    const endpoint =
+      error instanceof Error && 'endpoint' in error
+        ? String((error as { endpoint?: unknown }).endpoint ?? '')
+        : null;
     const message = sanitizePublicIntegrationErrorMessage(rawMessage);
     console.error('[Eleven Integration Test] failed', {
       httpOrApiCode: code ?? null,
+      endpoint: endpoint || null,
     });
     await markElevenAccountTestResult({
       accountId: account.id,
@@ -82,7 +87,7 @@ export async function POST() {
         error,
         category: classifyElevenOperationError(error),
         userMessage: message,
-        errorCode: code,
+        errorCode: code ?? endpoint ?? undefined,
       }),
     });
     return NextResponse.json({ error: message }, { status: 400 });

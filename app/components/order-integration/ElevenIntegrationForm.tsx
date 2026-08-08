@@ -10,6 +10,7 @@ import {
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
 import { SecretInput } from '@/app/components/order-integration/SecretInput';
+import { resolveElevenConnectionNotice } from '@/app/lib/eleven/connection-notice';
 
 type ElevenAccountResponse = {
   id: string;
@@ -75,8 +76,8 @@ export function ElevenIntegrationForm({
   const inputClass =
     'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
 
-  const loadSavedAccount = useCallback(async () => {
-    setLoading(true);
+  const loadSavedAccount = useCallback(async (options?: { quiet?: boolean }) => {
+    if (!options?.quiet) setLoading(true);
     try {
       const res = await fetch('/api/order/integration/eleven');
       const data = (await res.json()) as { account?: ElevenAccountResponse | null; error?: string };
@@ -95,7 +96,7 @@ export function ElevenIntegrationForm({
         text: error instanceof Error ? error.message : '연동 정보를 불러오지 못했습니다.',
       });
     } finally {
-      setLoading(false);
+      if (!options?.quiet) setLoading(false);
     }
   }, []);
 
@@ -169,13 +170,14 @@ export function ElevenIntegrationForm({
         kind: 'success',
         text: data.message ?? '11번가 API 연결이 정상 확인되었습니다.',
       });
-      await loadSavedAccount();
     } catch (error) {
       setStatusMessage({
         kind: 'error',
         text: error instanceof Error ? error.message : '연결 테스트에 실패했습니다.',
       });
     } finally {
+      // 성공·실패 모두 저장 상태를 다시 읽어 초록 성공 배너와 오류가 겹치지 않게 한다.
+      await loadSavedAccount({ quiet: true });
       setBusyAction(null);
     }
   }
@@ -371,7 +373,37 @@ export function ElevenIntegrationForm({
         </div>
       </form>
 
-      {savedAccount?.status === 'active' ? <IntegrationConnectedNotice mallName="11번가" /> : null}
+      {(() => {
+        const noticeKind = resolveElevenConnectionNotice(savedAccount, {
+          hasLocalError: statusMessage?.kind === 'error',
+        });
+        if (noticeKind === 'test_success') {
+          return (
+            <IntegrationConnectedNotice
+              mallName="11번가"
+              title="11번가 연결 테스트 성공"
+              description="최근 연결 테스트가 성공했습니다. 실제 주문 조회와 송장 처리는 주문연동 화면에서 진행할 수 있습니다."
+            />
+          );
+        }
+        if (noticeKind === 'settings_saved') {
+          return (
+            <section className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900/40">
+              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">설정 저장됨</p>
+              <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                연동 정보가 저장되어 있습니다. 연결 테스트를 성공해야 실제 API 연결이 확인됩니다.
+              </p>
+              <Link
+                href="/order/integration"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+              >
+                주문연동으로 이동
+              </Link>
+            </section>
+          );
+        }
+        return null;
+      })()}
     </div>
   );
 }

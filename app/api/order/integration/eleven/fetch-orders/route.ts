@@ -103,9 +103,14 @@ export async function POST(request: Request) {
   } catch (error) {
     const rawMessage = toUserFacingElevenErrorMessage(error);
     const { code } = splitElevenErrorCode(rawMessage);
+    const endpoint =
+      error instanceof Error && 'endpoint' in error
+        ? String((error as { endpoint?: unknown }).endpoint ?? '')
+        : null;
     const message = sanitizePublicIntegrationErrorMessage(rawMessage);
     console.error('[Eleven Integration Fetch] failed', {
       httpOrApiCode: code ?? null,
+      endpoint: endpoint || null,
     });
     await markElevenAccountSyncResult({
       accountId: account.id,
@@ -115,7 +120,7 @@ export async function POST(request: Request) {
         error,
         category: classifyElevenOperationError(error),
         userMessage: message,
-        errorCode: code,
+        errorCode: code ?? endpoint ?? undefined,
       }),
     });
     return NextResponse.json({ error: message }, { status: 400 });

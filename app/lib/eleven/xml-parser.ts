@@ -17,6 +17,15 @@ export function extractFirstXmlTagValue(xml: string, tagName: string): string {
   return decodeXmlEntities(match[1].trim());
 }
 
+/** 여러 후보 태그 중 첫 비어 있지 않은 값을 반환한다. */
+export function extractFirstXmlTagValueAny(xml: string, tagNames: readonly string[]): string {
+  for (const tagName of tagNames) {
+    const value = extractFirstXmlTagValue(xml, tagName);
+    if (value) return value;
+  }
+  return '';
+}
+
 export function extractXmlBlocks(xml: string, tagName: string): string[] {
   const pattern = new RegExp(
     `<(?:[\\w.-]+:)?${escapeRegExp(tagName)}(?:\\s[^>]*)?>[\\s\\S]*?<\\/(?:[\\w.-]+:)?${escapeRegExp(tagName)}>`,
@@ -49,12 +58,16 @@ export function extractElevenApiError(xml: string): ElevenApiErrorInfo | null {
   const trimmed = xml.trim();
   if (!trimmed.startsWith('<')) return null;
 
-  const resultCode = extractFirstXmlTagValue(trimmed, 'resultCode');
+  // 공식: result_code / result_text · 호환: resultCode / resultMessage / error*
+  const resultCode = extractFirstXmlTagValueAny(trimmed, ['result_code', 'resultCode']);
   if (resultCode && !isSuccessResultCode(resultCode)) {
-    const message =
-      extractFirstXmlTagValue(trimmed, 'resultMessage') ||
-      extractFirstXmlTagValue(trimmed, 'message') ||
-      extractFirstXmlTagValue(trimmed, 'errorMessage');
+    const message = extractFirstXmlTagValueAny(trimmed, [
+      'result_text',
+      'resultText',
+      'resultMessage',
+      'message',
+      'errorMessage',
+    ]);
     return {
       code: resultCode,
       message,
@@ -62,12 +75,15 @@ export function extractElevenApiError(xml: string): ElevenApiErrorInfo | null {
     };
   }
 
-  const errorCode = extractFirstXmlTagValue(trimmed, 'errorCode');
+  const errorCode = extractFirstXmlTagValueAny(trimmed, ['errorCode', 'error_code']);
   if (errorCode) {
-    const message =
-      extractFirstXmlTagValue(trimmed, 'errorMessage') ||
-      extractFirstXmlTagValue(trimmed, 'message') ||
-      extractFirstXmlTagValue(trimmed, 'resultMessage');
+    const message = extractFirstXmlTagValueAny(trimmed, [
+      'errorMessage',
+      'error_message',
+      'message',
+      'result_text',
+      'resultMessage',
+    ]);
     return {
       code: errorCode,
       message,
@@ -78,15 +94,21 @@ export function extractElevenApiError(xml: string): ElevenApiErrorInfo | null {
   // 레거시 OpenAPI 스타일: <Error><Code>003</Code><Message>unregisteredKey</Message></Error>
   const legacyBlocks = extractXmlBlocks(trimmed, 'Error');
   for (const block of legacyBlocks) {
-    const code =
-      extractFirstXmlTagValue(block, 'Code') ||
-      extractFirstXmlTagValue(block, 'errorCode') ||
-      extractFirstXmlTagValue(block, 'resultCode');
+    const code = extractFirstXmlTagValueAny(block, [
+      'Code',
+      'errorCode',
+      'error_code',
+      'result_code',
+      'resultCode',
+    ]);
     if (!code || isSuccessResultCode(code)) continue;
-    const message =
-      extractFirstXmlTagValue(block, 'Message') ||
-      extractFirstXmlTagValue(block, 'errorMessage') ||
-      extractFirstXmlTagValue(block, 'resultMessage');
+    const message = extractFirstXmlTagValueAny(block, [
+      'Message',
+      'errorMessage',
+      'error_message',
+      'result_text',
+      'resultMessage',
+    ]);
     return {
       code,
       message,

@@ -3,9 +3,12 @@ import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config
 import { invokeIntegrationHttp } from '@/app/lib/integration-proxy/http-transport';
 import {
   ELEVEN_API_ORIGIN,
-  formatElevenApiDateTime,
+  buildElevenOrderPath,
+  extractElevenErrorEndpoint,
+  formatElevenEndpointErrorMessage,
   type ElevenCredentials,
   type ElevenOrderStatusEndpoint,
+  ORDER_STATUS_ENDPOINTS,
 } from '@/app/lib/eleven/client';
 import { extractElevenApiError } from '@/app/lib/eleven/xml-parser';
 import { toElevenCredentials } from '@/app/lib/order-integration/eleven-account';
@@ -25,8 +28,6 @@ export type ElevenHealthHttpFn = (input: {
   body?: string | null;
 }) => Promise<{ httpStatus: number; bodyText: string }>;
 
-const HEALTH_ENDPOINTS: ElevenOrderStatusEndpoint[] = ['complete', 'standing'];
-
 function classifyElevenError(input: { httpStatus?: number; message?: string; code?: string }): HealthErrorCategory {
   const msg = (input.message ?? '').toLowerCase();
   const code = (input.code ?? '').toLowerCase();
@@ -36,12 +37,14 @@ function classifyElevenError(input: { httpStatus?: number; message?: string; cod
     code.includes('invalidopenapi') ||
     code === '003' ||
     code === '013' ||
+    code === '-997' ||
     msg.includes('openapikey') ||
     msg.includes('인증') ||
     msg.includes('api key') ||
     msg.includes('인증키') ||
     msg.includes('unregisteredkey') ||
-    msg.includes('invalidopenapikey')
+    msg.includes('invalidopenapikey') ||
+    msg.includes('등록된 api 정보')
   ) {
     return 'AUTH_REQUIRED';
   }
@@ -73,19 +76,17 @@ function classifyElevenError(input: { httpStatus?: number; message?: string; cod
 export function classifyElevenOperationError(error: unknown): HealthErrorCategory {
   const message = error instanceof Error ? error.message : String(error ?? '');
   const codeMatch = /^\[([^\]]+)\]\s*/.exec(message);
+  const code =
+    codeMatch?.[1] === 'complete' || codeMatch?.[1] === 'packaging' ? undefined : codeMatch?.[1];
   return classifyElevenError({
     message,
-    code: codeMatch?.[1],
+    code,
   });
-}
-
-function buildHealthPath(endpoint: ElevenOrderStatusEndpoint, start: Date, end: Date): string {
-  return `/rest/ordservices/${endpoint}/${formatElevenApiDateTime(start)}/${formatElevenApiDateTime(end)}`;
 }
 
 /**
  * 11번가 연결 확인 코어(테스트 주입용).
- * 주문조회와 같이 complete+standing을 읽기 조회한다. 주문 저장/쓰기 없음.
+ * 주문조회와 같이 complete+packaging을 읽기 조회한다. 주문 저장/쓰기 없음.
  * 정상 빈 응답은 HEALTHY. XML/HTTP 오류는 공통 카테고리로 매핑.
  */
 export async function runElevenHealthCheck(input: {
@@ -96,12 +97,12 @@ export async function runElevenHealthCheck(input: {
   const now = input.now ?? new Date();
   const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-  for (const endpoint of HEALTH_ENDPOINTS) {
+  for (const endpoint of ORDER_STATUS_ENDPOINTS) {
     let res: { httpStatus: number; bodyText: string };
     try {
       res = await input.http({
         method: 'GET',
-        url: `${ELEVEN_API_ORIGIN}${buildHealthPath(endpoint, start, now)}`,
+        url: `${ELEVEN_API_ORIGIN}${buildElevenOrderPath(endpoint, start, now)}`,
         headers: {
           openapikey: input.credentials.openapikey.trim(),
           Accept: 'application/xml, text/xml, */*',
@@ -109,33 +110,43 @@ export async function runElevenHealthCheck(input: {
         body: null,
       });
     } catch {
-      return { status: 'TEMPORARY_ERROR', rawCode: 'NETWORK', checkedAt: now };
+      return {
+        status: 'TEMPORARY_ERROR',
+        rawCode: 'NETWORK',
+        rawMessage: truncate(formatElevenEndpointErrorMessage(endpoint, 'NETWORK')),
+        checkedAt: now,
+      };
     }
 
     const apiError = extractElevenApiError(res.bodyText);
 
     if (res.httpStatus >= 200 && res.httpStatus < 300) {
       if (!apiError) continue;
+      const display = formatElevenEndpointErrorMessage(endpoint, apiError.displayMessage);
       return {
         status: classifyElevenError({
           httpStatus: res.httpStatus,
-          message: apiError.displayMessage,
+          message: display,
           code: apiError.code,
         }),
         rawCode: apiError.code,
-        rawMessage: truncate(apiError.displayMessage),
+        rawMessage: truncate(display),
         checkedAt: now,
       };
     }
 
+    const display = formatElevenEndpointErrorMessage(
+      endpoint,
+      apiError?.displayMessage ?? `HTTP ${res.httpStatus}`,
+    );
     return {
       status: classifyElevenError({
         httpStatus: res.httpStatus,
-        message: apiError?.displayMessage,
+        message: display,
         code: apiError?.code,
       }),
       rawCode: apiError?.code ?? String(res.httpStatus),
-      rawMessage: truncate(apiError?.displayMessage),
+      rawMessage: truncate(display),
       checkedAt: now,
     };
   }
@@ -165,3 +176,9 @@ export const elevenHealthAdapter: ConnectionHealthAdapter<OrderIntegrationAccoun
     return runElevenHealthCheck({ http: invokeIntegrationHttp, credentials, now });
   },
 };
+
+export function resolveFailedElevenEndpointFromMessage(
+  message: string,
+): ElevenOrderStatusEndpoint | null {
+  return extractElevenErrorEndpoint(message);
+}

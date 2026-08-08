@@ -91,9 +91,16 @@ export const PROVIDER_CONNECTION_HELP: Partial<
     settingsUrl: settingsPath('eleven'),
     credentialLabels: ['Open API Key'],
     authRequiredTitle: '11번가 연결 정보 확인 필요',
+    // -997 등은 키 오입력만으로 단정하지 않고, 키·Seller 주문 API 등록·승인·권한 범위를 함께 안내한다.
     authRequiredDescription:
-      '11번가 Open API 설정에서 API Key가 정상 사용 중인지 확인해 주세요. 키가 변경되거나 재발급됐다면 엑클로드 연동 설정에서도 수정한 뒤 다시 확인해 주세요.',
-    authRequiredChecks: ['Open API Key', 'API 사용 상태', '주문조회 권한', 'API 호출 IP가 필요한 경우 등록 상태'],
+      '11번가 OpenAPI에서 API 키와 Seller 주문 API의 등록·승인·권한 상태를 확인해 주세요. 변경된 정보가 있다면 엑클로드 연동 설정에서도 수정한 뒤 다시 확인해 주세요.',
+    authRequiredChecks: [
+      'API 키',
+      'Seller 주문 API 등록 상태',
+      'Seller 주문 API 승인 상태',
+      '주문조회 권한',
+      'API 호출 IP가 필요한 경우 등록 상태',
+    ],
     ipRequiredChecks: ['API 호출 IP 등록 상태'],
     permissionRequiredChecks: ['주문조회 권한'],
   },
