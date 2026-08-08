@@ -8,7 +8,7 @@ import {
   markElevenAccountTestResult,
   toElevenCredentials,
 } from '@/app/lib/order-integration/eleven-account';
-import { testElevenConnection, toUserFacingElevenErrorMessage } from '@/app/lib/eleven/client';
+import { testElevenConnection, toUserFacingElevenErrorMessage, splitElevenErrorCode } from '@/app/lib/eleven/client';
 import { isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
 import { classifyElevenOperationError } from '@/app/lib/order-integration/connection-health/adapters/eleven';
 import { connectionOperationFailure } from '@/app/lib/order-integration/connection-health/operation-result';
@@ -68,8 +68,12 @@ export async function POST() {
       message: '11번가 API 연결이 정상 확인되었습니다.',
     });
   } catch (error) {
-    const message = sanitizePublicIntegrationErrorMessage(toUserFacingElevenErrorMessage(error));
-    console.error('[Eleven Integration Test] failed');
+    const rawMessage = toUserFacingElevenErrorMessage(error);
+    const { code } = splitElevenErrorCode(rawMessage);
+    const message = sanitizePublicIntegrationErrorMessage(rawMessage);
+    console.error('[Eleven Integration Test] failed', {
+      httpOrApiCode: code ?? null,
+    });
     await markElevenAccountTestResult({
       accountId: account.id,
       userId: auth.userId,
@@ -78,6 +82,7 @@ export async function POST() {
         error,
         category: classifyElevenOperationError(error),
         userMessage: message,
+        errorCode: code,
       }),
     });
     return NextResponse.json({ error: message }, { status: 400 });

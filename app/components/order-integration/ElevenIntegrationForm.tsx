@@ -259,7 +259,11 @@ export function ElevenIntegrationForm({
 
       {savedAccount?.lastErrorMessage ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('error')}`}>
-          최근 오류: {savedAccount.lastErrorMessage}
+          최근 조회·연결 오류: {savedAccount.lastErrorMessage}
+          <span className="mt-1 block text-xs opacity-80">
+            연결 테스트 또는 주문조회가 성공하면 이 메시지는 사라집니다. 연결 배지와 별도로 최근 실패 내용을
+            보여 줍니다.
+          </span>
         </p>
       ) : null}
 
@@ -367,7 +371,7 @@ export function ElevenIntegrationForm({
         </div>
       </form>
 
-      {savedAccount ? <IntegrationConnectedNotice mallName="11번가" /> : null}
+      {savedAccount?.status === 'active' ? <IntegrationConnectedNotice mallName="11번가" /> : null}
     </div>
   );
 }

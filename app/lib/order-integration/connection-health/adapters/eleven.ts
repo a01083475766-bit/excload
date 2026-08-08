@@ -5,8 +5,9 @@ import {
   ELEVEN_API_ORIGIN,
   formatElevenApiDateTime,
   type ElevenCredentials,
+  type ElevenOrderStatusEndpoint,
 } from '@/app/lib/eleven/client';
-import { parseElevenApiError } from '@/app/lib/eleven/xml-parser';
+import { extractElevenApiError } from '@/app/lib/eleven/xml-parser';
 import { toElevenCredentials } from '@/app/lib/order-integration/eleven-account';
 import { categorizeApiError } from '../error-categories';
 import type { ConnectionHealthAdapter, ConnectionHealthResult, HealthErrorCategory } from '../types';
@@ -24,12 +25,43 @@ export type ElevenHealthHttpFn = (input: {
   body?: string | null;
 }) => Promise<{ httpStatus: number; bodyText: string }>;
 
-function classifyElevenError(input: { httpStatus?: number; message?: string }): HealthErrorCategory {
+const HEALTH_ENDPOINTS: ElevenOrderStatusEndpoint[] = ['complete', 'standing'];
+
+function classifyElevenError(input: { httpStatus?: number; message?: string; code?: string }): HealthErrorCategory {
   const msg = (input.message ?? '').toLowerCase();
-  // openapikey/인증 키워드는 11번가의 대표적인 인증 오류 신호
-  if (msg.includes('openapikey') || msg.includes('인증') || msg.includes('api key') || msg.includes('인증키')) {
+  const code = (input.code ?? '').toLowerCase();
+
+  if (
+    code.includes('unregistered') ||
+    code.includes('invalidopenapi') ||
+    code === '003' ||
+    code === '013' ||
+    msg.includes('openapikey') ||
+    msg.includes('인증') ||
+    msg.includes('api key') ||
+    msg.includes('인증키') ||
+    msg.includes('unregisteredkey') ||
+    msg.includes('invalidopenapikey')
+  ) {
     return 'AUTH_REQUIRED';
   }
+
+  if (
+    code.includes('accessdeny') ||
+    code === '005' ||
+    msg.includes('accessdeny') ||
+    msg.includes('접근이 거부') ||
+    msg.includes('접근 거부') ||
+    /\bip\b/i.test(input.message ?? '') ||
+    msg.includes('아이피')
+  ) {
+    return 'IP_NOT_ALLOWED';
+  }
+
+  if (code.includes('overedtraffic') || code === '004' || msg.includes('overedtraffic') || msg.includes('호출 가능')) {
+    return 'RATE_LIMITED';
+  }
+
   const category = categorizeApiError({ httpStatus: input.httpStatus, message: input.message });
   if (category !== 'UNKNOWN') return category;
   if (input.httpStatus === 401) return 'AUTH_REQUIRED';
@@ -39,14 +71,21 @@ function classifyElevenError(input: { httpStatus?: number; message?: string }): 
 
 /** 수동 테스트·실제 주문조회도 자동 확인과 동일한 11번가 분류기를 사용한다. */
 export function classifyElevenOperationError(error: unknown): HealthErrorCategory {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const codeMatch = /^\[([^\]]+)\]\s*/.exec(message);
   return classifyElevenError({
-    message: error instanceof Error ? error.message : String(error ?? ''),
+    message,
+    code: codeMatch?.[1],
   });
+}
+
+function buildHealthPath(endpoint: ElevenOrderStatusEndpoint, start: Date, end: Date): string {
+  return `/rest/ordservices/${endpoint}/${formatElevenApiDateTime(start)}/${formatElevenApiDateTime(end)}`;
 }
 
 /**
  * 11번가 연결 확인 코어(테스트 주입용).
- * 최근 24시간 complete 엔드포인트를 1회 읽기 조회한다. 주문 저장/쓰기 없음.
+ * 주문조회와 같이 complete+standing을 읽기 조회한다. 주문 저장/쓰기 없음.
  * 정상 빈 응답은 HEALTHY. XML/HTTP 오류는 공통 카테고리로 매핑.
  */
 export async function runElevenHealthCheck(input: {
@@ -56,41 +95,52 @@ export async function runElevenHealthCheck(input: {
 }): Promise<ConnectionHealthResult> {
   const now = input.now ?? new Date();
   const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const path = `/rest/ordservices/complete/${formatElevenApiDateTime(start)}/${formatElevenApiDateTime(now)}`;
 
-  let res: { httpStatus: number; bodyText: string };
-  try {
-    res = await input.http({
-      method: 'GET',
-      url: `${ELEVEN_API_ORIGIN}${path}`,
-      headers: {
-        openapikey: input.credentials.openapikey.trim(),
-        Accept: 'application/xml, text/xml, */*',
-      },
-      body: null,
-    });
-  } catch {
-    return { status: 'TEMPORARY_ERROR', rawCode: 'NETWORK', checkedAt: now };
-  }
+  for (const endpoint of HEALTH_ENDPOINTS) {
+    let res: { httpStatus: number; bodyText: string };
+    try {
+      res = await input.http({
+        method: 'GET',
+        url: `${ELEVEN_API_ORIGIN}${buildHealthPath(endpoint, start, now)}`,
+        headers: {
+          openapikey: input.credentials.openapikey.trim(),
+          Accept: 'application/xml, text/xml, */*',
+        },
+        body: null,
+      });
+    } catch {
+      return { status: 'TEMPORARY_ERROR', rawCode: 'NETWORK', checkedAt: now };
+    }
 
-  const apiError = parseElevenApiError(res.bodyText) ?? undefined;
+    const apiError = extractElevenApiError(res.bodyText);
 
-  if (res.httpStatus >= 200 && res.httpStatus < 300) {
-    if (!apiError) return { status: 'HEALTHY', checkedAt: now };
-    // 2xx인데 XML 에러 본문 → 분류
+    if (res.httpStatus >= 200 && res.httpStatus < 300) {
+      if (!apiError) continue;
+      return {
+        status: classifyElevenError({
+          httpStatus: res.httpStatus,
+          message: apiError.displayMessage,
+          code: apiError.code,
+        }),
+        rawCode: apiError.code,
+        rawMessage: truncate(apiError.displayMessage),
+        checkedAt: now,
+      };
+    }
+
     return {
-      status: classifyElevenError({ httpStatus: res.httpStatus, message: apiError }),
-      rawMessage: truncate(apiError),
+      status: classifyElevenError({
+        httpStatus: res.httpStatus,
+        message: apiError?.displayMessage,
+        code: apiError?.code,
+      }),
+      rawCode: apiError?.code ?? String(res.httpStatus),
+      rawMessage: truncate(apiError?.displayMessage),
       checkedAt: now,
     };
   }
 
-  return {
-    status: classifyElevenError({ httpStatus: res.httpStatus, message: apiError }),
-    rawCode: String(res.httpStatus),
-    rawMessage: truncate(apiError),
-    checkedAt: now,
-  };
+  return { status: 'HEALTHY', checkedAt: now };
 }
 
 export const elevenHealthAdapter: ConnectionHealthAdapter<OrderIntegrationAccount> = {

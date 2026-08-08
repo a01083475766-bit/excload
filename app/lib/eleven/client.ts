@@ -1,8 +1,8 @@
 import { assertIntegrationProxyConfigReady, isIntegrationProxyConfigured } from '@/app/lib/integration-proxy/config';
 import { invokeIntegrationHttp } from '@/app/lib/integration-proxy/http-transport';
 import {
+  extractElevenApiError,
   extractXmlBlocks,
-  parseElevenApiError,
   parseXmlRecord,
 } from '@/app/lib/eleven/xml-parser';
 
@@ -60,9 +60,9 @@ function buildElevenOrderPath(endpoint: ElevenOrderStatusEndpoint, start: Date, 
 }
 
 export function parseElevenOrdersXml(xml: string): ElevenOrderRecord[] {
-  const apiError = parseElevenApiError(xml);
+  const apiError = extractElevenApiError(xml);
   if (apiError) {
-    throw new Error(apiError);
+    throw new Error(apiError.displayMessage);
   }
 
   const orderBlocks = [
@@ -79,17 +79,19 @@ export function parseElevenOrdersXml(xml: string): ElevenOrderRecord[] {
 }
 
 function assertElevenHttpSuccess(httpStatus: number, bodyText: string): void {
+  const apiError = extractElevenApiError(bodyText);
+  if (apiError) {
+    throw new Error(apiError.displayMessage);
+  }
+
   if (httpStatus >= 200 && httpStatus < 300) {
     return;
   }
 
-  const apiError = parseElevenApiError(bodyText);
-  if (apiError) {
-    throw new Error(apiError);
-  }
-
   if (httpStatus === 401 || httpStatus === 403) {
-    throw new Error('11번가 OPEN API KEY 인증에 실패했습니다. 키와 IP 등록 상태를 확인해 주세요.');
+    throw new Error(
+      `11번가 OPEN API KEY 인증에 실패했습니다. 키와 IP 등록 상태를 확인해 주세요. (HTTP ${httpStatus})`,
+    );
   }
 
   throw new Error(`11번가 API 호출에 실패했습니다. (HTTP ${httpStatus})`);
@@ -126,12 +128,6 @@ export async function elevenApiRequest(input: {
   });
 
   assertElevenHttpSuccess(httpStatus, bodyText);
-
-  const apiError = parseElevenApiError(bodyText);
-  if (apiError) {
-    throw new Error(apiError);
-  }
-
   return bodyText;
 }
 
@@ -188,21 +184,23 @@ export async function fetchElevenOrders(input: {
   return dedupeElevenOrders(collected);
 }
 
+/**
+ * 연결 테스트는 주문조회와 동일하게 고정 IP 프록시 + complete/standing 읽기 조회를 사용한다.
+ * (이전에는 complete만 호출해 standing 오류가 연결 정상으로 남을 수 있었음)
+ */
 export async function testElevenConnection(credentials: ElevenCredentials): Promise<{ ok: true }> {
-  const now = new Date();
-  const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-  await fetchElevenOrdersByEndpoint({
-    credentials,
-    endpoint: 'complete',
-    start,
-    end: now,
-  });
-
+  await fetchElevenOrders({ credentials, days: 1 });
   return { ok: true };
 }
 
 export function toUserFacingElevenErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return '11번가 연동 처리 중 오류가 발생했습니다.';
+}
+
+/** 사용자 메시지 앞의 `[코드]`를 분리한다. */
+export function splitElevenErrorCode(message: string): { code?: string; message: string } {
+  const match = /^\[([^\]]+)\]\s*(.*)$/.exec(message.trim());
+  if (!match) return { message };
+  return { code: match[1], message: match[2] || message };
 }

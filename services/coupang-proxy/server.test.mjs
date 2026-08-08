@@ -119,17 +119,25 @@ describe('Lightsail server.mjs helpers', () => {
     ).toBe(false);
   });
 
-  it('integration invoke fetch uses redirect: manual', async () => {
+  it('integration invoke fetch uses redirect: manual and charset-aware body decode', async () => {
+    const eucKrBody = Buffer.concat([
+      Buffer.from('<?xml version="1.0" encoding="EUC-KR"?><msg>', 'ascii'),
+      Buffer.from([0xc0, 0xce, 0xc1, 0xf5, 0xc5, 0xb0, 0x20, 0xbf, 0xc0, 0xb7, 0xf9]),
+      Buffer.from('</msg>', 'ascii'),
+    ]);
     const fetchMock = vi.fn().mockResolvedValue({
       status: 200,
-      text: async () => '{"ok":true}',
+      headers: {
+        get: (name) => (name.toLowerCase() === 'content-type' ? 'text/xml; charset=EUC-KR' : null),
+      },
+      arrayBuffer: async () => eucKrBody.buffer.slice(eucKrBody.byteOffset, eucKrBody.byteOffset + eucKrBody.byteLength),
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await invokeIntegrationHttp({
-      url: 'https://api.commerce.naver.com/v1/ping',
+    const result = await invokeIntegrationHttp({
+      url: 'https://api.11st.co.kr/rest/ordservices/complete/202601010000/202601020000',
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/xml', openapikey: 'dummy' },
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -139,5 +147,9 @@ describe('Lightsail server.mjs helpers', () => {
         method: 'GET',
       }),
     );
+    expect(result.bodyEncoding).toBe('euc-kr');
+    expect(result.contentType).toMatch(/charset=utf-8/i);
+    expect(result.bodyText).toContain('인증키 오류');
+    expect(result.bodyText).not.toContain('\uFFFD');
   });
 });

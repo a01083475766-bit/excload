@@ -155,6 +155,20 @@ function extractOrderViews(data: unknown, rows: StandardOrderRow[]): OrderFetchV
   return buildOrderFetchViewsFromStandardRows(rows as Array<Record<string, unknown>>);
 }
 
+/** 일부 몰 실패 시 “주문이 없습니다”만 보이지 않도록 결과 요약을 만든다. */
+export function buildFetchOutcomeNotice(input: {
+  failed: Array<{ name: string; message: string }>;
+  okCount: number;
+  okOrderCount: number;
+}): string | null {
+  if (input.failed.length === 0) return null;
+  const failedNames = input.failed.map((f) => f.name).join(', ');
+  if (input.okCount === 0) {
+    return `${failedNames} 조회 실패`;
+  }
+  return `${failedNames} 조회 실패 / 나머지 ${input.okCount}개 쇼핑몰 조회 완료 · ${input.okOrderCount}건`;
+}
+
 /**
  * 주문조회 — 연동된 몰만 표시.
  * 검색 조건(작업 대상·변경일 기준 기간·검색어) → 조건에 맞는 요약·표 → 선택 흐름.
@@ -463,6 +477,9 @@ export default function OrderIntegrationFetchPanel() {
   /** 요약은 검색 조건(작업 대상·검색어·상세조건)이 반영된 filteredRows 기준. */
   const summary = useMemo(() => {
     const okMalls = results ? results.filter((r) => r.ok).length : 0;
+    const failedMalls = results ? results.filter((r) => !r.ok) : [];
+    const okMallResults = results ? results.filter((r) => r.ok) : [];
+    const okOrderCount = okMallResults.reduce((sum, r) => sum + r.rows.length, 0);
     let shipment = 0;
     let delivering = 0;
     let claim = 0;
@@ -473,11 +490,20 @@ export default function OrderIntegrationFetchPanel() {
     }
     return {
       okMalls,
+      failedMalls,
+      okOrderCount,
       total: filteredRows.length,
       shipment,
       delivering,
       claim,
       workTargetLabel: ORDER_WORK_TARGET_LABEL[workTarget],
+      fetchOutcomeNotice: results
+        ? buildFetchOutcomeNotice({
+            failed: failedMalls.map((r) => ({ name: r.name, message: r.message })),
+            okCount: okMalls,
+            okOrderCount,
+          })
+        : null,
     };
   }, [results, filteredRows, workTarget]);
 
@@ -1178,6 +1204,15 @@ export default function OrderIntegrationFetchPanel() {
             )}
           </div>
 
+          {summary.fetchOutcomeNotice ? (
+            <p
+              className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+              role="status"
+            >
+              {summary.fetchOutcomeNotice}
+            </p>
+          ) : null}
+
           {results.some((r) => !r.ok) ? (
             <ul className="mt-3 space-y-1">
               {results
@@ -1195,10 +1230,24 @@ export default function OrderIntegrationFetchPanel() {
 
           {filteredRows.length === 0 ? (
             <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-8 text-center text-sm leading-relaxed text-zinc-600">
-              <p className="font-medium text-zinc-800">
-                선택한 기간과 조건에 해당하는 주문이 없습니다.
-              </p>
-              <p className="mt-1">조회기간을 늘리거나 작업 대상을 「전체 주문」으로 다시 조회해 보세요.</p>
+              {summary.failedMalls.length > 0 ? (
+                <>
+                  <p className="font-medium text-zinc-800">
+                    일부 쇼핑몰 조회에 실패했고, 성공한 쇼핑몰에서는 조건에 맞는 주문이 없습니다.
+                  </p>
+                  <p className="mt-1">
+                    실패 몰의 오류 메시지를 확인한 뒤 다시 조회해 주세요. 성공한 몰만 기준으로는{' '}
+                    {summary.okOrderCount.toLocaleString()}건입니다.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-zinc-800">
+                    선택한 기간과 조건에 해당하는 주문이 없습니다.
+                  </p>
+                  <p className="mt-1">조회기간을 늘리거나 작업 대상을 「전체 주문」으로 다시 조회해 보세요.</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white">

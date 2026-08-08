@@ -19,6 +19,7 @@ import {
   getAllowedHostnames,
   INTEGRATION_PROXY_SUFFIX_RULES,
 } from './allowed-hosts.mjs';
+import { decodeResponseBody } from './decode-response-body.mjs';
 
 const PORT = Number(process.env.PORT || 8787);
 const SHARED_SECRET = (
@@ -130,9 +131,14 @@ async function invokeCoupang(payload) {
           : undefined,
   });
 
+  const contentType = response.headers.get('content-type');
+  const decoded = decodeResponseBody(await response.arrayBuffer(), contentType);
+  // bodyText는 항상 UTF-8 문자열. 원본 charset은 bodyEncoding에만 남긴다.
   return {
     httpStatus: response.status,
-    bodyText: await response.text(),
+    bodyText: decoded.text,
+    contentType: rewriteContentTypeCharset(decoded.contentType, 'utf-8'),
+    bodyEncoding: decoded.encoding,
   };
 }
 
@@ -150,13 +156,30 @@ async function invokeIntegrationHttp(payload) {
     redirect: 'manual',
   });
 
+  const contentType = response.headers.get('content-type');
+  const decoded = decodeResponseBody(await response.arrayBuffer(), contentType);
+  // bodyText는 항상 UTF-8 문자열. 원본 charset은 bodyEncoding에만 남긴다.
   return {
     httpStatus: response.status,
-    bodyText: await response.text(),
+    bodyText: decoded.text,
+    contentType: rewriteContentTypeCharset(decoded.contentType, 'utf-8'),
+    bodyEncoding: decoded.encoding,
   };
 }
 
-export { invokeIntegrationHttp };
+/**
+ * @param {string | null} contentType
+ * @param {string} charset
+ */
+function rewriteContentTypeCharset(contentType, charset) {
+  if (!contentType) return `text/plain; charset=${charset}`;
+  if (/charset\s*=/i.test(contentType)) {
+    return contentType.replace(/charset\s*=\s*[^;]+/i, `charset=${charset}`);
+  }
+  return `${contentType}; charset=${charset}`;
+}
+
+export { invokeIntegrationHttp, decodeResponseBody, rewriteContentTypeCharset };
 
 function sendJson(res, status, data) {
   const body = JSON.stringify(data);

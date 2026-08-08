@@ -11,7 +11,7 @@ import {
   markElevenAccountSyncResult,
   toElevenCredentials,
 } from '@/app/lib/order-integration/eleven-account';
-import { fetchElevenOrders, toUserFacingElevenErrorMessage } from '@/app/lib/eleven/client';
+import { fetchElevenOrders, toUserFacingElevenErrorMessage, splitElevenErrorCode } from '@/app/lib/eleven/client';
 import {
   ELEVEN_PREVIEW_HEADERS,
   mapElevenOrdersToOrderStandardFile,
@@ -101,8 +101,12 @@ export async function POST(request: Request) {
       snapshotPersist,
     });
   } catch (error) {
-    const message = sanitizePublicIntegrationErrorMessage(toUserFacingElevenErrorMessage(error));
-    console.error('[Eleven Integration Fetch] failed');
+    const rawMessage = toUserFacingElevenErrorMessage(error);
+    const { code } = splitElevenErrorCode(rawMessage);
+    const message = sanitizePublicIntegrationErrorMessage(rawMessage);
+    console.error('[Eleven Integration Fetch] failed', {
+      httpOrApiCode: code ?? null,
+    });
     await markElevenAccountSyncResult({
       accountId: account.id,
       userId: auth.userId,
@@ -111,6 +115,7 @@ export async function POST(request: Request) {
         error,
         category: classifyElevenOperationError(error),
         userMessage: message,
+        errorCode: code,
       }),
     });
     return NextResponse.json({ error: message }, { status: 400 });
