@@ -44,7 +44,7 @@ function toExportSnapshot(order: {
   receiverPhone: string | null;
   receiverAddress: string | null;
   productSummary: string | null;
-  quantity: number;
+  quantity: number | null;
   deliveryMemo: string | null;
   trackingNumber: string | null;
 }): OrderSyncOrderSnapshotForPersist {
