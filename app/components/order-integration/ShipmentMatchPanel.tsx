@@ -88,7 +88,7 @@ import {
   type SmartstoreLiveTransmitConfirmView,
 } from '@/app/lib/order-integration/transmission/smartstore-live-transmit-confirm';
 
-/** select: '' = 미선택(업로드 불가), 'none' = 해당 다운로드 없음, id = Bundle */
+/** select: '' = 미선택, 'none' = 연결 없이 매칭, id = Bundle */
 const DOWNLOAD_BUNDLE_NONE = 'none';
 
 const ACCEPTED_EXTENSIONS = '.csv,.xlsx,.xls';
@@ -425,7 +425,7 @@ export default function ShipmentMatchPanel({
 
     if (!selectedDownloadBundleId) {
       setErrorMessage(
-        '이 송장파일이 나온 택배양식 다운로드를 선택하거나, 「해당 다운로드 없음」을 선택해주세요.',
+        '이 송장파일이 나온 택배양식 다운로드를 선택하거나, 「연결 없이 매칭」을 선택해주세요.',
       );
       return;
     }
@@ -955,72 +955,23 @@ export default function ShipmentMatchPanel({
             {embedded ? '송장 매칭·쇼핑몰 전송' : '택배사 송장파일 업로드'}
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            지원 형식: csv, xlsx, xls · 최대 {formatFileSize(MAX_SHIPMENT_UPLOAD_FILE_BYTES)}
+            1) 택배양식 연결 → 2) 주문 확인·송장파일 첨부
           </p>
         </div>
 
-        <div
-          className={`mt-3 rounded-lg border border-dashed transition-colors ${
-            embedded ? 'px-4 py-10 sm:py-12' : 'p-4'
-          } ${
-            isDragging
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-              : selectedFile
-                ? 'border-blue-400 bg-blue-50/60 dark:border-blue-700 dark:bg-blue-950/20'
-                : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/60'
-          }`}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsDragging(true);
+        <CourierDownloadBundleFilePicker
+          bundles={downloadBundles}
+          selectedBundleId={selectedDownloadBundleId}
+          onSelect={setSelectedDownloadBundleId}
+          onBundlesChanged={() => {
+            void loadDownloadBundles('refresh');
           }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setIsDragging(false);
-            const file = event.dataTransfer.files?.[0] ?? null;
-            handleFileSelection(file);
-          }}
-        >
-          <div
-            role="button"
-            tabIndex={0}
-            className="flex cursor-pointer flex-col items-center gap-1.5 text-center"
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                fileInputRef.current?.click();
-              }
-            }}
-          >
-            <Upload className="h-6 w-6 text-zinc-400" />
-            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-              택배사에서 받은 송장번호 파일을 선택하거나 이 영역에 끌어다 놓으세요
-            </p>
-            {selectedFile ? (
-              <p className="text-xs text-zinc-600 dark:text-zinc-300">
-                선택됨: {selectedFile.name} ({formatFileSize(selectedFile.size)})
-              </p>
-            ) : (
-              <p className="text-xs text-zinc-500">(송장번호 필수) · csv, xlsx, xls</p>
-            )}
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPTED_EXTENSIONS}
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
-              handleFileSelection(file);
-              event.target.value = '';
-            }}
-          />
-        </div>
+          disabled={sessionStatus !== 'authenticated' || isSubmitting}
+        />
 
         <button
           type="button"
-          className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300"
+          className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300"
           onClick={() => setShowAdvancedScope((open) => !open)}
         >
           {showAdvancedScope ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -1065,36 +1016,107 @@ export default function ShipmentMatchPanel({
           </div>
         ) : null}
 
-        <CourierDownloadBundleFilePicker
-          bundles={downloadBundles}
-          selectedBundleId={selectedDownloadBundleId}
-          onSelect={setSelectedDownloadBundleId}
-          onBundlesChanged={() => {
-            void loadDownloadBundles('refresh');
-          }}
-          disabled={sessionStatus !== 'authenticated' || isSubmitting}
-        />
+        {selectedDownloadBundleId.trim() ? (
+          <>
+            {selectedBundleOrdersStatus ? (
+              <SelectedCourierDownloadOrdersPanel
+                status={selectedBundleOrdersStatus}
+                orders={selectedBundleOrders}
+              />
+            ) : selectedDownloadBundleId === DOWNLOAD_BUNDLE_NONE ? (
+              <p className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-[11px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-300">
+                택배양식 다운로드에 연결하지 않고 매칭합니다. 아래에서 택배사 송장파일을 첨부하세요.
+              </p>
+            ) : null}
 
-        {selectedBundleOrdersStatus ? (
-          <SelectedCourierDownloadOrdersPanel
-            status={selectedBundleOrdersStatus}
-            orders={selectedBundleOrders}
-          />
-        ) : null}
+            <div className="mt-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                  택배사 송장파일 첨부
+                </p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  csv, xlsx, xls · 최대 {formatFileSize(MAX_SHIPMENT_UPLOAD_FILE_BYTES)}
+                </p>
+              </div>
+              <div
+                className={`mt-1.5 rounded-lg border border-dashed transition-colors p-3 ${
+                  isDragging
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                    : selectedFile
+                      ? 'border-blue-400 bg-blue-50/60 dark:border-blue-700 dark:bg-blue-950/20'
+                      : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/60'
+                }`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setIsDragging(false);
+                  const file = event.dataTransfer.files?.[0] ?? null;
+                  handleFileSelection(file);
+                }}
+              >
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex cursor-pointer flex-col items-center gap-1.5 text-center"
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                >
+                  <Upload className="h-5 w-5 text-zinc-400" />
+                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                    택배사에서 받은 송장번호 파일을 선택하거나 이 영역에 끌어다 놓으세요
+                  </p>
+                  {selectedFile ? (
+                    <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                      선택됨: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                    </p>
+                  ) : (
+                    <p className="text-xs text-zinc-500">(송장번호 필수) · csv, xlsx, xls</p>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_EXTENSIONS}
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    handleFileSelection(file);
+                    event.target.value = '';
+                  }}
+                />
+              </div>
+            </div>
 
-        <button
-          type="button"
-          onClick={() => void handleSubmit()}
-          disabled={
-            isSubmitting ||
-            sessionStatus !== 'authenticated' ||
-            !selectedDownloadBundleId
-          }
-          className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          송장파일 매칭하기
-        </button>
+            <button
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={
+                isSubmitting ||
+                sessionStatus !== 'authenticated' ||
+                !selectedDownloadBundleId ||
+                !selectedFile
+              }
+              className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              송장파일 매칭하기
+            </button>
+          </>
+        ) : (
+          <p className="mt-3 rounded border border-dashed border-zinc-200 px-3 py-3 text-center text-[11px] text-zinc-500 dark:border-zinc-700">
+            위에서 택배양식 파일을 클릭하거나 「연결 없이 매칭」을 고르면, 주문 확인과 송장파일 첨부
+            영역이 나타납니다.
+          </p>
+        )}
 
         {sessionStatus === 'authenticated' ? (
           <CourierDownloadWorkHistoryPanel

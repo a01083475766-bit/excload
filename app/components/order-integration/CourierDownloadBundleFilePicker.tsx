@@ -133,8 +133,8 @@ export function CourierDownloadBundleFilePicker({
 
       {bundles.length === 0 ? (
         <p className="mt-2 rounded border border-dashed border-zinc-200 px-3 py-4 text-center text-[11px] text-zinc-500 dark:border-zinc-700">
-          연결할 택배양식 다운로드가 없습니다. 아래에서 「해당 다운로드 없음」을 선택하거나 먼저
-          택배양식을 다운로드하세요.
+          연결할 택배양식 다운로드가 없습니다. 「연결 없이 매칭」을 선택하거나 먼저 택배양식을
+          다운로드하세요.
         </p>
       ) : (
         <div className="mt-2 max-h-44 overflow-y-auto rounded border border-zinc-200 bg-zinc-50/80 p-2 dark:border-zinc-700 dark:bg-zinc-900/40">
@@ -212,7 +212,7 @@ export function CourierDownloadBundleFilePicker({
         }`}
       >
         <Ban className="h-3 w-3" />
-        해당 다운로드 없음
+        연결 없이 매칭
       </button>
     </div>
   );
