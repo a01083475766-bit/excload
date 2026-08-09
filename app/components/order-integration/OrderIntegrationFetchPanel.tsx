@@ -59,6 +59,7 @@ import {
   isClaimStatus,
   isShipmentTarget,
   matchesWorkTarget,
+  DEFAULT_ORDER_WORK_TARGET,
   ORDER_WORK_TARGET_LABEL,
   ORDER_WORK_TARGET_ORDER,
   resolveInvoiceInfoDisplay,
@@ -197,7 +198,7 @@ export default function OrderIntegrationFetchPanel() {
   const [rangeMode, setRangeMode] = useState(false);
   const [startDate, setStartDate] = useState(() => presetRangeDates(7).start);
   const [endDate, setEndDate] = useState(() => presetRangeDates(7).end);
-  const [workTarget, setWorkTarget] = useState<OrderWorkTarget>('SHIPMENT_TARGET');
+  const [workTarget, setWorkTarget] = useState<OrderWorkTarget>(DEFAULT_ORDER_WORK_TARGET);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advPaymentMeans, setAdvPaymentMeans] = useState('');
@@ -296,7 +297,7 @@ export default function OrderIntegrationFetchPanel() {
   const resetFilters = () => {
     setSelectedAccountIds(new Set(connectedMalls.map((m) => m.accountId)));
     applyPreset(7);
-    setWorkTarget('SHIPMENT_TARGET');
+    setWorkTarget(DEFAULT_ORDER_WORK_TARGET);
     setSearchTerm('');
     setShowAdvanced(false);
     setAdvPaymentMeans('');

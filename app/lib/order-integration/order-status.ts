@@ -52,10 +52,10 @@ export const ORDER_WORK_TARGET_LABEL: Record<OrderWorkTarget, string> = {
   ALL: '전체 주문',
 };
 
-/** 검색 UI에 노출할 작업 대상 순서 (송장 처리 대상이 기본·최상단). */
+/** 검색 UI에 노출할 작업 대상 순서 (신규 결제완료가 기본·최상단). */
 export const ORDER_WORK_TARGET_ORDER: OrderWorkTarget[] = [
-  'SHIPMENT_TARGET',
   'NEW_PAID',
+  'SHIPMENT_TARGET',
   'PLACE_ORDER_NOT_YET',
   'PLACE_ORDER_WAITING',
   'DELIVERING',
@@ -63,6 +63,9 @@ export const ORDER_WORK_TARGET_ORDER: OrderWorkTarget[] = [
   'CLAIM',
   'ALL',
 ];
+
+/** 주문조회 첫 진입·필터 초기화 시 기본 작업 대상. */
+export const DEFAULT_ORDER_WORK_TARGET: OrderWorkTarget = 'NEW_PAID';
 
 /** 스마트스토어 productOrderStatus → 공통 상태. */
 export function normalizeSmartstoreOrderStatus(raw?: string | null): ExcloadOrderStatus {

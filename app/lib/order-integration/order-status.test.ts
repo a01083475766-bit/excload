@@ -6,7 +6,9 @@ import {
   normalizeOrderStatusFromKoreanLabel,
   normalizeSmartstoreOrderStatus,
   normalizeSmartstorePlaceOrderStatus,
+  DEFAULT_ORDER_WORK_TARGET,
   ORDER_WORK_TARGET_LABEL,
+  ORDER_WORK_TARGET_ORDER,
   resolveInvoiceInfoDisplay,
   resolvePlaceOrderSecondaryHint,
 } from '@/app/lib/order-integration/order-status';
@@ -121,6 +123,11 @@ describe('matchesWorkTarget', () => {
     expect(matchesWorkTarget('DELIVERED', { status: 'PAYED' })).toBe(false);
     expect(matchesWorkTarget('DELIVERED', { status: 'CANCELED' })).toBe(false);
     expect(ORDER_WORK_TARGET_LABEL.DELIVERED).toBe('배송 완료·구매확정');
+  });
+
+  it('lists NEW_PAID first as the default work target', () => {
+    expect(ORDER_WORK_TARGET_ORDER[0]).toBe('NEW_PAID');
+    expect(DEFAULT_ORDER_WORK_TARGET).toBe('NEW_PAID');
   });
 
   it('does not put PURCHASE_DECIDED into shipment/new-paid/place-order targets', () => {
