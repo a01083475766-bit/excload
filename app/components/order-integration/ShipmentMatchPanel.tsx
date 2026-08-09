@@ -22,6 +22,7 @@ import {
   type SelectedCourierDownloadOrdersStatus,
 } from '@/app/components/order-integration/SelectedCourierDownloadOrdersPanel';
 import { CourierDownloadWorkHistoryPanel } from '@/app/components/order-integration/CourierDownloadWorkHistoryPanel';
+import { CourierDownloadBundleFilePicker } from '@/app/components/order-integration/CourierDownloadBundleFilePicker';
 import {
   buildShipmentMatchPanelViewStateFromConfirmResponse,
   buildShipmentMatchPanelViewStateFromDetailResponse,
@@ -1064,25 +1065,12 @@ export default function ShipmentMatchPanel({
           </div>
         ) : null}
 
-        <label className="mt-3 block text-xs text-zinc-600 dark:text-zinc-300">
-          택배양식 다운로드 연결
-          <select
-            value={selectedDownloadBundleId}
-            onChange={(event) => setSelectedDownloadBundleId(event.target.value)}
-            className={`${inputClass} mt-1`}
-          >
-            <option value="">선택하세요</option>
-            {downloadBundles.map((bundle) => (
-              <option key={bundle.id} value={bundle.id}>
-                {bundle.label}
-              </option>
-            ))}
-            <option value={DOWNLOAD_BUNDLE_NONE}>해당 다운로드 없음</option>
-          </select>
-          <span className="mt-1 block text-[11px] text-zinc-500 dark:text-zinc-400">
-            1개면 자동 선택됩니다. 다른 다운로드로 바꾸거나 「해당 다운로드 없음」을 고를 수 있습니다.
-          </span>
-        </label>
+        <CourierDownloadBundleFilePicker
+          bundles={downloadBundles}
+          selectedBundleId={selectedDownloadBundleId}
+          onSelect={setSelectedDownloadBundleId}
+          disabled={sessionStatus !== 'authenticated' || isSubmitting}
+        />
 
         {selectedBundleOrdersStatus ? (
           <SelectedCourierDownloadOrdersPanel
