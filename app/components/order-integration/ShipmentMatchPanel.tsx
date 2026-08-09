@@ -1069,6 +1069,9 @@ export default function ShipmentMatchPanel({
           bundles={downloadBundles}
           selectedBundleId={selectedDownloadBundleId}
           onSelect={setSelectedDownloadBundleId}
+          onBundlesChanged={() => {
+            void loadDownloadBundles('refresh');
+          }}
           disabled={sessionStatus !== 'authenticated' || isSubmitting}
         />
 
