@@ -21,6 +21,7 @@ import {
   SelectedCourierDownloadOrdersPanel,
   type SelectedCourierDownloadOrdersStatus,
 } from '@/app/components/order-integration/SelectedCourierDownloadOrdersPanel';
+import { CourierDownloadWorkHistoryPanel } from '@/app/components/order-integration/CourierDownloadWorkHistoryPanel';
 import {
   buildShipmentMatchPanelViewStateFromConfirmResponse,
   buildShipmentMatchPanelViewStateFromDetailResponse,
@@ -1103,6 +1104,18 @@ export default function ShipmentMatchPanel({
           {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           송장파일 매칭하기
         </button>
+
+        {sessionStatus === 'authenticated' ? (
+          <CourierDownloadWorkHistoryPanel
+            bundles={downloadBundles}
+            selectedBundleId={selectedDownloadBundleId}
+            onSelectForMatching={(bundleId) => setSelectedDownloadBundleId(bundleId)}
+            onBundlesChanged={() => {
+              void loadDownloadBundles('refresh');
+            }}
+            disabled={isSubmitting}
+          />
+        ) : null}
       </section>
 
       {!embedded ? (

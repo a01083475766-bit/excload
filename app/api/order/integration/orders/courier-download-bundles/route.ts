@@ -8,6 +8,8 @@ import { parseCourierDownloadBundleBody } from '@/app/lib/order-integration/cour
 import {
   formatCourierDownloadBundleLabel,
   listActiveCourierDownloadBundles,
+  parseCourierDownloadBundleIdsBody,
+  deleteCourierDownloadBundlesByIds,
   persistCourierDownloadBundle,
 } from '@/app/lib/order-integration/courier-download/persist-courier-download-bundle';
 import { prisma } from '@/app/lib/prisma';
@@ -77,5 +79,42 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : 'failed',
     );
     return NextResponse.json({ error: 'Failed to create download bundle.' }, { status: 500 });
+  }
+}
+
+/** 선택 Bundle 삭제 (소유자만). WorkItem은 cascade. */
+export async function DELETE(request: Request) {
+  try {
+    const auth = await requireOrderIntegrationUser();
+    if (isOrderIntegrationUserAuthFailure(auth)) return auth.response;
+
+    let body: unknown;
+    try {
+      body = await readJson(request);
+    } catch {
+      return NextResponse.json({ error: '요청 본문을 해석하지 못했습니다.' }, { status: 400 });
+    }
+
+    const parsed = parseCourierDownloadBundleIdsBody(body);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+
+    const result = await deleteCourierDownloadBundlesByIds(prisma, {
+      userId: auth.userId,
+      bundleIds: parsed.bundleIds,
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: result.deletedCount,
+      requestedCount: result.requestedCount,
+    });
+  } catch (error) {
+    console.error(
+      '[CourierDownloadBundles] delete failed:',
+      error instanceof Error ? error.message : 'failed',
+    );
+    return NextResponse.json({ error: 'Failed to delete download bundles.' }, { status: 500 });
   }
 }

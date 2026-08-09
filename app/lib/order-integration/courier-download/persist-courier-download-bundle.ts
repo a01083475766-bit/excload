@@ -349,3 +349,63 @@ export async function purgeExpiredCourierDownloadBundles(
   });
   return { deletedBundles: result.count };
 }
+
+export type DeleteCourierDownloadBundlesClient = {
+  courierDownloadBundle: {
+    deleteMany(args: { where?: Record<string, unknown> }): Promise<{ count: number }>;
+  };
+};
+
+/**
+ * 소유자 Bundle만 선택 삭제. 만료·타인 건은 카운트에 포함되지 않음.
+ */
+export async function deleteCourierDownloadBundlesByIds(
+  client: DeleteCourierDownloadBundlesClient,
+  input: { userId: string; bundleIds: readonly string[]; now?: Date },
+): Promise<{ deletedCount: number; requestedCount: number }> {
+  const userId = input.userId.trim();
+  const ids = [
+    ...new Set(
+      input.bundleIds
+        .map((id) => String(id ?? '').trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (!userId || ids.length === 0) {
+    return { deletedCount: 0, requestedCount: ids.length };
+  }
+
+  const result = await client.courierDownloadBundle.deleteMany({
+    where: {
+      userId,
+      id: { in: ids },
+    },
+  });
+  return { deletedCount: result.count, requestedCount: ids.length };
+}
+
+export function parseCourierDownloadBundleIdsBody(
+  raw: unknown,
+): { ok: true; bundleIds: string[] } | { ok: false; error: string } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, error: '요청 본문이 올바르지 않습니다.' };
+  }
+  const value = (raw as { bundleIds?: unknown }).bundleIds;
+  if (!Array.isArray(value)) {
+    return { ok: false, error: 'bundleIds 배열이 필요합니다.' };
+  }
+  if (value.length === 0) {
+    return { ok: false, error: '삭제할 항목을 선택해 주세요.' };
+  }
+  if (value.length > 50) {
+    return { ok: false, error: '한 번에 최대 50건까지 삭제할 수 있습니다.' };
+  }
+  const bundleIds: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'string' || !entry.trim()) {
+      return { ok: false, error: 'bundleIds 형식이 올바르지 않습니다.' };
+    }
+    bundleIds.push(entry.trim());
+  }
+  return { ok: true, bundleIds: [...new Set(bundleIds)] };
+}
