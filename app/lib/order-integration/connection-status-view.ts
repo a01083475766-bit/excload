@@ -64,31 +64,17 @@ export function isMallConnected(
 
 /**
  * "전체" 탭에서 보여줄 쇼핑몰별 설정 상태 목록을 만든다.
- * - available 몰: 설정됨/미연결 + 설정 관리/연결하기
- *   (설정됨 = DB에 연동 정보 저장됨. 실제 API 연결 확인은 주문조회 화면)
- * - preparing 몰: 기존 준비/베타 상태 유지, 작업 없음
+ * - available 몰만 노출 (준비중·미검증 베타는 connect UI에서 숨김)
+ * - 설정됨 = DB에 연동 정보 저장됨. 실제 API 연결 확인은 주문조회 화면
  */
 export function buildMallOverviewRows(
   connected: ConnectedMallSummary[],
 ): MallOverviewRow[] {
   const connectedMap = toConnectedMallMap(connected);
 
-  const rows: MallOverviewRow[] = ORDER_INTEGRATION_MALLS.map((mall) => {
-    if (mall.status === 'preparing') {
-      return {
-        mallId: mall.id,
-        name: mall.name,
-        connected: false,
-        statusLabel: mall.preparingLabel ?? '준비중',
-        accountName: null,
-        lastCheckedAt: null,
-        action: 'none',
-        actionLabel: '',
-        badge: mall.badge,
-        isPreparing: true,
-      };
-    }
-
+  const rows: MallOverviewRow[] = ORDER_INTEGRATION_MALLS.filter(
+    (mall) => mall.status === 'available',
+  ).map((mall) => {
     const conn = connectedMap.get(mall.id);
     const isConnected = Boolean(conn);
     return {

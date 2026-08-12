@@ -61,27 +61,28 @@ describe('buildMallOverviewRows', () => {
     expect(coupang?.accountName).toBeNull();
   });
 
-  it('준비중 몰은 기존 상태를 유지하고 작업을 제공하지 않는다', () => {
+  it('준비중 몰은 설정 상태 목록에 노출하지 않는다', () => {
     const rows = buildMallOverviewRows(connected);
-    const gmarket = rows.find((r) => r.mallId === 'gmarket');
-
-    expect(gmarket?.isPreparing).toBe(true);
-    expect(gmarket?.connected).toBe(false);
-    expect(gmarket?.action).toBe('none');
-    expect(gmarket?.statusLabel).toBe('제휴 준비 중');
+    expect(rows.some((r) => r.mallId === 'gmarket')).toBe(false);
+    expect(rows.some((r) => r.mallId === 'ssg')).toBe(false);
+    expect(rows.every((r) => !r.isPreparing)).toBe(true);
   });
 
-  it('모든 몰을 우선순위 순서로 포함한다', () => {
+  it('available 몰만 우선순위 순서로 포함한다', () => {
     const rows = buildMallOverviewRows(connected);
-    expect(rows).toHaveLength(ORDER_INTEGRATION_MALLS.length);
+    const availableIds = ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'available').map(
+      (m) => m.id,
+    );
+    expect(rows.map((r) => r.mallId)).toEqual(availableIds);
 
-    const idxCoupang = rows.findIndex((r) => r.mallId === 'coupang');
-    const idxSmart = rows.findIndex((r) => r.mallId === 'smartstore');
-    const idxGmarket = rows.findIndex((r) => r.mallId === 'gmarket');
-
-    expect(idxSmart).toBeGreaterThanOrEqual(0);
-    expect(idxSmart).toBeLessThan(idxCoupang);
-    expect(idxCoupang).toBeLessThan(idxGmarket);
+    expect(rows.map((r) => r.mallId)).toEqual([
+      'smartstore',
+      'coupang',
+      'eleven',
+      'lotteon',
+      'cafe24',
+      'domeggook',
+    ]);
   });
 
   it('연결이 하나도 없으면 available 몰은 모두 미연결이다', () => {

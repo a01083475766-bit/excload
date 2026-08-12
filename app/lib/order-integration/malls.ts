@@ -27,6 +27,11 @@ export type OrderIntegrationMall = {
   priority?: number;
 };
 
+/**
+ * 연동 설정·주문조회에 노출하는 몰 목록.
+ * available만 UI 버튼/상태표에 표시. 순서는 priority(작을수록 앞).
+ * 실계정으로 확인한 몰만 available로 유지한다.
+ */
 export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
   {
     id: 'smartstore',
@@ -53,68 +58,74 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     priority: 3,
   },
   {
-    id: 'cafe24',
-    name: '카페24',
-    description: '카페24 OAuth Admin API로 주문을 조회·수집합니다. (베타)',
-    status: 'available',
-    badge: 'beta',
-    priority: 4,
-  },
-  {
     id: 'lotteon',
     name: '롯데ON',
     description: '롯데ON OpenAPI로 출고지시·상품준비 주문을 조회·수집합니다. (베타)',
     status: 'available',
     badge: 'beta',
+    priority: 4,
+  },
+  {
+    id: 'cafe24',
+    name: '카페24',
+    description: '카페24 OAuth Admin API로 주문을 조회·수집합니다. (베타)',
+    status: 'available',
+    badge: 'beta',
     priority: 5,
-  },
-  {
-    id: 'ssg',
-    name: 'SSG.COM',
-    description: 'SSG Open API로 배송지시·출고대상 주문을 조회·수집합니다. (베타)',
-    status: 'available',
-    badge: 'beta',
-    priority: 6,
-  },
-  {
-    id: 'cjonstyle',
-    name: 'CJ온스타일',
-    description: 'CJ온스타일 표준 API로 배송타입별 주문을 조회·수집합니다. (베타·입점 협력사)',
-    status: 'available',
-    badge: 'beta',
-    priority: 7,
-  },
-  {
-    id: 'shopby',
-    name: 'NHN커머스/샵바이',
-    description: '샵바이 Server API로 주문을 조회·수집합니다. (베타·자사몰)',
-    status: 'available',
-    badge: 'beta',
-    priority: 8,
-  },
-  {
-    id: 'godomall',
-    name: '고도몰',
-    description: '고도몰5 Open API(Order_Search)로 주문을 조회·수집합니다. (베타·입점 제휴)',
-    status: 'available',
-    badge: 'beta',
-    priority: 9,
-  },
-  {
-    id: 'makeshop',
-    name: '메이크샵',
-    description: '메이크샵 APP API(주문 2.0)로 주문을 조회·수집합니다. (베타·APP 연동)',
-    status: 'available',
-    badge: 'beta',
-    priority: 10,
   },
   {
     id: 'domeggook',
     name: '도매꾹',
-    description: '도매꾹 Open API로 판매 주문 목록·상세를 조회합니다. (베타·읽기 전용)',
+    description: '도매꾹 Open API로 판매 주문 조회·발주확인·송장 전송을 지원합니다. (베타)',
     status: 'available',
     badge: 'beta',
-    priority: 11,
+    priority: 6,
+  },
+  // 아래는 실계정 검증 전이므로 connect UI에서 숨김(preparing).
+  {
+    id: 'ssg',
+    name: 'SSG.COM',
+    description: 'SSG Open API로 배송지시·출고대상 주문을 조회·수집합니다. (준비 중)',
+    status: 'preparing',
+    badge: 'beta',
+    preparingLabel: '준비 중',
+    priority: 20,
+  },
+  {
+    id: 'cjonstyle',
+    name: 'CJ온스타일',
+    description: 'CJ온스타일 표준 API로 배송타입별 주문을 조회·수집합니다. (준비 중)',
+    status: 'preparing',
+    badge: 'beta',
+    preparingLabel: '준비 중',
+    priority: 21,
+  },
+  {
+    id: 'shopby',
+    name: 'NHN커머스/샵바이',
+    description: '샵바이 Server API로 주문을 조회·수집합니다. (준비 중)',
+    status: 'preparing',
+    badge: 'beta',
+    preparingLabel: '준비 중',
+    priority: 22,
+  },
+  {
+    id: 'godomall',
+    name: '고도몰',
+    description: '고도몰5 Open API(Order_Search)로 주문을 조회·수집합니다. (준비 중)',
+    status: 'preparing',
+    badge: 'beta',
+    preparingLabel: '준비 중',
+    priority: 23,
+  },
+  {
+    id: 'makeshop',
+    name: '메이크샵',
+    description: '메이크샵 APP API(주문 2.0)로 주문을 조회·수집합니다. (준비 중)',
+    status: 'preparing',
+    badge: 'beta',
+    preparingLabel: '준비 중',
+    priority: 24,
   },
   {
     id: 'gmarket',
@@ -122,6 +133,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     description: 'ESM 셀링툴 제휴 승인 후 연동 예정입니다.',
     status: 'preparing',
     preparingLabel: '제휴 준비 중',
+    priority: 30,
   },
 ];
 
