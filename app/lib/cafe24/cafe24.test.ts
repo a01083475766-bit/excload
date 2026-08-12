@@ -82,6 +82,62 @@ describe('cafe24 token helpers', () => {
   });
 });
 
+describe('parseAndValidateCafe24TokenResponse', () => {
+  const fullScopes = ['mall.read_order', 'mall.write_order', 'mall.read_shipping'];
+
+  function tokenBody(overrides: Record<string, unknown> = {}) {
+    return JSON.stringify({
+      access_token: 'access',
+      refresh_token: 'refresh',
+      expires_at: '2026-08-13T12:00:00.000',
+      client_id: 'cid-1',
+      mall_id: 'demomall',
+      scopes: fullScopes,
+      ...overrides,
+    });
+  }
+
+  it('accepts matching mall_id, client_id and required scopes', async () => {
+    const { parseAndValidateCafe24TokenResponse } = await import('@/app/lib/cafe24/client');
+    const tokens = parseAndValidateCafe24TokenResponse(tokenBody(), {
+      mallId: 'DemoMall',
+      clientId: 'cid-1',
+    });
+    expect(tokens.accessToken).toBe('access');
+    expect(tokens.scopes).toEqual(fullScopes);
+  });
+
+  it('rejects mismatched mall_id', async () => {
+    const { parseAndValidateCafe24TokenResponse } = await import('@/app/lib/cafe24/client');
+    expect(() =>
+      parseAndValidateCafe24TokenResponse(tokenBody({ mall_id: 'other' }), {
+        mallId: 'demomall',
+        clientId: 'cid-1',
+      }),
+    ).toThrow(/mall_id/);
+  });
+
+  it('rejects mismatched client_id', async () => {
+    const { parseAndValidateCafe24TokenResponse } = await import('@/app/lib/cafe24/client');
+    expect(() =>
+      parseAndValidateCafe24TokenResponse(tokenBody({ client_id: 'other' }), {
+        mallId: 'demomall',
+        clientId: 'cid-1',
+      }),
+    ).toThrow(/client_id/);
+  });
+
+  it('rejects missing required scopes without returning tokens', async () => {
+    const { parseAndValidateCafe24TokenResponse } = await import('@/app/lib/cafe24/client');
+    expect(() =>
+      parseAndValidateCafe24TokenResponse(tokenBody({ scopes: ['mall.read_order'] }), {
+        mallId: 'demomall',
+        clientId: 'cid-1',
+      }),
+    ).toThrow(/필수 권한/);
+  });
+});
+
 describe('mapCafe24OrdersToPreviewRows', () => {
   it('maps cafe24 order with embed fields to preview rows', () => {
     const rows = mapCafe24OrdersToPreviewRows([

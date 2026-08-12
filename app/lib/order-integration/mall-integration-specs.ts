@@ -275,7 +275,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     apiStatus: 'available',
     phase: 'beta',
     requiredSellerAction:
-      '계정명·mallId 저장 후 엑클로드 공유 앱 OAuth 동의 (Redirect URI https://www.excload.com/api/order/integration/cafe24/callback, scope mall.read_order mall.write_order mall.read_shipping)',
+      '카페24 Developers에서 개인 연동 앱 생성 후 mallId·Client ID·Client Secret 저장 → OAuth 동의 (Redirect URI https://www.excload.com/api/order/integration/cafe24/callback, scope mall.read_order mall.write_order mall.read_shipping)',
     tokenExpirePolicy: 'access_token ~2h, refresh_token ~2주(갱신 시 기존 refresh 폐기)',
     rateLimitMemo: 'Admin API Rate Limit — cafe24 문서 준수',
     proxyDomains: [
@@ -290,8 +290,10 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     requiredInputs: [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'mallId', label: '쇼핑몰 ID (mallId)', required: true, storage: 'vendorId' },
+      { key: 'clientId', label: 'Client ID', required: true, storage: 'accessKey' },
+      { key: 'clientSecret', label: 'Client Secret', required: true, secret: true, storage: 'secretKey' },
     ],
-    memo: '베타. 공유 앱 OAuth·주문 수집·발주확인(PUT orders process_status=prepare, N10→N20)·송장 전송. scope mall.read_order mall.write_order mall.read_shipping. Lightsail suffix whitelist 1회 반영 후 실연동.',
+    memo: '베타. 판매자 개인 앱 OAuth·주문 수집·발주확인(PUT orders process_status=prepare, N10→N20)·송장 전송. scope mall.read_order mall.write_order mall.read_shipping. Lightsail suffix whitelist 1회 반영 후 실연동.',
     marketplaceGroupId: 'cafe24',
     requiresFixedIpProxy: true,
   },

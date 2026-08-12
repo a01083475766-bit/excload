@@ -17,7 +17,6 @@ import {
 import type { ConnectionOperationResult } from '@/app/lib/order-integration/connection-health/types';
 import { sanitizePublicOptionalIntegrationErrorMessage } from '@/app/lib/order-integration/public-api-safety';
 import { assertValidCafe24MallId } from '@/app/lib/cafe24/mall-id';
-import { readCafe24SharedAppCredentials } from '@/app/lib/cafe24/app-credentials';
 import {
   CAFE24_REAUTH_SCOPE_HINT,
   hasAllCafe24RequiredScopes,
@@ -32,12 +31,21 @@ import {
   type Cafe24TokenSet,
 } from '@/app/lib/cafe24/client';
 
+/** Client·mallId 변경 또는 레거시(공용앱) 계정 재등록 안내 */
+export const CAFE24_CREDENTIALS_CHANGED_REAUTH_HINT =
+  '연동 정보(쇼핑몰 ID 또는 Client ID/Secret)가 변경되어 카페24 연동을 다시 진행해 주세요.';
+
+export const CAFE24_LEGACY_REREGISTER_HINT =
+  '이전 공용 앱 연동은 더 이상 사용할 수 없습니다. Developers에서 발급한 Client ID/Secret을 저장한 뒤 「카페24 연동 시작」을 다시 진행해 주세요.';
+
 export type Cafe24AccountPublic = {
   id: string;
   accountName: string;
   mallId: string;
-  /** 공용 앱 전환 후 UI에는 노출하지 않음. 하위 호환용 빈 문자열 가능 */
+  /** 화면 편집용. Secret이 아님 */
+  clientId: string;
   clientIdMasked: string;
+  /** 항상 빈 문자열 — Secret 원문·마스킹 모두 API에 실어 보내지 않음 */
   clientSecretMasked: string;
   hasClientId: boolean;
   hasClientSecret: boolean;
@@ -47,6 +55,7 @@ export type Cafe24AccountPublic = {
   missingScopes: string[];
   needsReauthForScopes: boolean;
   reauthMessage: string | null;
+  /** 항상 false — 엑클로드 공용 앱 미사용(개인 Client만). 하위 호환 필드 */
   usesSharedApp: boolean;
   tokenExpiresAt: string | null;
   status: 'active' | 'inactive' | 'error';
@@ -129,19 +138,51 @@ export function decryptCafe24TokenSet(account: OrderIntegrationAccount): Cafe24T
   return parseCafe24TokenSet(decryptIntegrationSecret(field));
 }
 
-/**
- * 공용 앱 env가 있으면 우선 사용. 없으면 계정에 암호화 저장된 Client ID/Secret fallback.
- */
+function tryDecryptClientId(account: OrderIntegrationAccount): string {
+  try {
+    return decryptClientId(account);
+  } catch {
+    return '';
+  }
+}
+
+function tryDecryptClientSecret(account: OrderIntegrationAccount): string {
+  try {
+    return decryptClientSecret(account);
+  } catch {
+    return '';
+  }
+}
+
+function accountHasPersonalClientCredentials(account: OrderIntegrationAccount): boolean {
+  return Boolean(toAccessEncryptedField(account) && toSecretEncryptedField(account));
+}
+
+/** 개인 Client가 저장된 계정인지 (레거시 공용앱 토큰만 있는 계정 구분) */
+export function hasCafe24PersonalClientCredentials(account: OrderIntegrationAccount): boolean {
+  return accountHasPersonalClientCredentials(account);
+}
+
+/** OAuth 토큰 컬럼 초기화 페이로드 (mallId/Client 변경 시) */
+export function cafe24OAuthTokenClearData(message = CAFE24_CREDENTIALS_CHANGED_REAUTH_HINT) {
+  return {
+    apiKeyCiphertext: null,
+    apiKeyIv: null,
+    apiKeyAuthTag: null,
+    expiresAt: null,
+    status: OrderIntegrationAccountStatus.INACTIVE,
+    lastErrorMessage: message,
+  };
+}
+
+/** 계정에 암호화 저장된 개인 Client만 사용. CAFE24_CLIENT_* 공용 env는 사용하지 않는다. */
 export function toCafe24Credentials(account: OrderIntegrationAccount): Cafe24ClientCredentials {
   const mallId = assertValidCafe24MallId(account.vendorId ?? '');
-  const shared = readCafe24SharedAppCredentials();
-  if (shared) {
-    return {
-      mallId,
-      clientId: shared.clientId,
-      clientSecret: shared.clientSecret,
-    };
+
+  if (!accountHasPersonalClientCredentials(account)) {
+    throw new Error(CAFE24_LEGACY_REREGISTER_HINT);
   }
+
   return {
     mallId,
     clientId: decryptClientId(account),
@@ -150,58 +191,60 @@ export function toCafe24Credentials(account: OrderIntegrationAccount): Cafe24Cli
 }
 
 export function toCafe24AccountPublic(account: OrderIntegrationAccount): Cafe24AccountPublic {
-  const shared = readCafe24SharedAppCredentials();
-  let clientIdPlain = '';
-  let clientSecretPlain = '';
+  const clientIdPlain = tryDecryptClientId(account);
+  const hasClientSecret = Boolean(toSecretEncryptedField(account));
+  const hasPersonal = accountHasPersonalClientCredentials(account);
+  const hasStoredTokenBlob = Boolean(toApiKeyEncryptedField(account));
+  const isLegacySharedTokenOnly = !hasPersonal && hasStoredTokenBlob;
+
   let hasOAuthTokens = false;
   let tokenScopes: string[] = [];
 
-  if (!shared) {
+  // 개인 Client 없이 남은 공용앱 토큰은 "연결됨"으로 보지 않는다.
+  if (hasPersonal) {
     try {
-      clientIdPlain = decryptClientId(account);
+      const tokens = decryptCafe24TokenSet(account);
+      hasOAuthTokens = true;
+      tokenScopes = tokens.scopes ?? [];
     } catch {
-      clientIdPlain = '';
+      hasOAuthTokens = false;
     }
-
-    try {
-      clientSecretPlain = decryptClientSecret(account);
-    } catch {
-      clientSecretPlain = '';
-    }
-  }
-
-  try {
-    const tokens = decryptCafe24TokenSet(account);
-    hasOAuthTokens = true;
-    tokenScopes = tokens.scopes ?? [];
-  } catch {
-    hasOAuthTokens = false;
   }
 
   const missingScopes = hasOAuthTokens ? listMissingCafe24Scopes(tokenScopes) : [...listMissingCafe24Scopes([])];
   const hasRequiredScopes = hasOAuthTokens && hasAllCafe24RequiredScopes(tokenScopes);
   const needsReauthForScopes = hasOAuthTokens && !hasRequiredScopes;
 
+  let reauthMessage: string | null = null;
+  if (isLegacySharedTokenOnly || !hasPersonal) {
+    reauthMessage = CAFE24_LEGACY_REREGISTER_HINT;
+  } else if (needsReauthForScopes) {
+    reauthMessage = CAFE24_REAUTH_SCOPE_HINT;
+  }
+
+  const sanitizedLastError = sanitizePublicOptionalIntegrationErrorMessage(account.lastErrorMessage);
+
   return {
     id: account.id,
     accountName: account.accountName,
     mallId: account.vendorId ?? '',
-    // Secret·원문 Client ID는 절대 노출하지 않음. 공용 앱이면 마스킹도 비움.
-    clientIdMasked: shared ? '' : maskIntegrationSecret(clientIdPlain),
+    clientId: clientIdPlain,
+    clientIdMasked: maskIntegrationSecret(clientIdPlain),
     clientSecretMasked: '',
-    hasClientId: Boolean(shared) || Boolean(clientIdPlain),
-    hasClientSecret: Boolean(shared) || Boolean(clientSecretPlain),
+    hasClientId: Boolean(clientIdPlain),
+    hasClientSecret,
     hasOAuthTokens,
     hasRequiredScopes,
     missingScopes,
     needsReauthForScopes,
-    reauthMessage: needsReauthForScopes ? CAFE24_REAUTH_SCOPE_HINT : null,
-    usesSharedApp: Boolean(shared),
-    tokenExpiresAt: account.expiresAt?.toISOString() ?? null,
-    status: mapStatus(account.status),
+    reauthMessage,
+    usesSharedApp: false,
+    tokenExpiresAt: hasOAuthTokens ? (account.expiresAt?.toISOString() ?? null) : null,
+    // 레거시·미완 계정은 ACTIVE여도 화면상 재연동 필요로 표시
+    status: hasPersonal && hasOAuthTokens ? mapStatus(account.status) : 'inactive',
     lastTestedAt: account.lastTestedAt?.toISOString() ?? null,
     lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
-    lastErrorMessage: sanitizePublicOptionalIntegrationErrorMessage(account.lastErrorMessage),
+    lastErrorMessage: sanitizedLastError ?? (isLegacySharedTokenOnly ? CAFE24_LEGACY_REREGISTER_HINT : null),
   };
 }
 
@@ -232,19 +275,19 @@ export async function saveCafe24Account(input: {
   userId: string;
   accountName: string;
   mallId: string;
-  /** @deprecated 공용 앱(env) 사용 시 무시. 미설정 환경에서만 legacy 저장 */
   clientId?: string;
   clientSecret?: string;
 }): Promise<OrderIntegrationAccount> {
   const accountName = input.accountName.trim();
   const mallId = assertValidCafe24MallId(input.mallId);
-  const shared = readCafe24SharedAppCredentials();
+  const incomingClientId = (input.clientId ?? '').trim();
+  const incomingClientSecret = (input.clientSecret ?? '').trim();
 
   if (!accountName) {
     throw new Error('계정명은 필수입니다.');
   }
 
-  const existing = await prisma.orderIntegrationAccount.findUnique({
+  const existingByMall = await prisma.orderIntegrationAccount.findUnique({
     where: {
       userId_provider_vendorId: {
         userId: input.userId,
@@ -254,100 +297,99 @@ export async function saveCafe24Account(input: {
     },
   });
 
-  // 공용 앱: Client ID/Secret은 서버 env만 사용. DB에는 mallId·계정명만 갱신.
-  if (shared) {
-    const commonData = {
-      accountName,
-      vendorId: mallId,
-      status: OrderIntegrationAccountStatus.INACTIVE,
-      lastErrorMessage: null,
-    };
+  // mallId가 바뀐 경우: 동일 사용자 최신 카페24 계정을 찾아 vendorId를 갱신한다.
+  const previousForUser =
+    existingByMall == null ? await getCafe24AccountForUser(input.userId) : null;
+  const existing =
+    existingByMall ??
+    (previousForUser && previousForUser.vendorId !== mallId ? previousForUser : null);
 
-    if (existing) {
-      return prisma.orderIntegrationAccount.update({
-        where: { id: existing.id },
-        data: commonData,
-      });
-    }
+  const mallIdChanged = Boolean(existing && (existing.vendorId ?? '') !== mallId);
 
-    return prisma.orderIntegrationAccount.create({
-      data: {
-        userId: input.userId,
-        provider: OrderIntegrationProvider.CAFE24,
-        ...commonData,
-      },
-    });
+  const existingClientId = existing ? tryDecryptClientId(existing) : '';
+  const existingClientSecret = existing ? tryDecryptClientSecret(existing) : '';
+
+  const nextClientId = incomingClientId || existingClientId;
+  if (!nextClientId) {
+    throw new Error('Client ID는 필수입니다.');
   }
 
-  const clientId = (input.clientId ?? '').trim();
-  if (!clientId) {
-    throw new Error('Client ID는 필수입니다. (서버 공용 앱이 설정되지 않은 환경)');
+  const nextClientSecret = incomingClientSecret || existingClientSecret;
+  if (!nextClientSecret) {
+    throw new Error('Client Secret은 필수입니다.');
   }
+
+  const clientIdChanged = Boolean(existing) && nextClientId !== existingClientId;
+  // 빈 Secret 입력 = 유지. 새 값이 있을 때만 교체·토큰 초기화 대상.
+  const clientSecretChanged =
+    Boolean(existing) && Boolean(incomingClientSecret) && nextClientSecret !== existingClientSecret;
+  /** 신규·mallId/Client 변경·레거시(개인 Client 없음)면 기존 토큰과 섞지 않는다 */
+  const credentialsChanged =
+    !existing ||
+    !accountHasPersonalClientCredentials(existing) ||
+    mallIdChanged ||
+    clientIdChanged ||
+    clientSecretChanged;
 
   const accessEncrypted =
-    clientId
-      ? encryptIntegrationSecret(clientId)
-      : existing?.accessKeyCiphertext && existing.accessKeyIv && existing.accessKeyAuthTag
-        ? {
-            ciphertext: existing.accessKeyCiphertext,
-            iv: existing.accessKeyIv,
-            authTag: existing.accessKeyAuthTag,
-            keyVersion: existing.encryptionKeyVersion,
-          }
-        : null;
+    incomingClientId || !existing || clientIdChanged
+      ? encryptIntegrationSecret(nextClientId)
+      : {
+          ciphertext: existing!.accessKeyCiphertext!,
+          iv: existing!.accessKeyIv!,
+          authTag: existing!.accessKeyAuthTag!,
+          keyVersion: existing!.encryptionKeyVersion,
+        };
 
   const secretEncrypted =
-    input.clientSecret && input.clientSecret.trim()
-      ? encryptIntegrationSecret(input.clientSecret.trim())
-      : existing?.secretKeyCiphertext && existing.secretKeyIv && existing.secretKeyAuthTag
-        ? {
-            ciphertext: existing.secretKeyCiphertext,
-            iv: existing.secretKeyIv,
-            authTag: existing.secretKeyAuthTag,
-            keyVersion: existing.encryptionKeyVersion,
-          }
-        : null;
+    incomingClientSecret || !existing || !accountHasPersonalClientCredentials(existing)
+      ? encryptIntegrationSecret(nextClientSecret)
+      : {
+          ciphertext: existing!.secretKeyCiphertext!,
+          iv: existing!.secretKeyIv!,
+          authTag: existing!.secretKeyAuthTag!,
+          keyVersion: existing!.encryptionKeyVersion,
+        };
 
-  if (!accessEncrypted) throw new Error('Client ID는 필수입니다.');
-  if (!existing && !secretEncrypted) throw new Error('Client Secret은 필수입니다.');
-
-  const commonData = {
+  const credentialData = {
     accountName,
     vendorId: mallId,
     accessKeyCiphertext: accessEncrypted.ciphertext,
     accessKeyIv: accessEncrypted.iv,
     accessKeyAuthTag: accessEncrypted.authTag,
+    secretKeyCiphertext: secretEncrypted.ciphertext,
+    secretKeyIv: secretEncrypted.iv,
+    secretKeyAuthTag: secretEncrypted.authTag,
     encryptionKeyVersion: accessEncrypted.keyVersion,
-    status: OrderIntegrationAccountStatus.INACTIVE,
-    lastErrorMessage: null,
   };
 
   if (existing) {
+    if (credentialsChanged) {
+      return prisma.orderIntegrationAccount.update({
+        where: { id: existing.id },
+        data: {
+          ...credentialData,
+          ...cafe24OAuthTokenClearData(),
+        },
+      });
+    }
+
     return prisma.orderIntegrationAccount.update({
       where: { id: existing.id },
       data: {
-        ...commonData,
-        ...(secretEncrypted
-          ? {
-              secretKeyCiphertext: secretEncrypted.ciphertext,
-              secretKeyIv: secretEncrypted.iv,
-              secretKeyAuthTag: secretEncrypted.authTag,
-            }
-          : {}),
+        ...credentialData,
+        lastErrorMessage: null,
       },
     });
   }
-
-  if (!secretEncrypted) throw new Error('Client Secret은 필수입니다.');
 
   return prisma.orderIntegrationAccount.create({
     data: {
       userId: input.userId,
       provider: OrderIntegrationProvider.CAFE24,
-      ...commonData,
-      secretKeyCiphertext: secretEncrypted.ciphertext,
-      secretKeyIv: secretEncrypted.iv,
-      secretKeyAuthTag: secretEncrypted.authTag,
+      ...credentialData,
+      status: OrderIntegrationAccountStatus.INACTIVE,
+      lastErrorMessage: null,
     },
   });
 }
@@ -356,6 +398,13 @@ export async function saveCafe24OAuthTokens(input: {
   accountId: string;
   tokens: Cafe24TokenSet;
 }): Promise<OrderIntegrationAccount> {
+  if (!hasAllCafe24RequiredScopes(input.tokens.scopes)) {
+    const missing = listMissingCafe24Scopes(input.tokens.scopes);
+    throw new Error(
+      `필수 권한이 부족하여 연동할 수 없습니다: ${missing.join(', ')}. Developers 앱 Scope를 확인한 뒤 다시 연동해 주세요.`,
+    );
+  }
+
   const encrypted = encryptIntegrationSecret(serializeCafe24TokenSet(input.tokens));
   const expiresAt = new Date(input.tokens.expiresAt);
 
@@ -376,6 +425,7 @@ export async function saveCafe24OAuthTokens(input: {
 export async function ensureCafe24AccessToken(
   account: OrderIntegrationAccount,
 ): Promise<{ account: OrderIntegrationAccount; accessToken: string; tokens: Cafe24TokenSet }> {
+  // 레거시(개인 Client 없음)는 refresh·주문 API 진입 전에 차단한다.
   const credentials = toCafe24Credentials(account);
   let tokens = decryptCafe24TokenSet(account);
 

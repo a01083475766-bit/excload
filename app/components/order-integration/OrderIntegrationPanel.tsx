@@ -54,10 +54,11 @@ function excloadInfoOptionsForMall(mallId: AvailableMallId | null): {
   if (mallId === 'cafe24') {
     return {
       showCompany: false,
-      showUrl: true,
+      showUrl: false,
       showIp: false,
       ipLabel: 'IP 주소 (outbound)',
-      registerHint: '카페24는 Redirect URI·Scope가 핵심입니다. 고정 IP 등록 단계는 없습니다.',
+      registerHint:
+        '카페24 앱스토어 설치가 아닙니다. Developers에서 개인 연동 앱을 만들고 App URL·Redirect URI·Scope를 등록한 뒤, Client ID/Secret을 엑클로드에 입력합니다.',
     };
   }
   if (mallId === 'makeshop') {
@@ -188,8 +189,9 @@ export default function OrderIntegrationPanel() {
   const selectedMallExtras =
     selectedAvailableMallId === 'cafe24'
       ? [
+          { label: 'App URL', value: EXCLOAD_INTEGRATION_INFO.url },
           { label: 'Redirect URI', value: CAFE24_OAUTH_REDIRECT_URI },
-          { label: 'Scope (1차)', value: CAFE24_OAUTH_SCOPES },
+          { label: 'Scope', value: CAFE24_OAUTH_SCOPES },
         ]
       : [];
 
@@ -370,7 +372,9 @@ export default function OrderIntegrationPanel() {
             <div className="space-y-5">
               <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
                 <h3 className="text-lg font-bold text-zinc-950">
-                  {selectedMall.name} · 엑클로드 등록 정보
+                  {selectedAvailableMallId === 'cafe24'
+                    ? '카페24 개인 앱 등록 정보'
+                    : `${selectedMall.name} · 엑클로드 등록 정보`}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-600">
                   {selectedMallInfoOpts?.registerHint}

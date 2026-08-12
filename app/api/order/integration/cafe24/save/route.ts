@@ -5,7 +5,6 @@ import {
   requireOrderIntegrationUser,
 } from '@/app/lib/order-integration/user-api-auth';
 import { isIntegrationEncryptionConfigured } from '@/app/lib/order-integration/encryption';
-import { isCafe24SharedAppConfigured } from '@/app/lib/cafe24/app-credentials';
 import {
   saveCafe24Account,
   toCafe24AccountPublic,
@@ -30,20 +29,23 @@ export async function POST(request: NextRequest) {
       clientSecret?: string;
     };
 
-    const shared = isCafe24SharedAppConfigured();
     const account = await saveCafe24Account({
       userId: auth.userId,
       accountName: body.accountName ?? '',
       mallId: body.mallId ?? '',
-      // 공용 앱이면 Client ID/Secret 입력을 무시한다.
-      clientId: shared ? undefined : body.clientId,
-      clientSecret: shared ? undefined : body.clientSecret,
+      clientId: body.clientId,
+      clientSecret: body.clientSecret,
     });
+
+    const pub = toCafe24AccountPublic(account);
+    const message = pub.hasOAuthTokens
+      ? '카페24 연동 정보가 저장되었습니다.'
+      : '카페24 연동 정보가 저장되었습니다. 이어서 「카페24 연동 시작」을 진행해 주세요.';
 
     return NextResponse.json({
       success: true,
-      message: '카페24 연동 정보가 저장되었습니다. 이어서 「카페24 연동 시작」을 진행해 주세요.',
-      account: toCafe24AccountPublic(account),
+      message,
+      account: pub,
     });
   } catch (error) {
     const message = sanitizePublicIntegrationErrorMessage(

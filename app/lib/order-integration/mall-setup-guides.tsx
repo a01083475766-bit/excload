@@ -146,28 +146,33 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '카페24 Developers',
     steps: [
       {
-        title: 'mallId 저장',
-        body: '계정명과 카페24 mallId만 입력·저장합니다. Client ID/Secret은 판매자가 입력하지 않습니다(엑클로드 공유 앱).',
+        title: 'Developers 로그인',
+        body: '카페24 Developers에 본인 쇼핑몰 계정으로 로그인합니다. 앱스토어에서 엑클로드를 설치하는 방식이 아닙니다.',
       },
       {
-        title: 'Redirect URI · Scope',
+        title: '연동용 앱 생성',
         body: (
           <>
-            엑클로드 공유 앱 OAuth Redirect URI는{' '}
-            <strong>https://www.excload.com/api/order/integration/cafe24/callback</strong>
-            이며, Scope는{' '}
-            <strong>mall.read_order mall.write_order mall.read_shipping</strong> 입니다.
+            Apps → App 관리에서 연동용 앱을 만듭니다. App URL은{' '}
+            <strong>https://www.excload.com</strong>, Redirect URI는{' '}
+            <strong>https://www.excload.com/api/order/integration/cafe24/callback</strong>, Scope는{' '}
+            <strong>mall.read_order mall.write_order mall.read_shipping</strong> 으로 등록합니다.
           </>
         ),
       },
       {
-        title: '권한 동의·연동 시작',
-        body: '「카페24 연동 시작」으로 엑클로드 공유 앱에 권한을 동의합니다. 권한이 부족하면 「권한 추가 재연동」을 진행하세요.',
+        title: '엑클로드에 API 정보 입력',
+        body: '발급된 Client ID·Client Secret과 쇼핑몰 ID(mallId)를 엑클로드에 입력·저장합니다.',
+      },
+      {
+        title: '권한 동의·연결 테스트',
+        body: '「카페24 연동 시작」으로 관리자 로그인·권한 동의를 한 뒤, 「연결 테스트」로 확인합니다. 권한이 부족하면 「권한 추가 재연동」을 진행하세요.',
       },
     ],
     notes: [
-      '주문(Order) 읽기+쓰기, 배송(Shipping) 읽기.',
-      '카페24는 판매자센터에 엑클로드 고정 IP를 등록하는 단계가 없습니다. 공유 앱 OAuth 권한 동의가 핵심입니다.',
+      '쇼핑몰 주소·관리자 아이디만으로는 주문을 조회할 수 없습니다. Client ID/Secret과 OAuth 동의가 필요합니다.',
+      'Client Secret은 본인만 보관하고 외부에 공유하지 마세요.',
+      '카페24에 엑클로드 고정 IP를 등록하는 단계는 없습니다.',
     ],
   },
   lotteon: {

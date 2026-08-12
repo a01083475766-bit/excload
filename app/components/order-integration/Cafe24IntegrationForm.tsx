@@ -4,10 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import {
-  EXCLOAD_INTEGRATION_INFO,
-  getExcloadOutboundIp,
-} from '@/app/lib/order-integration/malls';
+import { EXCLOAD_INTEGRATION_INFO } from '@/app/lib/order-integration/malls';
 import { CopyableInfoRow } from '@/app/components/order-integration/CopyableInfoRow';
 import { CAFE24_OAUTH_REDIRECT_URI, CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
 import { IntegrationConnectedNotice } from '@/app/components/order-integration/IntegrationConnectedNotice';
@@ -17,6 +14,7 @@ type Cafe24AccountResponse = {
   id: string;
   accountName: string;
   mallId: string;
+  clientId: string;
   clientIdMasked: string;
   clientSecretMasked: string;
   hasClientId: boolean;
@@ -31,7 +29,6 @@ type Cafe24AccountResponse = {
   missingScopes?: string[];
   needsReauthForScopes?: boolean;
   reauthMessage?: string | null;
-  usesSharedApp?: boolean;
 };
 
 function CollapsibleGuide({ title, children }: { title: string; children: ReactNode }) {
@@ -74,25 +71,22 @@ export function Cafe24IntegrationForm({
   onConnectionChange,
 }: { embedded?: boolean; onConnectionChange?: () => void } = {}) {
   const searchParams = useSearchParams();
-  const outboundIp = getExcloadOutboundIp();
   const [loading, setLoading] = useState(true);
   const [savedAccount, setSavedAccount] = useState<Cafe24AccountResponse | null>(null);
   const [accountName, setAccountName] = useState('');
   const [mallId, setMallId] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
   const [busyAction, setBusyAction] = useState<'save' | 'test' | 'disconnect' | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(
     null,
   );
-  const [transportInfo, setTransportInfo] = useState<{
-    mode: 'direct' | 'proxy';
-    suffixRules?: string[];
-    notes?: string;
-  } | null>(null);
 
   const inputClass =
     'w-full rounded border border-zinc-300 bg-white px-2.5 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
 
   const needsReauth = Boolean(savedAccount?.needsReauthForScopes);
+  const needsReregister = Boolean(savedAccount?.reauthMessage) && !savedAccount?.hasOAuthTokens;
   const oauthButtonLabel = needsReauth ? '권한 추가 재연동' : '카페24 연동 시작';
 
   const loadSavedAccount = useCallback(async () => {
@@ -108,6 +102,8 @@ export function Cafe24IntegrationForm({
       if (account) {
         setAccountName(account.accountName);
         setMallId(account.mallId);
+        setClientId(account.clientId || '');
+        setClientSecret('');
       }
     } catch (error) {
       setStatusMessage({
@@ -137,29 +133,6 @@ export function Cafe24IntegrationForm({
     }
   }, [searchParams, loadSavedAccount]);
 
-  useEffect(() => {
-    async function loadTransport() {
-      try {
-        const res = await fetch('/api/order/integration/cafe24/transport');
-        const data = (await res.json()) as {
-          transport?: { mode: 'direct' | 'proxy' };
-          suffixRules?: string[];
-          notes?: string;
-        };
-        if (res.ok && data.transport) {
-          setTransportInfo({
-            mode: data.transport.mode,
-            suffixRules: data.suffixRules,
-            notes: data.notes,
-          });
-        }
-      } catch {
-        // transport 정보는 부가 안내용
-      }
-    }
-    void loadTransport();
-  }, []);
-
   async function handleSave() {
     setBusyAction('save');
     setStatusMessage(null);
@@ -170,6 +143,8 @@ export function Cafe24IntegrationForm({
         body: JSON.stringify({
           accountName,
           mallId,
+          clientId,
+          clientSecret: clientSecret || undefined,
         }),
       });
       const data = (await res.json()) as {
@@ -181,6 +156,8 @@ export function Cafe24IntegrationForm({
       if (!res.ok) throw new Error(data.error ?? '저장에 실패했습니다.');
 
       setSavedAccount(data.account ?? null);
+      setClientSecret('');
+      if (data.account?.clientId) setClientId(data.account.clientId);
       setStatusMessage({
         kind: 'success',
         text: data.message ?? '카페24 연동 정보가 저장되었습니다.',
@@ -235,6 +212,8 @@ export function Cafe24IntegrationForm({
       setSavedAccount(null);
       setAccountName('');
       setMallId('');
+      setClientId('');
+      setClientSecret('');
       setStatusMessage({
         kind: 'info',
         text: data.message ?? '카페24 연동이 해제되었습니다.',
@@ -264,44 +243,33 @@ export function Cafe24IntegrationForm({
 
       {!embedded ? (
         <div className="mb-2 flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">카페24 연동</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">카페24 개인 API 연동</h1>
           <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
             베타
           </span>
         </div>
       ) : (
-        <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">연동 정보 입력</h2>
+        <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">카페24 개인 API 연동</h2>
       )}
-      {!embedded ? (
-        <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          카페24 OAuth 동의 시 주문(Order) 읽기·쓰기와 배송(Shipping) 읽기 권한이 포함됩니다. 전체 스코프로
-          재연동하면 송장 전송도 사용할 수 있습니다. 실제 주문 조회·수집은 주문연동 화면에서 진행합니다.
-        </p>
-      ) : (
-        <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          계정명과 mallId를 입력한 뒤 저장하고, 엑클로드 공유 앱 OAuth 동의·연결 테스트를 진행합니다.
-        </p>
-      )}
+      <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        카페24 앱스토어에서 엑클로드 앱을 설치하는 방식이 아닙니다. 본인의 카페24 Developers에서 연동용 앱을
+        만든 뒤, 발급받은 API 정보를 엑클로드에 등록하여 본인 쇼핑몰을 연결합니다.
+      </p>
 
       {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
-      {transportInfo ? (
-        <p className={`mb-3 rounded border px-2.5 py-1.5 text-sm ${statusBannerClass('info')}`}>
-          API 호출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
-          {transportInfo.suffixRules?.length ? (
-            <span className="mt-1 block text-xs opacity-90">
-              허용 suffix: {transportInfo.suffixRules.map((s) => `*.${s}`).join(', ')} (Lightsail 1회 반영 대기)
-            </span>
-          ) : null}
-        </p>
-      ) : null}
+      <p className={`mb-3 rounded border px-2.5 py-1.5 text-sm ${statusBannerClass('info')}`}>
+        인증 방식: <strong>카페24 OAuth 2.0</strong>
+        <span className="mt-1 block text-xs opacity-90">
+          Scope: {CAFE24_OAUTH_SCOPES} (주문 읽기·쓰기, 배송 읽기)
+        </span>
+      </p>
 
-      {needsReauth ? (
+      {needsReauth || needsReregister ? (
         <p className={`mb-3 rounded border px-2.5 py-1.5 text-sm ${statusBannerClass('warning')}`}>
           {savedAccount?.reauthMessage?.trim() ||
             '카페24 주문 쓰기권한이 필요합니다. 다시 연동해 주세요'}
-          {savedAccount?.missingScopes?.length ? (
+          {savedAccount?.missingScopes?.length && needsReauth ? (
             <span className="mt-1 block text-xs opacity-90">
               부족 scope: {savedAccount.missingScopes.join(', ')}
             </span>
@@ -330,16 +298,13 @@ export function Cafe24IntegrationForm({
 
       {!embedded ? (
         <section className="mb-4 rounded border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
-          <h2 className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">OAuth 연동 정보</h2>
+          <h2 className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            카페24 Developers 앱 등록 정보
+          </h2>
           <dl className="space-y-2">
+            <CopyableInfoRow label="App URL" value={EXCLOAD_INTEGRATION_INFO.url} />
             <CopyableInfoRow label="Redirect URI" value={CAFE24_OAUTH_REDIRECT_URI} />
             <CopyableInfoRow label="Scope" value={CAFE24_OAUTH_SCOPES} />
-            <CopyableInfoRow label="URL" value={EXCLOAD_INTEGRATION_INFO.url} />
-            <CopyableInfoRow
-              label="IP 주소 (필요 시)"
-              value={outboundIp}
-              placeholder="NEXT_PUBLIC_EXCLOAD_OUTBOUND_IP 환경변수 설정 필요"
-            />
           </dl>
         </section>
       ) : null}
@@ -347,12 +312,14 @@ export function Cafe24IntegrationForm({
       {!embedded ? (
         <CollapsibleGuide title="연동 방법 보기 (카페24)">
           <ol className="list-decimal space-y-2 pl-5">
-            <li>계정명과 카페24 mallId만 입력·저장합니다. Client ID/Secret은 입력하지 않습니다(엑클로드 공유 앱).</li>
+            <li>카페24 Developers에 로그인한 뒤 Apps → App 관리에서 연동용 앱을 생성합니다.</li>
             <li>
-              「{oauthButtonLabel}」으로 엑클로드 공유 앱에 권한을 동의합니다. Scope:{' '}
-              <strong>{CAFE24_OAUTH_SCOPES}</strong> (주문 읽기·쓰기, 배송 읽기).
+              App URL·Redirect URI·Scope를 위 등록 정보대로 입력하고, 발급된 Client ID/Secret을 확인합니다.
             </li>
-            <li>권한 동의 후 연결 테스트를 진행합니다. 기존 연동에 권한이 부족하면 「권한 추가 재연동」을 진행하세요.</li>
+            <li>엑클로드에 쇼핑몰 ID·Client ID·Client Secret을 입력·저장합니다.</li>
+            <li>
+              「{oauthButtonLabel}」으로 관리자 로그인·권한 동의 후 「연결 테스트」를 진행합니다.
+            </li>
           </ol>
         </CollapsibleGuide>
       ) : null}
@@ -374,14 +341,43 @@ export function Cafe24IntegrationForm({
 
         <SecretInput
           id="mallId"
-          label="mallId (쇼핑몰 ID)"
-          confirmLabel="mallId(쇼핑몰 ID)"
+          label="카페24 쇼핑몰 ID (mallId)"
+          confirmLabel="쇼핑몰 ID"
           secret={false}
           value={mallId}
           onChange={setMallId}
           hasSaved={Boolean(savedAccount?.mallId)}
           savedMasked={savedAccount?.mallId}
-          newPlaceholder="예: yourmall"
+          newPlaceholder="예: sample (sample.cafe24.com → sample)"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
+
+        <SecretInput
+          id="clientId"
+          label="Client ID"
+          confirmLabel="Client ID"
+          secret={false}
+          value={clientId}
+          onChange={setClientId}
+          hasSaved={Boolean(savedAccount?.hasClientId && savedAccount.clientId)}
+          savedMasked={savedAccount?.clientId}
+          newPlaceholder="카페24 Developers에서 발급"
+          inputClass={inputClass}
+          disabled={busyAction !== null}
+          resetSignal={savedAccount}
+        />
+
+        <SecretInput
+          id="clientSecret"
+          label="Client Secret"
+          confirmLabel="Client Secret"
+          value={clientSecret}
+          onChange={setClientSecret}
+          hasSaved={Boolean(savedAccount?.hasClientSecret)}
+          savedMasked="********"
+          newPlaceholder="카페24 Developers에서 발급"
           inputClass={inputClass}
           disabled={busyAction !== null}
           resetSignal={savedAccount}
@@ -405,7 +401,7 @@ export function Cafe24IntegrationForm({
           </button>
           <button
             type="button"
-            disabled={busyAction !== null || !savedAccount}
+            disabled={busyAction !== null || !savedAccount?.hasClientId || !savedAccount?.hasClientSecret}
             onClick={handleStartOAuth}
             className="inline-flex h-8 items-center gap-1.5 rounded bg-blue-600 px-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
           >

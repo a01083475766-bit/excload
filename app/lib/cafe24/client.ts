@@ -157,12 +157,21 @@ export function buildCafe24AuthorizeUrl(input: {
   return `${buildCafe24ApiOrigin(mallId)}/api/v2/oauth/authorize?${params.toString()}`;
 }
 
-function parseTokenResponse(bodyText: string): Cafe24TokenSet {
+/**
+ * 토큰 응답을 파싱하고, 저장된 mallId·clientId·필수 scope와 일치할 때만 반환한다.
+ * 불일치·권한 부족 시 토큰을 저장하지 않도록 호출부에서 throw로 실패 처리한다.
+ */
+export function parseAndValidateCafe24TokenResponse(
+  bodyText: string,
+  expected: { mallId: string; clientId: string },
+): Cafe24TokenSet {
   let parsed: {
     access_token?: string;
     refresh_token?: string;
     expires_at?: string;
     scopes?: string[];
+    mall_id?: string;
+    client_id?: string;
   };
 
   try {
@@ -173,6 +182,25 @@ function parseTokenResponse(bodyText: string): Cafe24TokenSet {
 
   if (!parsed.access_token || !parsed.refresh_token || !parsed.expires_at) {
     throw new Error('카페24 토큰 응답에 필수 필드가 없습니다.');
+  }
+
+  const expectedMallId = assertValidCafe24MallId(expected.mallId);
+  const responseMallId = String(parsed.mall_id ?? '').trim().toLowerCase();
+  if (!responseMallId || responseMallId !== expectedMallId) {
+    throw new Error('카페24 토큰의 mall_id가 저장된 쇼핑몰 ID와 일치하지 않습니다.');
+  }
+
+  const expectedClientId = expected.clientId.trim();
+  const responseClientId = String(parsed.client_id ?? '').trim();
+  if (!responseClientId || responseClientId !== expectedClientId) {
+    throw new Error('카페24 토큰의 client_id가 저장된 Client ID와 일치하지 않습니다.');
+  }
+
+  const missingScopes = listMissingCafe24Scopes(parsed.scopes);
+  if (missingScopes.length > 0) {
+    throw new Error(
+      `필수 권한이 부족하여 연동할 수 없습니다: ${missingScopes.join(', ')}. Developers 앱 Scope를 확인한 뒤 다시 연동해 주세요.`,
+    );
   }
 
   return {
@@ -203,7 +231,10 @@ export async function exchangeCafe24AuthorizationCode(input: {
     body,
   });
 
-  return parseTokenResponse(bodyText);
+  return parseAndValidateCafe24TokenResponse(bodyText, {
+    mallId: input.credentials.mallId,
+    clientId: input.credentials.clientId,
+  });
 }
 
 export async function refreshCafe24AccessToken(input: {
@@ -225,7 +256,10 @@ export async function refreshCafe24AccessToken(input: {
     body,
   });
 
-  return parseTokenResponse(bodyText);
+  return parseAndValidateCafe24TokenResponse(bodyText, {
+    mallId: input.credentials.mallId,
+    clientId: input.credentials.clientId,
+  });
 }
 
 export function isCafe24AccessTokenExpired(expiresAt: string | Date | null | undefined, bufferMs = 5 * 60 * 1000): boolean {

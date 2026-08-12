@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { CAFE24_OAUTH_SCOPES } from '@/app/lib/cafe24/constants';
 import type { OrderIntegrationAccount } from '@prisma/client';
-import {
-  encryptIntegrationSecret,
-} from '@/app/lib/order-integration/encryption';
+import { encryptIntegrationSecret } from '@/app/lib/order-integration/encryption';
 import { serializeCafe24TokenSet } from '@/app/lib/cafe24/client';
 import { toCafe24AccountPublic } from '@/app/lib/order-integration/cafe24-account';
 
 describe('Cafe24 public account safety', () => {
-  it('does not expose client secret in public account DTO', () => {
+  it('does not expose client secret or tokens for personal-app accounts', () => {
     const prevEnc = process.env.EXCLOAD_INTEGRATION_ENCRYPTION_KEY;
     const prevId = process.env.CAFE24_CLIENT_ID;
     const prevSecret = process.env.CAFE24_CLIENT_SECRET;
     process.env.EXCLOAD_INTEGRATION_ENCRYPTION_KEY = Buffer.alloc(32, 9).toString('base64');
-    process.env.CAFE24_CLIENT_ID = 'shared-client-id';
-    process.env.CAFE24_CLIENT_SECRET = 'shared-client-secret-value';
+    delete process.env.CAFE24_CLIENT_ID;
+    delete process.env.CAFE24_CLIENT_SECRET;
 
     try {
+      const access = encryptIntegrationSecret('personal-client-id');
+      const secret = encryptIntegrationSecret('personal-client-secret-value');
       const tokenBundle = serializeCafe24TokenSet({
         accessToken: 'access-token-value',
         refreshToken: 'refresh-token-value',
@@ -31,12 +31,12 @@ describe('Cafe24 public account safety', () => {
         accountName: 'mall',
         vendorId: 'demo',
         sellerId: null,
-        accessKeyCiphertext: null,
-        accessKeyIv: null,
-        accessKeyAuthTag: null,
-        secretKeyCiphertext: null,
-        secretKeyIv: null,
-        secretKeyAuthTag: null,
+        accessKeyCiphertext: access.ciphertext,
+        accessKeyIv: access.iv,
+        accessKeyAuthTag: access.authTag,
+        secretKeyCiphertext: secret.ciphertext,
+        secretKeyIv: secret.iv,
+        secretKeyAuthTag: secret.authTag,
         apiKeyCiphertext: enc.ciphertext,
         apiKeyIv: enc.iv,
         apiKeyAuthTag: enc.authTag,
@@ -65,17 +65,21 @@ describe('Cafe24 public account safety', () => {
 
       const pub = toCafe24AccountPublic(account);
       const json = JSON.stringify(pub);
-      expect(json).not.toContain('shared-client-secret-value');
+      expect(json).not.toContain('personal-client-secret-value');
       expect(json).not.toContain('access-token-value');
       expect(json).not.toContain('refresh-token-value');
+      expect(pub.clientId).toBe('personal-client-id');
       expect(pub.clientSecretMasked).toBe('');
-      expect(pub.usesSharedApp).toBe(true);
+      expect(pub.hasClientSecret).toBe(true);
+      expect(pub.usesSharedApp).toBe(false);
       expect(pub.hasRequiredScopes).toBe(true);
       expect(pub.needsReauthForScopes).toBe(false);
     } finally {
       process.env.EXCLOAD_INTEGRATION_ENCRYPTION_KEY = prevEnc;
-      process.env.CAFE24_CLIENT_ID = prevId;
-      process.env.CAFE24_CLIENT_SECRET = prevSecret;
+      if (prevId === undefined) delete process.env.CAFE24_CLIENT_ID;
+      else process.env.CAFE24_CLIENT_ID = prevId;
+      if (prevSecret === undefined) delete process.env.CAFE24_CLIENT_SECRET;
+      else process.env.CAFE24_CLIENT_SECRET = prevSecret;
     }
   });
 

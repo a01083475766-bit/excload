@@ -38,6 +38,12 @@ export async function GET() {
       status: true,
       lastTestedAt: true,
       updatedAt: true,
+      accessKeyCiphertext: true,
+      accessKeyIv: true,
+      accessKeyAuthTag: true,
+      secretKeyCiphertext: true,
+      secretKeyIv: true,
+      secretKeyAuthTag: true,
     },
     orderBy: { updatedAt: 'desc' },
   });
@@ -64,12 +70,29 @@ export async function GET() {
     seen.add(account.id);
     const meta = ORDER_INTEGRATION_MALLS.find((m) => m.id === mallId);
     if (!meta) continue;
+
+    // 카페24: 개인 Client 없는 레거시(공용앱 토큰만)는 ACTIVE여도 연결됨으로 표시하지 않음
+    const cafe24Ready =
+      account.provider !== OrderIntegrationProvider.CAFE24 ||
+      Boolean(
+        account.accessKeyCiphertext &&
+          account.accessKeyIv &&
+          account.accessKeyAuthTag &&
+          account.secretKeyCiphertext &&
+          account.secretKeyIv &&
+          account.secretKeyAuthTag,
+      );
+    const status =
+      account.provider === OrderIntegrationProvider.CAFE24 && !cafe24Ready
+        ? 'INACTIVE'
+        : account.status;
+
     malls.push({
       mallId,
       name: meta.name,
       accountId: account.id,
       accountName: account.accountName,
-      status: account.status,
+      status,
       lastCheckedAt: (account.lastTestedAt ?? account.updatedAt)?.toISOString() ?? null,
     });
   }
