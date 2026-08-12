@@ -243,6 +243,21 @@ export function collectMallLineItemIds(rows: ReadonlyArray<Record<string, string
         }
       }
     }
+
+    const dvs = String(row['출고타입'] ?? '').trim().toUpperCase();
+    if (dvs === 'DV' || dvs === 'RTRV') {
+      const odNo = String(row['주문번호'] ?? '').trim();
+      const productOrderNo = String(row['상품주문번호'] ?? '').trim();
+      const dash = productOrderNo.lastIndexOf('-');
+      const odSeq = dash > 0 ? productOrderNo.slice(dash + 1).trim() : '';
+      if (odNo && odSeq) {
+        const lineKey = `lotteonLine:${odNo}|${odSeq}|${String(row['출고번호'] ?? '1').trim() || '1'}|${String(row['판매상품번호'] || row['상품코드'] || '').trim()}|${String(row['옵션ID'] ?? '').trim()}|${dvs}|${String(row['관리상품번호'] ?? '10').trim() || '10'}|${String(row['수량'] ?? '1').trim() || '1'}|${String(row['제휴주문번호'] ?? '').trim()}|${String(row['주문상태'] ?? '').includes('상품준비') ? '12' : String(row['주문상태'] ?? '').includes('출고지시') ? '11' : ''}`;
+        if (!seen.has(lineKey)) {
+          seen.add(lineKey);
+          ids.push(lineKey);
+        }
+      }
+    }
   }
 
   return ids;

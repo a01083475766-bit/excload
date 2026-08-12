@@ -16,6 +16,12 @@ describe('coupang fetch panel logic', () => {
     expect(isRowHubEligible({ mallId: 'smartstore', hubEligible: undefined })).toBe(true);
   });
 
+  it('allows hub only when lotteon hubEligible is true', () => {
+    expect(isRowHubEligible({ mallId: 'lotteon', hubEligible: true })).toBe(true);
+    expect(isRowHubEligible({ mallId: 'lotteon', hubEligible: false })).toBe(false);
+    expect(isRowHubEligible({ mallId: 'lotteon', hubEligible: undefined })).toBe(false);
+  });
+
   it('collects only ACCEPT rows and dedupes shipmentBoxId', () => {
     const rows = [
       {

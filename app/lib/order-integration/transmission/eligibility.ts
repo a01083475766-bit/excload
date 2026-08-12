@@ -236,7 +236,8 @@ export function evaluateShipmentTransmissionEligibility(
     provider === 'COUPANG' ||
     provider === 'SMARTSTORE' ||
     provider === 'ELEVEN' ||
-    provider === 'DOMEGGOOK'
+    provider === 'DOMEGGOOK' ||
+    provider === 'LOTTEON'
   ) {
     const providerCourierCode = resolveProviderCourierCode({
       provider,
@@ -252,7 +253,9 @@ export function evaluateShipmentTransmissionEligibility(
             ? '11번가에서 지원하지 않는 택배사입니다. CJ·한진·롯데·로젠·우체국만 전송할 수 있습니다.'
             : provider === 'DOMEGGOOK'
               ? '도매꾹에서 지원하지 않는 택배사입니다. CJ·한진·롯데·로젠·우체국만 전송할 수 있습니다.'
-              : '쿠팡에서 지원하지 않는 택배사입니다. 택배사를 확인해 주세요.',
+              : provider === 'LOTTEON'
+                ? '롯데ON에서 지원하지 않는 택배사입니다. CJ·한진·롯데·로젠·우체국만 전송할 수 있습니다.'
+                : '쿠팡에서 지원하지 않는 택배사입니다. 택배사를 확인해 주세요.',
       );
     }
   }

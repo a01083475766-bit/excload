@@ -14,6 +14,7 @@ import {
 import { fetchLotteonOrders, toUserFacingLotteonErrorMessage } from '@/app/lib/lotteon/client';
 import {
   LOTTEON_PREVIEW_HEADERS,
+  mapLotteonOrdersToFetchViews,
   mapLotteonOrdersToOrderStandardFile,
   mapLotteonOrdersToPreviewRows,
 } from '@/app/lib/lotteon/map-lotteon-orders';
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
     const orders = await fetchLotteonOrders({ credentials, days });
     const orderStandardFile = mapLotteonOrdersToOrderStandardFile(orders);
     const previewRows = mapLotteonOrdersToPreviewRows(orders);
+    const orderViews = mapLotteonOrdersToFetchViews(orders);
 
     await markLotteonAccountSyncResult({
       accountId: account.id,
@@ -97,6 +99,7 @@ export async function POST(request: Request) {
       count: previewRows.length,
       previewHeaders: LOTTEON_PREVIEW_HEADERS,
       previewRows,
+      orderViews,
       orderStandardFile,
       snapshotPersist,
     });

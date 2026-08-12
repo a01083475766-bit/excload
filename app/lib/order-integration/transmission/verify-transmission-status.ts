@@ -74,6 +74,16 @@ import {
   resolveDomeggookDeliCompany,
 } from '@/app/lib/domeggook/domeggook-invoice';
 import { extractDomeggookOrderUid } from '@/app/lib/domeggook/domeggook-ids';
+import { toLotteonCredentials } from '@/app/lib/order-integration/lotteon-account';
+import {
+  fetchLotteonProgressStatesByOdNo,
+  toUserFacingLotteonErrorMessage,
+} from '@/app/lib/lotteon/client';
+import {
+  decideLotteonVerifyFromOrders,
+  resolveLotteonDeliveryCompanyCode,
+} from '@/app/lib/lotteon/lotteon-invoice';
+import { extractLotteonLineIds } from '@/app/lib/lotteon/lotteon-ids';
 
 export type VerifyTransmissionAttemptRecord = {
   id: string;
@@ -166,6 +176,8 @@ export type VerifyTransmissionServiceDeps = {
   resolveDomeggookCredentials?: typeof toDomeggookCredentials;
   domeggookSetLogin?: typeof domeggookSetLogin;
   domeggookGetOrderView?: typeof domeggookGetOrderView;
+  resolveLotteonCredentials?: typeof toLotteonCredentials;
+  fetchLotteonProgressByOdNo?: typeof fetchLotteonProgressStatesByOdNo;
   /** SMARTSTORE 부분 결과 보존·Match SENT 정리 (선택) */
   persistSmartstoreVerification?: (
     input: PersistSmartstoreVerificationInput,
@@ -756,6 +768,71 @@ async function verifyDomeggookAttempt(
   }
 }
 
+async function verifyLotteonAttempt(
+  deps: VerifyTransmissionServiceDeps,
+  record: VerifyTransmissionAttemptRecord,
+  account: OrderIntegrationAccount,
+): Promise<VerifyTransmissionResultItem> {
+  const mallLineItemIds = asStringArray(record.mallLineItemIdsJson).length
+    ? asStringArray(record.mallLineItemIdsJson)
+    : asStringArray(record.orderSyncOrder?.mallLineItemIds);
+  const lines = extractLotteonLineIds(mallLineItemIds, record.mallOrderNo);
+  if (lines.length === 0) {
+    return failedItem(record.id, '확인에 필요한 롯데ON 주문 식별값이 없습니다.');
+  }
+
+  let credentials;
+  try {
+    credentials = (deps.resolveLotteonCredentials ?? toLotteonCredentials)(account);
+  } catch {
+    return failedItem(record.id, '쇼핑몰 연결을 확인하세요.');
+  }
+  if (!credentials.apiKey?.trim()) {
+    return failedItem(record.id, '쇼핑몰 연결을 확인하세요.');
+  }
+
+  const expectedTracking = String(record.trackingNumberNormalized ?? '').trim();
+  const courier = resolveLotteonDeliveryCompanyCode({
+    courierCode: record.courierCode ?? null,
+    courierName: record.courierName ?? null,
+  });
+  const expectedDvCoCd = courier.ok ? courier.dvCoCd : null;
+  const fetchByOdNo = deps.fetchLotteonProgressByOdNo ?? fetchLotteonProgressStatesByOdNo;
+
+  try {
+    const orders = await fetchByOdNo({ credentials, odNo: lines[0]!.odNo });
+    const decision = decideLotteonVerifyFromOrders({
+      lines,
+      expectedTracking,
+      expectedDvCoCd,
+      orders,
+    });
+    return {
+      attemptId: record.id,
+      status: decision.status,
+      mallStatusCode: decision.mallStatusCode,
+      mallStatusLabel: decision.mallStatusLabel,
+      confirmedItems: decision.status === 'CONFIRMED' ? lines.length : 0,
+      totalItems: lines.length,
+      message: decision.message,
+    };
+  } catch (error) {
+    const message = toUserFacingLotteonErrorMessage(error);
+    if (/인증|권한|401|403|인증키/i.test(message)) {
+      return {
+        attemptId: record.id,
+        status: 'CHECK_FAILED',
+        mallStatusCode: null,
+        mallStatusLabel: null,
+        confirmedItems: null,
+        totalItems: lines.length,
+        message: '롯데ON 인증·권한 오류로 반영 상태를 확인하지 못했습니다.',
+      };
+    }
+    return failedItem(record.id, message);
+  }
+}
+
 export async function runVerifyTransmissionService(
   deps: VerifyTransmissionServiceDeps,
   input: { userId: string; batchId: string; attemptIds: string[] },
@@ -812,6 +889,11 @@ export async function runVerifyTransmissionService(
         results.push(unsupportedItem(attemptId, '전송 성공 건만 확인할 수 있습니다.'));
         continue;
       }
+    } else if (record.provider === 'LOTTEON') {
+      if (record.status !== 'SUCCESS' && record.status !== 'UNKNOWN') {
+        results.push(unsupportedItem(attemptId, '전송 성공·확인대기 건만 확인할 수 있습니다.'));
+        continue;
+      }
     } else {
       results.push(
         unsupportedItem(attemptId, '이 쇼핑몰은 상태 확인을 아직 지원하지 않습니다. 상태 확인 지원 예정.'),
@@ -847,6 +929,8 @@ export async function runVerifyTransmissionService(
       results.push(await verifyElevenAttempt(deps, record, account));
     } else if (record.provider === 'DOMEGGOOK') {
       results.push(await verifyDomeggookAttempt(deps, record, account));
+    } else if (record.provider === 'LOTTEON') {
+      results.push(await verifyLotteonAttempt(deps, record, account));
     } else {
       results.push(await verifyCoupangAttempt(deps, record, account));
     }

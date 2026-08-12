@@ -17,11 +17,25 @@ export const LOTTEON_IDENTITY_PATH = '/v1/openapi/common/v1/identity';
 export const LOTTEON_SELLER_DELIVERY_ORDER_SEARCH_PATH =
   '/v1/openapi/delivery/v1/SellerDeliveryOrdersSearch';
 
+/** 출고/회수지시 연동완료 통보 (apiNo=210) — 엑클로드 발주확인에 해당 */
+export const LOTTEON_IF_COMPLETE_INFORM_PATH = '/v1/openapi/delivery/v1/SellerIfCompleteInform';
+
+/** 배송상태 통보 (apiNo=137) — 상품준비(12)·발송완료(13) */
+export const LOTTEON_DELIVERY_PROGRESS_INFORM_PATH =
+  '/v1/openapi/delivery/v1/SellerDeliveryProgressStateInform';
+
+/** 롯데ON 배송상태 조회 (apiNo=140) — 연동완료 이후 실시간 상태 */
+export const LOTTEON_DELIVERY_PROGRESS_SEARCH_PATH =
+  '/v1/openapi/delivery/v1/SellerDeliveryProgressStateSearch';
+
 /** 공식: 조회기간은 1일을 초과할 수 없음 (returnCode 2003) */
 export const LOTTEON_MAX_RANGE_DAYS = 1;
 
-/** 공식 주문진행단계 — 이 API는 11:출고지시, 23:회수지시만 조회. 상품준비(12)는 대상 아님 */
-export const LOTTEON_ORDER_PROGRESS_STEP_CODES = ['11'] as const;
+/** 209 조회: 11 출고지시(신규 수집), 23 회수지시(클레임) */
+export const LOTTEON_ORDER_PROGRESS_STEP_CODES = ['11', '23'] as const;
+
+/** 140 조회: 연동완료 이후 상품준비·발송완료·배송완료·수취완료 */
+export const LOTTEON_PROGRESS_STATE_STEP_CODES = ['12', '13', '14', '15'] as const;
 
 export type LotteonOrderProgressStepCode = (typeof LOTTEON_ORDER_PROGRESS_STEP_CODES)[number];
 
@@ -36,10 +50,19 @@ export type LotteonCredentials = {
 export type LotteonOrderRecord = {
   odNo: string;
   odSeq: string;
+  procSeq: string;
+  orglProcSeq: string;
+  clmNo: string;
   odPrgsStepCd: string;
   odPrgsStepNm: string;
+  dvRtrvDvsCd: string;
+  odTypCd: string;
+  odTypDtlCd: string;
+  spdNo: string;
+  sitmNo: string;
   pdNm: string;
   odQty: string;
+  slQty: string;
   odCmptDttm: string;
   odAcptDttm: string;
   rcvrNm: string;
@@ -49,6 +72,8 @@ export type LotteonOrderRecord = {
   rcvrDtlAddr: string;
   dlvMsg: string;
   odAmt: string;
+  invcNo: string;
+  dvCoCd: string;
   raw: Record<string, unknown>;
 };
 
@@ -64,6 +89,7 @@ type LotteonApiEnvelope = {
   message?: string;
   data?: unknown;
   deliveryOrderList?: unknown;
+  deliveryProgressStateList?: unknown;
   slrDvpOrderList?: unknown;
   orderList?: unknown;
 };
@@ -171,10 +197,19 @@ export function normalizeLotteonOrderRecord(raw: Record<string, unknown>): Lotte
   return {
     odNo,
     odSeq,
+    procSeq: pickString(raw, ['procSeq', 'proc_seq']) || '1',
+    orglProcSeq: pickString(raw, ['orglProcSeq', 'orgl_proc_seq']),
+    clmNo: pickString(raw, ['clmNo', 'clm_no']),
     odPrgsStepCd: pickString(raw, ['odPrgsStepCd', 'od_prgs_step_cd', 'procStatCd']),
     odPrgsStepNm: pickString(raw, ['odPrgsStepNm', 'od_prgs_step_nm', 'procStatNm', 'odPrgsStepName']),
+    dvRtrvDvsCd: pickString(raw, ['dvRtrvDvsCd', 'dv_rtrv_dvs_cd']) || 'DV',
+    odTypCd: pickString(raw, ['odTypCd', 'od_typ_cd']) || '10',
+    odTypDtlCd: pickString(raw, ['odTypDtlCd', 'od_typ_dtl_cd']),
+    spdNo: pickString(raw, ['spdNo', 'spd_no']),
+    sitmNo: pickString(raw, ['sitmNo', 'sitm_no', 'eitmNo']),
     pdNm: pickString(raw, ['spdNm', 'pdNm', 'pd_nm', 'productName', 'goodsNm']),
-    odQty: pickString(raw, ['odQty', 'od_qty', 'orderQty', 'qty']) || '1',
+    odQty: pickString(raw, ['odQty', 'od_qty', 'orderQty', 'qty', 'slQty']) || '1',
+    slQty: pickString(raw, ['slQty', 'odQty', 'od_qty', 'qty']) || '1',
     odCmptDttm: pickString(raw, ['odCmptDttm', 'od_cmpt_dttm', 'owhoDttm', 'payDttm', 'orderDttm']),
     odAcptDttm: pickString(raw, ['odAcptDttm', 'od_acpt_dttm', 'acptDttm']),
     rcvrNm: pickString(raw, ['dvpCustNm', 'rcvrNm', 'rcvr_nm', 'receiverName']),
@@ -184,6 +219,8 @@ export function normalizeLotteonOrderRecord(raw: Record<string, unknown>): Lotte
     rcvrDtlAddr: pickString(raw, ['dvpStnmDtlAddr', 'rcvrDtlAddr', 'rcvr_dtl_addr', 'rcvrDtlsAddr']),
     dlvMsg: pickString(raw, ['dvMsg', 'odMsg', 'dlvMsg', 'dlv_msg', 'deliveryMessage']),
     odAmt: pickString(raw, ['actualAmt', 'slAmt', 'odAmt', 'od_amt', 'payAmt', 'saleAmt']),
+    invcNo: pickString(raw, ['invcNo', 'invc_no']),
+    dvCoCd: pickString(raw, ['dvCoCd', 'dv_co_cd']),
     raw,
   };
 }
@@ -196,9 +233,11 @@ export function extractLotteonOrderList(payload: unknown): LotteonOrderRecord[] 
 
   const listCandidates: unknown[] = [
     root.deliveryOrderList,
+    root.deliveryProgressStateList,
     root.slrDvpOrderList,
     root.orderList,
     typeof data === 'object' && data ? (data as Record<string, unknown>).deliveryOrderList : null,
+    typeof data === 'object' && data ? (data as Record<string, unknown>).deliveryProgressStateList : null,
     typeof data === 'object' && data ? (data as Record<string, unknown>).slrDvpOrderList : null,
     typeof data === 'object' && data ? (data as Record<string, unknown>).orderList : null,
     Array.isArray(data) ? data : null,
@@ -223,11 +262,26 @@ export function parseLotteonApiResponse(bodyText: string): LotteonApiEnvelope {
   }
 }
 
+function nestedRslt(envelope: LotteonApiEnvelope): { code: string; message: string } {
+  const data = envelope.data;
+  if (!data || typeof data !== 'object') return { code: '', message: '' };
+  const record = data as Record<string, unknown>;
+  return {
+    code: String(record.rsltCd ?? '').trim(),
+    message: String(record.rsltMsg ?? '').trim(),
+  };
+}
+
 function assertLotteonApiSuccess(envelope: LotteonApiEnvelope, httpStatus: number): void {
   const returnCode = envelope.returnCode?.trim();
   if (returnCode && returnCode !== '0000' && returnCode !== '0' && returnCode !== 'SUCCESS') {
     const message = envelope.message?.trim() || `롯데ON API 오류 (returnCode=${returnCode})`;
     throw new Error(message);
+  }
+
+  const rslt = nestedRslt(envelope);
+  if (rslt.code && rslt.code !== '0000' && rslt.code !== '0' && rslt.code !== 'SUCCESS') {
+    throw new Error(rslt.message || `롯데ON API 오류 (rsltCd=${rslt.code})`);
   }
 
   if (httpStatus >= 200 && httpStatus < 300) {
@@ -312,7 +366,7 @@ export async function lotteonApiRequest(input: {
   credentials: Pick<LotteonCredentials, 'apiKey'>;
   method: 'GET' | 'POST';
   path: string;
-  body?: Record<string, string>;
+  body?: Record<string, unknown> | Record<string, string>;
 }): Promise<LotteonApiEnvelope> {
   if (!isIntegrationProxyConfigured()) {
     throw new Error('롯데ON API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.');
@@ -354,18 +408,190 @@ export async function fetchLotteonOrdersByStep(input: {
   return extractLotteonOrderList(envelope);
 }
 
-function dedupeLotteonOrders(orders: LotteonOrderRecord[]): LotteonOrderRecord[] {
-  const seen = new Set<string>();
-  const result: LotteonOrderRecord[] = [];
+export async function fetchLotteonProgressStatesByStep(input: {
+  credentials: LotteonCredentials;
+  odPrgsStepCd: string;
+  start: Date;
+  end: Date;
+}): Promise<LotteonOrderRecord[]> {
+  const envelope = await lotteonApiRequest({
+    credentials: input.credentials,
+    method: 'POST',
+    path: LOTTEON_DELIVERY_PROGRESS_SEARCH_PATH,
+    body: {
+      srchStrtDt: formatLotteonApiDateTime(input.start, 'start'),
+      srchEndDt: formatLotteonApiDateTime(input.end, 'end'),
+      odPrgsStepCd: input.odPrgsStepCd,
+    },
+  });
+  return extractLotteonOrderList(envelope);
+}
 
-  for (const order of orders) {
-    const key = `${order.odNo}|${order.odSeq}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(order);
+export async function fetchLotteonProgressStatesByOdNo(input: {
+  credentials: Pick<LotteonCredentials, 'apiKey'>;
+  odNo: string;
+}): Promise<LotteonOrderRecord[]> {
+  const envelope = await lotteonApiRequest({
+    credentials: input.credentials,
+    method: 'POST',
+    path: LOTTEON_DELIVERY_PROGRESS_SEARCH_PATH,
+    body: { odNo: input.odNo.trim() },
+  });
+  return extractLotteonOrderList(envelope);
+}
+
+export type LotteonIfCompleteItem = {
+  dvRtrvDvsCd: string;
+  odNo: string;
+  odSeq: string;
+  procSeq: string;
+  orglProcSeq?: string;
+  clmNo?: string;
+  ifCplYN: 'Y' | 'N';
+  ifFlRsnCnts?: string;
+};
+
+export async function postLotteonIfCompleteInform(input: {
+  credentials: Pick<LotteonCredentials, 'apiKey'>;
+  items: LotteonIfCompleteItem[];
+}): Promise<LotteonApiEnvelope> {
+  return lotteonApiRequest({
+    credentials: input.credentials,
+    method: 'POST',
+    path: LOTTEON_IF_COMPLETE_INFORM_PATH,
+    body: { ifCompleteList: input.items },
+  });
+}
+
+export type LotteonDeliveryProgressInformItem = {
+  dvRtrvDvsCd: string;
+  odNo: string;
+  odSeq: string;
+  procSeq: string;
+  orglProcSeq?: string;
+  clmNo?: string;
+  odPrgsStepCd: string;
+  dvTrcStatDttm: string;
+  invcNbr?: string;
+  dvCoCd?: string;
+  invcNo?: string;
+  spdNo: string;
+  sitmNo: string;
+  slQty: string;
+  spdNm?: string;
+};
+
+export async function postLotteonDeliveryProgressInform(input: {
+  credentials: Pick<LotteonCredentials, 'apiKey'>;
+  items: LotteonDeliveryProgressInformItem[];
+}): Promise<LotteonApiEnvelope> {
+  return lotteonApiRequest({
+    credentials: input.credentials,
+    method: 'POST',
+    path: LOTTEON_DELIVERY_PROGRESS_INFORM_PATH,
+    body: { deliveryProgressStateList: input.items },
+  });
+}
+
+/**
+ * 209·140 동일 라인 판별 키.
+ * 공식: odNo + odSeq + procSeq + 상품·단품(spdNo/sitmNo). clmNo는 클레임 라인 구분용.
+ */
+export function buildLotteonFetchLineKey(
+  order: Pick<LotteonOrderRecord, 'odNo' | 'odSeq' | 'procSeq' | 'spdNo' | 'sitmNo' | 'clmNo'>,
+): string {
+  return [
+    order.odNo.trim(),
+    order.odSeq.trim(),
+    (order.procSeq || '1').trim() || '1',
+    (order.spdNo || '').trim(),
+    (order.sitmNo || '').trim(),
+    (order.clmNo || '').trim(),
+  ].join('|');
+}
+
+/** 배송 진행단계 우선순위. 209가 11을 유지해도 140의 12+가 이기도록 한다. */
+export function lotteonProgressStepRank(step: string | null | undefined): number {
+  switch ((step ?? '').trim()) {
+    case '11':
+      return 10;
+    case '12':
+      return 20;
+    case '13':
+      return 30;
+    case '14':
+      return 40;
+    case '15':
+      return 50;
+    case '21':
+    case '22':
+    case '23':
+    case '24':
+    case '25':
+    case '26':
+    case '27':
+      return 60;
+    default:
+      return 0;
   }
+}
 
-  return result;
+function preferNonEmpty(primary: string, fallback: string): string {
+  return primary.trim() ? primary : fallback;
+}
+
+/**
+ * 동일 라인의 209·140 결과를 병합한다.
+ * 진행단계가 더 앞선 쪽을 우선하고, 빈 필드는 상대 쪽에서 보강한다.
+ */
+export function mergeLotteonOrderRecords(
+  existing: LotteonOrderRecord,
+  incoming: LotteonOrderRecord,
+): LotteonOrderRecord {
+  const preferIncoming =
+    lotteonProgressStepRank(incoming.odPrgsStepCd) >= lotteonProgressStepRank(existing.odPrgsStepCd);
+  const preferred = preferIncoming ? incoming : existing;
+  const other = preferIncoming ? existing : incoming;
+  return {
+    ...other,
+    ...preferred,
+    odPrgsStepCd: preferred.odPrgsStepCd || other.odPrgsStepCd,
+    odPrgsStepNm: preferred.odPrgsStepNm || other.odPrgsStepNm,
+    spdNo: preferNonEmpty(preferred.spdNo, other.spdNo),
+    sitmNo: preferNonEmpty(preferred.sitmNo, other.sitmNo),
+    pdNm: preferNonEmpty(preferred.pdNm, other.pdNm),
+    slQty: preferNonEmpty(preferred.slQty, other.slQty),
+    odQty: preferNonEmpty(preferred.odQty, other.odQty),
+    invcNo: preferNonEmpty(preferred.invcNo, other.invcNo),
+    dvCoCd: preferNonEmpty(preferred.dvCoCd, other.dvCoCd),
+    rcvrNm: preferNonEmpty(preferred.rcvrNm, other.rcvrNm),
+    rcvrPhone: preferNonEmpty(preferred.rcvrPhone, other.rcvrPhone),
+    rcvrZipNo: preferNonEmpty(preferred.rcvrZipNo, other.rcvrZipNo),
+    rcvrBaseAddr: preferNonEmpty(preferred.rcvrBaseAddr, other.rcvrBaseAddr),
+    rcvrDtlAddr: preferNonEmpty(preferred.rcvrDtlAddr, other.rcvrDtlAddr),
+    dlvMsg: preferNonEmpty(preferred.dlvMsg, other.dlvMsg),
+    odAmt: preferNonEmpty(preferred.odAmt, other.odAmt),
+    odCmptDttm: preferNonEmpty(preferred.odCmptDttm, other.odCmptDttm),
+    odAcptDttm: preferNonEmpty(preferred.odAcptDttm, other.odAcptDttm),
+    raw: preferred.raw ?? other.raw,
+  };
+}
+
+/**
+ * 209(출고/회수지시) + 140(배송상태) 목록을 라인 단위로 합친다.
+ * 동일 라인이 양쪽에 있으면 진행단계가 앞선 쪽(보통 140)을 채택해 11로 되돌리지 않는다.
+ */
+export function mergeLotteonFetchedOrderLists(
+  instructionOrders: LotteonOrderRecord[],
+  progressOrders: LotteonOrderRecord[],
+): LotteonOrderRecord[] {
+  const byKey = new Map<string, LotteonOrderRecord>();
+  for (const order of [...instructionOrders, ...progressOrders]) {
+    const key = buildLotteonFetchLineKey(order);
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? mergeLotteonOrderRecords(existing, order) : order);
+  }
+  return [...byKey.values()];
 }
 
 export async function fetchLotteonOrders(input: {
@@ -377,8 +603,10 @@ export async function fetchLotteonOrders(input: {
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
   const windows = buildLotteonDateWindows(start, end);
 
-  const collected: LotteonOrderRecord[] = [];
+  const instructionOrders: LotteonOrderRecord[] = [];
+  const progressOrders: LotteonOrderRecord[] = [];
 
+  // 209: 출고지시·회수지시. 연동완료 후에도 11로 남을 수 있음 → 단독 매핑 금지.
   for (const step of LOTTEON_ORDER_PROGRESS_STEP_CODES) {
     for (const window of windows) {
       const batch = await fetchLotteonOrdersByStep({
@@ -387,11 +615,25 @@ export async function fetchLotteonOrders(input: {
         start: window.start,
         end: window.end,
       });
-      collected.push(...batch);
+      instructionOrders.push(...batch);
     }
   }
 
-  return dedupeLotteonOrders(collected);
+  // 140: 현재 배송상태(12/13/14/15). 동일 라인은 이 상태를 우선.
+  // 공식 조회기간 최대 1일 → KST 달력일 창 분할. 페이지네이션 파라미터는 공식 미확정이라 미구현.
+  for (const step of LOTTEON_PROGRESS_STATE_STEP_CODES) {
+    for (const window of windows) {
+      const batch = await fetchLotteonProgressStatesByStep({
+        credentials: input.credentials,
+        odPrgsStepCd: step,
+        start: window.start,
+        end: window.end,
+      });
+      progressOrders.push(...batch);
+    }
+  }
+
+  return mergeLotteonFetchedOrderLists(instructionOrders, progressOrders);
 }
 
 export function extractLotteonIdentityData(envelope: LotteonApiEnvelope): LotteonIdentityData | null {

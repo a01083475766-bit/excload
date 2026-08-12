@@ -149,6 +149,21 @@ describe('real shipment transmission adapters', () => {
     expect(result.errorCode).toBe('NOT_CONFIGURED');
   });
 
+  it('registers LotteON live adapter (no longer PROVIDER_SPEC_INCOMPLETE stub)', async () => {
+    const adapter = registry({
+      loadAccount: async ({ provider }) => ({
+        ...account(provider),
+        apiKeyCiphertext: 'x',
+      }),
+    }).get('LOTTEON')!;
+
+    const result = await adapter.transmit(candidate({ provider: 'LOTTEON' }));
+
+    expect(result.success).toBe(false);
+    expect(result.errorCode).not.toBe('PROVIDER_SPEC_INCOMPLETE');
+    expect(result.errorCode).toBe('NOT_CONFIGURED');
+  });
+
   it('keeps cjonstyle deferred until official shipment endpoint is confirmed', async () => {
     const adapter = registry({
       loadAccount: async ({ provider }) => ({

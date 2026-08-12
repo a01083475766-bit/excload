@@ -14,7 +14,7 @@ export function isCoupangAcceptRow(
 }
 
 export function isRowHubEligible(row: Pick<CoupangFetchPanelRow, 'mallId' | 'hubEligible'>): boolean {
-  if (row.mallId === 'coupang') return row.hubEligible === true;
+  if (row.mallId === 'coupang' || row.mallId === 'lotteon') return row.hubEligible === true;
   return row.hubEligible !== false;
 }
 

@@ -199,7 +199,8 @@ export function isTransmissionVerifySupportedProvider(provider?: string | null):
     normalized === 'SMARTSTORE' ||
     normalized === 'CAFE24' ||
     normalized === 'ELEVEN' ||
-    normalized === 'DOMEGGOOK'
+    normalized === 'DOMEGGOOK' ||
+    normalized === 'LOTTEON'
   );
 }
 

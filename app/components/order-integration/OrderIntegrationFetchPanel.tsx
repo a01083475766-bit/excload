@@ -55,6 +55,12 @@ import {
 import { mergeDomeggookConfirmedOrdersIntoFetchResult } from '@/app/lib/domeggook/domeggook-confirm-merge';
 import type { DomeggookConfirmItemStatus } from '@/app/lib/domeggook/domeggook-confirm';
 import {
+  collectSelectedLotteonConfirmSelection,
+  isLotteonConfirmableRow,
+} from '@/app/lib/lotteon/lotteon-fetch-panel-logic';
+import { mergeLotteonConfirmedOrdersIntoFetchResult } from '@/app/lib/lotteon/lotteon-confirm-merge';
+import type { LotteonConfirmItemStatus } from '@/app/lib/lotteon/lotteon-confirm';
+import {
   EXCLOAD_ORDER_STATUS_LABEL,
   isClaimStatus,
   isShipmentTarget,
@@ -620,7 +626,7 @@ export default function OrderIntegrationFetchPanel() {
     if (rows.length === 0) {
       setNotice(
         matched.rows.length > 0
-          ? '담기 가능한 주문이 없습니다. 쿠팡은 상품준비중 처리·재조회가 완료된 주문만 담을 수 있습니다.'
+          ? '담기 가능한 주문이 없습니다. 발주확인(연동완료) 전 주문과 취소·반품·교환 주문은 미리보기에 담을 수 없습니다.'
           : emptyMessage,
       );
       return;
@@ -743,6 +749,35 @@ export default function OrderIntegrationFetchPanel() {
 
   const hasDomeggookConfirmableRows = useMemo(
     () => allDisplayRows.some((row) => isDomeggookConfirmableRow(row)),
+    [allDisplayRows],
+  );
+
+  const lotteonConfirmRows = useMemo(() => {
+    if (!results) return [];
+    return filteredRows.map((row) => {
+      const mall = results.find(
+        (m) => m.mallId === row.mallId && m.accountId === row.accountId,
+      );
+      const standard = mall?.rows[row.rowIndex];
+      return {
+        ...row,
+        procSeq: String(standard?.['출고번호'] ?? '').trim() || undefined,
+        dvRtrvDvsCd: String(standard?.['출고타입'] ?? '').trim() || undefined,
+        odTypCd: String(standard?.['관리상품번호'] ?? '').trim() || undefined,
+      };
+    });
+  }, [filteredRows, results]);
+
+  const selectedLotteonConfirmSelection = useMemo(
+    () => collectSelectedLotteonConfirmSelection(lotteonConfirmRows, selectedRowKeys, rowKey),
+    [lotteonConfirmRows, selectedRowKeys],
+  );
+  const selectedLotteonConfirmCount = selectedLotteonConfirmSelection.ok
+    ? selectedLotteonConfirmSelection.items.length
+    : 0;
+
+  const hasLotteonConfirmableRows = useMemo(
+    () => allDisplayRows.some((row) => isLotteonConfirmableRow(row)),
     [allDisplayRows],
   );
 
@@ -1127,6 +1162,104 @@ export default function OrderIntegrationFetchPanel() {
       setSelectedRowKeys(new Set());
     } catch {
       setConfirmNotice('발주확인 처리 중 오류가 발생했습니다.');
+    } finally {
+      setConfirmingPlaceOrders(false);
+    }
+  };
+
+  const runLotteonConfirm = async () => {
+    if (acknowledging || confirmingPlaceOrders) return;
+    if (!selectedLotteonConfirmSelection.ok) {
+      setConfirmNotice(
+        selectedLotteonConfirmSelection.reason === 'MIXED_ACCOUNTS'
+          ? '계정을 정확히 선택할 수 없어 처리하지 않았습니다. 같은 롯데ON 계정 주문만 선택해 주세요.'
+          : selectedLotteonConfirmSelection.reason === 'MISSING_IDS'
+            ? '주문번호·단품순번이 없어 연동완료 통보를 할 수 없습니다. 주문을 다시 조회해 주세요.'
+            : '연동완료 통보할 롯데ON 출고지시 주문을 선택해 주세요.',
+      );
+      return;
+    }
+    const { accountId, items } = selectedLotteonConfirmSelection;
+    const confirmed = window.confirm(
+      `선택한 ${items.length}건을 롯데ON 연동완료 통보합니다.\n출고지시 → 상품준비로 전환됩니다.\n계속하시겠습니까?`,
+    );
+    if (!confirmed) return;
+
+    setConfirmingPlaceOrders(true);
+    setConfirmNotice(null);
+    setConfirmItemMessages({});
+
+    try {
+      const res = await fetch('/api/order/integration/lotteon/confirm-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, items }),
+        cache: 'no-store',
+      });
+      const data = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        summary?: {
+          requested: number;
+          confirmed: number;
+          alreadyConfirmed: number;
+          failed: number;
+          skipped: number;
+          needsCheck?: number;
+        };
+        results?: Array<{
+          productOrderNo: string;
+          status: LotteonConfirmItemStatus;
+          message: string;
+        }>;
+      };
+
+      if (!res.ok && !data.results?.length) {
+        setConfirmNotice(data.error || '연동완료 통보에 실패했습니다.');
+        return;
+      }
+
+      const itemMessages: Record<string, string> = {};
+      for (const row of data.results ?? []) {
+        itemMessages[row.productOrderNo] = row.message;
+      }
+      setConfirmItemMessages(itemMessages);
+
+      const summaryParts: string[] = [];
+      if (data.summary) {
+        summaryParts.push(`완료 ${data.summary.confirmed}건`);
+        summaryParts.push(`이미 확인 ${data.summary.alreadyConfirmed}건`);
+        summaryParts.push(`실패 ${data.summary.failed}건`);
+        summaryParts.push(`대상 아님 ${data.summary.skipped}건`);
+        if ((data.summary.needsCheck ?? 0) > 0) {
+          summaryParts.push(`확인 필요 ${data.summary.needsCheck}건`);
+        }
+      }
+      if (!data.success && ((data.summary?.failed ?? 0) > 0 || (data.summary?.needsCheck ?? 0) > 0)) {
+        summaryParts.unshift('일부 미완료');
+      }
+      setConfirmNotice(
+        summaryParts.length > 0
+          ? summaryParts.join(' · ')
+          : data.error || '연동완료 통보에 실패했습니다.',
+      );
+
+      if (results && data.results?.length) {
+        setResults(
+          results.map((mall) => {
+            if (mall.mallId !== 'lotteon' || !mall.ok) return mall;
+            const merged = mergeLotteonConfirmedOrdersIntoFetchResult({
+              rows: mall.rows,
+              views: mall.views,
+              results: data.results ?? [],
+            });
+            return { ...mall, rows: merged.rows, views: merged.views };
+          }),
+        );
+      }
+      setSelectedRowKeys(new Set());
+    } catch {
+      setConfirmNotice('연동완료 통보 중 오류가 발생했습니다.');
     } finally {
       setConfirmingPlaceOrders(false);
     }
@@ -1588,6 +1721,29 @@ export default function OrderIntegrationFetchPanel() {
                       : ''}
                   </button>
                 ) : null}
+                {hasLotteonConfirmableRows ? (
+                  <button
+                    type="button"
+                    disabled={
+                      confirmingPlaceOrders ||
+                      acknowledging ||
+                      selectedLotteonConfirmCount === 0
+                    }
+                    onClick={() => void runLotteonConfirm()}
+                    className={`${
+                      hasCoupangAcceptRows ||
+                      hasSmartstorePlaceOrderNotYetRows ||
+                      hasElevenConfirmableRows ||
+                      hasDomeggookConfirmableRows
+                        ? ''
+                        : 'ml-auto '
+                    }inline-flex h-8 items-center justify-center gap-1 rounded-md border border-amber-600 bg-white px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50`}
+                  >
+                    {confirmingPlaceOrders ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    롯데ON 연동완료 통보
+                    {selectedLotteonConfirmCount > 0 ? ` (${selectedLotteonConfirmCount})` : ''}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={toggleSelectAllFiltered}
@@ -1595,7 +1751,8 @@ export default function OrderIntegrationFetchPanel() {
                     hasCoupangAcceptRows ||
                     hasSmartstorePlaceOrderNotYetRows ||
                     hasElevenConfirmableRows ||
-                    hasDomeggookConfirmableRows
+                    hasDomeggookConfirmableRows ||
+                    hasLotteonConfirmableRows
                       ? ''
                       : 'ml-auto'
                   }`}

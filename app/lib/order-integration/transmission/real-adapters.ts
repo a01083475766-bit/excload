@@ -43,6 +43,8 @@ import {
   resolveDomeggookApiOrderNoFromCandidate,
   runDomeggookInvoiceTransmission,
 } from '@/app/lib/domeggook/domeggook-invoice';
+import { toLotteonCredentials } from '@/app/lib/order-integration/lotteon-account';
+import { runLotteonInvoiceTransmission } from '@/app/lib/lotteon/lotteon-invoice';
 import { decryptIntegrationSecret } from '@/app/lib/order-integration/encryption';
 import { createShipmentTransmissionAdapterRegistry } from '@/app/lib/order-integration/transmission/adapter-registry';
 import { evaluateLiveTransmitAccountStatus } from '@/app/lib/order-integration/transmission/live-transmit-guard';
@@ -156,11 +158,6 @@ function rejectIfAccountNotActiveForLiveTransmit(input: {
 }
 
 const DEFERRED_SPECS: ProviderDeferredSpec[] = [
-  {
-    provider: 'LOTTEON',
-    missingInfo:
-      'invoice registration endpoint and body fields are not present in the existing LotteON order client/spec.',
-  },
   {
     provider: 'SSG',
     missingInfo: 'invoice save endpoint and field names are not present in the existing SSG order client/spec.',
@@ -886,6 +883,91 @@ function createCafe24LiveAdapter(
   };
 }
 
+function createLotteonLiveAdapter(
+  options: CreateRealShipmentTransmissionAdaptersOptions,
+): ShipmentTransmissionAdapter {
+  return {
+    provider: 'LOTTEON',
+    buildPayload(candidate: ShipmentTransmissionCandidate) {
+      return {
+        provider: 'LOTTEON',
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds,
+        trackingNumber: candidate.trackingNumber,
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+      };
+    },
+    async transmit(candidate): Promise<ShipmentTransmissionAdapterResult> {
+      const account = await options.loadAccount({
+        userId: options.userId,
+        accountId: candidate.integrationAccountId,
+        provider: 'LOTTEON',
+      });
+      if (!account) {
+        return buildFailure({
+          provider: 'LOTTEON',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account is not connected.',
+        });
+      }
+
+      const inactive = rejectIfAccountNotActiveForLiveTransmit({
+        provider: 'LOTTEON',
+        matchId: candidate.matchId,
+        status: account.status,
+      });
+      if (inactive) return inactive;
+
+      let credentials;
+      try {
+        credentials = toLotteonCredentials(account);
+      } catch {
+        return buildFailure({
+          provider: 'LOTTEON',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account credentials are not configured.',
+        });
+      }
+      if (!credentials.apiKey?.trim()) {
+        return buildFailure({
+          provider: 'LOTTEON',
+          matchId: candidate.matchId,
+          errorCode: 'NOT_CONFIGURED',
+          errorMessage: 'Integration account credentials are not configured.',
+        });
+      }
+
+      const result = await runLotteonInvoiceTransmission({
+        credentials,
+        mallOrderNo: candidate.mallOrderNo,
+        mallLineItemIds: candidate.mallLineItemIds ?? [],
+        courierCode: candidate.courierCode,
+        courierName: candidate.courierName,
+        trackingNumber: candidate.trackingNumber,
+      });
+
+      return {
+        success: result.success,
+        provider: 'LOTTEON',
+        matchId: candidate.matchId,
+        providerRequestId: result.providerRequestId,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        retryable: result.retryable,
+        responseSummary: {
+          httpStatus: result.responseSummary.httpStatus,
+          providerStatusCode: result.responseSummary.providerStatusCode,
+          message: result.responseSummary.message,
+        },
+        outcomeKind: result.outcomeKind,
+      };
+    },
+  };
+}
+
 export function createRealShipmentTransmissionAdapters(
   options: CreateRealShipmentTransmissionAdaptersOptions,
 ): ShipmentTransmissionAdapter[] {
@@ -895,6 +977,7 @@ export function createRealShipmentTransmissionAdapters(
     createCafe24LiveAdapter(options),
     createElevenLiveAdapter(options),
     createDomeggookLiveAdapter(options),
+    createLotteonLiveAdapter(options),
     ...DEFERRED_SPECS.map((spec) => createDeferredAdapter(spec, options)),
   ];
 }

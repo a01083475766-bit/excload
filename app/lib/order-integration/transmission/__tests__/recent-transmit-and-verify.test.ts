@@ -20,6 +20,7 @@ import {
   runVerifyTransmissionService,
   type VerifyTransmissionAttemptRecord,
 } from '@/app/lib/order-integration/transmission/verify-transmission-status';
+import { buildLotteonLineKey } from '@/app/lib/lotteon/lotteon-ids';
 
 describe('buildRecentTransmitResultView', () => {
   it('normalizes success/fail/skip and joins display lookup without PII columns', () => {
@@ -246,8 +247,8 @@ describe('buildRecentTransmitResultView', () => {
         summary: { requestedCount: 1, successCount: 1, failureCount: 0, skippedCount: 0 },
         results: [
           {
-            matchId: 'm-lo',
-            attemptId: 'a-lo',
+            matchId: 'm-ssg',
+            attemptId: 'a-ssg',
             attempted: true,
             previousStatus: 'READY',
             nextStatus: 'SENT',
@@ -260,7 +261,7 @@ describe('buildRecentTransmitResultView', () => {
           },
         ],
       },
-      displayRows: [{ matchId: 'm-lo', providerLabel: 'LOTTEON', mallOrderNo: 'L-1' }],
+      displayRows: [{ matchId: 'm-ssg', providerLabel: 'SSG', mallOrderNo: 'S-1' }],
     });
 
     expect(view?.results[0]?.verificationStatus).toBe('UNSUPPORTED');
@@ -294,6 +295,34 @@ describe('buildRecentTransmitResultView', () => {
 
     expect(view?.results[0]?.verificationStatus).toBeNull();
     expect(collectVerifiableAttemptIds(view!.results)).toEqual(['a-11']);
+  });
+
+  it('marks LotteON success as verifiable (not UNSUPPORTED)', () => {
+    const view = buildRecentTransmitResultView({
+      body: {
+        batchId: 'batch-lo',
+        summary: { requestedCount: 1, successCount: 1, failureCount: 0, skippedCount: 0 },
+        results: [
+          {
+            matchId: 'm-lo',
+            attemptId: 'a-lo',
+            attempted: true,
+            previousStatus: 'READY',
+            nextStatus: 'SENT',
+            success: true,
+            retryable: false,
+            errorCode: null,
+            errorMessage: null,
+            providerRequestId: null,
+            requiresRetryPreparation: false,
+          },
+        ],
+      },
+      displayRows: [{ matchId: 'm-lo', provider: 'LOTTEON', providerLabel: '롯데ON', mallOrderNo: 'L-1' }],
+    });
+
+    expect(view?.results[0]?.verificationStatus).toBeNull();
+    expect(collectVerifiableAttemptIds(view!.results)).toEqual(['a-lo']);
   });
 });
 
@@ -399,12 +428,12 @@ describe('runVerifyTransmissionService', () => {
             orderSyncOrder: { mallLineItemIds: ['PO-1'], normalizedPayloadJson: null },
           },
           {
-            id: 'a-lo',
+            id: 'a-ssg',
             userId: 'u1',
             uploadBatchId: 'b1',
-            shipmentMatchId: 'm-lo',
-            provider: 'LOTTEON',
-            integrationAccountId: 'acc-lo',
+            shipmentMatchId: 'm-ssg',
+            provider: 'SSG',
+            integrationAccountId: 'acc-ssg',
             status: 'SUCCESS',
             mallOrderNo: 'ORD-2',
             mallLineItemIdsJson: ['X'],
@@ -428,16 +457,94 @@ describe('runVerifyTransmissionService', () => {
         ],
         now: () => new Date('2026-07-21T06:00:00.000Z'),
       },
-      { userId: 'u1', batchId: 'b1', attemptIds: ['a-ss', 'a-lo', 'missing'] },
+      { userId: 'u1', batchId: 'b1', attemptIds: ['a-ss', 'a-ssg', 'missing'] },
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.body.results).toEqual([
       expect.objectContaining({ attemptId: 'a-ss', status: 'CONFIRMED' }),
-      expect.objectContaining({ attemptId: 'a-lo', status: 'UNSUPPORTED' }),
+      expect.objectContaining({ attemptId: 'a-ssg', status: 'UNSUPPORTED' }),
       expect.objectContaining({ attemptId: 'missing', status: 'CHECK_FAILED' }),
     ]);
+  });
+
+  it('confirms LotteON dispatch when progress search returns step 13 and matching invoice', async () => {
+    const lineKey = buildLotteonLineKey({
+      odNo: 'OM1',
+      odSeq: '1',
+      procSeq: '1',
+      spdNo: 'SP',
+      sitmNo: 'SI',
+      dvRtrvDvsCd: 'DV',
+      odTypCd: '10',
+      slQty: '1',
+      clmNo: '',
+      odPrgsStepCd: '12',
+    });
+    const result = await runVerifyTransmissionService(
+      {
+        findAttempts: async () => [
+          {
+            id: 'a-lo',
+            userId: 'u1',
+            uploadBatchId: 'b1',
+            shipmentMatchId: 'm-lo',
+            provider: 'LOTTEON',
+            integrationAccountId: 'acc-lo',
+            status: 'SUCCESS',
+            mallOrderNo: 'OM1',
+            mallLineItemIdsJson: [lineKey],
+            trackingNumberNormalized: '123456789012',
+            courierCode: 'CJ',
+            orderSyncOrder: { mallLineItemIds: [lineKey], normalizedPayloadJson: null },
+          },
+        ],
+        loadAccount: async () => ({ id: 'acc-lo' }) as never,
+        resolveLotteonCredentials: () => ({ apiKey: 'k', trNo: 'LO1' }),
+        fetchLotteonProgressByOdNo: async () =>
+          [
+            {
+              odNo: 'OM1',
+              odSeq: '1',
+              procSeq: '1',
+              orglProcSeq: '',
+              clmNo: '',
+              odPrgsStepCd: '13',
+              odPrgsStepNm: '발송완료',
+              dvRtrvDvsCd: 'DV',
+              odTypCd: '10',
+              odTypDtlCd: '',
+              spdNo: 'SP',
+              sitmNo: 'SI',
+              pdNm: '',
+              odQty: '1',
+              slQty: '1',
+              odCmptDttm: '',
+              odAcptDttm: '',
+              rcvrNm: '',
+              rcvrPhone: '',
+              rcvrZipNo: '',
+              rcvrBaseAddr: '',
+              rcvrDtlAddr: '',
+              dlvMsg: '',
+              odAmt: '',
+              invcNo: '123456789012',
+              dvCoCd: '0002',
+              raw: {},
+            },
+          ] as never,
+      },
+      { userId: 'u1', batchId: 'b1', attemptIds: ['a-lo'] },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.results[0]).toMatchObject({
+      attemptId: 'a-lo',
+      status: 'CONFIRMED',
+      mallStatusLabel: '발송완료',
+    });
   });
 
   it('never calls transmitted-order PII clear helpers', async () => {

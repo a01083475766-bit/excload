@@ -247,8 +247,8 @@ export function LotteonIntegrationForm({
       )}
 {!embedded ? (
       <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-        API KEY 저장 후 연결 테스트(Identity)를 진행할 수 있습니다. 실제 주문 조회·수집(출고지시·상품준비)은 주문연동
-        화면에서 진행합니다. 발주확인·송장 전송·상태 변경은 포함하지 않습니다.
+        API KEY 저장 후 연결 테스트(Identity)를 진행할 수 있습니다. 실제 주문 조회·연동완료 통보(발주확인)·송장 전송은 주문연동
+        화면에서 진행합니다.
       </p>      ) : (
         <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
       )}
