@@ -29,8 +29,9 @@ export type OrderIntegrationMall = {
 
 /**
  * 연동 설정·주문조회에 노출하는 몰 목록.
- * available만 UI 버튼/상태표에 표시. 순서는 priority(작을수록 앞).
- * 실계정으로 확인한 몰만 available로 유지한다.
+ * - available: 선택·설정 가능 (실계정 확인된 몰)
+ * - preparing: 목록 하단에 「준비중」으로 표시, 클릭 불가
+ * 순서는 priority(작을수록 앞).
  */
 export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
   {
@@ -81,14 +82,13 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     badge: 'beta',
     priority: 6,
   },
-  // 아래는 실계정 검증 전이므로 connect UI에서 숨김(preparing).
+  // 아래는 실계정 검증 전 — UI에는 「준비중」으로만 노출하고 클릭 불가.
   {
     id: 'ssg',
     name: 'SSG.COM',
     description: 'SSG Open API로 배송지시·출고대상 주문을 조회·수집합니다. (준비 중)',
     status: 'preparing',
-    badge: 'beta',
-    preparingLabel: '준비 중',
+    preparingLabel: '준비중',
     priority: 20,
   },
   {
@@ -96,8 +96,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     name: 'CJ온스타일',
     description: 'CJ온스타일 표준 API로 배송타입별 주문을 조회·수집합니다. (준비 중)',
     status: 'preparing',
-    badge: 'beta',
-    preparingLabel: '준비 중',
+    preparingLabel: '준비중',
     priority: 21,
   },
   {
@@ -105,8 +104,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     name: 'NHN커머스/샵바이',
     description: '샵바이 Server API로 주문을 조회·수집합니다. (준비 중)',
     status: 'preparing',
-    badge: 'beta',
-    preparingLabel: '준비 중',
+    preparingLabel: '준비중',
     priority: 22,
   },
   {
@@ -114,8 +112,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     name: '고도몰',
     description: '고도몰5 Open API(Order_Search)로 주문을 조회·수집합니다. (준비 중)',
     status: 'preparing',
-    badge: 'beta',
-    preparingLabel: '준비 중',
+    preparingLabel: '준비중',
     priority: 23,
   },
   {
@@ -123,8 +120,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     name: '메이크샵',
     description: '메이크샵 APP API(주문 2.0)로 주문을 조회·수집합니다. (준비 중)',
     status: 'preparing',
-    badge: 'beta',
-    preparingLabel: '준비 중',
+    preparingLabel: '준비중',
     priority: 24,
   },
   {
@@ -132,7 +128,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     name: 'G마켓/옥션',
     description: 'ESM 셀링툴 제휴 승인 후 연동 예정입니다.',
     status: 'preparing',
-    preparingLabel: '제휴 준비 중',
+    preparingLabel: '준비중',
     priority: 30,
   },
 ];

@@ -165,6 +165,10 @@ export default function OrderIntegrationPanel() {
     () => ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'available'),
     []
   );
+  const preparingMalls = useMemo(
+    () => ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'preparing'),
+    []
+  );
 
   const selectedMall =
     selectedMallId === 'all' ? null : availableMalls.find((m) => m.id === selectedMallId) ?? null;
@@ -342,6 +346,21 @@ export default function OrderIntegrationPanel() {
               </button>
             );
           })}
+          {preparingMalls.map((mall) => (
+            <button
+              key={mall.id}
+              type="button"
+              disabled
+              aria-disabled="true"
+              title={`${mall.name} (준비중)`}
+              className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-1 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm font-medium text-zinc-400"
+            >
+              <span className="truncate">{mall.name}</span>
+              <span className="shrink-0 text-[11px] text-zinc-400">
+                {mall.preparingLabel ?? '준비중'}
+              </span>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -407,7 +426,7 @@ export default function OrderIntegrationPanel() {
                   <tr key={row.mallId} className={row.isPreparing ? 'text-zinc-400' : ''}>
                     <td className="px-4 py-2.5 font-medium text-zinc-900">
                       <span className={row.isPreparing ? 'text-zinc-500' : ''}>{row.name}</span>
-                      {row.badge === 'beta' && !row.connected ? (
+                      {row.badge === 'beta' && !row.connected && !row.isPreparing ? (
                         <span className="ml-1.5 text-[11px] text-zinc-400">베타</span>
                       ) : null}
                     </td>
@@ -426,7 +445,7 @@ export default function OrderIntegrationPanel() {
                     <td className="px-4 py-2.5 text-zinc-600">{row.accountName ?? '-'}</td>
                     <td className="px-4 py-2.5 text-right">
                       {row.action === 'none' ? (
-                        <span className="text-xs text-zinc-400">준비 중</span>
+                        <span className="text-xs text-zinc-400">-</span>
                       ) : (
                         <button
                           type="button"
@@ -447,7 +466,7 @@ export default function OrderIntegrationPanel() {
             </table>
           </div>
           <p className="mt-2 text-xs text-zinc-500">
-            파란 배경 버튼은 현재 선택된 쇼핑몰을 뜻하고, ‘설정됨’은 연동 정보가 저장된 상태를 뜻합니다. 실제 API 연결은 주문조회에서 확인합니다.
+            파란 배경 버튼은 현재 선택된 쇼핑몰입니다. ‘설정됨’은 연동 정보가 저장된 상태이고, ‘준비중’은 아직 선택할 수 없습니다.
           </p>
         </section>
       ) : null}
