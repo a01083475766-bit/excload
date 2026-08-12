@@ -21,6 +21,7 @@ export type IntegrationHttpRequest = {
 export type IntegrationHttpResult = {
   httpStatus: number;
   bodyText: string;
+  contentType?: string | null;
 };
 
 type IntegrationProxyInvokeBody = {
@@ -34,6 +35,7 @@ type IntegrationProxyInvokeResponse = {
   ok: boolean;
   httpStatus: number;
   bodyText: string;
+  contentType?: string | null;
   error?: string;
 };
 
@@ -94,10 +96,20 @@ export async function invokeIntegrationHttp(
     const responseText = await response.text();
 
     if (!response.ok) {
-      return {
-        httpStatus: response.status,
-        bodyText: responseText,
-      };
+      try {
+        const failed = JSON.parse(responseText) as IntegrationProxyInvokeResponse;
+        return {
+          httpStatus: failed.httpStatus || response.status,
+          bodyText: failed.bodyText || failed.error || responseText,
+          contentType: failed.contentType ?? response.headers.get('content-type'),
+        };
+      } catch {
+        return {
+          httpStatus: response.status,
+          bodyText: responseText,
+          contentType: response.headers.get('content-type'),
+        };
+      }
     }
 
     let wrapped: IntegrationProxyInvokeResponse;
@@ -111,12 +123,14 @@ export async function invokeIntegrationHttp(
       return {
         httpStatus: wrapped.httpStatus || 502,
         bodyText: wrapped.bodyText || wrapped.error || '고정 IP 프록시 호출에 실패했습니다.',
+        contentType: wrapped.contentType ?? null,
       };
     }
 
     return {
       httpStatus: wrapped.httpStatus,
       bodyText: wrapped.bodyText,
+      contentType: wrapped.contentType ?? null,
     };
   } catch (error) {
     if (error instanceof IntegrationProxyError) throw error;

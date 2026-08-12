@@ -4,19 +4,105 @@ import {
   isIntegrationProxyHostAllowed,
 } from '@/app/lib/integration-proxy/allowed-domains';
 import {
+  buildLotteonRequestHeaders,
+  extractLotteonIdentityData,
   extractLotteonOrderList,
+  interpretLotteonHttpResponse,
+  LOTTEON_IDENTITY_PATH,
+  LOTTEON_SELLER_DELIVERY_ORDER_SEARCH_PATH,
   parseLotteonApiResponse,
 } from '@/app/lib/lotteon/client';
 import { mapLotteonOrdersToPreviewRows } from '@/app/lib/lotteon/map-lotteon-orders';
+import { getAllowedHostnames } from '../../../services/coupang-proxy/allowed-hosts.mjs';
 
 describe('integration proxy — lotteon host', () => {
   it('allows openapi.lotteon.com over https', () => {
     expect(isIntegrationProxyHostAllowed('openapi.lotteon.com')).toBe(true);
     expect(() =>
       assertIntegrationProxyUrlAllowed(
-        'https://openapi.lotteon.com/v1/openapi/delivery/v1/SellerDeliveryOrderSearch?Key=test',
+        `https://openapi.lotteon.com${LOTTEON_IDENTITY_PATH}`,
       ),
     ).not.toThrow();
+    expect(() =>
+      assertIntegrationProxyUrlAllowed(
+        `https://openapi.lotteon.com${LOTTEON_SELLER_DELIVERY_ORDER_SEARCH_PATH}`,
+      ),
+    ).not.toThrow();
+  });
+
+  it('lists openapi.lotteon.com in Lightsail allowed-hosts', () => {
+    expect(getAllowedHostnames()).toContain('openapi.lotteon.com');
+  });
+});
+
+describe('buildLotteonRequestHeaders', () => {
+  it('uses Bearer Authorization and common Accept headers', () => {
+    expect(buildLotteonRequestHeaders('secret-key')).toEqual({
+      Authorization: 'Bearer secret-key',
+      Accept: 'application/json',
+      'Accept-Language': 'ko',
+      'X-Timezone': 'GMT+09:00',
+    });
+  });
+});
+
+describe('interpretLotteonHttpResponse', () => {
+  it('maps 401 to auth key error before parsing', () => {
+    expect(() =>
+      interpretLotteonHttpResponse({ httpStatus: 401, bodyText: 'unauthorized', contentType: 'text/plain' }),
+    ).toThrow(/인증키 오류/);
+  });
+
+  it('maps 403 to IP mismatch message before parsing', () => {
+    expect(() =>
+      interpretLotteonHttpResponse({ httpStatus: 403, bodyText: 'forbidden', contentType: 'text/plain' }),
+    ).toThrow(/고정 IP\(54\.180\.45\.46\)/);
+  });
+
+  it('detects proxy domain rejection', () => {
+    expect(() =>
+      interpretLotteonHttpResponse({
+        httpStatus: 502,
+        bodyText: 'domain not allowed',
+        contentType: 'text/plain',
+      }),
+    ).toThrow(/프록시에서 롯데ON 도메인/);
+  });
+
+  it('detects empty body', () => {
+    expect(() => interpretLotteonHttpResponse({ httpStatus: 200, bodyText: '  ' })).toThrow(/비어 있습니다/);
+  });
+
+  it('detects HTML body', () => {
+    expect(() =>
+      interpretLotteonHttpResponse({
+        httpStatus: 404,
+        bodyText: '<html><body>Not Found</body></html>',
+        contentType: 'text/html',
+      }),
+    ).toThrow(/HTML을 반환/);
+  });
+
+  it('detects non-json body', () => {
+    expect(() =>
+      interpretLotteonHttpResponse({
+        httpStatus: 200,
+        bodyText: 'not-json',
+        contentType: 'application/json',
+      }),
+    ).toThrow(/JSON 형식이 아닙니다/);
+  });
+
+  it('parses successful identity payload', () => {
+    const envelope = interpretLotteonHttpResponse({
+      httpStatus: 200,
+      bodyText: JSON.stringify({
+        returnCode: '0000',
+        data: { trNo: 'LO10178207', trNm: '테스트' },
+      }),
+      contentType: 'application/json',
+    });
+    expect(extractLotteonIdentityData(envelope)?.trNo).toBe('LO10178207');
   });
 });
 

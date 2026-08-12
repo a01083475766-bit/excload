@@ -5,11 +5,17 @@ import { invokeIntegrationHttp } from '@/app/lib/integration-proxy/http-transpor
 export const LOTTEON_API_ORIGIN = 'https://openapi.lotteon.com';
 
 /**
- * 판매자 배송주문조회 (롯데ON API 센터 apiNo=100)
- * POST + Query Key + JSON body (tr_no, srchStrtDt, srchEndDt, odPrgsStepCd)
+ * OpenAPI 토큰 Identity 조회 (롯데ON API 센터 apiNo=207)
+ * GET — 요청 파라미터 없음. 연결 테스트용.
+ */
+export const LOTTEON_IDENTITY_PATH = '/v1/openapi/common/v1/identity';
+
+/**
+ * 판매자 배송주문조회 (출고/회수지시) — 공식 경로 SellerDeliveryOrdersSearch
+ * POST + Bearer + JSON body (tr_no, srchStrtDt, srchEndDt, odPrgsStepCd)
  */
 export const LOTTEON_SELLER_DELIVERY_ORDER_SEARCH_PATH =
-  '/v1/openapi/delivery/v1/SellerDeliveryOrderSearch';
+  '/v1/openapi/delivery/v1/SellerDeliveryOrdersSearch';
 
 /** 출고지시(신규주문) · 상품준비 — 1차 수집 대상 */
 export const LOTTEON_ORDER_PROGRESS_STEP_CODES = ['11', '12'] as const;
@@ -18,6 +24,7 @@ export type LotteonOrderProgressStepCode = (typeof LOTTEON_ORDER_PROGRESS_STEP_C
 
 export type LotteonCredentials = {
   apiKey: string;
+  /** 주문 조회 API body용. Identity 연결 테스트에는 불필요. */
   trNo: string;
   /** 선택 Shop ID — lrtr_no 등 하위 거래처 식별에 사용 */
   shopId?: string;
@@ -40,6 +47,13 @@ export type LotteonOrderRecord = {
   dlvMsg: string;
   odAmt: string;
   raw: Record<string, unknown>;
+};
+
+export type LotteonIdentityData = {
+  trGrpCd?: string;
+  trDvsCd?: string;
+  trNo?: string;
+  trNm?: string;
 };
 
 type LotteonApiEnvelope = {
@@ -69,7 +83,36 @@ function pickString(record: Record<string, unknown>, keys: string[]): string {
   return '';
 }
 
-function normalizeLotteonOrderRecord(raw: Record<string, unknown>): LotteonOrderRecord | null {
+/** 공식 FAQ: Authorization Bearer + 공통 Accept 계열 헤더 */
+export function buildLotteonRequestHeaders(apiKey: string, extra?: Record<string, string>): Record<string, string> {
+  return {
+    Authorization: `Bearer ${apiKey.trim()}`,
+    Accept: 'application/json',
+    'Accept-Language': 'ko',
+    'X-Timezone': 'GMT+09:00',
+    ...(extra ?? {}),
+  };
+}
+
+function looksLikeHtml(bodyText: string, contentType?: string | null): boolean {
+  const type = (contentType ?? '').toLowerCase();
+  if (type.includes('text/html') || type.includes('application/xhtml')) return true;
+  const trimmed = bodyText.trim();
+  return /^<!doctype html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed);
+}
+
+function looksLikeProxyRejection(bodyText: string): boolean {
+  const text = bodyText.toLowerCase();
+  return (
+    text.includes('domain not allowed') ||
+    text.includes('port not allowed') ||
+    text.includes('invalid url') ||
+    text.includes('고정 ip 프록시에서') ||
+    text.includes('프록시에서 롯데on')
+  );
+}
+
+export function normalizeLotteonOrderRecord(raw: Record<string, unknown>): LotteonOrderRecord | null {
   const odNo = pickString(raw, ['odNo', 'od_no', 'orderNo']);
   if (!odNo) return null;
 
@@ -127,7 +170,7 @@ export function parseLotteonApiResponse(bodyText: string): LotteonApiEnvelope {
   try {
     return JSON.parse(bodyText) as LotteonApiEnvelope;
   } catch {
-    throw new Error('롯데ON API 응답 JSON 파싱에 실패했습니다.');
+    throw new Error('롯데ON API 응답이 JSON 형식이 아닙니다.');
   }
 }
 
@@ -142,17 +185,58 @@ function assertLotteonApiSuccess(envelope: LotteonApiEnvelope, httpStatus: numbe
     return;
   }
 
-  if (httpStatus === 401 || httpStatus === 403) {
-    throw new Error('롯데ON API KEY 인증에 실패했습니다. Key·IP 등록·tr_no를 확인해 주세요.');
-  }
-
   throw new Error(`롯데ON API 호출에 실패했습니다. (HTTP ${httpStatus})`);
 }
 
-function buildLotteonUrl(path: string, apiKey: string): string {
-  const url = new URL(`${LOTTEON_API_ORIGIN}${path}`);
-  url.searchParams.set('Key', apiKey.trim());
-  return url.toString();
+/**
+ * HTTP status / content-type / 본문 존재 여부를 JSON 파싱 전에 검사한다.
+ * 인증키·개인정보가 포함된 본문은 로그하지 않는다.
+ */
+export function interpretLotteonHttpResponse(input: {
+  httpStatus: number;
+  bodyText: string;
+  contentType?: string | null;
+}): LotteonApiEnvelope {
+  const httpStatus = input.httpStatus;
+  const bodyText = input.bodyText ?? '';
+  const trimmed = bodyText.trim();
+  const contentType = input.contentType ?? null;
+
+  if (httpStatus === 401) {
+    throw new Error('롯데ON API 인증키 오류입니다. OpenAPI 인증키를 확인해 주세요.');
+  }
+
+  if (httpStatus === 403) {
+    throw new Error(
+      '롯데ON API 접근이 거부되었습니다. 엑클로드 고정 IP(54.180.45.46) 등록이 일치하는지 확인해 주세요.',
+    );
+  }
+
+  if (looksLikeProxyRejection(trimmed)) {
+    throw new Error(
+      '고정 IP 프록시에서 롯데ON 도메인(openapi.lotteon.com) 호출이 거부되었습니다. 관리자에게 문의해 주세요.',
+    );
+  }
+
+  if (!trimmed) {
+    throw new Error(`롯데ON API 응답이 비어 있습니다. (HTTP ${httpStatus})`);
+  }
+
+  if (looksLikeHtml(trimmed, contentType)) {
+    throw new Error(
+      `롯데ON API가 HTML을 반환했습니다. API 경로·프록시·IP 등록을 확인해 주세요. (HTTP ${httpStatus})`,
+    );
+  }
+
+  let envelope: LotteonApiEnvelope;
+  try {
+    envelope = parseLotteonApiResponse(trimmed);
+  } catch {
+    throw new Error(`롯데ON API 응답이 JSON 형식이 아닙니다. (HTTP ${httpStatus})`);
+  }
+
+  assertLotteonApiSuccess(envelope, httpStatus);
+  return envelope;
 }
 
 function buildSearchBody(input: {
@@ -177,9 +261,10 @@ function buildSearchBody(input: {
 }
 
 export async function lotteonApiRequest(input: {
-  credentials: LotteonCredentials;
+  credentials: Pick<LotteonCredentials, 'apiKey'>;
+  method: 'GET' | 'POST';
   path: string;
-  body: Record<string, string>;
+  body?: Record<string, string>;
 }): Promise<LotteonApiEnvelope> {
   if (!isIntegrationProxyConfigured()) {
     throw new Error('롯데ON API는 고정 IP 프록시(INTEGRATION_PROXY_BASE_URL) 설정이 필요합니다.');
@@ -187,20 +272,22 @@ export async function lotteonApiRequest(input: {
 
   assertIntegrationProxyConfigReady();
 
-  const url = buildLotteonUrl(input.path, input.credentials.apiKey);
-  const { httpStatus, bodyText } = await invokeIntegrationHttp({
-    method: 'POST',
+  const url = `${LOTTEON_API_ORIGIN}${input.path}`;
+  const headers = buildLotteonRequestHeaders(
+    input.credentials.apiKey,
+    input.method === 'POST'
+      ? { 'Content-Type': 'application/json;charset=UTF-8' }
+      : undefined,
+  );
+
+  const { httpStatus, bodyText, contentType } = await invokeIntegrationHttp({
+    method: input.method,
     url,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json;charset=UTF-8',
-    },
-    body: JSON.stringify(input.body),
+    headers,
+    body: input.body ? JSON.stringify(input.body) : null,
   });
 
-  const envelope = parseLotteonApiResponse(bodyText);
-  assertLotteonApiSuccess(envelope, httpStatus);
-  return envelope;
+  return interpretLotteonHttpResponse({ httpStatus, bodyText, contentType });
 }
 
 export async function fetchLotteonOrdersByStep(input: {
@@ -211,6 +298,7 @@ export async function fetchLotteonOrdersByStep(input: {
 }): Promise<LotteonOrderRecord[]> {
   const envelope = await lotteonApiRequest({
     credentials: input.credentials,
+    method: 'POST',
     path: LOTTEON_SELLER_DELIVERY_ORDER_SEARCH_PATH,
     body: buildSearchBody(input),
   });
@@ -255,18 +343,29 @@ export async function fetchLotteonOrders(input: {
   return dedupeLotteonOrders(collected);
 }
 
-export async function testLotteonConnection(credentials: LotteonCredentials): Promise<{ ok: true }> {
-  const end = new Date();
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+export function extractLotteonIdentityData(envelope: LotteonApiEnvelope): LotteonIdentityData | null {
+  const data = envelope.data;
+  if (!data || typeof data !== 'object') return null;
+  const record = data as Record<string, unknown>;
+  return {
+    trGrpCd: pickString(record, ['trGrpCd']) || undefined,
+    trDvsCd: pickString(record, ['trDvsCd']) || undefined,
+    trNo: pickString(record, ['trNo', 'tr_no']) || undefined,
+    trNm: pickString(record, ['trNm', 'tr_nm']) || undefined,
+  };
+}
 
-  await fetchLotteonOrdersByStep({
+/** 연결 테스트: Identity API만 사용 (판매자 ID·tr_no 요청 불필요) */
+export async function testLotteonConnection(
+  credentials: Pick<LotteonCredentials, 'apiKey'>,
+): Promise<{ ok: true; identity: LotteonIdentityData | null }> {
+  const envelope = await lotteonApiRequest({
     credentials,
-    odPrgsStepCd: '11',
-    start,
-    end,
+    method: 'GET',
+    path: LOTTEON_IDENTITY_PATH,
   });
 
-  return { ok: true };
+  return { ok: true, identity: extractLotteonIdentityData(envelope) };
 }
 
 export function toUserFacingLotteonErrorMessage(error: unknown): string {
