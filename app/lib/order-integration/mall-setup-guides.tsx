@@ -176,23 +176,45 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '롯데ON 스토어',
     steps: [
       {
-        title: 'OpenAPI 관리',
-        body: '스토어센터 로그인 → 판매자정보 → OpenAPI관리 → 정보설정으로 이동합니다.',
-      },
-      {
-        title: 'IP 또는 셀러툴 등록',
+        title: 'OpenAPI관리',
         body: (
           <>
-            서버 IP에 엑클로드 고정 IP(<strong>54.180.45.46</strong>)를 등록하거나, 호스팅/셀러툴에서
-            엑클로드를 선택합니다. 저장 후 키 발급 버튼이 활성화됩니다. (일반 판매자 URL 등록 단계는
-            없습니다)
+            스토어센터 로그인 후 「메뉴 전체보기」→ 「판매자정보」→ <strong>OpenAPI관리</strong>로
+            이동합니다.
           </>
         ),
       },
       {
-        title: '키 입력·테스트',
-        body: '발급된 인증키·판매자 ID·거래처번호(tr_no)를 왼쪽에 넣고 연결 테스트 후 저장합니다. 인증키는 보통 1년 유효합니다.',
+        title: '직접입력 · IP 등록',
+        body: (
+          <>
+            1단계에서 <strong>직접입력</strong>을 체크하고, 서버 IP에 엑클로드 고정 IP(
+            <strong>54.180.45.46</strong>)를 넣은 뒤 「저장하기」합니다. (호스팅/셀러툴 선택은 하지
+            않습니다)
+          </>
+        ),
       },
+      {
+        title: '키발급·복사',
+        body: (
+          <>
+            2단계에서 <strong>키발급</strong> 후 표의 <strong>복사</strong>로 인증키를 복사합니다.
+          </>
+        ),
+      },
+      {
+        title: '엑클로드 입력·연결 테스트',
+        body: (
+          <>
+            왼쪽 칸에 판매자 ID(로그인 ID)·거래처번호(tr_no, LO…)·API 인증 KEY를 넣고{' '}
+            <strong>저장 → 연결 테스트</strong>를 합니다. 인증키는 보통 1년 유효합니다.
+          </>
+        ),
+      },
+    ],
+    notes: [
+      '서버 IP는 직접입력에 엑클로드 고정 IP(54.180.45.46)만 등록하면 됩니다.',
+      '처음이시면 「설정 따라하기」로 화면을 따라 진행하는 것을 권장합니다.',
     ],
   },
   ssg: {

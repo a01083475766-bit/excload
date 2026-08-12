@@ -304,13 +304,17 @@ export function LotteonIntegrationForm({
             >
               롯데ON 스토어센터
             </a>
-            에 로그인합니다.
+            에 로그인한 뒤 「메뉴 전체보기」→ 「판매자정보」→ 「OpenAPI관리」로 이동합니다.
           </li>
-          <li>판매자정보 → OpenAPI 관리에서 호스팅/셀러툴(엑클로드)과 직접입력을 선택합니다.</li>
           <li>
-            서버 IP에 <strong>엑클로드 고정 IP</strong>를 세미콜론(;)으로 구분해 추가한 뒤 저장·키발급합니다.
+            1단계에서 「직접입력」을 체크하고, 서버 IP에 <strong>엑클로드 고정 IP</strong>를 입력한 뒤
+            「저장하기」합니다.
           </li>
-          <li>판매자정보 → 기본정보관리에서 LO로 시작하는 거래처번호(tr_no)를 확인합니다.</li>
+          <li>2단계에서 「키발급」 후 「복사」로 인증키를 복사합니다.</li>
+          <li>
+            판매자 ID(로그인 ID)·거래처번호(tr_no, LO…)·API 인증 KEY를 입력한 뒤 저장 → 연결
+            테스트를 합니다.
+          </li>
         </ol>
       </CollapsibleGuide>
       ) : null}

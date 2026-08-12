@@ -6,6 +6,7 @@ import type { MallSetupGuide } from '@/app/lib/order-integration/mall-setup-guid
 import type { OrderIntegrationMallId } from '@/app/lib/order-integration/malls';
 import { CoupangVisualGuideModal } from '@/app/components/order-integration/CoupangVisualGuideModal';
 import { ElevenVisualGuideModal } from '@/app/components/order-integration/ElevenVisualGuideModal';
+import { LotteonVisualGuideModal } from '@/app/components/order-integration/LotteonVisualGuideModal';
 import { SmartstoreVisualGuideModal } from '@/app/components/order-integration/SmartstoreVisualGuideModal';
 
 type Props = {
@@ -14,15 +15,19 @@ type Props = {
   mallId?: OrderIntegrationMallId;
 };
 
-/** 오른쪽: 요약 안내 유지 + 「설정 따라하기」(스마트스토어·쿠팡·11번가) */
+/** 오른쪽: 요약 안내 유지 + 「설정 따라하기」(스마트스토어·쿠팡·11번가·롯데ON) */
 export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
   const [visualGuideOpen, setVisualGuideOpen] = useState(false);
   const showSmartstoreVisualGuide = mallId === 'smartstore';
   const showCoupangVisualGuide = mallId === 'coupang';
   const showElevenVisualGuide = mallId === 'eleven';
+  const showLotteonVisualGuide = mallId === 'lotteon';
   const showDomeggookGuide = mallId === 'domeggook';
   const showVisualGuide =
-    showSmartstoreVisualGuide || showCoupangVisualGuide || showElevenVisualGuide;
+    showSmartstoreVisualGuide ||
+    showCoupangVisualGuide ||
+    showElevenVisualGuide ||
+    showLotteonVisualGuide;
 
   if (!guide) {
     return (
@@ -42,9 +47,11 @@ export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
       ? '쿠팡 Wing에서 Open API 키를 발급한 뒤, 왼쪽 칸에 넣고 저장·연결 테스트를 하면 됩니다. 처음이시면 「설정 따라하기」를 눌러 화면을 따라 진행해 주세요.'
       : showElevenVisualGuide
         ? '11번가 OPEN API CENTER에서 키를 발급한 뒤, 왼쪽 칸에 넣고 저장·연결 테스트를 하면 됩니다. 처음이시면 「설정 따라하기」를 눌러 화면을 따라 진행해 주세요.'
-        : showDomeggookGuide
-          ? '도매꾹 주문연동은 Open API Key 발급과 Private API 권한 승인이 모두 필요합니다.'
-          : '판매자센터에서 API(또는 앱)를 발급한 뒤, 엑클로드 정보를 등록하고 왼쪽 입력란에 키를 넣습니다.';
+        : showLotteonVisualGuide
+          ? '롯데ON 스토어센터에서 인증키를 발급한 뒤, 왼쪽 칸에 넣고 저장·연결 테스트를 하면 됩니다. 처음이시면 「설정 따라하기」를 눌러 화면을 따라 진행해 주세요.'
+          : showDomeggookGuide
+            ? '도매꾹 주문연동은 Open API Key 발급과 Private API 권한 승인이 모두 필요합니다.'
+            : '판매자센터에서 API(또는 앱)를 발급한 뒤, 엑클로드 정보를 등록하고 왼쪽 입력란에 키를 넣습니다.';
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
@@ -123,6 +130,10 @@ export function MallSetupGuidePanel({ guide, mallName, mallId }: Props) {
 
       {showElevenVisualGuide ? (
         <ElevenVisualGuideModal open={visualGuideOpen} onClose={() => setVisualGuideOpen(false)} />
+      ) : null}
+
+      {showLotteonVisualGuide ? (
+        <LotteonVisualGuideModal open={visualGuideOpen} onClose={() => setVisualGuideOpen(false)} />
       ) : null}
     </div>
   );
