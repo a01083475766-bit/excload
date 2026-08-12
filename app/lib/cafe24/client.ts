@@ -41,6 +41,8 @@ export type Cafe24OrderItem = {
   product_code?: string;
   option_value?: string;
   quantity?: number | string;
+  /** 품목 단위 상태(있으면 주문 단위 order_status보다 우선). */
+  order_status?: string;
 };
 
 export type Cafe24OrderBuyer = {
@@ -414,6 +416,57 @@ export async function postCafe24OrderShipment(input: {
       Authorization: `Bearer ${input.accessToken}`,
     },
     body: JSON.stringify(input.body),
+    contentType: 'application/json',
+  });
+}
+
+/** PUT /orders — 발주확인 대응: process_status=prepare (N10 → N20). prepareproduct 사용 금지. */
+export type Cafe24PrepareOrderRequestItem = {
+  order_id: string;
+  process_status: 'prepare';
+  /** 공식 스키마: 문자열 배열 */
+  order_item_code: string[];
+};
+
+export async function putCafe24OrdersPrepare(input: {
+  credentials: Cafe24ClientCredentials;
+  accessToken: string;
+  shopNo: number;
+  requests: Cafe24PrepareOrderRequestItem[];
+}): Promise<{ httpStatus: number; bodyText: string }> {
+  if (!input.requests.length) {
+    throw new Error('카페24 발주확인 요청 항목이 없습니다.');
+  }
+  if (input.requests.length > 100) {
+    throw new Error('카페24 발주확인은 1회 최대 100건입니다.');
+  }
+  for (const req of input.requests) {
+    if (req.process_status !== 'prepare') {
+      throw new Error('카페24 발주확인은 process_status=prepare 만 허용합니다.');
+    }
+    if (!Array.isArray(req.order_item_code) || req.order_item_code.length === 0) {
+      throw new Error('카페24 발주확인은 order_item_code 배열이 필요합니다.');
+    }
+  }
+  const shopNo = input.shopNo;
+  if (shopNo == null || !Number.isInteger(shopNo) || shopNo < 1) {
+    throw new Error('카페24 shop_no가 올바르지 않습니다.');
+  }
+  return cafe24HttpRequestRaw({
+    mallId: input.credentials.mallId,
+    method: 'PUT',
+    pathWithQuery: '/api/v2/admin/orders',
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+    },
+    body: JSON.stringify({
+      shop_no: shopNo,
+      requests: input.requests.map((req) => ({
+        order_id: req.order_id,
+        process_status: 'prepare' as const,
+        order_item_code: [...req.order_item_code],
+      })),
+    }),
     contentType: 'application/json',
   });
 }

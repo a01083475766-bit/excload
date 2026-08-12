@@ -110,3 +110,19 @@ describe('mapCafe24OrdersToPreviewRows', () => {
     expect(rows[0]?.['주문상태']).toBe('배송준비중');
   });
 });
+
+describe('mapCafe24Orders preserves status code', () => {
+  it('stores N10 on 출고타입 for confirm eligibility', async () => {
+    const { mapCafe24OrdersToStandardRows } = await import('@/app/lib/cafe24/map-cafe24-orders');
+    const rows = mapCafe24OrdersToStandardRows([
+      {
+        shop_no: 1,
+        order_id: '20260708-0002',
+        order_status: 'N10',
+        items: [{ order_item_code: 'ITEM-2', product_name: '상품' }],
+      },
+    ]);
+    expect(rows[0]?.['출고타입']).toBe('N10');
+    expect(rows[0]?.['센터코드']).toBe('1');
+  });
+});

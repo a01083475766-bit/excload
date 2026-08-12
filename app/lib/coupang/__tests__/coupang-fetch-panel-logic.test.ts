@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { isRowHubEligible } from '@/app/lib/order-integration/hub-eligibility';
 import {
   collectSelectedAcknowledgementBoxIds,
   isCoupangAcceptRow,
-  isRowHubEligible,
 } from '@/app/lib/coupang/coupang-fetch-panel-logic';
 
 const rowKey = (mallId: string, accountId: string, rowIndex: number) =>
@@ -19,6 +19,9 @@ describe('coupang fetch panel logic', () => {
   it('allows hub only when lotteon hubEligible is true', () => {
     expect(isRowHubEligible({ mallId: 'lotteon', hubEligible: true })).toBe(true);
     expect(isRowHubEligible({ mallId: 'lotteon', hubEligible: false })).toBe(false);
+    expect(isRowHubEligible({ mallId: 'cafe24', hubEligible: true })).toBe(true);
+    expect(isRowHubEligible({ mallId: 'cafe24', hubEligible: false })).toBe(false);
+    expect(isRowHubEligible({ mallId: 'cafe24', hubEligible: undefined })).toBe(false);
     expect(isRowHubEligible({ mallId: 'lotteon', hubEligible: undefined })).toBe(false);
   });
 

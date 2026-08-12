@@ -49,6 +49,12 @@ import {
 import { mergeElevenConfirmedOrdersIntoFetchResult } from '@/app/lib/eleven/eleven-confirm-merge';
 import type { ElevenConfirmItemStatus } from '@/app/lib/eleven/eleven-confirm';
 import {
+  collectSelectedCafe24ConfirmSelection,
+  isCafe24ConfirmableRow,
+} from '@/app/lib/cafe24/cafe24-fetch-panel-logic';
+import { mergeCafe24ConfirmedOrdersIntoFetchResult } from '@/app/lib/cafe24/cafe24-confirm-merge';
+import type { Cafe24ConfirmItemStatus } from '@/app/lib/cafe24/cafe24-confirm';
+import {
   collectSelectedDomeggookConfirmSelection,
   isDomeggookConfirmableRow,
 } from '@/app/lib/domeggook/domeggook-fetch-panel-logic';
@@ -109,8 +115,8 @@ type DisplayRow = OrderFetchView & {
 import {
   collectSelectedAcknowledgementBoxIds,
   isCoupangAcceptRow,
-  isRowHubEligible,
 } from '@/app/lib/coupang/coupang-fetch-panel-logic';
+import { isRowHubEligible } from '@/app/lib/order-integration/hub-eligibility';
 
 function rowKey(mallId: string, accountId: string, rowIndex: number): string {
   return `${mallId}:${accountId}:${rowIndex}`;
@@ -781,6 +787,46 @@ export default function OrderIntegrationFetchPanel() {
     [allDisplayRows],
   );
 
+  const cafe24ConfirmRows = useMemo(() => {
+    if (!results) return [];
+    return filteredRows.map((row) => {
+      const mall = results.find(
+        (m) => m.mallId === row.mallId && m.accountId === row.accountId,
+      );
+      const standard = mall?.rows[row.rowIndex];
+      const shopRaw = String(standard?.['센터코드'] ?? '').trim();
+      const shopParsed = /^\d+$/.test(shopRaw)
+        ? { ok: true as const, shopNo: Number.parseInt(shopRaw, 10) }
+        : shopRaw.toUpperCase() === 'INVALID'
+          ? { ok: false as const }
+          : shopRaw
+            ? { ok: false as const }
+            : { ok: true as const, shopNo: 1 };
+      return {
+        ...row,
+        mallOrderStatusCode:
+          row.mallOrderStatusCode ||
+          String(standard?.['출고타입'] ?? '').trim() ||
+          undefined,
+        shopNo: shopParsed.ok ? shopParsed.shopNo : undefined,
+        shopNoInvalid: !shopParsed.ok,
+      };
+    });
+  }, [filteredRows, results]);
+
+  const selectedCafe24ConfirmSelection = useMemo(
+    () => collectSelectedCafe24ConfirmSelection(cafe24ConfirmRows, selectedRowKeys, rowKey),
+    [cafe24ConfirmRows, selectedRowKeys],
+  );
+  const selectedCafe24ConfirmCount = selectedCafe24ConfirmSelection.ok
+    ? selectedCafe24ConfirmSelection.items.length
+    : 0;
+
+  const hasCafe24ConfirmableRows = useMemo(
+    () => allDisplayRows.some((row) => isCafe24ConfirmableRow(row)),
+    [allDisplayRows],
+  );
+
   const runAcknowledgement = async () => {
     if (acknowledging || confirmingPlaceOrders) return;
     if (selectedAcknowledgementBoxIds.length === 0) {
@@ -1265,6 +1311,101 @@ export default function OrderIntegrationFetchPanel() {
     }
   };
 
+  const runCafe24Confirm = async () => {
+    if (acknowledging || confirmingPlaceOrders) return;
+    if (!selectedCafe24ConfirmSelection.ok) {
+      setConfirmNotice(
+        selectedCafe24ConfirmSelection.reason === 'MIXED_ACCOUNTS'
+          ? '계정을 정확히 선택할 수 없어 처리하지 않았습니다. 같은 카페24 계정 주문만 선택해 주세요.'
+          : selectedCafe24ConfirmSelection.reason === 'MISSING_IDS'
+            ? '주문번호가 없어 발주확인할 수 없습니다. 주문을 다시 조회해 주세요.'
+            : '발주확인할 카페24 상품준비중 주문을 선택해 주세요.',
+      );
+      return;
+    }
+    const { accountId, items } = selectedCafe24ConfirmSelection;
+    const confirmed = window.confirm(
+      `선택한 ${items.length}건을 카페24 발주확인합니다.\n카페24에서는 발주확인 시 선택한 상품준비중 주문이 배송준비중으로 변경됩니다.\n계속하시겠습니까?`,
+    );
+    if (!confirmed) return;
+
+    setConfirmingPlaceOrders(true);
+    setConfirmNotice(null);
+    setConfirmItemMessages({});
+
+    try {
+      const res = await fetch('/api/order/integration/cafe24/confirm-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, items }),
+        cache: 'no-store',
+      });
+      const data = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        summary?: {
+          requested: number;
+          confirmed: number;
+          alreadyConfirmed: number;
+          failed: number;
+          skipped: number;
+        };
+        results?: Array<{
+          productOrderNo: string;
+          orderId: string;
+          status: Cafe24ConfirmItemStatus;
+          message: string;
+        }>;
+      };
+
+      if (!res.ok && !data.results?.length) {
+        setConfirmNotice(data.error || '발주확인 처리에 실패했습니다.');
+        return;
+      }
+
+      const itemMessages: Record<string, string> = {};
+      for (const row of data.results ?? []) {
+        itemMessages[row.productOrderNo] = row.message;
+      }
+      setConfirmItemMessages(itemMessages);
+
+      const summaryParts: string[] = [];
+      if (data.summary) {
+        summaryParts.push(`완료 ${data.summary.confirmed}건`);
+        summaryParts.push(`이미 확인 ${data.summary.alreadyConfirmed}건`);
+        summaryParts.push(`실패 ${data.summary.failed}건`);
+        summaryParts.push(`대상 아님 ${data.summary.skipped}건`);
+      }
+      if (!data.success && (data.summary?.failed ?? 0) > 0) {
+        summaryParts.unshift('일부 미완료');
+      }
+      setConfirmNotice(
+        summaryParts.length > 0
+          ? `${summaryParts.join(' · ')}\n카페24에서는 배송준비중 처리로 반영됩니다.`
+          : data.error || '발주확인 처리에 실패했습니다.',
+      );
+
+      if (results && data.results?.length) {
+        setResults(
+          results.map((mall) => {
+            if (mall.mallId !== 'cafe24' || !mall.ok) return mall;
+            const merged = mergeCafe24ConfirmedOrdersIntoFetchResult({
+              rows: mall.rows,
+              views: mall.views,
+              results: data.results ?? [],
+            });
+            return { ...mall, rows: merged.rows, views: merged.views };
+          }),
+        );
+      }
+      setSelectedRowKeys(new Set());
+    } catch {
+      setConfirmNotice('발주확인 처리 중 오류가 발생했습니다.');
+    } finally {
+      setConfirmingPlaceOrders(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-3 pb-12 pt-1.5 sm:px-5 lg:px-8">
       <Link
@@ -1744,6 +1885,31 @@ export default function OrderIntegrationFetchPanel() {
                     {selectedLotteonConfirmCount > 0 ? ` (${selectedLotteonConfirmCount})` : ''}
                   </button>
                 ) : null}
+                {hasCafe24ConfirmableRows ? (
+                  <button
+                    type="button"
+                    disabled={
+                      confirmingPlaceOrders ||
+                      acknowledging ||
+                      selectedCafe24ConfirmCount === 0
+                    }
+                    onClick={() => void runCafe24Confirm()}
+                    title="카페24에서는 발주확인 시 선택한 상품준비중 주문이 배송준비중으로 변경됩니다."
+                    className={`${
+                      hasCoupangAcceptRows ||
+                      hasSmartstorePlaceOrderNotYetRows ||
+                      hasElevenConfirmableRows ||
+                      hasDomeggookConfirmableRows ||
+                      hasLotteonConfirmableRows
+                        ? ''
+                        : 'ml-auto '
+                    }inline-flex h-8 items-center justify-center gap-1 rounded-md border border-amber-600 bg-white px-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-50 disabled:opacity-50`}
+                  >
+                    {confirmingPlaceOrders ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    발주확인
+                    {selectedCafe24ConfirmCount > 0 ? ` (${selectedCafe24ConfirmCount})` : ''}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={toggleSelectAllFiltered}
@@ -1752,7 +1918,8 @@ export default function OrderIntegrationFetchPanel() {
                     hasSmartstorePlaceOrderNotYetRows ||
                     hasElevenConfirmableRows ||
                     hasDomeggookConfirmableRows ||
-                    hasLotteonConfirmableRows
+                    hasLotteonConfirmableRows ||
+                    hasCafe24ConfirmableRows
                       ? ''
                       : 'ml-auto'
                   }`}

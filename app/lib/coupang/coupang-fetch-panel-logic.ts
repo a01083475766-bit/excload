@@ -13,10 +13,8 @@ export function isCoupangAcceptRow(
   return row.mallId === 'coupang' && row.mallOrderStatusCode === 'ACCEPT';
 }
 
-export function isRowHubEligible(row: Pick<CoupangFetchPanelRow, 'mallId' | 'hubEligible'>): boolean {
-  if (row.mallId === 'coupang' || row.mallId === 'lotteon') return row.hubEligible === true;
-  return row.hubEligible !== false;
-}
+/** @deprecated order-integration/hub-eligibility 로 이동. 호환 re-export. */
+export { isRowHubEligible } from '@/app/lib/order-integration/hub-eligibility';
 
 export function collectSelectedAcknowledgementBoxIds(
   rows: CoupangFetchPanelRow[],

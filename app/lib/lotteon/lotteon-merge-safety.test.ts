@@ -17,7 +17,7 @@ import {
   mapLotteonOrdersToStandardRows,
   mapLotteonStatus,
 } from '@/app/lib/lotteon/map-lotteon-orders';
-import { isRowHubEligible } from '@/app/lib/coupang/coupang-fetch-panel-logic';
+import { isRowHubEligible } from '@/app/lib/order-integration/hub-eligibility';
 import { collectMallLineItemIds } from '@/app/lib/order-integration/snapshots/build-order-sync-snapshots';
 import { isShipmentTarget } from '@/app/lib/order-integration/order-status';
 import { isOrderFullyTransmittedForPiiClear } from '@/app/lib/order-integration/transmission/order-status-summary';
@@ -342,7 +342,7 @@ describe('hub eligibility regression for other malls', () => {
     expect(isRowHubEligible({ mallId: 'coupang', hubEligible: true })).toBe(true);
     expect(isRowHubEligible({ mallId: 'smartstore', hubEligible: undefined })).toBe(true);
     expect(isRowHubEligible({ mallId: 'eleven', hubEligible: undefined })).toBe(true);
-    expect(isRowHubEligible({ mallId: 'cafe24', hubEligible: undefined })).toBe(true);
+    expect(isRowHubEligible({ mallId: 'cafe24', hubEligible: undefined })).toBe(false);
     expect(isRowHubEligible({ mallId: 'domeggook', hubEligible: undefined })).toBe(true);
   });
 });

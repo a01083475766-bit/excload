@@ -291,7 +291,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'accountName', label: '계정명', required: true, storage: 'accountName' },
       { key: 'mallId', label: '쇼핑몰 ID (mallId)', required: true, storage: 'vendorId' },
     ],
-    memo: '베타. 공유 앱 OAuth·주문 수집·송장 전송. scope mall.read_order mall.write_order mall.read_shipping. Lightsail suffix whitelist 1회 반영 후 실연동.',
+    memo: '베타. 공유 앱 OAuth·주문 수집·발주확인(PUT orders process_status=prepare, N10→N20)·송장 전송. scope mall.read_order mall.write_order mall.read_shipping. Lightsail suffix whitelist 1회 반영 후 실연동.',
     marketplaceGroupId: 'cafe24',
     requiresFixedIpProxy: true,
   },

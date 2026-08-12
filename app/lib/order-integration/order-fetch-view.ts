@@ -72,11 +72,29 @@ export function buildOrderFetchViewFromStandardRow(
   const tracking = str(row, '운송장번호');
   const bundleId = str(row, '묶음배송번호').trim();
   const centerOrStatusMode = str(row, '센터코드').trim();
-  const mallOrderStatusCode = /^WAIT|^DONE$|^DENY|^BACK$/i.test(centerOrStatusMode)
-    ? centerOrStatusMode.toUpperCase()
-    : undefined;
+  const seller = str(row, '판매처').trim();
+  const cafe24StatusCode =
+    seller === '카페24'
+      ? str(row, '출고타입').trim().toUpperCase()
+      : '';
+  const mallOrderStatusCode = cafe24StatusCode
+    ? cafe24StatusCode
+    : /^WAIT|^DONE$|^DENY|^BACK$/i.test(centerOrStatusMode)
+      ? centerOrStatusMode.toUpperCase()
+      : undefined;
   let placeOrderStatus: ExcloadPlaceOrderStatus = 'UNKNOWN';
-  if (statusLabelRaw.includes('결제완료') || mallOrderStatusCode === 'WAITCHK') {
+  if (cafe24StatusCode === 'N10') {
+    // 카페24 상품준비중 = 발주확인(prepare) 전
+    placeOrderStatus = 'NOT_YET';
+  } else if (
+    cafe24StatusCode === 'N20' ||
+    cafe24StatusCode === 'N21' ||
+    cafe24StatusCode === 'N30' ||
+    cafe24StatusCode === 'N40' ||
+    cafe24StatusCode === 'N50'
+  ) {
+    placeOrderStatus = 'OK';
+  } else if (statusLabelRaw.includes('결제완료') || mallOrderStatusCode === 'WAITCHK') {
     placeOrderStatus = 'NOT_YET';
   } else if (
     statusLabelRaw.includes('배송준비') ||
@@ -105,6 +123,12 @@ export function buildOrderFetchViewFromStandardRow(
     claimLabel: '',
     shipmentBoxId: bundleId || undefined,
     mallOrderStatusCode,
+    hubEligible:
+      cafe24StatusCode === 'N20' || cafe24StatusCode === 'N21'
+        ? true
+        : cafe24StatusCode
+          ? false
+          : undefined,
     detail: {
       ordererName: str(row, '주문자'),
       receiverPhone: str(row, '받는사람전화1'),
