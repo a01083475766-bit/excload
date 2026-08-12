@@ -40,7 +40,7 @@ describe('buildCourierDownloadRedownloadRows', () => {
   it('returns NOT_FOUND when bundle missing', async () => {
     const findFirst = vi.fn(async () => null);
     const result = await buildCourierDownloadRedownloadRows(
-      { courierDownloadBundle: { findFirst } },
+      { courierDownloadBundle: { findFirst } } as never,
       { userId: 'u1', bundleId: 'missing' },
     );
     expect(result.ok).toBe(false);
@@ -91,7 +91,7 @@ describe('buildCourierDownloadRedownloadRows', () => {
     }));
 
     const result = await buildCourierDownloadRedownloadRows(
-      { courierDownloadBundle: { findFirst } },
+      { courierDownloadBundle: { findFirst } } as never,
       { userId: 'u1', bundleId: 'bundle-1' },
     );
 
@@ -135,7 +135,7 @@ describe('buildCourierDownloadRedownloadRows', () => {
     }));
 
     const result = await buildCourierDownloadRedownloadRows(
-      { courierDownloadBundle: { findFirst } },
+      { courierDownloadBundle: { findFirst } } as never,
       { userId: 'u1', bundleId: 'bundle-2' },
     );
     expect(result.ok).toBe(false);
