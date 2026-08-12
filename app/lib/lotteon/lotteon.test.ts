@@ -4,9 +4,12 @@ import {
   isIntegrationProxyHostAllowed,
 } from '@/app/lib/integration-proxy/allowed-domains';
 import {
+  buildLotteonDateWindows,
   buildLotteonRequestHeaders,
+  buildLotteonSearchBody,
   extractLotteonIdentityData,
   extractLotteonOrderList,
+  formatLotteonApiDateTime,
   interpretLotteonHttpResponse,
   LOTTEON_IDENTITY_PATH,
   LOTTEON_SELLER_DELIVERY_ORDER_SEARCH_PATH,
@@ -43,6 +46,41 @@ describe('buildLotteonRequestHeaders', () => {
       'Accept-Language': 'ko',
       'X-Timezone': 'GMT+09:00',
     });
+  });
+});
+
+describe('lotteon search datetime', () => {
+  it('formats yyyymmddhhmmss with start/end bounds', () => {
+    const kstMidnight = new Date('2026-07-14T15:00:00.000Z');
+    expect(formatLotteonApiDateTime(kstMidnight, 'start')).toBe('20260715000000');
+    expect(formatLotteonApiDateTime(kstMidnight, 'end')).toBe('20260715235959');
+    expect(formatLotteonApiDateTime(kstMidnight, 'exact')).toBe('20260715000000');
+  });
+
+  it('splits a 30-day range into one window per KST calendar day', () => {
+    const end = new Date('2026-08-12T12:00:00.000Z');
+    const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const windows = buildLotteonDateWindows(start, end);
+    expect(windows.length).toBeGreaterThanOrEqual(30);
+    expect(windows.length).toBeLessThanOrEqual(31);
+    expect(formatLotteonApiDateTime(windows[0]!.start, 'start')).toHaveLength(14);
+    expect(formatLotteonApiDateTime(windows[0]!.end, 'end')).toMatch(/235959$/);
+  });
+
+  it('builds official search body without tr_no and with 14-digit datetimes', () => {
+    const body = buildLotteonSearchBody({
+      credentials: { apiKey: 'k', trNo: 'LO10178207', shopId: 'LO999' },
+      start: new Date('2026-07-14T15:00:00.000Z'),
+      end: new Date('2026-07-14T15:00:00.000Z'),
+      odPrgsStepCd: '11',
+    });
+    expect(body).toEqual({
+      srchStrtDt: '20260715000000',
+      srchEndDt: '20260715235959',
+      odPrgsStepCd: '11',
+      lrtrNo: 'LO999',
+    });
+    expect(body).not.toHaveProperty('tr_no');
   });
 });
 
@@ -147,6 +185,33 @@ describe('extractLotteonOrderList', () => {
     expect(orders).toHaveLength(1);
     expect(orders[0]?.odNo).toBe('20260708001');
     expect(orders[0]?.pdNm).toBe('테스트상품');
+  });
+
+  it('parses official deliveryOrderList field names', () => {
+    const orders = extractLotteonOrderList({
+      returnCode: '0000',
+      data: {
+        deliveryOrderList: [
+          {
+            odNo: 'od001',
+            odSeq: 1,
+            odPrgsStepCd: '11',
+            spdNm: '공식상품명',
+            odQty: 2,
+            dvpCustNm: '홍길동',
+            dvpMphnNo: '01012345678',
+            dvpStnmZipAddr: '서울시 강남구',
+            dvpStnmDtlAddr: '101호',
+            dvMsg: '문 앞',
+            odCmptDttm: '20260708103000',
+          },
+        ],
+      },
+    });
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.pdNm).toBe('공식상품명');
+    expect(orders[0]?.rcvrNm).toBe('홍길동');
+    expect(orders[0]?.rcvrPhone).toBe('01012345678');
   });
 
   it('returns empty array when list is missing', () => {

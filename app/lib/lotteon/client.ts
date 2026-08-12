@@ -12,13 +12,16 @@ export const LOTTEON_IDENTITY_PATH = '/v1/openapi/common/v1/identity';
 
 /**
  * 판매자 배송주문조회 (출고/회수지시) — 공식 경로 SellerDeliveryOrdersSearch
- * POST + Bearer + JSON body (tr_no, srchStrtDt, srchEndDt, odPrgsStepCd)
+ * POST + Bearer + JSON body (srchStrtDt/srchEndDt = yyyymmddhhmmss, 조회기간 최대 1일)
  */
 export const LOTTEON_SELLER_DELIVERY_ORDER_SEARCH_PATH =
   '/v1/openapi/delivery/v1/SellerDeliveryOrdersSearch';
 
-/** 출고지시(신규주문) · 상품준비 — 1차 수집 대상 */
-export const LOTTEON_ORDER_PROGRESS_STEP_CODES = ['11', '12'] as const;
+/** 공식: 조회기간은 1일을 초과할 수 없음 (returnCode 2003) */
+export const LOTTEON_MAX_RANGE_DAYS = 1;
+
+/** 공식 주문진행단계 — 이 API는 11:출고지시, 23:회수지시만 조회. 상품준비(12)는 대상 아님 */
+export const LOTTEON_ORDER_PROGRESS_STEP_CODES = ['11'] as const;
 
 export type LotteonOrderProgressStepCode = (typeof LOTTEON_ORDER_PROGRESS_STEP_CODES)[number];
 
@@ -65,12 +68,50 @@ type LotteonApiEnvelope = {
   orderList?: unknown;
 };
 
-function formatLotteonApiDate(date: Date): string {
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+function toKstUtcParts(date: Date) {
   const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-  const yyyy = kst.getUTCFullYear();
-  const mm = String(kst.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(kst.getUTCDate()).padStart(2, '0');
-  return `${yyyy}${mm}${dd}`;
+  return {
+    year: kst.getUTCFullYear(),
+    month: kst.getUTCMonth() + 1,
+    day: kst.getUTCDate(),
+    hour: kst.getUTCHours(),
+    minute: kst.getUTCMinutes(),
+    second: kst.getUTCSeconds(),
+  };
+}
+
+/** 공식 검색일시: yyyymmddhhmmss (길이 14). start=당일 00:00:00, end=당일 23:59:59 */
+export function formatLotteonApiDateTime(date: Date, bound: 'start' | 'end' | 'exact' = 'exact'): string {
+  const parts = toKstUtcParts(date);
+  const datePart = `${parts.year}${pad2(parts.month)}${pad2(parts.day)}`;
+  if (bound === 'start') return `${datePart}000000`;
+  if (bound === 'end') return `${datePart}235959`;
+  return `${datePart}${pad2(parts.hour)}${pad2(parts.minute)}${pad2(parts.second)}`;
+}
+
+function kstCalendarDayUtcMs(date: Date): number {
+  const parts = toKstUtcParts(date);
+  return Date.UTC(parts.year, parts.month - 1, parts.day);
+}
+
+/** KST 달력일 단위로 1일 창을 나눈다. 각 창은 00:00:00~23:59:59. */
+export function buildLotteonDateWindows(start: Date, end: Date): Array<{ start: Date; end: Date }> {
+  const startDay = kstCalendarDayUtcMs(start);
+  const endDay = kstCalendarDayUtcMs(end);
+  const first = Math.min(startDay, endDay);
+  const last = Math.max(startDay, endDay);
+  const windows: Array<{ start: Date; end: Date }> = [];
+
+  for (let cursor = first; cursor <= last; cursor += 24 * 60 * 60 * 1000) {
+    const day = new Date(cursor);
+    windows.push({ start: day, end: day });
+  }
+
+  return windows.length > 0 ? windows : [{ start, end }];
 }
 
 function pickString(record: Record<string, unknown>, keys: string[]): string {
@@ -117,24 +158,32 @@ export function normalizeLotteonOrderRecord(raw: Record<string, unknown>): Lotte
   if (!odNo) return null;
 
   const odSeq = pickString(raw, ['odSeq', 'od_seq', 'orderSeq', 'dvpOrderSeq']) || '1';
-  const rcvrPhone = pickString(raw, ['rcvrMbNo', 'rcvrTelNo', 'rcvrPhone', 'rcvrPrtblNo', 'rcvrTlphn']);
+  const rcvrPhone = pickString(raw, [
+    'dvpMphnNo',
+    'dvpTelNo',
+    'rcvrMbNo',
+    'rcvrTelNo',
+    'rcvrPhone',
+    'rcvrPrtblNo',
+    'rcvrTlphn',
+  ]);
 
   return {
     odNo,
     odSeq,
     odPrgsStepCd: pickString(raw, ['odPrgsStepCd', 'od_prgs_step_cd', 'procStatCd']),
     odPrgsStepNm: pickString(raw, ['odPrgsStepNm', 'od_prgs_step_nm', 'procStatNm', 'odPrgsStepName']),
-    pdNm: pickString(raw, ['pdNm', 'pd_nm', 'productName', 'goodsNm']),
+    pdNm: pickString(raw, ['spdNm', 'pdNm', 'pd_nm', 'productName', 'goodsNm']),
     odQty: pickString(raw, ['odQty', 'od_qty', 'orderQty', 'qty']) || '1',
-    odCmptDttm: pickString(raw, ['odCmptDttm', 'od_cmpt_dttm', 'payDttm', 'orderDttm']),
+    odCmptDttm: pickString(raw, ['odCmptDttm', 'od_cmpt_dttm', 'owhoDttm', 'payDttm', 'orderDttm']),
     odAcptDttm: pickString(raw, ['odAcptDttm', 'od_acpt_dttm', 'acptDttm']),
-    rcvrNm: pickString(raw, ['rcvrNm', 'rcvr_nm', 'receiverName']),
+    rcvrNm: pickString(raw, ['dvpCustNm', 'rcvrNm', 'rcvr_nm', 'receiverName']),
     rcvrPhone,
-    rcvrZipNo: pickString(raw, ['rcvrZipNo', 'rcvr_zip_no', 'rcvrMailNo']),
-    rcvrBaseAddr: pickString(raw, ['rcvrZipAddr', 'rcvrBaseAddr', 'rcvr_base_addr', 'rcvrAddr']),
-    rcvrDtlAddr: pickString(raw, ['rcvrDtlAddr', 'rcvr_dtl_addr', 'rcvrDtlsAddr']),
-    dlvMsg: pickString(raw, ['odMsg', 'dlvMsg', 'dlv_msg', 'deliveryMessage']),
-    odAmt: pickString(raw, ['odAmt', 'od_amt', 'payAmt', 'saleAmt']),
+    rcvrZipNo: pickString(raw, ['dvpZipNo', 'rcvrZipNo', 'rcvr_zip_no', 'rcvrMailNo']),
+    rcvrBaseAddr: pickString(raw, ['dvpStnmZipAddr', 'rcvrZipAddr', 'rcvrBaseAddr', 'rcvr_base_addr', 'rcvrAddr']),
+    rcvrDtlAddr: pickString(raw, ['dvpStnmDtlAddr', 'rcvrDtlAddr', 'rcvr_dtl_addr', 'rcvrDtlsAddr']),
+    dlvMsg: pickString(raw, ['dvMsg', 'odMsg', 'dlvMsg', 'dlv_msg', 'deliveryMessage']),
+    odAmt: pickString(raw, ['actualAmt', 'slAmt', 'odAmt', 'od_amt', 'payAmt', 'saleAmt']),
     raw,
   };
 }
@@ -239,22 +288,21 @@ export function interpretLotteonHttpResponse(input: {
   return envelope;
 }
 
-function buildSearchBody(input: {
+export function buildLotteonSearchBody(input: {
   credentials: LotteonCredentials;
   start: Date;
   end: Date;
   odPrgsStepCd: LotteonOrderProgressStepCode;
 }): Record<string, string> {
   const body: Record<string, string> = {
-    tr_no: input.credentials.trNo.trim(),
-    srchStrtDt: formatLotteonApiDate(input.start),
-    srchEndDt: formatLotteonApiDate(input.end),
+    srchStrtDt: formatLotteonApiDateTime(input.start, 'start'),
+    srchEndDt: formatLotteonApiDateTime(input.end, 'end'),
     odPrgsStepCd: input.odPrgsStepCd,
   };
 
   const shopId = input.credentials.shopId?.trim();
   if (shopId) {
-    body.lrtr_no = shopId;
+    body.lrtrNo = shopId;
   }
 
   return body;
@@ -300,7 +348,7 @@ export async function fetchLotteonOrdersByStep(input: {
     credentials: input.credentials,
     method: 'POST',
     path: LOTTEON_SELLER_DELIVERY_ORDER_SEARCH_PATH,
-    body: buildSearchBody(input),
+    body: buildLotteonSearchBody(input),
   });
 
   return extractLotteonOrderList(envelope);
@@ -327,17 +375,20 @@ export async function fetchLotteonOrders(input: {
   const days = input.days ?? 7;
   const end = new Date();
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+  const windows = buildLotteonDateWindows(start, end);
 
   const collected: LotteonOrderRecord[] = [];
 
   for (const step of LOTTEON_ORDER_PROGRESS_STEP_CODES) {
-    const batch = await fetchLotteonOrdersByStep({
-      credentials: input.credentials,
-      odPrgsStepCd: step,
-      start,
-      end,
-    });
-    collected.push(...batch);
+    for (const window of windows) {
+      const batch = await fetchLotteonOrdersByStep({
+        credentials: input.credentials,
+        odPrgsStepCd: step,
+        start: window.start,
+        end: window.end,
+      });
+      collected.push(...batch);
+    }
   }
 
   return dedupeLotteonOrders(collected);
