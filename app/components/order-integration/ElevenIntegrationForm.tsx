@@ -289,20 +289,21 @@ export function ElevenIntegrationForm({
         <ol className="list-decimal space-y-2 pl-5">
           <li>
             <a
-              href="https://openapi.11st.co.kr"
+              href="https://soffice.11st.co.kr"
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 underline dark:text-blue-400"
             >
-              11번가 OPEN API CENTER
+              11번가 셀러오피스
             </a>
-            에 로그인합니다.
+            에 로그인한 뒤, 왼쪽 메뉴 맨 아래 「OPEN API 관리」로 이동합니다.
           </li>
-          <li>서비스 등록·확인 → Seller API 정보 수정에서 호스팅 여부를 직접입력으로 설정합니다.</li>
           <li>
-            개발서버 IP, 개발자 PC IP, 상용서버 IP에 <strong>엑클로드 고정 IP</strong>를 입력합니다.
+            이용동의 후 「IP 직접 입력」을 사용으로 두고, 개발서버·개발자 PC·상용서버 IP 세 칸 모두에{' '}
+            <strong>엑클로드 고정 IP</strong>를 입력한 뒤 「등록하기」를 누릅니다.
           </li>
-          <li>API 인증키를 재발급·복사한 뒤 아래 OPEN API KEY에 입력합니다.</li>
+          <li>API KEY 관리에서 「인증하기」 후 「복사하기」로 키를 복사합니다.</li>
+          <li>아래 OPEN API KEY에 붙여넣고 저장 → 연결 테스트를 합니다.</li>
         </ol>
       </CollapsibleGuide>
       ) : null}

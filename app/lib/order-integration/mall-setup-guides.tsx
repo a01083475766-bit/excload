@@ -49,29 +49,45 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '11번가 OpenAPI',
     steps: [
       {
-        title: 'OpenAPI 접속',
+        title: '셀러오피스 → OPEN API 관리',
         body: (
           <>
-            <strong>https://openapi.11st.co.kr</strong> (OPEN API CENTER)에 로그인합니다.
+            11번가 셀러오피스에 로그인한 뒤, 왼쪽 메뉴 맨 아래 <strong>OPEN API 관리</strong>로
+            OPEN API CENTER에 들어갑니다.
           </>
         ),
       },
       {
-        title: '서비스 등록·IP',
+        title: 'IP 직접입력 등록',
         body: (
           <>
-            서비스 등록·확인 후, 상용/개발 서버 IP에 엑클로드 고정 IP(
-            <strong>54.180.45.46</strong>)를 등록합니다.
+            이용동의 후 <strong>IP 직접 입력</strong>을 「사용」으로 두고, 개발서버·개발자 PC·상용서버
+            IP 세 칸 모두에 엑클로드 고정 IP(<strong>54.180.45.46</strong>)를 넣은 뒤 「등록하기」를
+            누릅니다. (셀링툴 업체 선택은 하지 않습니다)
           </>
         ),
       },
       {
-        title: '키 입력',
-        body: '발급된 11ST OPEN API KEY를 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
+        title: '키 인증·복사',
+        body: (
+          <>
+            API KEY 관리에서 <strong>인증하기</strong> 후 <strong>복사하기</strong>로 키를 복사합니다.
+          </>
+        ),
+      },
+      {
+        title: '엑클로드 입력·연결 테스트',
+        body: (
+          <>
+            왼쪽 칸에 계정명과 <strong>11ST OPEN API KEY</strong>를 넣고{' '}
+            <strong>저장 → 연결 테스트</strong>를 합니다.
+          </>
+        ),
       },
     ],
     notes: [
-      '셀러오피스에서 OpenAPI로 들어가는 화면이 있으면 그 경로로도 진입할 수 있습니다. 메뉴 위치가 다르면 스크린샷으로 확인해 주세요.',
+      'IP는 세 칸에 동일한 엑클로드 고정 IP(54.180.45.46)를 넣습니다.',
+      '처음이시면 「설정 따라하기」로 화면을 따라 진행하는 것을 권장합니다.',
     ],
   },
   smartstore: {
