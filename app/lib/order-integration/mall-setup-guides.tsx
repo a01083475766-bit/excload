@@ -147,7 +147,7 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     steps: [
       {
         title: 'Developers 로그인',
-        body: '카페24 Developers에 본인 쇼핑몰 계정으로 로그인합니다. 앱스토어에서 엑클로드를 설치하는 방식이 아닙니다.',
+        body: '카페24 Developers에서 개인 연동 앱을 생성한 뒤, 아래 정보를 등록하고 발급받은 Client ID와 Client Secret을 왼쪽 입력란에 입력합니다.',
       },
       {
         title: '연동용 앱 생성',
