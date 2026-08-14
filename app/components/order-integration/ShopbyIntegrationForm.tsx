@@ -17,7 +17,9 @@ type ShopbyAccountResponse = {
   hasMallKey: boolean;
   hasSystemKey: boolean;
   status: 'active' | 'inactive' | 'error';
+  healthStatus: string | null;
   lastTestedAt: string | null;
+  lastSuccessAt: string | null;
   lastSyncedAt: string | null;
   lastErrorMessage: string | null;
 };
@@ -68,11 +70,6 @@ export function ShopbyIntegrationForm({
   const [statusMessage, setStatusMessage] = useState<{ kind: 'success' | 'error' | 'info'; text: string } | null>(
     null,
   );
-  const [transportInfo, setTransportInfo] = useState<{
-    mode: 'direct' | 'proxy';
-    notes?: string;
-  } | null>(null);
-
   const inputClass =
     'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100';
 
@@ -105,24 +102,6 @@ export function ShopbyIntegrationForm({
   useEffect(() => {
     void loadSavedAccount();
   }, [loadSavedAccount]);
-
-  useEffect(() => {
-    async function loadTransport() {
-      try {
-        const res = await fetch('/api/order/integration/shopby/transport');
-        const data = (await res.json()) as {
-          transport?: { mode: 'direct' | 'proxy' };
-          notes?: string;
-        };
-        if (res.ok && data.transport) {
-          setTransportInfo({ mode: data.transport.mode, notes: data.notes });
-        }
-      } catch {
-        // transport 정보는 부가 안내용
-      }
-    }
-    void loadTransport();
-  }, []);
 
   async function handleSave() {
     setBusyAction('save');
@@ -216,6 +195,11 @@ export function ShopbyIntegrationForm({
     }
   }
 
+  const apiVerified =
+    savedAccount?.status === 'active' &&
+    savedAccount.healthStatus === 'HEALTHY' &&
+    Boolean(savedAccount.lastSuccessAt);
+
   return (
     <div className={embedded ? "w-full" : "mx-auto max-w-3xl px-4 py-6 pb-10 sm:px-6"}>
 {!embedded ? (
@@ -232,7 +216,7 @@ export function ShopbyIntegrationForm({
       <div className="mb-2 flex items-center gap-2">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">샵바이 연동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-          베타
+          개발진행중
         </span>
       </div>
       ) : (
@@ -243,24 +227,31 @@ export function ShopbyIntegrationForm({
         샵바이 Server API(mallKey 방식)로 연결 테스트를 진행할 수 있습니다. 실제 주문 조회·수집은 주문연동 화면에서
         진행합니다. 발주확인·송장 전송·상태 변경·Webhook은 포함하지 않습니다.
       </p>      ) : (
-        <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">쇼핑몰에서 발급한 값을 입력한 뒤 연결 테스트와 저장을 진행합니다.</p>
+        <p className="mb-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          본인 워크스페이스에서 발급한 systemKey·mallKey를 입력한 뒤 「저장」 → 「연결 테스트」 순으로 진행합니다.
+        </p>
       )}
 
       {loading ? <p className="mb-4 text-sm text-zinc-500">연동 정보 불러오는 중…</p> : null}
 
       <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-        <strong>NHN Server API 호출 IP 등록은 불필요</strong>합니다.
+        연동 방식: <strong>샵바이 Server API (systemKey + mallKey)</strong>
         <span className="mt-1 block">
-          엑클로드 구조상 <strong>고정 IP 프록시</strong>를 통해 <code className="text-xs">server-api.e-ncp.com</code>에
-          호출합니다.
+          판매자가 본인 워크스페이스에서 발급한 개인 연동 키만 사용하며 OAuth 토큰은 사용하지 않습니다.
         </span>
       </p>
 
-      {transportInfo ? (
+      {apiVerified ? (
+        <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('success')}`}>
+          <strong>API 연결 확인</strong>
+          <span className="mt-1 block">
+            주문 API가 정상 응답했습니다. 주문 0건도 정상 연결 결과이며, 실제 주문 매핑은 별도 검증이 필요합니다.
+          </span>
+        </p>
+      ) : savedAccount ? (
         <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${statusBannerClass('info')}`}>
-          API 호출 경로:{' '}
-          <strong>{transportInfo.mode === 'proxy' ? '고정 IP 프록시' : '프록시 미설정'}</strong>
-          {transportInfo.notes ? <span className="mt-1 block text-xs opacity-90">{transportInfo.notes}</span> : null}
+          <strong>저장됨 · API 미확인</strong>
+          <span className="mt-1 block">저장 후 「연결 테스트」를 눌러 키와 주문 조회 권한을 확인해 주세요.</span>
         </p>
       ) : null}
 
@@ -294,8 +285,9 @@ export function ShopbyIntegrationForm({
             </a>
             를 참고합니다.
           </li>
-          <li>워크스페이스 → 셀러어드민 → 앱(App) 등록 → systemKey 발급</li>
+          <li>본인 워크스페이스 → 셀러어드민 → 앱(App) 등록/수정 → 주문조회 권한 선택 → systemKey 확인 (개인 연동 앱)</li>
           <li>서비스어드민 → 쇼핑몰 관리 → 개발연동정보 → 외부 연동키(mallKey) 확인</li>
+          <li>systemKey·mallKey를 엑클로드에 입력하고 「저장」 후 「연결 테스트」를 진행합니다.</li>
           <li>
             API 문서:{' '}
             <a
@@ -406,7 +398,12 @@ export function ShopbyIntegrationForm({
         </div>
       </form>
 
-      {savedAccount ? <IntegrationConnectedNotice mallName="샵바이" /> : null}
+      {apiVerified ? (
+        <IntegrationConnectedNotice
+          title="샵바이 API 연결이 확인되었습니다."
+          description="실제 주문 조회와 필드 매핑 검증은 주문연동 화면에서 진행해 주세요."
+        />
+      ) : null}
     </div>
   );
 }

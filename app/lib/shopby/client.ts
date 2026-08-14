@@ -38,7 +38,6 @@ export type ShopbyOrderRecord = {
   receiverAddr2: string;
   deliveryMemo: string;
   payAmt: string;
-  raw: Record<string, unknown>;
 };
 
 type ShopbyOrdersPage = {
@@ -227,11 +226,6 @@ function normalizeOrderProductRow(input: {
     receiverAddr2: pickString(input.delivery, ['receiverDetailAddress', 'receiverAddressDetail']),
     deliveryMemo: pickString(input.delivery, ['deliveryMemo', 'orderMemo']) || pickString(input.order, ['orderMemo']),
     payAmt,
-    raw: {
-      order: input.order,
-      delivery: input.delivery,
-      product: input.product,
-    },
   };
 }
 
@@ -329,6 +323,7 @@ export async function fetchShopbyOrders(input: {
   const orderRequestTypes = resolveShopbyOrderRequestTypes(input.credentials.orderRequestTypes);
 
   const collected: ShopbyOrderRecord[] = [];
+  let fetchedRawCount = 0;
   let pageNumber = 1;
 
   for (;;) {
@@ -342,8 +337,13 @@ export async function fetchShopbyOrders(input: {
     });
 
     collected.push(...mapRawShopbyOrders(page.contents));
+    fetchedRawCount += page.contents.length;
 
-    if (page.contents.length < pageSize) {
+    if (
+      page.contents.length === 0 ||
+      page.contents.length < pageSize ||
+      (page.totalCount > 0 && fetchedRawCount >= page.totalCount)
+    ) {
       break;
     }
 
@@ -358,11 +358,10 @@ export async function fetchShopbyOrders(input: {
 
 export async function testShopbyConnection(credentials: ShopbyCredentials): Promise<{ ok: true }> {
   const end = new Date();
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
 
   await fetchShopbyOrdersPage({
     credentials,
-    start,
+    start: end,
     end,
     pageNumber: 1,
     pageSize: 1,

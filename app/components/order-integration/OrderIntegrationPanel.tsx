@@ -48,7 +48,8 @@ function excloadInfoOptionsForMall(mallId: AvailableMallId | null): {
       showUrl: false,
       showIp: false,
       ipLabel: 'IP 주소 (outbound)',
-      registerHint: '샵바이는 systemKey·mallKey 입력이 핵심입니다. 고정 IP·URL 등록 단계는 없습니다.',
+      registerHint:
+        '샵바이 공용 앱·스토어 설치가 아닙니다. 본인 워크스페이스에서 개인 연동 앱을 만들고 systemKey·mallKey를 발급한 뒤 엑클로드에 입력합니다.',
     };
   }
   if (mallId === 'cafe24') {
@@ -280,7 +281,7 @@ export default function OrderIntegrationPanel() {
           </li>
           <li className="flex gap-3">
             <span className="w-5 shrink-0 font-medium text-gray-400">3</span>
-            <span>발급 키를 입력하고 연결 테스트 후 저장합니다.</span>
+            <span>발급 키를 입력하고 저장한 뒤 연결 테스트를 합니다.</span>
           </li>
         </ol>
       </section>
@@ -382,7 +383,9 @@ export default function OrderIntegrationPanel() {
                 <h3 className="text-lg font-bold text-zinc-950">
                   {selectedAvailableMallId === 'cafe24'
                     ? '카페24 개인 앱 등록 정보'
-                    : `${selectedMall.name} · 엑클로드 등록 정보`}
+                    : selectedAvailableMallId === 'shopby'
+                      ? '샵바이 개인 연동 키 등록'
+                      : `${selectedMall.name} · 엑클로드 등록 정보`}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-600">
                   {selectedMallInfoOpts?.registerHint}

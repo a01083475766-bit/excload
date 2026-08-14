@@ -426,7 +426,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
     apiStatus: 'available',
     phase: 'beta',
     requiredSellerAction:
-      '워크스페이스 셀러어드민 → 앱(App) 등록·systemKey 발급 → 서비스어드민 개발연동정보 → mallKey(외부 연동키)',
+      '본인 워크스페이스 셀러어드민 → 개인 연동 앱 등록·systemKey 발급 → 서비스어드민 개발연동정보 → mallKey(외부 연동키) → 엑클로드 저장 후 연결 테스트',
     tokenExpirePolicy: 'systemKey + mallKey — Server API Header (OAuth 1차 제외)',
     rateLimitMemo: 'Server API — 공식 문서 Rate Limit',
     proxyDomains: [
@@ -439,7 +439,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
       { key: 'mallKey', label: '외부 연동키(mallKey)', required: true, secret: true, storage: 'apiKey' },
       { key: 'mallDomain', label: '쇼핑몰 도메인/명', required: false, storage: 'vendorId' },
     ],
-    memo: '베타. Server API GET /orders v1.1. NHN outbound IP whitelist 없음. shop-api 1차 제외.',
+    memo: '개발진행중. 판매자 개인 연동 키(systemKey+mallKey). Server API GET /orders. 판매자측 IP·URL 등록 단계 없음. shop-api 1차 제외.',
     marketplaceGroupId: 'shopby',
     requiresFixedIpProxy: true,
   },

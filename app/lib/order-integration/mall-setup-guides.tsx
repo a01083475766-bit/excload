@@ -285,21 +285,23 @@ export const MALL_SETUP_GUIDES: Partial<Record<OrderIntegrationMallId, MallSetup
     sellerCenterLabel: '샵바이 Server API 안내',
     steps: [
       {
-        title: 'systemKey',
-        body: '워크스페이스 → 셀러어드민 → 상품 → (앱 클릭) → 앱 수정에서 systemKey를 확인합니다.',
+        title: '개인 연동 앱 · systemKey',
+        body: '본인 워크스페이스 → 셀러어드민 → 앱(App) 등록/수정에서 주문조회 권한을 선택한 뒤 systemKey를 확인합니다. (엑클로드 공용 앱이 아닙니다)',
       },
       {
-        title: 'mallKey',
+        title: 'mallKey (외부 연동키)',
         body: '서비스어드민 → 서비스 관리 → 쇼핑몰 관리 → (쇼핑몰 선택) → 개발연동 정보 → 외부 연동 키(mallKey)를 확인합니다.',
       },
       {
-        title: '키 입력',
-        body: 'systemKey·mallKey를 왼쪽 입력란에 넣고 연결 테스트 후 저장합니다.',
+        title: '저장 후 연결 테스트',
+        body: 'systemKey·mallKey를 왼쪽 입력란에 넣고 「저장」한 다음 「연결 테스트」를 진행합니다. 주문이 0건이어도 API가 정상 응답하면 연결 확인 성공입니다.',
       },
     ],
     notes: [
-      '샵바이는 판매자센터에 엑클로드 고정 IP·URL을 등록하는 단계가 없습니다.',
-      '파트너어드민의 「외부시스템 연동코드」는 mallKey와 다릅니다.',
+      '엑클로드 공용 앱·OAuth·앱스토어 설치가 아닙니다. 판매자 본인이 만든 개인 연동 앱의 systemKey를 사용합니다.',
+      '파트너어드민의 「외부시스템 연동코드」는 mallKey(외부 연동키)와 다릅니다.',
+      '판매자센터에 엑클로드 고정 IP·URL을 등록하는 단계는 없습니다.',
+      '요금제·권한에 따라 앱 등록·개발연동 정보 메뉴가 없을 수 있습니다. 메뉴가 보이면 위 경로로 진행하세요.',
     ],
   },
   godomall: {

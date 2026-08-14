@@ -27,7 +27,9 @@ export type ShopbyAccountPublic = {
   hasMallKey: boolean;
   hasSystemKey: boolean;
   status: 'active' | 'inactive' | 'error';
+  healthStatus: string | null;
   lastTestedAt: string | null;
+  lastSuccessAt: string | null;
   lastSyncedAt: string | null;
   lastErrorMessage: string | null;
 };
@@ -120,7 +122,9 @@ export function toShopbyAccountPublic(account: OrderIntegrationAccount): ShopbyA
     hasMallKey: Boolean(mallKeyPlain),
     hasSystemKey: Boolean(systemKeyPlain),
     status: mapStatus(account.status),
+    healthStatus: account.healthStatus,
     lastTestedAt: account.lastTestedAt?.toISOString() ?? null,
+    lastSuccessAt: account.lastSuccessAt?.toISOString() ?? null,
     lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
     lastErrorMessage: sanitizePublicOptionalIntegrationErrorMessage(account.lastErrorMessage),
   };
@@ -158,9 +162,32 @@ export async function saveShopbyAccount(input: {
     },
   });
 
+  let existingMallKey = '';
+  let existingSystemKey = '';
+  if (existing) {
+    try {
+      existingMallKey = decryptShopbyMallKey(existing);
+    } catch {
+      existingMallKey = '';
+    }
+    try {
+      existingSystemKey = decryptShopbySystemKey(existing);
+    } catch {
+      existingSystemKey = '';
+    }
+  }
+
+  const incomingMallKey = input.mallKey?.trim() ?? '';
+  const incomingSystemKey = input.systemKey?.trim() ?? '';
+  const mallKeyChanged = Boolean(existing && incomingMallKey && incomingMallKey !== existingMallKey);
+  const systemKeyChanged = Boolean(
+    existing && incomingSystemKey && incomingSystemKey !== existingSystemKey,
+  );
+  const credentialsChanged = mallKeyChanged || systemKeyChanged;
+
   const mallKeyEncrypted =
-    input.mallKey && input.mallKey.trim()
-      ? encryptIntegrationSecret(input.mallKey.trim())
+    incomingMallKey
+      ? encryptIntegrationSecret(incomingMallKey)
       : existing &&
           existing.apiKeyCiphertext &&
           existing.apiKeyIv &&
@@ -178,8 +205,8 @@ export async function saveShopbyAccount(input: {
   }
 
   const systemKeyEncrypted =
-    input.systemKey && input.systemKey.trim()
-      ? encryptIntegrationSecret(input.systemKey.trim())
+    incomingSystemKey
+      ? encryptIntegrationSecret(incomingSystemKey)
       : existing &&
           existing.secretKeyCiphertext &&
           existing.secretKeyIv &&
@@ -196,7 +223,7 @@ export async function saveShopbyAccount(input: {
     throw new Error('systemKey(워크스페이스 앱)는 필수입니다.');
   }
 
-  const commonData = {
+  const credentialData = {
     accountName,
     vendorId,
     apiKeyCiphertext: mallKeyEncrypted.ciphertext,
@@ -206,14 +233,29 @@ export async function saveShopbyAccount(input: {
     secretKeyIv: systemKeyEncrypted.iv,
     secretKeyAuthTag: systemKeyEncrypted.authTag,
     encryptionKeyVersion: mallKeyEncrypted.keyVersion,
-    status: OrderIntegrationAccountStatus.INACTIVE,
-    lastErrorMessage: null,
   };
 
   if (existing) {
     return prisma.orderIntegrationAccount.update({
       where: { id: existing.id },
-      data: commonData,
+      data: credentialsChanged
+        ? {
+            ...credentialData,
+            status: OrderIntegrationAccountStatus.INACTIVE,
+            healthStatus: null,
+            lastTestedAt: null,
+            lastSuccessAt: null,
+            lastFailureAt: null,
+            lastCheckedAt: null,
+            lastErrorCategory: null,
+            lastErrorCode: null,
+            consecutiveFailureCount: 0,
+            lastErrorMessage: null,
+          }
+        : {
+            ...credentialData,
+            lastErrorMessage: null,
+          },
     });
   }
 
@@ -221,7 +263,9 @@ export async function saveShopbyAccount(input: {
     data: {
       userId: input.userId,
       provider: OrderIntegrationProvider.SHOPBY,
-      ...commonData,
+      ...credentialData,
+      status: OrderIntegrationAccountStatus.INACTIVE,
+      lastErrorMessage: null,
     },
   });
 }

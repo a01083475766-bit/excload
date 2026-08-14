@@ -85,7 +85,7 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
   {
     id: 'shopby',
     name: '샵바이',
-    description: '샵바이 Server API로 주문을 조회·수집합니다. (개발진행중)',
+    description: '판매자 개인 systemKey·mallKey로 주문을 조회·수집합니다. (개발진행중)',
     status: 'available',
     badge: 'dev',
     priority: 7,

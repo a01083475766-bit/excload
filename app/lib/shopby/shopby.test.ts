@@ -91,7 +91,6 @@ describe('mapShopbyOrdersToPreviewRows', () => {
         receiverAddr2: '1층',
         deliveryMemo: '빠른 배송',
         payAmt: '10000',
-        raw: {},
       },
     ]);
 
