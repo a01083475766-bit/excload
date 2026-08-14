@@ -82,16 +82,16 @@ describe('buildMallOverviewRows', () => {
       'lotteon',
       'cafe24',
       'domeggook',
+      'shopby',
       'ssg',
       'cjonstyle',
-      'shopby',
       'godomall',
       'makeshop',
       'gmarket',
     ]);
     expect(rows).toHaveLength(ORDER_INTEGRATION_MALLS.length);
 
-    const lastAvailableIdx = rows.findIndex((r) => r.mallId === 'domeggook');
+    const lastAvailableIdx = rows.findIndex((r) => r.mallId === 'shopby');
     const firstPreparingIdx = rows.findIndex((r) => r.mallId === 'ssg');
     expect(lastAvailableIdx).toBeLessThan(firstPreparingIdx);
   });

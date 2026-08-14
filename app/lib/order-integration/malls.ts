@@ -14,7 +14,7 @@ export type OrderIntegrationMallId =
 
 export type OrderIntegrationMallStatus = 'available' | 'preparing';
 
-export type OrderIntegrationMallBadge = 'live' | 'beta' | 'planned';
+export type OrderIntegrationMallBadge = 'live' | 'beta' | 'planned' | 'dev';
 
 export type OrderIntegrationMall = {
   id: OrderIntegrationMallId;
@@ -82,6 +82,14 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     badge: 'beta',
     priority: 6,
   },
+  {
+    id: 'shopby',
+    name: '샵바이',
+    description: '샵바이 Server API로 주문을 조회·수집합니다. (개발진행중)',
+    status: 'available',
+    badge: 'dev',
+    priority: 7,
+  },
   // 아래는 실계정 검증 전 — UI에는 「준비중」으로만 노출하고 클릭 불가.
   {
     id: 'ssg',
@@ -98,14 +106,6 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     status: 'preparing',
     preparingLabel: '준비중',
     priority: 21,
-  },
-  {
-    id: 'shopby',
-    name: 'NHN커머스/샵바이',
-    description: '샵바이 Server API로 주문을 조회·수집합니다. (준비 중)',
-    status: 'preparing',
-    preparingLabel: '준비중',
-    priority: 22,
   },
   {
     id: 'godomall',

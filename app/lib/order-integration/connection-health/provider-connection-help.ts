@@ -148,7 +148,7 @@ export const PROVIDER_CONNECTION_HELP: Partial<
   },
   shopby: {
     mallId: 'shopby',
-    providerLabel: 'NHN커머스/샵바이',
+    providerLabel: '샵바이',
     externalCenterLabel: '샵바이 관리자',
     // 공식 관리센터 URL이 확정되지 않아 링크를 넣지 않는다(추정 링크 금지).
     settingsUrl: settingsPath('shopby'),

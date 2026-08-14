@@ -419,7 +419,7 @@ export const CHANNEL_INTEGRATION_SPECS: ChannelIntegrationSpec[] = [
   },
   {
     channelCode: 'shopby',
-    channelName: 'NHN커머스/샵바이',
+    channelName: '샵바이',
     integrationType: 'direct_api',
     authType: 'api_key',
     supportedActions: [...PHASE1_ACTIONS, ...FUTURE_ACTIONS],

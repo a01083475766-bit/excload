@@ -83,7 +83,13 @@ export default function OrderIntegrationPublicIntro() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-zinc-900">{mall.name}</span>
                 <span className="text-xs text-zinc-500">
-                  {mall.status === 'available' ? (mall.badge === 'live' ? '지원' : '베타') : mall.preparingLabel ?? '준비 중'}
+                  {mall.status === 'available'
+                    ? mall.badge === 'live'
+                      ? '지원'
+                      : mall.badge === 'dev'
+                        ? '개발진행중'
+                        : '베타'
+                    : mall.preparingLabel ?? '준비 중'}
                 </span>
               </div>
               <p className="text-sm leading-relaxed text-zinc-600">{mall.description}</p>

@@ -230,7 +230,7 @@ export function ShopbyIntegrationForm({
 
 {!embedded ? (
       <div className="mb-2 flex items-center gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">NHN커머스/샵바이 연동</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">샵바이 연동</h1>
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
           베타
         </span>

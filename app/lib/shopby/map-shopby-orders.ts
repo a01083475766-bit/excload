@@ -56,7 +56,7 @@ export function mapShopbyOrderToStandardRow(order: ShopbyOrderRecord): BaseHeade
   row['상품명'] = order.productName;
   row['수량'] = order.orderCnt || '1';
   row['결제금액'] = order.payAmt;
-  row['판매처'] = 'NHN커머스/샵바이';
+  row['판매처'] = '샵바이';
 
   return row;
 }

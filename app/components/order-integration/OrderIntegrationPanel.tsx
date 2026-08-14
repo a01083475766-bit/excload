@@ -318,9 +318,11 @@ export default function OrderIntegrationPanel() {
                 title={
                   connected
                     ? `${mall.name} (설정됨)`
-                    : mall.badge === 'beta'
-                      ? `${mall.name} (베타)`
-                      : mall.name
+                    : mall.badge === 'dev'
+                      ? `${mall.name} (개발진행중)`
+                      : mall.badge === 'beta'
+                        ? `${mall.name} (베타)`
+                        : mall.name
                 }
                 onClick={() => setSelectedMallId(mall.id as AvailableMallId)}
                 className={`flex h-11 w-full items-center justify-center gap-1 overflow-hidden rounded-lg px-2 text-sm font-medium transition ${chipClass(selected)}`}
@@ -337,6 +339,12 @@ export default function OrderIntegrationPanel() {
                       aria-hidden
                     />
                     설정됨
+                  </span>
+                ) : mall.badge === 'dev' ? (
+                  <span
+                    className={`shrink-0 text-[11px] ${selected ? 'text-blue-100' : 'text-zinc-400'}`}
+                  >
+                    개발진행중
                   </span>
                 ) : mall.badge === 'beta' ? (
                   <span
@@ -430,7 +438,9 @@ export default function OrderIntegrationPanel() {
                   <tr key={row.mallId} className={row.isPreparing ? 'text-zinc-400' : ''}>
                     <td className="px-4 py-2.5 font-medium text-zinc-900">
                       <span className={row.isPreparing ? 'text-zinc-500' : ''}>{row.name}</span>
-                      {row.badge === 'beta' && !row.connected && !row.isPreparing ? (
+                      {row.badge === 'dev' && !row.connected && !row.isPreparing ? (
+                        <span className="ml-1.5 text-[11px] text-zinc-400">개발진행중</span>
+                      ) : row.badge === 'beta' && !row.connected && !row.isPreparing ? (
                         <span className="ml-1.5 text-[11px] text-zinc-400">베타</span>
                       ) : null}
                     </td>
