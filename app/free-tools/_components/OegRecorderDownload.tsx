@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Download, Monitor } from 'lucide-react';
 import {
   OEG_RECORDER_RELEASE,
@@ -13,6 +14,8 @@ const steps = [
   {
     text: '압축을 푼 폴더에서 파란색 OEG 아이콘의 ‘00_OEG녹화_실행’을 두 번 클릭합니다.',
     hint: '실행 바로가기가 보이지 않으면 OEGRecorder.exe를 직접 실행해도 됩니다.',
+    imageSrc: '/free-tools/oeg-recorder-after-extract.png',
+    imageAlt: '압축 풀기 후 OEGRecorder.exe 또는 00_OEG녹화_실행 파일로 실행하는 안내',
   },
   {
     text: '처음 실행할 때 한 번만 이용약관 확인 화면이 표시됩니다. 내용을 확인하고 동의하면 프로그램이 시작됩니다.',
@@ -82,10 +85,21 @@ export function OegRecorderDownload() {
               <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded border border-zinc-200 bg-zinc-50 text-xs font-semibold text-zinc-600">
                 {index + 1}
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p>{step.text}</p>
                 {'hint' in step && step.hint ? (
                   <p className="mt-1 text-xs leading-relaxed text-zinc-500">{step.hint}</p>
+                ) : null}
+                {'imageSrc' in step && step.imageSrc ? (
+                  <div className="mt-2.5 max-w-xl overflow-hidden rounded border border-zinc-200 bg-zinc-50 p-2 sm:p-2.5">
+                    <Image
+                      src={step.imageSrc}
+                      alt={step.imageAlt ?? ''}
+                      width={720}
+                      height={180}
+                      className="h-auto w-full object-contain"
+                    />
+                  </div>
                 ) : null}
               </div>
             </li>
