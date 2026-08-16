@@ -30,12 +30,6 @@ const shortcuts = [
   { key: '선택 영역 안에서 마우스 휠', label: '영역 확대·축소(영역 테두리가 보일 때)' },
 ];
 
-const verifySteps = [
-  '엑클로드 공식 무료도구 페이지에서 다운로드',
-  '파일명과 SHA-256 값 확인',
-  '값이 일치하면 ‘추가 정보 → 실행’ 선택',
-];
-
 export function OegRecorderDownload() {
   const [copied, setCopied] = useState(false);
   const sha = OEG_RECORDER_RELEASE.sha256;
@@ -142,30 +136,10 @@ export function OegRecorderDownload() {
           ‘Windows의 PC 보호’ 안내가 표시될 수 있습니다. 이 안내가 표시되는 것만으로 악성 프로그램으로
           판정되었다는 의미는 아닙니다.
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-          엑클로드 공식 페이지에서 다운로드한 파일인지 확인하고, 아래의 파일명과 SHA-256 값이 일치할 때만
-          ‘추가 정보 → 실행’을 선택해 주세요. 다른 사이트나 출처를 알 수 없는 곳에서 받은 파일은 실행하지
-          마세요.
-        </p>
-
-        <ol className="mt-3 space-y-1.5">
-          {verifySteps.map((text, index) => (
-            <li key={text} className="flex gap-2 text-sm leading-relaxed text-zinc-700">
-              <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded border border-zinc-200 bg-zinc-50 text-xs font-semibold text-zinc-600">
-                {index + 1}
-              </span>
-              <span>{text}</span>
-            </li>
-          ))}
-        </ol>
       </section>
 
       <section className="rounded-md border border-zinc-200 bg-white p-4 sm:p-5">
         <h3 className="text-sm font-bold text-zinc-950">공식 파일 확인</h3>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          아래 SHA-256 값이 이 페이지에 표시된 값과 같으면 엑클로드에서 배포한 공식 파일인지 확인할 수
-          있습니다.
-        </p>
         <div className="mt-3 rounded border border-zinc-200 bg-zinc-50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold text-zinc-800">SHA-256</p>
