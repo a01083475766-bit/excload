@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, Copy, Download, Monitor } from 'lucide-react';
+import { Download, Monitor } from 'lucide-react';
 import {
   OEG_RECORDER_RELEASE,
   formatOegRecorderSizeMb,
@@ -31,19 +30,6 @@ const shortcuts = [
 ];
 
 export function OegRecorderDownload() {
-  const [copied, setCopied] = useState(false);
-  const sha = OEG_RECORDER_RELEASE.sha256;
-
-  async function copySha() {
-    try {
-      await navigator.clipboard.writeText(sha);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
-  }
-
   return (
     <div className="space-y-4">
       <section className="rounded-md border border-zinc-200 bg-white p-4 sm:p-5">
@@ -136,25 +122,6 @@ export function OegRecorderDownload() {
           ‘Windows의 PC 보호’ 안내가 표시될 수 있습니다. 이 안내가 표시되는 것만으로 악성 프로그램으로
           판정되었다는 의미는 아닙니다.
         </p>
-      </section>
-
-      <section className="rounded-md border border-zinc-200 bg-white p-4 sm:p-5">
-        <h3 className="text-sm font-bold text-zinc-950">공식 파일 확인</h3>
-        <div className="mt-3 rounded border border-zinc-200 bg-zinc-50 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-semibold text-zinc-800">SHA-256</p>
-            <button
-              type="button"
-              onClick={copySha}
-              className="inline-flex h-7 items-center gap-1 rounded border border-zinc-300 bg-white px-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              {copied ? <Check className="size-3.5 text-emerald-600" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
-              {copied ? '복사됨' : '복사'}
-            </button>
-          </div>
-          <p className="mt-2 break-all font-mono text-[11px] leading-relaxed text-zinc-600">{sha}</p>
-          <p className="mt-2 text-xs text-zinc-500">파일명 {OEG_RECORDER_RELEASE.fileName}</p>
-        </div>
       </section>
 
       <section className="rounded-md border border-zinc-200 bg-white p-4 sm:p-5">
