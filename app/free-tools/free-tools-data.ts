@@ -31,6 +31,24 @@ export type FreeTool = {
 
 export const freeTools: FreeTool[] = [
   {
+    slug: 'oeg-recorder',
+    name: 'OEG 녹화',
+    shortDescription: '화면 영역과 소리를 MP4로 녹화하는 Windows 프로그램입니다.',
+    description:
+      '원하는 화면 영역을 선택해 컴퓨터 소리와 마이크를 함께 MP4로 녹화하는 Windows용 무료 프로그램입니다. 설치 과정 없이 ZIP 파일의 압축을 풀어 바로 사용할 수 있습니다.',
+    pageDescription:
+      '원하는 화면 영역을 선택해 컴퓨터 소리와 마이크를 함께 MP4로 녹화하는 Windows용 무료 프로그램입니다. 설치 과정 없이 ZIP 파일의 압축을 풀어 바로 사용할 수 있습니다.',
+    metaTitle: 'OEG 녹화 - Windows 화면 녹화 무료 다운로드',
+    metaDescription:
+      '원하는 화면 영역을 선택해 컴퓨터 소리와 마이크를 함께 MP4로 녹화하는 Windows용 무료 프로그램 OEG 녹화를 다운로드하세요.',
+    buttonLabel: '다운로드 안내 보기',
+    tags: ['화면녹화', 'Windows', 'MP4', '무설치'],
+    icon: Monitor,
+    category: 'PC 무료 프로그램',
+    enabled: true,
+    ogImagePath: '/og/free-tools.png',
+  },
+  {
     slug: 'margin-calculator',
     name: '원가·마진 계산기',
     shortDescription: '판매가와 비용으로 순이익을 확인합니다.',
@@ -159,24 +177,6 @@ export const freeTools: FreeTool[] = [
     category: '문서',
     enabled: true,
     ogImagePath: '/og/free-tools-pdf-merge.png',
-  },
-  {
-    slug: 'oeg-recorder',
-    name: 'OEG 녹화',
-    shortDescription: '화면 영역과 소리를 MP4로 녹화하는 Windows 프로그램입니다.',
-    description:
-      '원하는 화면 영역을 선택해 컴퓨터 소리와 마이크를 함께 MP4로 녹화하는 Windows용 무료 프로그램입니다. 설치 과정 없이 ZIP 파일의 압축을 풀어 바로 사용할 수 있습니다.',
-    pageDescription:
-      '원하는 화면 영역을 선택해 컴퓨터 소리와 마이크를 함께 MP4로 녹화하는 Windows용 무료 프로그램입니다. 설치 과정 없이 ZIP 파일의 압축을 풀어 바로 사용할 수 있습니다.',
-    metaTitle: 'OEG 녹화 - Windows 화면 녹화 무료 다운로드',
-    metaDescription:
-      '원하는 화면 영역을 선택해 컴퓨터 소리와 마이크를 함께 MP4로 녹화하는 Windows용 무료 프로그램 OEG 녹화를 다운로드하세요.',
-    buttonLabel: '다운로드 안내 보기',
-    tags: ['화면녹화', 'Windows', 'MP4', '무설치'],
-    icon: Monitor,
-    category: 'PC 무료 프로그램',
-    enabled: true,
-    ogImagePath: '/og/free-tools.png',
   },
 ];
 
