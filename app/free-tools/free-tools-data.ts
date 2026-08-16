@@ -5,6 +5,7 @@ import {
   FileDown,
   FileSpreadsheet,
   Image as ImageIcon,
+  Monitor,
   QrCode,
   ScanText,
   Files,
@@ -158,6 +159,24 @@ export const freeTools: FreeTool[] = [
     category: '문서',
     enabled: true,
     ogImagePath: '/og/free-tools-pdf-merge.png',
+  },
+  {
+    slug: 'oeg-recorder',
+    name: 'OEG 녹화',
+    shortDescription: '화면 영역과 소리를 MP4로 녹화하는 Windows 프로그램입니다.',
+    description:
+      '원하는 화면 영역과 컴퓨터 소리·마이크를 MP4로 녹화하는 Windows용 무료 프로그램입니다. 무설치 ZIP으로 받아 바로 실행할 수 있습니다.',
+    pageDescription:
+      '브라우저 도구가 아니라 PC에 받아 쓰는 Windows용 화면 녹화 프로그램입니다. 아래 안내를 확인한 뒤 ZIP을 내려받아 OEGRecorder.exe를 실행하세요.',
+    metaTitle: 'OEG 녹화 - Windows 화면 녹화 무료 다운로드',
+    metaDescription:
+      '원하는 화면 영역과 컴퓨터 소리·마이크를 MP4로 녹화하는 Windows용 무료 프로그램 OEG 녹화를 다운로드하세요. 무설치 ZIP, 광고 없음.',
+    buttonLabel: '다운로드 안내 보기',
+    tags: ['화면녹화', 'Windows', 'MP4', '무설치'],
+    icon: Monitor,
+    category: 'PC프로그램',
+    enabled: true,
+    ogImagePath: '/og/free-tools.png',
   },
 ];
 

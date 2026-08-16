@@ -7,6 +7,7 @@ import { ImageCompressor } from '@/app/free-tools/_components/ImageCompressor';
 import { ImageTextExtractor } from '@/app/free-tools/_components/ImageTextExtractor';
 import { ImageToPdf } from '@/app/free-tools/_components/ImageToPdf';
 import { MarginCalculator } from '@/app/free-tools/_components/MarginCalculator';
+import { OegRecorderDownload } from '@/app/free-tools/_components/OegRecorderDownload';
 import { PdfMerger } from '@/app/free-tools/_components/PdfMerger';
 import { PrivacyMask } from '@/app/free-tools/_components/PrivacyMask';
 import { ProductLabelMaker } from '@/app/free-tools/_components/ProductLabelMaker';
@@ -68,6 +69,8 @@ export function ToolWorkspace({ tool }: Props) {
         <ImageToPdf />
       ) : tool.slug === 'pdf-merge' ? (
         <PdfMerger />
+      ) : tool.slug === 'oeg-recorder' ? (
+        <OegRecorderDownload />
       ) : (
         <>
           <section className="rounded-md border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
