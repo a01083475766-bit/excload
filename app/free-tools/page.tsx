@@ -16,8 +16,8 @@ export const metadata = pageMetadata(
 );
 
 export default function FreeToolsPage() {
-  const webTools = freeTools.filter((tool) => tool.category !== 'PC프로그램');
-  const pcTools = freeTools.filter((tool) => tool.category === 'PC프로그램');
+  const webTools = freeTools.filter((tool) => !tool.category.startsWith('PC'));
+  const pcTools = freeTools.filter((tool) => tool.category.startsWith('PC'));
 
   return (
     <FreeToolsLayout

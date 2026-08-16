@@ -20,6 +20,12 @@ type Props = {
 
 export function ToolWorkspace({ tool }: Props) {
   const Icon = tool.icon;
+  const isOegRecorder = tool.slug === 'oeg-recorder';
+  const statusLabel = isOegRecorder
+    ? '무료 배포'
+    : tool.enabled
+      ? '사용 가능'
+      : '기능 준비중';
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -39,10 +45,12 @@ export function ToolWorkspace({ tool }: Props) {
           </div>
           <span
             className={`w-fit rounded border px-3 py-1 text-xs font-semibold ${
-              tool.enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-zinc-200 bg-zinc-100 text-zinc-500'
+              tool.enabled || isOegRecorder
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-zinc-200 bg-zinc-100 text-zinc-500'
             }`}
           >
-            {tool.enabled ? '사용 가능' : '기능 준비중'}
+            {statusLabel}
           </span>
         </div>
       </section>
@@ -104,10 +112,14 @@ export function ToolWorkspace({ tool }: Props) {
 
       <section className="rounded-md border border-zinc-200 border-l-4 border-l-blue-600 bg-white p-5 sm:p-6">
         <p className="text-sm font-semibold text-zinc-950">
-          쇼핑몰 주문 파일도 반복해서 직접 정리하고 계신가요?
+          {isOegRecorder
+            ? '엑클로드의 주문·송장 도구도 살펴보세요'
+            : '쇼핑몰 주문 파일도 반복해서 직접 정리하고 계신가요?'}
         </p>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          엑클로드에서는 쇼핑몰 주문 엑셀과 카톡 주문을 택배사 업로드 양식으로 정리할 수 있습니다.
+          {isOegRecorder
+            ? '쇼핑몰 주문 엑셀과 카톡 주문을 택배사 업로드 양식으로 간편하게 정리할 수 있습니다.'
+            : '엑클로드에서는 쇼핑몰 주문 엑셀과 카톡 주문을 택배사 업로드 양식으로 정리할 수 있습니다.'}
         </p>
         <Link
           href="/order-convert"

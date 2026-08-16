@@ -19,6 +19,7 @@ onekl-no01.zip
 
 # OEG 녹화 Windows ZIP — GitHub Release 첨부용(로컬 확인만, 커밋하지 않음)
 OEGRecorder-*.zip
+_local-releases/
 
 # TypeScript incremental build info (커밋/풀리퀘 용도 아님)
 tsconfig.tsbuildinfo
