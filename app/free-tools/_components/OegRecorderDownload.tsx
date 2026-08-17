@@ -33,6 +33,17 @@ const shortcuts = [
 ];
 
 export function OegRecorderDownload() {
+  function trackDownloadClick() {
+    try {
+      void fetch('/api/free-tools/oeg-recorder/download-click', {
+        method: 'POST',
+        keepalive: true,
+      });
+    } catch {
+      // 기록 실패해도 다운로드는 진행
+    }
+  }
+
   return (
     <div className="space-y-4">
       <section className="rounded-md border border-zinc-200 bg-white p-4 sm:p-5">
@@ -66,6 +77,7 @@ export function OegRecorderDownload() {
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           <a
             href={OEG_RECORDER_RELEASE.downloadUrl}
+            onClick={trackDownloadClick}
             className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
           >
             <Download className="size-4" aria-hidden />

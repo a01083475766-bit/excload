@@ -1042,3 +1042,12 @@ model CommerceReportSettings {
   toneStyle   String   @default("PLAIN")
   updatedAt   DateTime @updatedAt
 }
+
+/// 무료도구 다운로드 클릭 집계 (예: oeg-recorder)
+model FreeToolDownloadStat {
+  id        String   @id @default(cuid())
+  toolKey   String   @unique
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

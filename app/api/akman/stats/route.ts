@@ -2,6 +2,7 @@ import { prisma } from '@/app/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/lib/auth'
 import { isAdminEmail } from '@/app/lib/admin-auth'
+import { OEG_RECORDER_DOWNLOAD_STAT_KEY } from '@/app/free-tools/oeg-recorder-release'
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
@@ -79,6 +80,11 @@ export async function GET(request: Request) {
     }
   })
 
+  const oegRecorderDownload = await prisma.freeToolDownloadStat.findUnique({
+    where: { toolKey: OEG_RECORDER_DOWNLOAD_STAT_KEY },
+    select: { count: true },
+  })
+
   return Response.json({
     totalUsers,
     betaUsers,
@@ -89,6 +95,7 @@ export async function GET(request: Request) {
     newUsersSince,
     monthlyUsers,
     revenue: revenue._sum.amount || 0,
-    monthlyRevenue: monthlyRevenue._sum.amount || 0
+    monthlyRevenue: monthlyRevenue._sum.amount || 0,
+    oegRecorderDownloads: oegRecorderDownload?.count ?? 0,
   })
 }

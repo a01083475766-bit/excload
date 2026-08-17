@@ -14,6 +14,7 @@ interface AkmanStats {
   monthlyUsers: number;
   revenue: number;
   monthlyRevenue: number;
+  oegRecorderDownloads?: number;
 }
 
 const AKMAN_LAST_SEEN_KEY = 'excload-akman-dashboard-last-seen';
@@ -459,6 +460,11 @@ export default function AkmanClient() {
           <div style={statCard}>
             <div style={{ fontSize: '13px', color: '#666' }}>이번 달 매출</div>
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmtWon(stats.monthlyRevenue)}</div>
+          </div>
+          <div style={statCard}>
+            <div style={{ fontSize: '13px', color: '#666' }}>OEG 녹화 다운로드</div>
+            <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.oegRecorderDownloads ?? 0)}</div>
+            <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>클릭 기록 누적</div>
           </div>
         </div>
       )}

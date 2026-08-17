@@ -2,6 +2,8 @@
  * OEG 녹화 Windows ZIP — GitHub Release 첨부 메타.
  * ZIP 본문은 레포에 커밋하지 않고 Release 첨부파일로만 배포합니다.
  */
+export const OEG_RECORDER_DOWNLOAD_STAT_KEY = 'oeg-recorder' as const;
+
 export const OEG_RECORDER_RELEASE = {
   version: '0.9.0',
   versionLabel: 'v0.9.0 베타',
