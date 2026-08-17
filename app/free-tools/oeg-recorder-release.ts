@@ -9,9 +9,9 @@ export const OEG_RECORDER_RELEASE = {
   versionLabel: 'v0.9.0 베타',
   fileName: 'OEGRecorder-v0.9.0-win-x64.zip',
   /** 약 60.8MB (재포장본 바이트) */
-  sizeBytes: 63_776_958,
+  sizeBytes: 63_776_142,
   sizeLabel: '약 60.8MB',
-  sha256: '5E149B6C8374A009045B0AD21A4534DCBB099CEE4C415BE5FD4F574200F43FA8',
+  sha256: '15009824C7F553E50291C95C53543A5437EB5A6600CA8AB177622D712BE04CEE',
   platformLabel: 'Windows 10/11 x64',
   /**
    * GitHub Release 태그 `oeg-recorder-v0.9.0` 첨부 URL.
