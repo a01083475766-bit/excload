@@ -80,10 +80,16 @@ export async function GET(request: Request) {
     }
   })
 
-  const oegRecorderDownload = await prisma.freeToolDownloadStat.findUnique({
-    where: { toolKey: OEG_RECORDER_DOWNLOAD_STAT_KEY },
-    select: { count: true },
-  })
+  let oegRecorderDownloads = 0
+  try {
+    const oegRecorderDownload = await prisma.freeToolDownloadStat.findUnique({
+      where: { toolKey: OEG_RECORDER_DOWNLOAD_STAT_KEY },
+      select: { count: true },
+    })
+    oegRecorderDownloads = oegRecorderDownload?.count ?? 0
+  } catch (error) {
+    console.error('[akman/stats] oegRecorderDownloads', error)
+  }
 
   return Response.json({
     totalUsers,
@@ -96,6 +102,6 @@ export async function GET(request: Request) {
     monthlyUsers,
     revenue: revenue._sum.amount || 0,
     monthlyRevenue: monthlyRevenue._sum.amount || 0,
-    oegRecorderDownloads: oegRecorderDownload?.count ?? 0,
+    oegRecorderDownloads,
   })
 }

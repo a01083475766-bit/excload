@@ -408,7 +408,34 @@ export default function AkmanClient() {
         </div>
       )}
       {!statsLoading && stats && (
-        <div style={cardGrid}>
+        <>
+          <div
+            style={{
+              border: '1px solid #93c5fd',
+              borderRadius: '8px',
+              padding: '16px 20px',
+              marginTop: '24px',
+              marginBottom: '16px',
+              background: '#eff6ff',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '13px', color: '#1d4ed8', fontWeight: 600 }}>OEG 녹화 다운로드</div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                무료도구 다운로드 버튼 클릭 누적 (실제 ZIP 완료와는 다를 수 있음)
+              </div>
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>
+              {fmt(stats.oegRecorderDownloads ?? 0)}
+              <span style={{ fontSize: '14px', fontWeight: 500, color: '#64748b', marginLeft: '6px' }}>회</span>
+            </div>
+          </div>
+          <div style={{ ...cardGrid, marginTop: 0 }}>
           <div style={{ ...statCard, cursor: 'pointer' }} onClick={() => openUsers('ALL', 'ALL')}>
             <div style={{ fontSize: '13px', color: '#666' }}>전체 회원</div>
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.totalUsers)}</div>
@@ -461,12 +488,8 @@ export default function AkmanClient() {
             <div style={{ fontSize: '13px', color: '#666' }}>이번 달 매출</div>
             <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmtWon(stats.monthlyRevenue)}</div>
           </div>
-          <div style={statCard}>
-            <div style={{ fontSize: '13px', color: '#666' }}>OEG 녹화 다운로드</div>
-            <div style={{ fontSize: '22px', fontWeight: 600 }}>{fmt(stats.oegRecorderDownloads ?? 0)}</div>
-            <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>클릭 기록 누적</div>
           </div>
-        </div>
+        </>
       )}
 
       <div
