@@ -24,9 +24,11 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['주문자성명']).toBe('주문자');
     expect(ALIAS_DICTIONARY['주문자 상호명']).toBe('주문자');
     expect(ALIAS_DICTIONARY['주문자상호명']).toBe('주문자');
+    expect(ALIAS_DICTIONARY['주문고객']).toBe('주문자');
     expect(ALIAS_DICTIONARY['주문자 상호명']).not.toBe('받는사람');
     expect(ALIAS_DICTIONARY['주문자전화번호']).toBe('주문자연락처');
     expect(ALIAS_DICTIONARY['주문자휴대전화']).toBe('주문자연락처');
+    expect(ALIAS_DICTIONARY['주문고객 연락처']).toBe('주문자연락처');
     expect(ALIAS_DICTIONARY['주문접수일시']).toBe('주문일시');
     expect(ALIAS_DICTIONARY['총결제액']).toBe('결제금액');
     expect(ALIAS_DICTIONARY['규격옵션']).toBe('상품옵션');
@@ -35,6 +37,7 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['택배요청메모']).toBe('배송메시지');
     expect(ALIAS_DICTIONARY['주문요청사항']).toBe('배송메시지');
     expect(ALIAS_DICTIONARY['전체배송주소']).toBe('받는사람주소1');
+    expect(ALIAS_DICTIONARY['받는주소']).toBe('받는사람주소1');
     expect(ALIAS_DICTIONARY['연락가능번호1']).toBe('받는사람전화1');
     expect(ALIAS_DICTIONARY['연락가능번호2']).toBe('받는사람전화2');
     expect(ALIAS_DICTIONARY['출고요청번호']).toBe('출고번호');
