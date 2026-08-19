@@ -6,7 +6,7 @@
 
 import { useUserStore } from '@/app/store/userStore';
 import { runAfterTossChargeResponse } from '@/app/lib/toss/after-charge-client';
-import { dbPlanToIntervalKey, getPlanDisplayName } from '@/app/lib/subscription/plan-change';
+import { dbPlanToIntervalKey, getPlanDisplayName, PAID_MONTHLY_POINTS } from '@/app/lib/subscription/plan-change';
 import {
   canStartPaidCheckout,
   getNewPaidCheckoutBlockMessage,
@@ -19,6 +19,8 @@ import { useSession } from 'next-auth/react';
 import { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+const paidMonthlyUsageLabel = `매월 ${PAID_MONTHLY_POINTS.toLocaleString('ko-KR')} 사용량`;
+
 const PAID_PLAN_OPTIONS = [
   {
     planKey: 'monthly' as const,
@@ -26,7 +28,7 @@ const PAID_PLAN_OPTIONS = [
     price: 4000,
     period: '월',
     badge: null as string | null,
-    description: '매월 400,000 사용량',
+    description: paidMonthlyUsageLabel,
   },
   {
     planKey: 'yearly' as const,
@@ -34,7 +36,7 @@ const PAID_PLAN_OPTIONS = [
     price: 40000,
     period: '년',
     badge: '20% 할인',
-    description: '매월 400,000 사용량',
+    description: paidMonthlyUsageLabel,
   },
 ];
 

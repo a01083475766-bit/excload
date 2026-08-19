@@ -3,9 +3,14 @@ import {
   addBillingPeriod,
   resolveEffectivePlanAtRenewal,
   intervalKeyToDbPlan,
+  PAID_MONTHLY_POINTS,
 } from '../plan-change';
 
 describe('plan-change', () => {
+  it('PAID_MONTHLY_POINTS is 100_000 (PRO/YEARLY 월간 텍스트 변환 한도)', () => {
+    expect(PAID_MONTHLY_POINTS).toBe(100_000);
+  });
+
   it('intervalKeyToDbPlan', () => {
     expect(intervalKeyToDbPlan('monthly')).toBe('PRO');
     expect(intervalKeyToDbPlan('yearly')).toBe('YEARLY');

@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { prisma } from '@/app/lib/prisma';
 import { isAdminEmail } from '@/app/lib/admin-auth';
+import { PAID_MONTHLY_POINTS } from '@/app/lib/subscription/plan-change';
 
 interface UpdatePlanRequest {
   userId: string;
@@ -80,10 +81,10 @@ export async function POST(request: NextRequest) {
     let pointsChange = 0;
 
     if (plan === 'PRO' || plan === 'YEARLY') {
-      // PRO/YEARLY로 변경 시 사용량 400000으로 설정
-      if (user.plan === 'FREE') {
-        pointsChange = 400000 - user.points;
-        newPoints = 400000;
+      // PRO/YEARLY로 변경 시 유료 월간 포인트로 설정 (FREE·BETA 등 비유료 → 유료)
+      if (user.plan !== 'PRO' && user.plan !== 'YEARLY') {
+        pointsChange = PAID_MONTHLY_POINTS - user.points;
+        newPoints = PAID_MONTHLY_POINTS;
       }
     } else if (plan === 'FREE') {
       // FREE로 변경 시 사용량 5000으로 설정

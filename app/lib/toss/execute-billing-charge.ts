@@ -10,6 +10,7 @@ import {
   isPaidDbPlan,
   resolveEffectivePlanAtRenewal,
   type PaidDbPlan,
+  PAID_MONTHLY_POINTS,
 } from '@/app/lib/subscription/plan-change';
 import {
   applyGraceExpiryIfNeeded,
@@ -178,7 +179,7 @@ export async function executeTossBillingCharge(params: {
 
   const nextPointDate = addBillingPeriod(now, nextUserPlan);
   const pointsBefore = user.points;
-  const pointsTarget = 400000;
+  const pointsTarget = PAID_MONTHLY_POINTS;
   const pointsDelta = pointsTarget - pointsBefore;
 
   await prisma.$transaction([

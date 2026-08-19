@@ -10,11 +10,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { isAdminEmail } from '@/app/lib/admin-auth';
 import { prisma } from '@/app/lib/prisma';
+import { PAID_MONTHLY_POINTS } from '@/app/lib/subscription/plan-change';
 
 interface ManualPaymentProcessRequest {
   userEmail: string;
   plan: 'PRO' | 'YEARLY';
-  points?: number; // 기본값: 400000
+  points?: number; // 기본값: PAID_MONTHLY_POINTS
 }
 
 /**
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: ManualPaymentProcessRequest = await request.json();
-    const { userEmail, plan, points = 400000 } = body;
+    const { userEmail, plan, points = PAID_MONTHLY_POINTS } = body;
 
     // 유효성 검사
     if (!userEmail || !plan) {

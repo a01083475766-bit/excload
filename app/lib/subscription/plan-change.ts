@@ -10,6 +10,9 @@ export const PLAN_AMOUNTS: Record<PaidDbPlan, number> = {
   YEARLY: 40000,
 };
 
+/** PRO/YEARLY 유료 플랜 — 결제·갱신 시 매월 리셋되는 텍스트 변환 포인트(=글자 수) */
+export const PAID_MONTHLY_POINTS = 100_000;
+
 export const PLAN_ORDER_NAMES: Record<PaidDbPlan, string> = {
   PRO: 'EXCLOAD PRO 구독',
   YEARLY: 'EXCLOAD YEARLY 구독',

@@ -13,6 +13,7 @@ import {
   paymentFailureClearData,
   recordPaymentFailure,
 } from '@/app/lib/subscription/payment-failure';
+import { PAID_MONTHLY_POINTS } from '@/app/lib/subscription/plan-change';
 
 function isPrismaUniqueViolation(e: unknown): boolean {
   return (e as { code?: string })?.code === 'P2002';
@@ -297,7 +298,7 @@ export async function POST(request: NextRequest) {
               prisma.pointHistory.create({
                 data: {
                   userId: user.id,
-                  change: 400000 - pointsBefore,
+                  change: PAID_MONTHLY_POINTS - pointsBefore,
                   reason: 'STRIPE_CHECKOUT_COMPLETED',
                   stripeSessionId: session.id,
                   stripeInvoiceId: stripeInvoiceIdForDedupe,
@@ -308,7 +309,7 @@ export async function POST(request: NextRequest) {
                 data: {
                   plan,
                   stripeCustomerId: session.customer as string | null,
-                  points: 400000,
+                  points: PAID_MONTHLY_POINTS,
                   ...paymentFailureClearData(),
                 },
               }),
@@ -341,7 +342,7 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        console.log('[Stripe Webhook] checkout 완료 userId=', user.id, 'plan=', plan, 'points=400000');
+        console.log('[Stripe Webhook] checkout 완료 userId=', user.id, 'plan=', plan, 'points=', PAID_MONTHLY_POINTS);
       } catch (error) {
         console.error('[Stripe Webhook] checkout 처리 오류:', error instanceof Error ? error.message : String(error));
         await releaseEventClaim();
@@ -622,7 +623,7 @@ export async function POST(request: NextRequest) {
         const skipPointsBecauseCheckoutHandled =
           invoice?.billing_reason === 'subscription_create' && !!recentCheckoutPayment;
 
-        // 사용량 제공 및 플랜 업데이트 (400000) — 갱신 주기 인보이스만 풀 리셋 (첫 구독은 checkout에서 이미 반영)
+        // 사용량 제공 및 플랜 업데이트 — 갱신 주기 인보이스만 풀 리셋 (첫 구독은 checkout에서 이미 반영)
         try {
           if (!user || !user.id) {
             throw new Error('사용자 정보가 없습니다.');
@@ -677,11 +678,11 @@ export async function POST(request: NextRequest) {
                 userId: user.id,
                 plan: plan,
                 currentPoints: user.points,
-                pointsToSet: 400000,
+                pointsToSet: PAID_MONTHLY_POINTS,
               });
 
               const pointsBeforeInvoice = user.points;
-              const pointsChange = 400000 - pointsBeforeInvoice;
+              const pointsChange = PAID_MONTHLY_POINTS - pointsBeforeInvoice;
 
               try {
                 const [, u] = await prisma.$transaction([
@@ -698,7 +699,7 @@ export async function POST(request: NextRequest) {
                     where: { id: user.id },
                     data: {
                       plan,
-                      points: 400000,
+                      points: PAID_MONTHLY_POINTS,
                       ...paymentFailureClearData(),
                     },
                     select: {
@@ -792,7 +793,7 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             email: userEmail,
             plan: updatedUser.plan,
-            pointsReset: 400000,
+            pointsReset: PAID_MONTHLY_POINTS,
             newPoints: updatedUser.points,
           });
         } catch (updateError) {

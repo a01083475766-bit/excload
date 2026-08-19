@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { PAID_MONTHLY_POINTS } from '@/app/lib/subscription/plan-change';
 
 interface PointHistory {
   id: string;
@@ -436,7 +437,7 @@ export default function UserDetailPage() {
             +10000
           </button>
           <button
-            onClick={() => handleAdjustPoints(400000)}
+            onClick={() => handleAdjustPoints(PAID_MONTHLY_POINTS)}
             style={{
               padding: '8px 16px',
               fontSize: '14px',
@@ -448,7 +449,7 @@ export default function UserDetailPage() {
               fontWeight: 'bold',
             }}
           >
-            +400000
+            +{PAID_MONTHLY_POINTS.toLocaleString('ko-KR')}
           </button>
           <button
             onClick={() => handleAdjustPoints(-1000)}

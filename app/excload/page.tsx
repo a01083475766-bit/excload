@@ -5,6 +5,7 @@ import { OpenBetaLandingBottom, OpenBetaLandingTop } from '@/app/components/land
 import { landingContainerClass } from '@/app/components/landing/landingLayout';
 import { InvoiceFileConvertTrialModeProvider } from '@/app/invoice-file-convert/trial-mode-context';
 import { getSignupBonusPoints, isOpenBetaMode } from '@/app/lib/open-beta-policy';
+import { PAID_MONTHLY_POINTS } from '@/app/lib/subscription/plan-change';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
@@ -36,6 +37,8 @@ const InvoiceTrialEmbed = dynamic(() => import('@/app/invoice-file-convert/page'
 export default function HomePage() {
   const betaMode = isOpenBetaMode();
   const signupBonusLabel = getSignupBonusPoints().toLocaleString();
+  const paidMonthlyPointsLabel = PAID_MONTHLY_POINTS.toLocaleString('ko-KR');
+  const paidMonthlyFeature = `매월 ${paidMonthlyPointsLabel} 포인트 제공`;
   const [showInvoiceTrial, setShowInvoiceTrial] = useState(false);
 
   const plans = betaMode
@@ -63,7 +66,7 @@ export default function HomePage() {
           priceSub: '/ 월',
           description: '꾸준한 주문 처리를 위한 플랜 (정식 출시 예정)',
           features: [
-            '매월 400,000 포인트 제공',
+            paidMonthlyFeature,
             '텍스트 변환 시 글자 수만큼 포인트 차감',
             '엑셀 다운로드 무제한',
           ],
@@ -76,7 +79,7 @@ export default function HomePage() {
           priceMain: '40,000원',
           priceSub: '/ 년',
           description: '장기 이용자를 위한 연간 플랜 (정식 출시 예정)',
-          features: ['20% 할인', '매월 400,000 포인트 제공', '엑셀 다운로드 무제한'],
+          features: ['20% 할인', paidMonthlyFeature, '엑셀 다운로드 무제한'],
           popular: false,
           upcoming: true,
         },
@@ -103,7 +106,7 @@ export default function HomePage() {
           priceSub: '/ 월',
           description: '꾸준한 주문 처리를 위한 플랜',
           features: [
-            '매월 400,000 포인트 제공',
+            paidMonthlyFeature,
             '텍스트 변환 시 글자 수만큼 포인트 차감',
             '엑셀 다운로드 무제한',
           ],
@@ -116,7 +119,7 @@ export default function HomePage() {
           priceMain: '40,000원',
           priceSub: '/ 년',
           description: '장기 이용자를 위한 연간 플랜',
-          features: ['20% 할인', '매월 400,000 포인트 제공', '엑셀 다운로드 무제한'],
+          features: ['20% 할인', paidMonthlyFeature, '엑셀 다운로드 무제한'],
           popular: false,
           upcoming: false,
         },
@@ -125,13 +128,13 @@ export default function HomePage() {
   const planComparisonRows = betaMode
     ? [
         { label: '오픈 베타', free: '가능', monthly: '—', yearly: '—' },
-        { label: '월 포인트', free: `${signupBonusLabel}P`, monthly: '400,000P', yearly: '400,000P' },
+        { label: '월 포인트', free: `${signupBonusLabel}P`, monthly: `${paidMonthlyPointsLabel}P`, yearly: `${paidMonthlyPointsLabel}P` },
         { label: '엑셀 다운로드', free: '무제한', monthly: '무제한', yearly: '무제한' },
         { label: '추천 대상', free: '베타 이용', monthly: '정식 출시 후', yearly: '정식 출시 후' },
       ]
     : [
         { label: '무료체험', free: '가능', monthly: '가능', yearly: '가능' },
-        { label: '월 포인트', free: '5,000', monthly: '400,000', yearly: '400,000' },
+        { label: '월 포인트', free: '5,000', monthly: paidMonthlyPointsLabel, yearly: paidMonthlyPointsLabel },
         { label: '엑셀 다운로드', free: '차감 방식', monthly: '무제한', yearly: '무제한' },
         { label: '추천 대상', free: '처음 테스트', monthly: '꾸준한 운영', yearly: '장기 이용' },
       ];
