@@ -50,11 +50,7 @@ export default function OrderIntegrationMallPage() {
     mallId === 'smartstore' ||
     mallId === 'cafe24' ||
     mallId === 'lotteon' ||
-    mallId === 'ssg' ||
-    mallId === 'cjonstyle' ||
     mallId === 'shopby' ||
-    mallId === 'godomall' ||
-    mallId === 'makeshop' ||
     mallId === 'domeggook'
   ) {
     return (

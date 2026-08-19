@@ -163,14 +163,7 @@ export default function OrderIntegrationPanel() {
   const [selectedMallId, setSelectedMallId] = useState<AvailableMallId | 'all'>('all');
   const [connectedMalls, setConnectedMalls] = useState<ConnectedMallSummary[]>([]);
 
-  const availableMalls = useMemo(
-    () => ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'available'),
-    []
-  );
-  const preparingMalls = useMemo(
-    () => ORDER_INTEGRATION_MALLS.filter((m) => m.status === 'preparing'),
-    []
-  );
+  const availableMalls = useMemo(() => ORDER_INTEGRATION_MALLS, []);
 
   const selectedMall =
     selectedMallId === 'all' ? null : availableMalls.find((m) => m.id === selectedMallId) ?? null;
@@ -357,21 +350,6 @@ export default function OrderIntegrationPanel() {
               </button>
             );
           })}
-          {preparingMalls.map((mall) => (
-            <button
-              key={mall.id}
-              type="button"
-              disabled
-              aria-disabled="true"
-              title={`${mall.name} (준비중)`}
-              className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-1 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-sm font-medium text-zinc-400"
-            >
-              <span className="truncate">{mall.name}</span>
-              <span className="shrink-0 text-[11px] text-zinc-400">
-                {mall.preparingLabel ?? '준비중'}
-              </span>
-            </button>
-          ))}
         </div>
       </section>
 
@@ -483,7 +461,7 @@ export default function OrderIntegrationPanel() {
             </table>
           </div>
           <p className="mt-2 text-xs text-zinc-500">
-            파란 배경 버튼은 현재 선택된 쇼핑몰입니다. ‘설정됨’은 연동 정보가 저장된 상태이고, ‘준비중’은 아직 선택할 수 없습니다.
+            파란 배경 버튼은 현재 선택된 쇼핑몰입니다. ‘설정됨’은 연동 정보가 저장된 상태입니다.
           </p>
         </section>
       ) : null}

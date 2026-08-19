@@ -30,7 +30,7 @@ export type OrderIntegrationMall = {
 /**
  * 연동 설정·주문조회에 노출하는 몰 목록.
  * - available: 선택·설정 가능 (실계정 확인된 몰)
- * - preparing: 목록 하단에 「준비중」으로 표시, 클릭 불가
+ * - preparing: (내부 보류) UI 목록에는 포함하지 않음
  * 순서는 priority(작을수록 앞).
  */
 export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
@@ -90,48 +90,12 @@ export const ORDER_INTEGRATION_MALLS: OrderIntegrationMall[] = [
     badge: 'dev',
     priority: 7,
   },
-  // 아래는 실계정 검증 전 — UI에는 「준비중」으로만 노출하고 클릭 불가.
-  {
-    id: 'ssg',
-    name: 'SSG.COM',
-    description: 'SSG Open API로 배송지시·출고대상 주문을 조회·수집합니다. (준비 중)',
-    status: 'preparing',
-    preparingLabel: '준비중',
-    priority: 20,
-  },
-  {
-    id: 'cjonstyle',
-    name: 'CJ온스타일',
-    description: 'CJ온스타일 표준 API로 배송타입별 주문을 조회·수집합니다. (준비 중)',
-    status: 'preparing',
-    preparingLabel: '준비중',
-    priority: 21,
-  },
-  {
-    id: 'godomall',
-    name: '고도몰',
-    description: '고도몰5 Open API(Order_Search)로 주문을 조회·수집합니다. (준비 중)',
-    status: 'preparing',
-    preparingLabel: '준비중',
-    priority: 23,
-  },
-  {
-    id: 'makeshop',
-    name: '메이크샵',
-    description: '메이크샵 APP API(주문 2.0)로 주문을 조회·수집합니다. (준비 중)',
-    status: 'preparing',
-    preparingLabel: '준비중',
-    priority: 24,
-  },
-  {
-    id: 'gmarket',
-    name: 'G마켓/옥션',
-    description: 'ESM 셀링툴 제휴 승인 후 연동 예정입니다.',
-    status: 'preparing',
-    preparingLabel: '준비중',
-    priority: 30,
-  },
 ];
+
+/** UI·랜딩 등 사용자-facing 영역에 노출할 몰 이름 (ORDER_INTEGRATION_MALLS 순서) */
+export function getVisibleIntegrationMallNames(): string[] {
+  return ORDER_INTEGRATION_MALLS.map((mall) => mall.name);
+}
 
 export function getOrderIntegrationMall(id: string): OrderIntegrationMall | undefined {
   return ORDER_INTEGRATION_MALLS.find((mall) => mall.id === id);

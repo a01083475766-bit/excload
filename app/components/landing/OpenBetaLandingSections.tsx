@@ -2,22 +2,10 @@
 
 import { landingContainerClass } from '@/app/components/landing/landingLayout';
 import OpenBetaDemoVideo from '@/app/components/landing/OpenBetaDemoVideo';
+import { getVisibleIntegrationMallNames } from '@/app/lib/order-integration/malls';
 import { getSignupBonusPoints } from '@/app/lib/open-beta-policy';
 import Link from 'next/link';
 import { useState } from 'react';
-
-const OPEN_BETA_MALLS = [
-  '쿠팡',
-  '스마트스토어',
-  '11번가',
-  '카페24',
-  '롯데ON',
-  'SSG',
-  'CJ온스타일',
-  '샵바이',
-  '고도몰',
-  '메이크샵',
-] as const;
 
 const BENEFITS = [
   {
@@ -315,6 +303,8 @@ export function OpenBetaBenefitsAndJoin() {
 
 /** Hero 다음: 연동 대상 쇼핑몰 → 혜택 → 참여 독려 */
 export function OpenBetaLandingTop() {
+  const visibleMalls = getVisibleIntegrationMallNames();
+
   return (
     <>
       <section className="border-b border-zinc-200 bg-white py-11 dark:border-zinc-800 dark:bg-zinc-950 sm:py-14">
@@ -332,7 +322,7 @@ export function OpenBetaLandingTop() {
             </p>
           </div>
           <ul className="mt-7 flex flex-wrap gap-2">
-            {OPEN_BETA_MALLS.map((mall) => (
+            {visibleMalls.map((mall) => (
               <li key={mall} className="flex">
                 <span className="inline-flex h-10 min-w-[7.25rem] items-center justify-center rounded-md border border-zinc-200 bg-white px-3 text-center text-sm font-medium leading-tight text-zinc-800 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 sm:min-w-[7.75rem]">
                   {mall}

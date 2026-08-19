@@ -83,27 +83,21 @@ export default function OrderIntegrationPublicIntro() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-zinc-900">{mall.name}</span>
                 <span className="text-xs text-zinc-500">
-                  {mall.status === 'available'
-                    ? mall.badge === 'live'
-                      ? '지원'
-                      : mall.badge === 'dev'
-                        ? '개발진행중'
-                        : '베타'
-                    : mall.preparingLabel ?? '준비 중'}
+                  {mall.badge === 'live'
+                    ? '지원'
+                    : mall.badge === 'dev'
+                      ? '개발진행중'
+                      : '베타'}
                 </span>
               </div>
               <p className="text-sm leading-relaxed text-zinc-600">{mall.description}</p>
-              {mall.status === 'available' ? (
-                <Link
-                  href={buildAuthLoginRedirectPath(`/order/integration/${mall.id}`)}
-                  className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-zinc-300 px-3 text-sm font-medium text-zinc-700 transition hover:border-blue-500 hover:text-blue-700"
-                >
-                  연결하기
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                </Link>
-              ) : (
-                <span className="text-sm text-zinc-400 sm:text-center">준비 중</span>
-              )}
+              <Link
+                href={buildAuthLoginRedirectPath(`/order/integration/${mall.id}`)}
+                className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-zinc-300 px-3 text-sm font-medium text-zinc-700 transition hover:border-blue-500 hover:text-blue-700"
+              >
+                연결하기
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </Link>
             </li>
           ))}
         </ul>

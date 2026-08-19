@@ -4,17 +4,16 @@ import { landingContainerClass } from '@/app/components/landing/landingLayout';
 import Image from 'next/image';
 import Link from 'next/link';
 
-type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'gmarket' | 'auction' | 'cafe24';
-type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
+type ShoppingMallKey = 'naver' | 'eleven' | 'coupang' | 'cafe24';
 
 const shoppingMallCards: { key: ShoppingMallKey; name: string }[] = [
   { key: 'naver', name: '스마트스토어' },
   { key: 'eleven', name: '11번가' },
   { key: 'coupang', name: '쿠팡' },
-  { key: 'gmarket', name: 'G마켓' },
-  { key: 'auction', name: '옥션' },
   { key: 'cafe24', name: '카페24' },
 ];
+
+type CourierKey = 'cj' | 'logen' | 'post' | 'hanjin' | 'lotte' | 'kydexp';
 
 const courierCards: { key: CourierKey; name: string; logo: string; color: string }[] = [
   { key: 'cj', name: 'CJ대한통운', logo: 'CJ', color: '#0f5ca8' },
@@ -42,17 +41,6 @@ function ShoppingMallBrand({ type }: { type: ShoppingMallKey }) {
         <span className="text-[#38bdf8]">g</span>
       </span>
     );
-  }
-  if (type === 'gmarket') {
-    return (
-      <span className="text-[15px] font-black leading-none tracking-tight">
-        <span className="text-[#00b050]">G</span>
-        <span className="text-[#1d4ed8]">market</span>
-      </span>
-    );
-  }
-  if (type === 'auction') {
-    return <span className="text-[17px] font-black leading-none text-[#c1121f]">옥션</span>;
   }
   return (
     <span className="text-[16px] font-black leading-none tracking-tight">
