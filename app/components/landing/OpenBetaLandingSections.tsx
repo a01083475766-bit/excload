@@ -1,7 +1,7 @@
 'use client';
 
 import { landingContainerClass } from '@/app/components/landing/landingLayout';
-import { OPEN_BETA_DEMO_VIDEO_SRC } from '@/app/lib/landing/open-beta-demo-video';
+import OpenBetaDemoVideo from '@/app/components/landing/OpenBetaDemoVideo';
 import { getSignupBonusPoints } from '@/app/lib/open-beta-policy';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -319,17 +319,8 @@ export function OpenBetaLandingTop() {
     <>
       <section className="border-b border-zinc-200 bg-white py-11 dark:border-zinc-800 dark:bg-zinc-950 sm:py-14">
         <div className={landingContainerClass}>
-          <div className="mb-7 w-full overflow-hidden border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900">
-            <video
-              src={OPEN_BETA_DEMO_VIDEO_SRC}
-              className="block w-full bg-black"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
-              controls
-            />
+          <div className="mb-7 hidden w-full lg:block">
+            <OpenBetaDemoVideo />
           </div>
           <div className="mb-3 max-w-3xl sm:mb-4">
             <h2 className="break-keep text-2xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">

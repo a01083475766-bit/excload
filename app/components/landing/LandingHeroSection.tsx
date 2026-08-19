@@ -2,6 +2,7 @@
 
 import { landingContainerClass } from '@/app/components/landing/landingLayout';
 import LandingHeroVisual from '@/app/components/landing/LandingHeroVisual';
+import OpenBetaDemoVideo from '@/app/components/landing/OpenBetaDemoVideo';
 import { getSignupBonusPoints, isOpenBetaMode } from '@/app/lib/open-beta-policy';
 import Link from 'next/link';
 
@@ -67,11 +68,16 @@ export default function LandingHeroSection() {
               </a>
               <a
                 href="#features"
-                className="inline-flex min-h-12 items-center justify-center text-base font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                className="hidden min-h-12 items-center justify-center text-base font-semibold text-blue-600 hover:text-blue-700 lg:inline-flex dark:text-blue-400"
               >
                 기능 둘러보기 →
               </a>
             </div>
+            {betaMode ? (
+              <div className="mt-3 w-full lg:hidden">
+                <OpenBetaDemoVideo />
+              </div>
+            ) : null}
           </div>
 
           <div className="w-full lg:w-auto lg:shrink-0">
