@@ -1271,6 +1271,7 @@ export default function InvoiceFileConvertPage() {
 
   useEffect(() => {
     if (trialMode) return;
+    if (!workspaceStorageHydrated) return;
     try {
       writeLocalStorageForUser(
         INVOICE_FILE_CONVERT_KEYS.fixedHeaders,
@@ -1280,7 +1281,7 @@ export default function InvoiceFileConvertPage() {
     } catch (error) {
       console.error('localStorage에 고정 헤더 값을 저장하는 중 오류 발생:', error);
     }
-  }, [fixedHeaderValues, storageUserId, authAssetsReady, trialMode]);
+  }, [fixedHeaderValues, storageUserId, authAssetsReady, trialMode, workspaceStorageHydrated]);
 
   // 점 애니메이션 처리 (파일 처리용)
   useEffect(() => {
