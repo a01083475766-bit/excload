@@ -318,6 +318,18 @@ export function OpenBetaLandingTop() {
     <>
       <section className="border-b border-zinc-200 bg-white py-11 dark:border-zinc-800 dark:bg-zinc-950 sm:py-14">
         <div className={landingContainerClass}>
+          <div className="mb-7 w-full overflow-hidden border border-zinc-200 bg-zinc-950 dark:border-zinc-800">
+            <video
+              src="/landing/videos/open-beta-demo.mp4"
+              className="block w-full"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              controls
+            />
+          </div>
           <div className="mb-3 max-w-3xl sm:mb-4">
             <h2 className="break-keep text-2xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
               오픈 베타 연동 대상 쇼핑몰
