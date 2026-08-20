@@ -1,0 +1,5 @@
+# 제작 중간 산출물 — 레포/배포에 포함하지 않음
+_probe/
+_work/
+captures/check_*.jpg
+captures/verify_*.jpg
