@@ -406,11 +406,16 @@ export default function MyPage() {
     loadTossCardState();
   }, [status]);
 
-  // 플랜 타입을 한글로 변환
+  // 플랜 타입을 한글로 변환 (BETA 종료 후 effectivePlan 우선)
   const getPlanName = (plan: string) => {
-    switch (plan) {
+    const effective =
+      user?.access?.effectivePlan ??
+      (plan === 'BETA' && user?.access && !user.access.openBetaActive ? 'FREE' : plan);
+    switch (effective) {
       case 'FREE':
         return '무료';
+      case 'BETA':
+        return '오픈 베타';
       case 'PRO':
         return '프로';
       case 'YEARLY':
@@ -989,6 +994,57 @@ export default function MyPage() {
                               ? '불러오는 중…'
                               : '—'}
                         </p>
+                        {user?.access &&
+                          user.access.vouchers &&
+                          user.access.vouchers.length > 0 && (
+                            <div className="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+                              {user.access.activeVoucherCount > 0 && (
+                                <p>
+                                  PRO 이용권 사용 중
+                                  {user.access.voucherAccessUntil
+                                    ? ` · ${new Date(user.access.voucherAccessUntil).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}까지`
+                                    : ''}
+                                </p>
+                              )}
+                              {user.access.vouchers
+                                .filter((v) => v.lifecycleStatus !== 'REVOKED')
+                                .map((v, idx) => {
+                                  if (v.lifecycleStatus === 'READY' && user.access!.activeVoucherCount > 0) {
+                                    return null;
+                                  }
+                                  if (v.lifecycleStatus === 'WAITING_FOR_PAID_END') {
+                                    return (
+                                      <p key={idx}>
+                                        PRO 이용권 대기 · 정기결제 종료 후 {v.durationMonths}개월 시작
+                                      </p>
+                                    );
+                                  }
+                                  if (v.lifecycleStatus === 'WAITING_FOR_PRIOR_VOUCHER') {
+                                    return (
+                                      <p key={idx}>
+                                        PRO 이용권 대기 · 이전 이용권 종료 후 {v.durationMonths}개월 시작
+                                      </p>
+                                    );
+                                  }
+                                  if (
+                                    v.lifecycleStatus === 'READY' &&
+                                    v.startsAt &&
+                                    new Date(v.startsAt).getTime() > Date.now()
+                                  ) {
+                                    return (
+                                      <p key={idx}>
+                                        PRO 이용권 예정 ·{' '}
+                                        {new Date(v.startsAt).toLocaleString('ko-KR', {
+                                          timeZone: 'Asia/Seoul',
+                                        })}{' '}
+                                        시작
+                                      </p>
+                                    );
+                                  }
+                                  return null;
+                                })}
+                            </div>
+                          )}
                         {hasPaidPlan && currentPeriodEndText && (
                           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                             다음 결제 예정일: {currentPeriodEndText}

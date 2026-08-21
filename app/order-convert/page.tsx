@@ -2683,7 +2683,14 @@ export default function OrderConvertPage() {
     adminTrialEndsAt?: string | null,
   ): string => {
     const nextDateLabel = formatNextRechargeDate(nextPointDate);
-    if (!hasProEntitlementClient(plan, feedbackTrialEndsAt, adminTrialEndsAt)) {
+    if (
+      !hasProEntitlementClient(
+        plan,
+        feedbackTrialEndsAt,
+        adminTrialEndsAt,
+        Boolean(useUserStore.getState().user?.access?.activeVoucherCount),
+      )
+    ) {
       return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다리거나 플랜 업그레이드 후 이용해 주세요.`;
     }
     return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다려 주세요.`;
@@ -3491,7 +3498,15 @@ export default function OrderConvertPage() {
       return;
     }
 
-    if (user && shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt)) {
+    if (
+      user &&
+      shouldChargeDownloadPoints(
+        user.plan,
+        user.feedbackTrialEndsAt,
+        user.adminTrialEndsAt,
+        Boolean(user.access?.activeVoucherCount),
+      )
+    ) {
       if (user.points < 1) {
         await useUserStore.getState().prepareForPointCharge(1000);
         const latestUser = useUserStore.getState().user;
@@ -3522,7 +3537,14 @@ export default function OrderConvertPage() {
       const wb = createPreviewDownloadWorkbook(excelData);
       const fileName = buildPreviewDownloadFileName();
 
-      if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt)) {
+      if (
+        shouldChargeDownloadPoints(
+          user.plan,
+          user.feedbackTrialEndsAt,
+          user.adminTrialEndsAt,
+          Boolean(user.access?.activeVoucherCount),
+        )
+      ) {
         const pointsDeducted = await usePoints(1000, 'download');
         if (!pointsDeducted) {
           setDownloadStatus("idle");
@@ -3924,7 +3946,12 @@ export default function OrderConvertPage() {
                         pendingImageOcrTextConvertRef.current = false;
                         if (
                           user &&
-                          !hasProEntitlementClient(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt) &&
+                          !hasProEntitlementClient(
+                            user.plan,
+                            user.feedbackTrialEndsAt,
+                            user.adminTrialEndsAt,
+                            Boolean(user.access?.activeVoucherCount),
+                          ) &&
                           newValue.length > FREE_TEXT_INPUT_MAX_CHARS
                         ) {
                           alert(`무료 회원은 최대 ${FREE_TEXT_INPUT_MAX_CHARS.toLocaleString('ko-KR')}자까지 입력할 수 있습니다.`);

@@ -87,6 +87,9 @@ export async function GET() {
       const blockedResponse = serviceBlockedResponse(user);
       if (blockedResponse) return blockedResponse;
 
+      const { getEffectiveUserAccess } = await import('@/app/lib/entitlement/effective-access');
+      const access = await getEffectiveUserAccess(user.id);
+
       return NextResponse.json({
         success: true,
         user: {
@@ -105,6 +108,7 @@ export async function GET() {
           feedbackTrialEndsAt: user.feedbackTrialEndsAt?.toISOString() ?? null,
           feedbackTrialUsed: user.feedbackTrialUsed,
           adminTrialEndsAt: user.adminTrialEndsAt?.toISOString() ?? null,
+          access: access ?? undefined,
         },
       });
     } catch (dbError) {

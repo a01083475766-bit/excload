@@ -57,7 +57,7 @@ export async function getMonthlyGrantIneligibilityReason(
   user: MonthlyGrantEligibleUser,
   now = new Date(),
 ): Promise<string | null> {
-  const grant = getMonthlyGrantForPlan(user.plan);
+  const grant = getMonthlyGrantForPlan(user.plan, now);
   if (!grant) {
     return '월간 사용량 제공 대상 플랜이 아닙니다.';
   }
@@ -66,6 +66,11 @@ export async function getMonthlyGrantIneligibilityReason(
   }
   if (isAdminTrialActive(user.adminTrialEndsAt, now)) {
     return '관리자 PRO 혜택 이용 중에는 무료 월간 사용량이 제공되지 않습니다.';
+  }
+  const { getEffectiveUserAccess } = await import('@/app/lib/entitlement/effective-access');
+  const access = await getEffectiveUserAccess(user.id, now);
+  if (access && access.activeVoucherCount > 0) {
+    return 'PRO 이용권 사용 중에는 무료 월간 사용량이 제공되지 않습니다.';
   }
   const monthlyBlocked = await isMonthlyFreeGrantBlocked({
     email: user.email,
@@ -86,7 +91,7 @@ export async function tryGrantMonthlyFreePoints(
   user: MonthlyGrantEligibleUser,
   now = new Date(),
 ): Promise<MonthlyGrantResult> {
-  const grant = getMonthlyGrantForPlan(user.plan);
+  const grant = getMonthlyGrantForPlan(user.plan, now);
   const ineligible = await getMonthlyGrantIneligibilityReason(user, now);
   if (!grant || ineligible) {
     return {

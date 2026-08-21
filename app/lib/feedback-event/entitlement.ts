@@ -1,11 +1,11 @@
 import { prisma } from '@/app/lib/prisma';
-import { isAdminTrialActive } from '@/app/lib/admin-pro-trial';
-import { isPaidDbPlan } from '@/app/lib/subscription/plan-change';
+import { hasProAccessFromParts } from '@/app/lib/entitlement/effective-access';
 
 export type UserEntitlementFields = {
   plan: string;
   feedbackTrialEndsAt: Date | null;
   adminTrialEndsAt?: Date | null;
+  hasActiveVoucher?: boolean;
 };
 
 export function isFeedbackTrialActive(endsAt: Date | null | undefined, now = new Date()): boolean {
@@ -13,11 +13,17 @@ export function isFeedbackTrialActive(endsAt: Date | null | undefined, now = new
   return endsAt.getTime() > now.getTime();
 }
 
-/** 유료 PRO/YEARLY 또는 피드백·관리자 PRO 체험 중 */
+/**
+ * 동기 판정. Voucher는 hasActiveVoucher 또는 getEffectiveUserAccess 사용.
+ */
 export function hasProEntitlement(user: UserEntitlementFields, now = new Date()): boolean {
-  if (isPaidDbPlan(user.plan)) return true;
-  if (isFeedbackTrialActive(user.feedbackTrialEndsAt, now)) return true;
-  return isAdminTrialActive(user.adminTrialEndsAt, now);
+  return hasProAccessFromParts({
+    plan: user.plan,
+    feedbackTrialEndsAt: user.feedbackTrialEndsAt,
+    adminTrialEndsAt: user.adminTrialEndsAt,
+    hasActiveVoucher: user.hasActiveVoucher,
+    now,
+  });
 }
 
 export async function expireFeedbackTrialIfNeeded(userId: string): Promise<void> {

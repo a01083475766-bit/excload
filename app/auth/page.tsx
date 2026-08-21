@@ -14,6 +14,7 @@ import { signIn, useSession } from 'next-auth/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   getPostLoginPath,
+  getSafeCallbackPath,
   isAuthPathname,
   navigatePostLogin,
 } from '@/app/lib/auth/post-login-redirect';
@@ -255,7 +256,11 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('google', { callbackUrl: '/auth/social-loading?provider=google' }).catch(() => {
+    const returnPath = getSafeCallbackPath(params.get('callbackUrl'));
+    const socialCb = returnPath
+      ? `/auth/social-loading?provider=google&callbackUrl=${encodeURIComponent(returnPath)}`
+      : '/auth/social-loading?provider=google';
+    void signIn('google', { callbackUrl: socialCb }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('Google 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -267,7 +272,11 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('kakao', { callbackUrl: '/auth/social-loading?provider=kakao' }).catch(() => {
+    const returnPath = getSafeCallbackPath(params.get('callbackUrl'));
+    const socialCb = returnPath
+      ? `/auth/social-loading?provider=kakao&callbackUrl=${encodeURIComponent(returnPath)}`
+      : '/auth/social-loading?provider=kakao';
+    void signIn('kakao', { callbackUrl: socialCb }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
@@ -279,7 +288,11 @@ function AuthPageContent() {
     googleOAuthLockRef.current = true;
     setError('');
     setIsGoogleRedirecting(true);
-    void signIn('naver', { callbackUrl: '/auth/social-loading?provider=naver' }).catch(() => {
+    const returnPath = getSafeCallbackPath(params.get('callbackUrl'));
+    const socialCb = returnPath
+      ? `/auth/social-loading?provider=naver&callbackUrl=${encodeURIComponent(returnPath)}`
+      : '/auth/social-loading?provider=naver';
+    void signIn('naver', { callbackUrl: socialCb }).catch(() => {
       googleOAuthLockRef.current = false;
       setIsGoogleRedirecting(false);
       setError('네이버 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');

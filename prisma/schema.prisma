@@ -137,6 +137,9 @@ model User {
   shipmentTransmissionAttempts ShipmentTransmissionAttempt[]
   courierDownloadBundles       CourierDownloadBundle[]
   courierDownloadWorkItems     CourierDownloadWorkItem[]
+  redeemedVouchers             Voucher[]                 @relation("VoucherRedeemer")
+  entitlements                 Entitlement[]
+  voucherAuditLogs             VoucherAuditLog[]         @relation("VoucherAuditActor")
 }
 
 enum OrderIntegrationProvider {
@@ -1050,4 +1053,166 @@ model FreeToolDownloadStat {
   count     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// 외부 이용권 캠페인 (providerCode는 String — enum 고정 금지)
+model VoucherCampaign {
+  id              String    @id @default(cuid())
+  providerCode    String
+  campaignCode    String    @unique
+  slug            String    @unique
+  /// DRAFT | ACTIVE | ARCHIVED
+  status          String    @default("DRAFT")
+  projectEndsAt   DateTime?
+  fulfillmentFrom DateTime?
+  fulfillmentTo   DateTime?
+  redeemFrom      DateTime?
+  redeemUntil     DateTime?
+  serviceGaAt     DateTime?
+  title           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  rewardPolicies RewardPolicy[]
+  vouchers       Voucher[]
+  importBatches  VoucherImportBatch[]
+
+  @@index([providerCode, status])
+}
+
+/// 캠페인별 리워드 정책 (발급 후 수정해도 기존 Voucher 스냅샷은 불변)
+model RewardPolicy {
+  id             String   @id @default(cuid())
+  campaignId     String
+  rewardCode     String
+  accessTier     String   @default("PRO")
+  durationMonths Int
+  grantsProAccess Boolean @default(true)
+  /// NONE | PAID_PRO_LIKE | ONE_TIME_BONUS | CUSTOM_MONTHLY | KEEP_PLAN_GRANT
+  pointsMode     String   @default("NONE")
+  soldPriceKrw   Int?
+  /// ON_REDEEM_OR_GA | AFTER_PAID_END | …
+  startPolicy    String   @default("ON_REDEEM_OR_GA")
+  /// SEQUENTIAL | PARALLEL
+  stackPolicy    String   @default("SEQUENTIAL")
+  /// ACTIVE | ARCHIVED
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  campaign VoucherCampaign @relation(fields: [campaignId], references: [id])
+  vouchers Voucher[]
+
+  @@unique([campaignId, rewardCode])
+  @@index([campaignId, status])
+}
+
+/// 구매 단위별 이용권 코드 (원문은 DB 미저장)
+model Voucher {
+  id                       String    @id @default(cuid())
+  campaignId               String
+  rewardPolicyId           String
+  codeHash                 String    @unique
+  codeLast4                String
+  /// 재발급 시 증가 (동일 행에서 코드 교체)
+  codeVersion              Int       @default(1)
+  externalOrderId          String
+  unitIndex                Int       @default(0)
+  externalRewardName       String?
+  purchaseAmount           Int?
+  /// ISSUED | REDEEMED | CANCELLED | EXPIRED
+  status                   String    @default("ISSUED")
+  redeemedByUserId         String?
+  redeemedAt               DateTime?
+
+  accessTierSnapshot       String
+  durationMonthsSnapshot   Int
+  pointsModeSnapshot       String
+  startPolicySnapshot      String
+  stackPolicySnapshot      String
+  grantsProAccessSnapshot  Boolean   @default(true)
+
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  campaign     VoucherCampaign @relation(fields: [campaignId], references: [id])
+  rewardPolicy RewardPolicy    @relation(fields: [rewardPolicyId], references: [id])
+  redeemedBy   User?           @relation("VoucherRedeemer", fields: [redeemedByUserId], references: [id])
+  auditLogs    VoucherAuditLog[]
+
+  @@unique([campaignId, externalOrderId, unitIndex])
+  @@index([status, campaignId])
+  @@index([redeemedByUserId])
+}
+
+/// 사용자에게 부여된 권한 (Voucher 1:1 — sourceRefId = voucherId)
+model Entitlement {
+  id              String    @id @default(cuid())
+  userId          String
+  /// PRO
+  type            String    @default("PRO")
+  /// VOUCHER
+  source          String
+  sourceRefId     String
+  /// WAITING_FOR_PAID_END | WAITING_FOR_PRIOR_VOUCHER | READY | REVOKED
+  lifecycleStatus String
+  startsAt        DateTime?
+  endsAt          DateTime?
+  durationMonths  Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([source, sourceRefId])
+  @@index([userId, lifecycleStatus])
+  @@index([userId, startsAt, endsAt])
+}
+
+/// 이용권 발급·등록·취소·재발급·회수 감사
+model VoucherAuditLog {
+  id        String   @id @default(cuid())
+  voucherId String?
+  userId    String?
+  actorId   String?
+  action    String
+  result    String
+  reason    String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  voucher Voucher? @relation(fields: [voucherId], references: [id], onDelete: SetNull)
+  actor   User?    @relation("VoucherAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([voucherId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+/// CSV/단건 발급·취소 배치 (원문·개인정보 미저장)
+model VoucherImportBatch {
+  id              String   @id @default(cuid())
+  campaignId      String
+  /// ISSUE_CSV | ISSUE_MANUAL | CANCEL_CSV
+  kind            String
+  /// PREVIEW | COMMITTED | FAILED
+  status          String   @default("PREVIEW")
+  actorId         String?
+  fileName        String?
+  totalRows       Int      @default(0)
+  newCount        Int      @default(0)
+  existingCount   Int      @default(0)
+  conflictCount   Int      @default(0)
+  errorCount      Int      @default(0)
+  cancelledCount  Int      @default(0)
+  /// 집계·요약만 (PII/코드 원문 금지)
+  summaryJson     Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  campaign VoucherCampaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId, createdAt])
+  @@index([kind, status])
 }

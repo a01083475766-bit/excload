@@ -144,6 +144,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /redeem — 외부 이용권 등록 (전용 URL)
+  if (pathname.startsWith('/redeem')) {
+    return NextResponse.next();
+  }
+
   // /terms 경로는 허용 (이용약관 페이지)
   if (pathname.startsWith('/terms')) {
     return NextResponse.next();

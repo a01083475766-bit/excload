@@ -11,6 +11,23 @@ import { clearAllPreviewWorkspacesInTab } from '@/app/lib/preview-workspace-sess
 
 export type Plan = 'BETA' | 'FREE' | 'PRO' | 'YEARLY';
 
+export type UserAccessSummary = {
+  hasProAccess: boolean;
+  accessLabel: string;
+  effectivePlan?: string;
+  openBetaActive?: boolean;
+  voucherAccessUntil: string | null;
+  activeVoucherCount: number;
+  canManageSubscription: boolean;
+  hasPaidSubscription: boolean;
+  vouchers?: Array<{
+    lifecycleStatus: string;
+    startsAt: string | null;
+    endsAt: string | null;
+    durationMonths: number;
+  }>;
+};
+
 export interface User {
   userId: string;
   email: string;
@@ -27,6 +44,7 @@ export interface User {
   feedbackTrialEndsAt?: string | null;
   feedbackTrialUsed?: boolean;
   adminTrialEndsAt?: string | null;
+  access?: UserAccessSummary | null;
 }
 
 interface UserStoreState {
@@ -60,6 +78,7 @@ function mapApiUserToStoreUser(data: {
   feedbackTrialEndsAt?: string | null;
   feedbackTrialUsed?: boolean;
   adminTrialEndsAt?: string | null;
+  access?: UserAccessSummary | null;
 }): User {
   return {
     userId: data.id,
@@ -76,6 +95,7 @@ function mapApiUserToStoreUser(data: {
     feedbackTrialEndsAt: data.feedbackTrialEndsAt ?? null,
     feedbackTrialUsed: data.feedbackTrialUsed ?? false,
     adminTrialEndsAt: data.adminTrialEndsAt ?? null,
+    access: data.access ?? null,
   };
 }
 

@@ -108,9 +108,13 @@ export async function POST(request: NextRequest) {
       let chargeUser = user;
       const normalizedAmount = Math.max(1, Math.floor(amount));
 
+      const { getEffectiveUserAccess } = await import('@/app/lib/entitlement/effective-access');
+      const access = await getEffectiveUserAccess(chargeUser.id);
+      const hasPro = access?.hasProAccess ?? hasProEntitlement(chargeUser);
+
       if (
         type === 'download' &&
-        !shouldChargeDownloadPointsForPlan(chargeUser.plan, hasProEntitlement(chargeUser))
+        !shouldChargeDownloadPointsForPlan(chargeUser.plan, hasPro)
       ) {
         return NextResponse.json({
           success: true,
@@ -122,7 +126,7 @@ export async function POST(request: NextRequest) {
             nextPointDate: chargeUser.nextPointDate?.toISOString() ?? null,
           },
           usedAmount: 0,
-          reason: hasProEntitlement(chargeUser)
+          reason: hasPro
             ? 'PRO_엑셀다운로드_무제한'
             : 'BETA_엑셀다운로드_무료',
         });

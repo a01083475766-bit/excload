@@ -1967,7 +1967,14 @@ export default function InvoiceFileConvertPage() {
     adminTrialEndsAt?: string | null,
   ): string => {
     const nextDateLabel = formatNextRechargeDate(nextPointDate);
-    if (!hasProEntitlementClient(plan, feedbackTrialEndsAt, adminTrialEndsAt)) {
+    if (
+      !hasProEntitlementClient(
+        plan,
+        feedbackTrialEndsAt,
+        adminTrialEndsAt,
+        Boolean(useUserStore.getState().user?.access?.activeVoucherCount),
+      )
+    ) {
       return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다리거나 플랜 업그레이드 후 이용해 주세요.`;
     }
     return `사용량이 부족합니다.\n다음 충전일(${nextDateLabel})까지 기다려 주세요.`;
@@ -2441,7 +2448,14 @@ export default function InvoiceFileConvertPage() {
       return;
     }
 
-    if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt)) {
+    if (
+      shouldChargeDownloadPoints(
+        user.plan,
+        user.feedbackTrialEndsAt,
+        user.adminTrialEndsAt,
+        Boolean(user.access?.activeVoucherCount),
+      )
+    ) {
       if (user.points < 1) {
         alert(
           buildInsufficientPointsMessage(
@@ -2462,7 +2476,14 @@ export default function InvoiceFileConvertPage() {
       const wb = createPreviewDownloadWorkbook(excelData);
       const fileName = buildPreviewDownloadFileName(new Date(), '엑클로드송장정리');
 
-      if (shouldChargeDownloadPoints(user.plan, user.feedbackTrialEndsAt, user.adminTrialEndsAt)) {
+      if (
+        shouldChargeDownloadPoints(
+          user.plan,
+          user.feedbackTrialEndsAt,
+          user.adminTrialEndsAt,
+          Boolean(user.access?.activeVoucherCount),
+        )
+      ) {
         const pointsDeducted = await usePoints(1000, 'download');
         if (!pointsDeducted) {
           setDownloadStatus("idle");

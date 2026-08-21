@@ -95,6 +95,9 @@ export async function POST(request: NextRequest) {
     const blockedAfterSync = serviceBlockedResponse(freshUser);
     if (blockedAfterSync) return blockedAfterSync;
 
+    const { getEffectiveUserAccess } = await import('@/app/lib/entitlement/effective-access');
+    const access = await getEffectiveUserAccess(freshUser.id);
+
     return NextResponse.json({
       success: true,
       user: {
@@ -112,6 +115,7 @@ export async function POST(request: NextRequest) {
         feedbackTrialEndsAt: freshUser.feedbackTrialEndsAt?.toISOString() ?? null,
         feedbackTrialUsed: freshUser.feedbackTrialUsed,
         adminTrialEndsAt: freshUser.adminTrialEndsAt?.toISOString() ?? null,
+        access: access ?? undefined,
       },
     });
   } catch (error) {
