@@ -827,6 +827,7 @@ export default function MyPage() {
 
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
                 프로필에서 계정 정보를, 아래 결제 정보에서 구독·결제 내역을 확인할 수 있습니다.
+                외부 이용권(와디즈 등)은 코드 등록 후 결제 정보에 표시됩니다.
               </div>
 
               <Link
@@ -834,6 +835,13 @@ export default function MyPage() {
                 className="block w-full mt-4 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition text-center"
               >
                 즐겨찾는 쇼핑몰
+              </Link>
+
+              <Link
+                href="/redeem"
+                className="block w-full mt-2 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition text-center"
+              >
+                이용권 코드 등록
               </Link>
 
               <button
@@ -996,53 +1004,64 @@ export default function MyPage() {
                         </p>
                         {user?.access &&
                           user.access.vouchers &&
-                          user.access.vouchers.length > 0 && (
-                            <div className="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
-                              {user.access.activeVoucherCount > 0 && (
-                                <p>
-                                  PRO 이용권 사용 중
-                                  {user.access.voucherAccessUntil
-                                    ? ` · ${new Date(user.access.voucherAccessUntil).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}까지`
-                                    : ''}
-                                </p>
-                              )}
-                              {user.access.vouchers
-                                .filter((v) => v.lifecycleStatus !== 'REVOKED')
-                                .map((v, idx) => {
-                                  if (v.lifecycleStatus === 'READY' && user.access!.activeVoucherCount > 0) {
+                          user.access.vouchers.filter((v) => v.lifecycleStatus !== 'REVOKED')
+                            .length > 0 && (
+                            <div className="mt-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2.5 space-y-1">
+                              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                                외부 이용권
+                              </p>
+                              <div className="space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+                                {user.access.activeVoucherCount > 0 && (
+                                  <p>
+                                    PRO 이용권 사용 중
+                                    {user.access.voucherAccessUntil
+                                      ? ` · ${new Date(user.access.voucherAccessUntil).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}까지`
+                                      : ''}
+                                  </p>
+                                )}
+                                {user.access.vouchers
+                                  .filter((v) => v.lifecycleStatus !== 'REVOKED')
+                                  .map((v, idx) => {
+                                    if (
+                                      v.lifecycleStatus === 'READY' &&
+                                      user.access!.activeVoucherCount > 0
+                                    ) {
+                                      return null;
+                                    }
+                                    if (v.lifecycleStatus === 'WAITING_FOR_PAID_END') {
+                                      return (
+                                        <p key={idx}>
+                                          PRO 이용권 대기 · 정기결제 종료 후 {v.durationMonths}
+                                          개월 시작
+                                        </p>
+                                      );
+                                    }
+                                    if (v.lifecycleStatus === 'WAITING_FOR_PRIOR_VOUCHER') {
+                                      return (
+                                        <p key={idx}>
+                                          PRO 이용권 대기 · 이전 이용권 종료 후{' '}
+                                          {v.durationMonths}개월 시작
+                                        </p>
+                                      );
+                                    }
+                                    if (
+                                      v.lifecycleStatus === 'READY' &&
+                                      v.startsAt &&
+                                      new Date(v.startsAt).getTime() > Date.now()
+                                    ) {
+                                      return (
+                                        <p key={idx}>
+                                          PRO 이용권 예정 ·{' '}
+                                          {new Date(v.startsAt).toLocaleString('ko-KR', {
+                                            timeZone: 'Asia/Seoul',
+                                          })}{' '}
+                                          시작
+                                        </p>
+                                      );
+                                    }
                                     return null;
-                                  }
-                                  if (v.lifecycleStatus === 'WAITING_FOR_PAID_END') {
-                                    return (
-                                      <p key={idx}>
-                                        PRO 이용권 대기 · 정기결제 종료 후 {v.durationMonths}개월 시작
-                                      </p>
-                                    );
-                                  }
-                                  if (v.lifecycleStatus === 'WAITING_FOR_PRIOR_VOUCHER') {
-                                    return (
-                                      <p key={idx}>
-                                        PRO 이용권 대기 · 이전 이용권 종료 후 {v.durationMonths}개월 시작
-                                      </p>
-                                    );
-                                  }
-                                  if (
-                                    v.lifecycleStatus === 'READY' &&
-                                    v.startsAt &&
-                                    new Date(v.startsAt).getTime() > Date.now()
-                                  ) {
-                                    return (
-                                      <p key={idx}>
-                                        PRO 이용권 예정 ·{' '}
-                                        {new Date(v.startsAt).toLocaleString('ko-KR', {
-                                          timeZone: 'Asia/Seoul',
-                                        })}{' '}
-                                        시작
-                                      </p>
-                                    );
-                                  }
-                                  return null;
-                                })}
+                                  })}
+                              </div>
                             </div>
                           )}
                         {hasPaidPlan && currentPeriodEndText && (
