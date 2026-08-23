@@ -56,8 +56,9 @@ export function buildWadizVoucherEmail(input: {
     '■ 이용권 코드',
     ...codeLines,
     '',
-    `■ 등록 주소: ${WADIZ_REDEEM_URL}`,
-    '회원가입 또는 로그인 후 위 페이지에서 코드를 등록해 주세요.',
+    '■ 이용권 등록하기',
+    '회원가입 또는 로그인 후 아래 주소에서 코드를 등록해 주세요.',
+    `등록 페이지: ${WADIZ_REDEEM_URL}`,
     '',
     `■ 등록 안내: ${availability}`,
     `등록 가능일: ${WADIZ_REDEEM_OPEN_LABEL}`,
@@ -87,10 +88,17 @@ export function buildWadizVoucherEmail(input: {
   <p style="margin:0 0 16px;">와디즈에서 구매하신 리워드(<strong>${escapeHtml(rewardText)}</strong>)에 대한 이용권 코드를 안내드립니다.</p>
   <p style="margin:0 0 8px;font-size:13px;color:#666;">이용권 코드</p>
   <ul style="margin:0 0 20px;padding-left:18px;">${codeHtml}</ul>
-  <p style="margin:0 0 8px;">등록 주소:<br/>
-    <a href="${WADIZ_REDEEM_URL}" target="_blank" rel="noopener noreferrer">${WADIZ_REDEEM_URL}</a>
-  </p>
-  <p style="margin:0 0 12px;font-size:14px;">회원가입 또는 로그인 후 위 페이지에서 코드를 등록해 주세요.</p>
+  <div style="margin:0 0 20px;padding:16px;border:1px solid #d4d4d8;border-radius:8px;background:#fafafa;">
+    <p style="margin:0 0 6px;font-size:15px;font-weight:bold;color:#18181b;">이용권 등록하기</p>
+    <p style="margin:0 0 14px;font-size:13px;color:#52525b;">회원가입 또는 로그인 후 코드를 입력해 주세요.</p>
+    <a href="${WADIZ_REDEEM_URL}" target="_blank" rel="noopener noreferrer"
+       style="display:inline-block;padding:10px 16px;background:#2563eb;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px;">
+      등록 페이지 열기
+    </a>
+    <p style="margin:12px 0 0;font-size:11px;color:#71717a;word-break:break-all;">
+      ${WADIZ_REDEEM_URL}
+    </p>
+  </div>
   <p style="margin:0 0 8px;"><strong>${escapeHtml(availability)}</strong></p>
   <p style="margin:0 0 12px;font-size:14px;">등록 가능일: ${WADIZ_REDEEM_OPEN_LABEL}</p>
   <p style="margin:0 0 16px;font-size:14px;color:#444;">
