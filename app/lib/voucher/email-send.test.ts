@@ -199,6 +199,7 @@ describe('sendVoucherCodeEmails', () => {
     expect(provider.sent).toHaveLength(1);
     expect(provider.sent[0]!.to).toBe('kim@example.com');
     expect(provider.sent[0]!.text).toContain(code);
+    expect(provider.sent[0]!.text).toContain('슈퍼 얼리버드 3개월 이용권');
   });
 
   it('bundles multiple codes for same buyer into one email', async () => {

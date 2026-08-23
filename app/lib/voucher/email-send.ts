@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { prisma } from '@/app/lib/prisma';
 import { hashVoucherCode } from '@/app/lib/voucher/code-crypto';
-import { VOUCHER_STATUS } from '@/app/lib/voucher/constants';
+import { resolveVoucherRewardDisplayName, VOUCHER_STATUS } from '@/app/lib/voucher/constants';
 import {
   createMockVoucherEmailProvider,
   type VoucherEmailProvider,
@@ -411,7 +411,7 @@ export async function sendVoucherCodeEmails(input: {
       codes: pendingLines.map((l) => ({
         externalOrderId: l.externalOrderId,
         unitIndex: l.unitIndex,
-        rewardLabel: l.externalRewardName || l.rewardCode,
+        rewardLabel: resolveVoucherRewardDisplayName(l.rewardCode, l.externalRewardName),
         voucherCode: l.voucherCode,
       })),
     });

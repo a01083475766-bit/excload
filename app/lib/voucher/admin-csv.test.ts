@@ -80,6 +80,20 @@ describe('phase1 regressions helpers', () => {
     expect(getSafeCallbackPath('/redeem/wadiz-2026-01')).toBe('/redeem/wadiz-2026-01');
   });
 
+  it('maps wadiz reward codes to Korean display names', async () => {
+    const { resolveVoucherRewardDisplayName } = await import('@/app/lib/voucher/constants');
+    expect(resolveVoucherRewardDisplayName('SUPER_EARLY_3M', 'SUPER_EARLY_3M')).toBe(
+      '슈퍼 얼리버드 3개월 이용권',
+    );
+    expect(resolveVoucherRewardDisplayName('SUPER_EARLY_6M', null)).toBe(
+      '슈퍼 얼리버드 6개월 이용권',
+    );
+    expect(resolveVoucherRewardDisplayName('WADIZ_SPECIAL_12M', null)).toBe(
+      '와디즈 특별 12개월 이용권',
+    );
+    expect(resolveVoucherRewardDisplayName('OTHER', '맞춤 리워드')).toBe('맞춤 리워드');
+  });
+
   it('BETA becomes FREE for policy after end; paid checkout opens', () => {
     const end = getOpenBetaEndsAt();
     expect(getEffectivePlanForPolicy('BETA', end)).toBe('FREE');
