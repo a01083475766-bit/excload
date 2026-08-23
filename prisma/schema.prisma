@@ -1076,6 +1076,7 @@ model VoucherCampaign {
   rewardPolicies RewardPolicy[]
   vouchers       Voucher[]
   importBatches  VoucherImportBatch[]
+  emailSends     VoucherEmailSend[]
 
   @@index([providerCode, status])
 }
@@ -1215,4 +1216,35 @@ model VoucherImportBatch {
 
   @@index([campaignId, createdAt])
   @@index([kind, status])
+}
+
+/// 이용권 코드 이메일 발송 기록 (원문·이메일 전체 미저장)
+model VoucherEmailSend {
+  id                   String    @id @default(cuid())
+  campaignId           String
+  /// 동일 voucher 집합 중복 요청 방지
+  dedupeKey            String
+  /// recipientEmailHash (그룹 키)
+  groupKey             String
+  recipientEmailHash   String
+  recipientEmailMasked String
+  /// PENDING | SENT | FAILED | SKIPPED
+  status               String
+  providerMessageId    String?
+  errorCode            String?
+  voucherIds           Json
+  externalOrderIds     Json
+  codeLast4s           Json
+  actorId              String?
+  forceResend          Boolean   @default(false)
+  sentAt               DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  campaign VoucherCampaign @relation(fields: [campaignId], references: [id])
+
+  @@unique([campaignId, dedupeKey])
+  @@index([campaignId, recipientEmailHash, status])
+  @@index([campaignId, status, createdAt])
+  @@index([status, createdAt])
 }

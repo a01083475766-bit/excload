@@ -216,6 +216,8 @@ export function buildIssuePreviewFromCsv(input: {
         rewardPolicyId,
         externalRewardName: extName,
         purchaseAmount,
+        buyerName,
+        buyerEmail,
       });
       previewRows.push({
         kind: 'ok',

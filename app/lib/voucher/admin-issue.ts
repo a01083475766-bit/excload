@@ -12,6 +12,10 @@ export type IssueUnitInput = {
   rewardPolicyId: string;
   externalRewardName?: string | null;
   purchaseAmount?: number | null;
+  /** CSV 매핑값 — 응답·이메일용. DB 미저장 */
+  buyerName?: string | null;
+  /** CSV 매핑값 — 응답·이메일용. DB 미저장 */
+  buyerEmail?: string | null;
 };
 
 export type IssuedPlainRow = {
@@ -22,6 +26,8 @@ export type IssuedPlainRow = {
   rewardCode: string;
   durationMonths: number;
   purchaseAmount: number | null;
+  buyerName: string | null;
+  buyerEmail: string | null;
   voucherCode: string;
   codeLast4: string;
   status: string;
@@ -119,6 +125,8 @@ export async function issueVoucherUnits(input: {
         rewardCode: found.rewardPolicy.rewardCode,
         durationMonths: found.durationMonthsSnapshot,
         purchaseAmount: found.purchaseAmount,
+        buyerName: unit.buyerName ?? null,
+        buyerEmail: unit.buyerEmail ?? null,
         voucherCode: '',
         codeLast4: found.codeLast4,
         status: found.status,
@@ -180,6 +188,8 @@ export async function issueVoucherUnits(input: {
         rewardCode: snap.rewardCode,
         durationMonths: snap.durationMonthsSnapshot,
         purchaseAmount: voucher.purchaseAmount,
+        buyerName: unit.buyerName ?? null,
+        buyerEmail: unit.buyerEmail ?? null,
         voucherCode: plaintext,
         codeLast4,
         status: VOUCHER_STATUS.ISSUED,
@@ -222,6 +232,8 @@ export async function issueVoucherUnits(input: {
             rewardCode: again.rewardPolicy.rewardCode,
             durationMonths: again.durationMonthsSnapshot,
             purchaseAmount: again.purchaseAmount,
+            buyerName: unit.buyerName ?? null,
+            buyerEmail: unit.buyerEmail ?? null,
             voucherCode: '',
             codeLast4: again.codeLast4,
             status: again.status,
