@@ -108,8 +108,9 @@ describe('email template', () => {
     expect(built.text).toContain('https://www.excload.com/redeem/wadiz-2026-01');
     expect(built.text).toContain('이용권 등록하기');
     expect(built.text).toContain('code=ABCD-EFGH-IJKL-MNOP');
-    expect(built.html).toContain('등록 페이지 열기');
-    expect(built.html).toContain('복사');
+    expect(built.html).toContain('이용권 등록하기');
+    expect(built.html).not.toContain('등록 페이지 열기');
+    expect(built.html).not.toMatch(/>\s*복사\s*</);
     expect(built.html).toContain('code=ABCD-EFGH-IJKL-MNOP');
     expect(built.html).toContain('border:1px solid #d4d4d8');
     expect(built.text).toContain('오픈 베타');
