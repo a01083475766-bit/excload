@@ -33,7 +33,7 @@ export function RedeemClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const fetchUser = useUserStore((s) => s.fetchUser);
-  const codeFromUrl = (searchParams.get('code') || '').trim();
+  const codeFromUrl = (searchParams?.get('code') || '').trim();
   const [code, setCode] = useState(codeFromUrl);
   const [confirmAccount, setConfirmAccount] = useState(false);
   const [loading, setLoading] = useState(false);
