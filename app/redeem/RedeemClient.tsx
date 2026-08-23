@@ -196,28 +196,16 @@ export function RedeemClient({
             <label htmlFor="voucher-code" className="block text-sm font-medium text-zinc-800">
               이용권 코드
             </label>
-            <div className="mt-1 flex gap-2">
-              <input
-                id="voucher-code"
-                type="text"
-                autoComplete="off"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="h-9 min-w-0 flex-1 rounded border border-zinc-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="코드 입력"
-                disabled={Boolean(redeemBlockedMessage) || loading}
-              />
-              <button
-                type="button"
-                className="h-9 shrink-0 rounded border border-zinc-400 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
-                disabled={!code.trim() || loading}
-                onClick={() => {
-                  void navigator.clipboard?.writeText(code.trim()).catch(() => undefined);
-                }}
-              >
-                복사
-              </button>
-            </div>
+            <input
+              id="voucher-code"
+              type="text"
+              autoComplete="off"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="mt-1 h-9 w-full rounded border border-zinc-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="코드 입력"
+              disabled={Boolean(redeemBlockedMessage) || loading}
+            />
             {codeFromUrl ? (
               <p className="mt-1 text-xs text-zinc-500">메일 링크에서 코드가 자동 입력되었습니다.</p>
             ) : null}
