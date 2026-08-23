@@ -21,6 +21,12 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+export function buildRedeemUrlWithCode(voucherCode: string): string {
+  const code = voucherCode.trim();
+  if (!code) return WADIZ_REDEEM_URL;
+  return `${WADIZ_REDEEM_URL}?code=${encodeURIComponent(code)}`;
+}
+
 export function redeemAvailabilityMessage(redeemFrom: Date | null, now = new Date()): string {
   if (redeemFrom && now.getTime() < redeemFrom.getTime()) {
     return `${WADIZ_REDEEM_OPEN_LABEL}부터 등록할 수 있습니다`;
@@ -39,10 +45,14 @@ export function buildWadizVoucherEmail(input: {
   const availability = redeemAvailabilityMessage(input.redeemFrom, now);
   const rewardLabels = [...new Set(input.codes.map((c) => c.rewardLabel).filter(Boolean))];
   const rewardText = rewardLabels.length ? rewardLabels.join(', ') : '와디즈 이용권';
+  const primaryRedeemUrl =
+    input.codes.length === 1
+      ? buildRedeemUrlWithCode(input.codes[0]!.voucherCode)
+      : WADIZ_REDEEM_URL;
 
   const codeLines = input.codes.map(
     (c, i) =>
-      `${i + 1}. [${c.rewardLabel || '이용권'}] ${c.voucherCode} (주문 ${c.externalOrderId} / #${c.unitIndex})`,
+      `${i + 1}. [${c.rewardLabel || '이용권'}] ${c.voucherCode} (주문 ${c.externalOrderId} / #${c.unitIndex})\n   복사·등록: ${buildRedeemUrlWithCode(c.voucherCode)}`,
   );
 
   const text = [
@@ -58,7 +68,7 @@ export function buildWadizVoucherEmail(input: {
     '',
     '■ 이용권 등록하기',
     '회원가입 또는 로그인 후 아래 주소에서 코드를 등록해 주세요.',
-    `등록 페이지: ${WADIZ_REDEEM_URL}`,
+    `등록 페이지: ${primaryRedeemUrl}`,
     '',
     `■ 등록 안내: ${availability}`,
     `등록 가능일: ${WADIZ_REDEEM_OPEN_LABEL}`,
@@ -72,13 +82,27 @@ export function buildWadizVoucherEmail(input: {
   ].join('\n');
 
   const codeHtml = input.codes
-    .map(
-      (c) => `
-  <li style="margin:0 0 8px;">
-    <div style="font-size:13px;color:#666;">${escapeHtml(c.rewardLabel || '이용권')} · 주문 ${escapeHtml(c.externalOrderId)} / #${c.unitIndex}</div>
-    <div style="font-size:20px;font-weight:bold;letter-spacing:1px;font-family:ui-monospace,monospace;margin-top:4px;">${escapeHtml(c.voucherCode)}</div>
-  </li>`,
-    )
+    .map((c) => {
+      const redeemWithCode = buildRedeemUrlWithCode(c.voucherCode);
+      return `
+  <li style="margin:0 0 14px;list-style:none;">
+    <div style="font-size:13px;color:#666;margin-bottom:6px;">${escapeHtml(c.rewardLabel || '이용권')} · 주문 ${escapeHtml(c.externalOrderId)} / #${c.unitIndex}</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+      <tr>
+        <td style="padding:0 10px 0 0;vertical-align:middle;">
+          <span style="font-size:20px;font-weight:bold;letter-spacing:1px;font-family:ui-monospace,Consolas,monospace;color:#18181b;">${escapeHtml(c.voucherCode)}</span>
+        </td>
+        <td style="padding:0;vertical-align:middle;">
+          <a href="${redeemWithCode}" target="_blank" rel="noopener noreferrer"
+             style="display:inline-block;padding:5px 12px;border:1px solid #3f3f46;border-radius:4px;font-size:13px;font-weight:600;color:#18181b;text-decoration:none;background:#ffffff;line-height:1.2;">
+            복사
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:6px 0 0;font-size:11px;color:#71717a;">「복사」를 누르면 등록 페이지에 코드가 자동으로 입력됩니다.</p>
+  </li>`;
+    })
     .join('');
 
   const html = `
@@ -87,16 +111,16 @@ export function buildWadizVoucherEmail(input: {
   <p style="margin:0 0 12px;">${escapeHtml(name)}님, 안녕하세요.<br/>엑클로드(EXCLOAD)입니다.</p>
   <p style="margin:0 0 16px;">와디즈에서 구매하신 리워드(<strong>${escapeHtml(rewardText)}</strong>)에 대한 이용권 코드를 안내드립니다.</p>
   <p style="margin:0 0 8px;font-size:13px;color:#666;">이용권 코드</p>
-  <ul style="margin:0 0 20px;padding-left:18px;">${codeHtml}</ul>
+  <ul style="margin:0 0 20px;padding:0;">${codeHtml}</ul>
   <div style="margin:0 0 20px;padding:16px;border:1px solid #d4d4d8;border-radius:8px;background:#fafafa;">
     <p style="margin:0 0 6px;font-size:15px;font-weight:bold;color:#18181b;">이용권 등록하기</p>
-    <p style="margin:0 0 14px;font-size:13px;color:#52525b;">회원가입 또는 로그인 후 코드를 입력해 주세요.</p>
-    <a href="${WADIZ_REDEEM_URL}" target="_blank" rel="noopener noreferrer"
+    <p style="margin:0 0 14px;font-size:13px;color:#52525b;">회원가입 또는 로그인 후 코드를 확인해 주세요.</p>
+    <a href="${primaryRedeemUrl}" target="_blank" rel="noopener noreferrer"
        style="display:inline-block;padding:10px 16px;background:#2563eb;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px;">
       등록 페이지 열기
     </a>
     <p style="margin:12px 0 0;font-size:11px;color:#71717a;word-break:break-all;">
-      ${WADIZ_REDEEM_URL}
+      ${escapeHtml(primaryRedeemUrl)}
     </p>
   </div>
   <p style="margin:0 0 8px;"><strong>${escapeHtml(availability)}</strong></p>

@@ -1,9 +1,9 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { buildAuthLoginRedirectPath } from '@/app/lib/auth/post-login-redirect';
 import { useUserStore } from '@/app/store/userStore';
 import { ENTITLEMENT_LIFECYCLE } from '@/app/lib/voucher/constants';
@@ -31,8 +31,10 @@ export function RedeemClient({
 }: Props) {
   const { status, data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fetchUser = useUserStore((s) => s.fetchUser);
-  const [code, setCode] = useState('');
+  const codeFromUrl = (searchParams.get('code') || '').trim();
+  const [code, setCode] = useState(codeFromUrl);
   const [confirmAccount, setConfirmAccount] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,12 +45,20 @@ export function RedeemClient({
     durationMonths: number;
   } | null>(null);
 
+  useEffect(() => {
+    if (codeFromUrl) setCode(codeFromUrl);
+  }, [codeFromUrl]);
+
   const email = session?.user?.email ?? '';
   const masked = useMemo(() => (email ? maskEmail(email) : ''), [email]);
 
-  const loginHref = buildAuthLoginRedirectPath(
-    campaignSlug ? `/redeem/${campaignSlug}` : '/redeem',
-  );
+  const redeemPath = useMemo(() => {
+    const base = campaignSlug ? `/redeem/${campaignSlug}` : '/redeem';
+    if (!codeFromUrl) return base;
+    return `${base}?code=${encodeURIComponent(codeFromUrl)}`;
+  }, [campaignSlug, codeFromUrl]);
+
+  const loginHref = buildAuthLoginRedirectPath(redeemPath);
 
   if (status === 'loading') {
     return (
@@ -63,6 +73,9 @@ export function RedeemClient({
         <p className="mt-3 text-sm text-zinc-600">
           이용권을 등록하려면 먼저 로그인하거나 회원가입해 주세요.
         </p>
+        {codeFromUrl ? (
+          <p className="mt-2 text-xs text-zinc-500">메일에서 가져온 코드가 로그인 후 자동 입력됩니다.</p>
+        ) : null}
         <Link
           href={loginHref}
           className="mt-6 inline-flex h-9 items-center rounded border border-blue-600 bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700"
@@ -183,16 +196,31 @@ export function RedeemClient({
             <label htmlFor="voucher-code" className="block text-sm font-medium text-zinc-800">
               이용권 코드
             </label>
-            <input
-              id="voucher-code"
-              type="text"
-              autoComplete="off"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="mt-1 h-9 w-full rounded border border-zinc-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="코드 입력"
-              disabled={Boolean(redeemBlockedMessage) || loading}
-            />
+            <div className="mt-1 flex gap-2">
+              <input
+                id="voucher-code"
+                type="text"
+                autoComplete="off"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="h-9 min-w-0 flex-1 rounded border border-zinc-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="코드 입력"
+                disabled={Boolean(redeemBlockedMessage) || loading}
+              />
+              <button
+                type="button"
+                className="h-9 shrink-0 rounded border border-zinc-400 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                disabled={!code.trim() || loading}
+                onClick={() => {
+                  void navigator.clipboard?.writeText(code.trim()).catch(() => undefined);
+                }}
+              >
+                복사
+              </button>
+            </div>
+            {codeFromUrl ? (
+              <p className="mt-1 text-xs text-zinc-500">메일 링크에서 코드가 자동 입력되었습니다.</p>
+            ) : null}
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
