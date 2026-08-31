@@ -48,6 +48,7 @@ export function sanitizeHeaderLabel(raw: unknown): string {
     : s;
 }
 
+/** 통계·사전 sync용 — 빈 헤더 열 제거, 순서·중복 헤더명은 유지 */
 export function sanitizeHeaderArray(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const out: string[] = [];
@@ -60,12 +61,27 @@ export function sanitizeHeaderArray(raw: unknown): string[] {
   return out;
 }
 
+/** 레이아웃 보존: trim·길이 제한만, 빈 열·중복 헤더명 유지 */
+export function sanitizeHeaderArrayForLayout(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    out.push(sanitizeHeaderLabel(item));
+    if (out.length >= TEMPLATE_HEADER_LOG_MAX_HEADERS) break;
+  }
+  return out;
+}
+
+export function countNonEmptyLayoutHeaders(headers: string[]): number {
+  return headers.filter((header) => header.trim() !== '').length;
+}
+
 export function buildMappedHeadersFromMapping(
   headers: string[],
   mapping: Pick<MappingResult, 'mappedBaseHeaders'>,
 ): TemplateHeaderLogMappedEntry[] {
-  const sanitized = sanitizeHeaderArray(headers);
-  return sanitized.map((header, index) => {
+  const layoutHeaders = sanitizeHeaderArrayForLayout(headers);
+  return layoutHeaders.map((header, index) => {
     const baseRaw = mapping.mappedBaseHeaders[index];
     const baseHeader =
       baseRaw != null && String(baseRaw).trim() !== '' ? sanitizeHeaderLabel(baseRaw) : null;
@@ -78,18 +94,20 @@ export function computeMappingSuccessRate(
   headers: string[],
   mapping: Pick<MappingResult, 'mappedBaseHeaders'>,
 ): number {
-  const sanitized = sanitizeHeaderArray(headers);
-  if (sanitized.length === 0) return 1;
+  const layoutHeaders = sanitizeHeaderArrayForLayout(headers);
+  const nonEmpty = layoutHeaders.filter((header) => header.trim() !== '');
+  if (nonEmpty.length === 0) return 1;
 
   let mapped = 0;
-  for (let i = 0; i < sanitized.length; i++) {
+  for (let i = 0; i < layoutHeaders.length; i++) {
+    if (!layoutHeaders[i]?.trim()) continue;
     const baseRaw = mapping.mappedBaseHeaders[i];
     if (baseRaw != null && String(baseRaw).trim() !== '') {
       mapped++;
     }
   }
 
-  return Math.round((mapped / sanitized.length) * 1000) / 1000;
+  return Math.round((mapped / nonEmpty.length) * 1000) / 1000;
 }
 
 export function buildOrderFileHeaderLogPayload(
@@ -103,8 +121,8 @@ export function buildOrderFileHeaderLogPayload(
     courierName?: string | null;
   },
 ): TemplateHeaderLogPayload {
-  const sanitizedHeaders = sanitizeHeaderArray(headers);
-  const mappedHeaders = buildMappedHeadersFromMapping(sanitizedHeaders, mapping);
+  const layoutHeaders = sanitizeHeaderArrayForLayout(headers);
+  const mappedHeaders = buildMappedHeadersFromMapping(layoutHeaders, mapping);
   const unknownHeaders = sanitizeHeaderArray(mapping.unknownHeaders ?? []);
 
   const templateName = options.templateName?.trim()
@@ -120,11 +138,11 @@ export function buildOrderFileHeaderLogPayload(
     templateId: options.templateId ?? undefined,
     templateName: templateName || undefined,
     courierName: courierName || undefined,
-    headers: sanitizedHeaders,
+    headers: layoutHeaders,
     mappedHeaders,
     unknownHeaders,
-    headerCount: sanitizedHeaders.length,
-    mappingSuccessRate: computeMappingSuccessRate(sanitizedHeaders, mapping),
+    headerCount: countNonEmptyLayoutHeaders(layoutHeaders),
+    mappingSuccessRate: computeMappingSuccessRate(layoutHeaders, mapping),
     source: 'order_upload',
   };
 }
@@ -139,9 +157,9 @@ export function buildTemplateHeaderLogPayload(
     courierName?: string | null;
   },
 ): TemplateHeaderLogPayload {
-  const courierHeaders = sanitizeHeaderArray(bridgeFile.courierHeaders ?? []);
+  const layoutHeaders = sanitizeHeaderArrayForLayout(bridgeFile.courierHeaders ?? []);
   const mapped = bridgeFile.mappedBaseHeaders ?? [];
-  const mappedHeaders: TemplateHeaderLogMappedEntry[] = courierHeaders.map((header, index) => ({
+  const mappedHeaders: TemplateHeaderLogMappedEntry[] = layoutHeaders.map((header, index) => ({
     header,
     baseHeader:
       mapped[index] != null && String(mapped[index]).trim() !== ''
@@ -170,11 +188,11 @@ export function buildTemplateHeaderLogPayload(
     templateId: options.templateId ?? undefined,
     templateName: templateName || undefined,
     courierName: courierName || undefined,
-    headers: courierHeaders,
+    headers: layoutHeaders,
     mappedHeaders,
     unknownHeaders,
-    headerCount: courierHeaders.length,
-    mappingSuccessRate: computeMappingSuccessRate(courierHeaders, mapping),
+    headerCount: countNonEmptyLayoutHeaders(layoutHeaders),
+    mappingSuccessRate: computeMappingSuccessRate(layoutHeaders, mapping),
     source: 'template_upload',
   };
 }
@@ -346,4 +364,4 @@ export function buildHeaderSetFingerprint(headers: unknown): string {
     .sort();
   return sorted.join('\u001f');
 }
-
+

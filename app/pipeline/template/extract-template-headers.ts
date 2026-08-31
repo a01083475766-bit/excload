@@ -47,10 +47,8 @@ export async function extractTemplateHeaders(file: File): Promise<string[]> {
   
   const headerRow = headerRows[0] || [];
   
-  // 헤더 배열로 변환 (빈 문자열 제거 및 trim)
-  const headers: string[] = headerRow
-    .map((h: any) => String(h || '').trim())
-    .filter((h: string) => h !== ''); // 빈 헤더 제거
+  // 헤더 배열로 변환 (trim만, 빈 열·중복 열 위치 보존)
+  const headers: string[] = headerRow.map((h: unknown) => String(h ?? '').trim());
   
   console.log('[Stage1] Extracted Headers:', headers);
   

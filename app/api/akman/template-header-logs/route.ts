@@ -63,22 +63,28 @@ function mapLogRow(row: {
   fileSessionId: string | null;
   templateId: string | null;
   source: string;
-  user: { email: string } | null;
+  userId: string | null;
+  user: { id: string; email: string } | null;
 }) {
   const unknown = Array.isArray(row.unknownHeaders)
     ? (row.unknownHeaders as string[])
     : [];
+  const layoutHeaders = Array.isArray(row.headers)
+    ? (row.headers as unknown[]).map((h) => sanitizeHeaderLabel(h))
+    : [];
   return {
     id: row.id,
     createdAt: row.createdAt.toISOString(),
+    userId: row.userId ?? row.user?.id ?? null,
     maskedEmail: maskEmailForAdmin(row.user?.email),
     page: row.page,
     templateName: row.templateName,
     courierName: row.courierName,
     headerCount: row.headerCount,
+    layoutColumnCount: layoutHeaders.length,
     unknownCount: unknown.length,
     mappingSuccessRate: row.mappingSuccessRate,
-    headers: row.headers,
+    headers: layoutHeaders,
     unknownHeaders: row.unknownHeaders,
     mappedHeaders: row.mappedHeaders as TemplateHeaderLogMappedEntry[],
     fileSessionId: row.fileSessionId,
@@ -135,7 +141,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       take: needsMemoryFilter || groupByHeaderSet ? 500 : take,
       include: {
-        user: { select: { email: true } },
+        user: { select: { id: true, email: true } },
       },
     });
 
@@ -183,7 +189,7 @@ export async function GET(request: NextRequest) {
           groups.set(fingerprint, {
             fingerprint,
             headers: Array.isArray(row.headers)
-              ? (row.headers as string[]).map((h) => sanitizeHeaderLabel(h)).filter(Boolean)
+              ? (row.headers as unknown[]).map((h) => sanitizeHeaderLabel(h))
               : [],
             repeatCount: 1,
             latestCreatedAt: mapped.createdAt,

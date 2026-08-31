@@ -9,6 +9,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import type { TemplateHeaderLogMappedEntry } from '@/app/lib/template-header-log';
+import {
+  buildHeaderLayoutDownloadFileName,
+  buildHeaderLayoutSheetRows,
+  parseLayoutHeadersFromLog,
+} from '@/app/lib/header-layout-xlsx';
 
 type HeaderUsageTopRow = {
   header: string;
@@ -28,11 +33,13 @@ type UnknownTopRow = {
 type TemplateHeaderLogRow = {
   id: string;
   createdAt: string;
+  userId: string | null;
   maskedEmail: string;
   page: string;
   templateName: string | null;
   courierName: string | null;
   headerCount: number;
+  layoutColumnCount?: number;
   unknownCount: number;
   mappingSuccessRate: number | null;
   headers: string[];
@@ -85,28 +92,51 @@ function formatPages(pages: string[]) {
   return pages.map((p) => PAGE_LABELS[p] ?? p).join(', ');
 }
 
-function safeFileNamePart(value: string) {
-  return value.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '-').slice(0, 40);
+const SOURCE_UPLOAD_LABELS: Record<string, string> = {
+  order_upload: '주문파일',
+  template_upload: '택배양식',
+};
+
+function displayFileLabel(log: TemplateHeaderLogRow): string {
+  if (log.templateName?.trim()) return log.templateName.trim();
+  return SOURCE_UPLOAD_LABELS[log.source] ?? log.source;
 }
 
-function downloadHeaderRowExcel(group: HeaderLogGroup) {
-  const headers = group.headers.map((header) => String(header ?? '').trim());
-  if (headers.length === 0) {
+function writeHeaderLayoutWorkbook(headers: string[], fileName: string) {
+  const layout = parseLayoutHeadersFromLog(headers);
+  if (layout.length === 0 || layout.every((header) => !header.trim())) {
     alert('다운로드할 헤더 구성이 없습니다.');
     return;
   }
 
   const workbook = XLSX.utils.book_new();
-  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
-  worksheet['!cols'] = headers.map((header) => ({
-    wch: Math.min(Math.max(header.length + 2, 12), 40),
+  const sheetRows = buildHeaderLayoutSheetRows(layout, { includeDummyRow: true });
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetRows);
+  worksheet['!cols'] = layout.map((header) => ({
+    wch: Math.min(Math.max((header || '(빈열)').length + 2, 12), 40),
   }));
-  XLSX.utils.book_append_sheet(workbook, worksheet, '헤더 구성');
+  XLSX.utils.book_append_sheet(workbook, worksheet, '헤더');
+  XLSX.writeFile(workbook, fileName);
+}
 
-  const pageName = safeFileNamePart(PAGE_LABELS[group.page] ?? group.page);
-  const sourceName = safeFileNamePart(SOURCE_LABELS[group.source] ?? group.source);
-  const datePart = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(workbook, `헤더구성_${pageName}_${sourceName}_${datePart}.xlsx`);
+function downloadLogHeaderLayoutXlsx(log: TemplateHeaderLogRow) {
+  const fileName = buildHeaderLayoutDownloadFileName({
+    createdAt: log.createdAt,
+    source: log.source,
+    courierName: log.courierName,
+    templateName: log.templateName,
+  });
+  writeHeaderLayoutWorkbook(log.headers, fileName);
+}
+
+function downloadHeaderRowExcel(group: HeaderLogGroup) {
+  const fileName = buildHeaderLayoutDownloadFileName({
+    createdAt: group.latestCreatedAt,
+    source: group.source,
+    courierName: group.logs[0]?.courierName,
+    templateName: group.logs[0]?.templateName,
+  });
+  writeHeaderLayoutWorkbook(group.headers, fileName);
 }
 
 const thStyle: React.CSSProperties = {
@@ -125,10 +155,13 @@ export default function AkmanTemplateHeaderLogsPage() {
   const router = useRouter();
   const [usageTop, setUsageTop] = useState<HeaderUsageTopRow[]>([]);
   const [unknownTop, setUnknownTop] = useState<UnknownTopRow[]>([]);
+  const [uploadLogs, setUploadLogs] = useState<TemplateHeaderLogRow[]>([]);
   const [logGroups, setLogGroups] = useState<HeaderLogGroup[]>([]);
   const [usageLoading, setUsageLoading] = useState(true);
   const [unknownLoading, setUnknownLoading] = useState(true);
+  const [uploadLogsLoading, setUploadLogsLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(true);
+  const [expandedUploadLogId, setExpandedUploadLogId] = useState<string | null>(null);
   const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [selectedGroupKeys, setSelectedGroupKeys] = useState<string[]>([]);
@@ -146,6 +179,7 @@ export default function AkmanTemplateHeaderLogsPage() {
   const [courierName, setCourierName] = useState('');
   const [hasUnknown, setHasUnknown] = useState('');
   const [headerSearch, setHeaderSearch] = useState('');
+  const [uploadLogLimit, setUploadLogLimit] = useState(50);
   const [logLimit, setLogLimit] = useState(20);
   const [showLogFilters, setShowLogFilters] = useState(false);
 
@@ -187,6 +221,44 @@ export default function AkmanTemplateHeaderLogsPage() {
     }
   }, [router]);
 
+  const fetchUploadLogs = useCallback(async () => {
+    setUploadLogsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        limit: String(uploadLogLimit),
+      });
+      if (dateFrom) params.set('dateFrom', dateFrom);
+      if (dateTo) params.set('dateTo', dateTo);
+      if (page) params.set('page', page);
+      if (source) params.set('source', source);
+      if (courierName.trim()) params.set('courierName', courierName.trim());
+      if (hasUnknown) params.set('hasUnknown', hasUnknown);
+      if (headerSearch.trim()) params.set('headerSearch', headerSearch.trim());
+
+      const response = await fetch(`/api/akman/template-header-logs?${params.toString()}`);
+      if (response.ok) {
+        const json = await response.json();
+        setUploadLogs(json.data ?? []);
+      } else if (response.status === 401 || response.status === 403) {
+        router.push('/');
+      }
+    } catch (error) {
+      console.error('[template-header-logs admin] 업로드 로그 조회 실패:', error);
+    } finally {
+      setUploadLogsLoading(false);
+    }
+  }, [
+    dateFrom,
+    dateTo,
+    page,
+    source,
+    courierName,
+    hasUnknown,
+    headerSearch,
+    uploadLogLimit,
+    router,
+  ]);
+
   const fetchRecentLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
@@ -219,12 +291,14 @@ export default function AkmanTemplateHeaderLogsPage() {
   useEffect(() => {
     fetchUsageTop();
     fetchUnknownTop();
+    fetchUploadLogs();
     fetchRecentLogs();
-  }, [fetchUsageTop, fetchUnknownTop, fetchRecentLogs]);
+  }, [fetchUsageTop, fetchUnknownTop, fetchUploadLogs, fetchRecentLogs]);
 
   const refreshAll = () => {
     fetchUsageTop();
     fetchUnknownTop();
+    fetchUploadLogs();
     fetchRecentLogs();
   };
 
@@ -370,9 +444,231 @@ export default function AkmanTemplateHeaderLogsPage() {
 
       <h1 style={{ marginBottom: 8, fontSize: 22, fontWeight: 700 }}>헤더 수집 로그</h1>
       <p style={{ marginBottom: 20, fontSize: 14, color: '#52525b', lineHeight: 1.6 }}>
-        어떤 헤더명이 자주 들어오는지 한눈에 확인할 수 있습니다. 업로드별 상세 로그는 하단
-        「최근 수집 로그」에서 동일 헤더 구성끼리 묶어 볼 수 있습니다.
+        업로드 파일별 실제 헤더 레이아웃을 확인·다운로드할 수 있습니다. 하단에서는 헤더 사용
+        통계와 동일 구성 그룹을 함께 볼 수 있습니다.
       </p>
+
+      {/* 0. 업로드 파일별 헤더 레이아웃 */}
+      <section style={{ marginBottom: 36 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>업로드 파일별 헤더 레이아웃</h2>
+          <button
+            type="button"
+            onClick={refreshAll}
+            style={{
+              padding: '6px 12px',
+              fontSize: 13,
+              border: '1px solid #d1d5db',
+              borderRadius: 6,
+              background: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            새로고침
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+            gap: 12,
+            marginBottom: 16,
+            padding: 16,
+            background: '#f4f4f5',
+            borderRadius: 8,
+          }}
+        >
+          <label style={{ fontSize: 13 }}>
+            시작일
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}
+            />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            종료일
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}
+            />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            페이지
+            <select
+              value={page}
+              onChange={(e) => setPage(e.target.value)}
+              style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}
+            >
+              <option value="">전체</option>
+              <option value="order-convert">택배주문변환</option>
+              <option value="logistics-convert">물류주문변환</option>
+              <option value="invoice-file-convert">송장파일변환</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 13 }}>
+            구분
+            <select
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}
+            >
+              <option value="">전체</option>
+              <option value="order_upload">주문파일</option>
+              <option value="template_upload">택배양식</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 13 }}>
+            택배사명
+            <input
+              type="text"
+              value={courierName}
+              onChange={(e) => setCourierName(e.target.value)}
+              placeholder="부분 검색"
+              style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}
+            />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            헤더 검색
+            <input
+              type="text"
+              value={headerSearch}
+              onChange={(e) => setHeaderSearch(e.target.value)}
+              placeholder="헤더명 포함"
+              style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}
+            />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            표시 건수
+            <select
+              value={uploadLogLimit}
+              onChange={(e) => setUploadLogLimit(Number(e.target.value))}
+              style={{ display: 'block', width: '100%', marginTop: 4, padding: 6 }}
+            >
+              {[20, 50, 100, 200, 500].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={fetchUploadLogs}
+              style={{
+                padding: '8px 16px',
+                background: '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 14,
+              }}
+            >
+              조회
+            </button>
+          </div>
+        </div>
+
+        {uploadLogsLoading ? (
+          <p style={{ color: '#71717a' }}>불러오는 중…</p>
+        ) : uploadLogs.length === 0 ? (
+          <p style={{ color: '#71717a' }}>조건에 맞는 업로드 기록이 없습니다.</p>
+        ) : (
+          <div style={{ overflowX: 'auto', border: '1px solid #e4e4e7', borderRadius: 8 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f4f4f5', textAlign: 'left' }}>
+                  <th style={thStyle}>등록일</th>
+                  <th style={thStyle}>사용자</th>
+                  <th style={thStyle}>구분</th>
+                  <th style={thStyle}>택배사</th>
+                  <th style={thStyle}>양식/파일명</th>
+                  <th style={{ ...thStyle, width: 72 }}>헤더 수</th>
+                  <th style={{ ...thStyle, width: 140 }}>보기</th>
+                  <th style={{ ...thStyle, width: 100 }}>다운로드</th>
+                </tr>
+              </thead>
+              <tbody>
+                {uploadLogs.map((log) => (
+                  <Fragment key={log.id}>
+                    <tr>
+                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{formatDate(log.createdAt)}</td>
+                      <td style={tdStyle}>
+                        {log.userId ? (
+                          <Link
+                            href={`/akman/users/${encodeURIComponent(log.userId)}`}
+                            style={{ color: '#2563eb', textDecoration: 'none' }}
+                          >
+                            {log.maskedEmail}
+                          </Link>
+                        ) : (
+                          log.maskedEmail
+                        )}
+                      </td>
+                      <td style={tdStyle}>{SOURCE_UPLOAD_LABELS[log.source] ?? log.source}</td>
+                      <td style={tdStyle}>{log.courierName?.trim() || '—'}</td>
+                      <td style={{ ...tdStyle, wordBreak: 'break-all' }}>{displayFileLabel(log)}</td>
+                      <td style={tdStyle}>{log.headerCount}</td>
+                      <td style={tdStyle}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedUploadLogId((prev) => (prev === log.id ? null : log.id))
+                          }
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: 12,
+                            border: '1px solid #a1a1aa',
+                            borderRadius: 4,
+                            background: '#fff',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {expandedUploadLogId === log.id ? '닫기' : '보기'}
+                        </button>
+                      </td>
+                      <td style={tdStyle}>
+                        <button
+                          type="button"
+                          onClick={() => downloadLogHeaderLayoutXlsx(log)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: 12,
+                            border: '1px solid #93c5fd',
+                            borderRadius: 4,
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          XLSX
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedUploadLogId === log.id && (
+                      <tr>
+                        <td colSpan={8} style={{ padding: 12, background: '#fafafa', borderBottom: '1px solid #e4e4e7' }}>
+                          <HeaderLayoutDetail log={log} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p style={{ marginTop: 8, fontSize: 12, color: '#71717a' }}>
+          XLSX는 헤더 1행과 형식 힌트용 더미 1행만 포함합니다. 주문 데이터·개인정보는 저장·다운로드하지
+          않습니다.
+        </p>
+      </section>
 
       {/* 1. 헤더 사용 TOP */}
       <section style={{ marginBottom: 36 }}>
@@ -867,6 +1163,21 @@ export default function AkmanTemplateHeaderLogsPage() {
                                     <span>{log.maskedEmail}</span>
                                     <button
                                       type="button"
+                                      onClick={() => downloadLogHeaderLayoutXlsx(log)}
+                                      style={{
+                                        padding: '2px 8px',
+                                        fontSize: 11,
+                                        border: '1px solid #93c5fd',
+                                        borderRadius: 4,
+                                        background: '#eff6ff',
+                                        color: '#1d4ed8',
+                                        cursor: 'pointer',
+                                      }}
+                                    >
+                                      XLSX
+                                    </button>
+                                    <button
+                                      type="button"
                                       onClick={() =>
                                         setExpandedLogId((prev) => (prev === log.id ? null : log.id))
                                       }
@@ -910,6 +1221,39 @@ export default function AkmanTemplateHeaderLogsPage() {
   );
 }
 
+function HeaderLayoutDetail({ log }: { log: TemplateHeaderLogRow }) {
+  const layoutHeaders = parseLayoutHeadersFromLog(log.headers);
+  const emptyColumnCount = layoutHeaders.filter((header) => !header.trim()).length;
+
+  return (
+    <div style={{ fontSize: 13 }}>
+      <p style={{ margin: '0 0 8px', fontWeight: 600 }}>
+        헤더 목록 ({log.headerCount}개
+        {layoutHeaders.length !== log.headerCount
+          ? `, 열 ${layoutHeaders.length}개`
+          : ''}
+        {emptyColumnCount > 0 ? `, 빈 열 ${emptyColumnCount}개` : ''})
+      </p>
+      <ol style={{ margin: '0 0 16px', paddingLeft: 20, lineHeight: 1.7 }}>
+        {layoutHeaders.map((header, index) => (
+          <li key={`${log.id}-col-${index}`} style={{ wordBreak: 'break-all' }}>
+            {header.trim() ? header : <span style={{ color: '#a1a1aa' }}>(빈 열)</span>}
+          </li>
+        ))}
+      </ol>
+      <p style={{ margin: '0 0 4px', fontSize: 12, color: '#71717a' }}>
+        페이지: {PAGE_LABELS[log.page] ?? log.page} · 등록: {formatDate(log.createdAt)}
+      </p>
+      {log.unknownCount > 0 && (
+        <p style={{ margin: '8px 0 0', fontSize: 12, color: '#b45309' }}>
+          미매핑 헤더: {Array.isArray(log.unknownHeaders) ? log.unknownHeaders.join(' · ') : '—'}
+        </p>
+      )}
+      <LogMappingDetail log={log} />
+    </div>
+  );
+}
+
 function LogMappingDetail({ log }: { log: TemplateHeaderLogRow }) {
   return (
     <div style={{ fontSize: 12 }}>
@@ -923,8 +1267,8 @@ function LogMappingDetail({ log }: { log: TemplateHeaderLogRow }) {
       )}
       <p style={{ margin: '0 0 8px', fontWeight: 600 }}>매핑 결과</p>
       <div style={{ maxHeight: 200, overflow: 'auto' }}>
-        {log.mappedHeaders.map((m) => (
-          <div key={`${log.id}-${m.header}`} style={{ marginBottom: 4 }}>
+        {log.mappedHeaders.map((m, index) => (
+          <div key={`${log.id}-map-${index}`} style={{ marginBottom: 4 }}>
             <span style={{ fontWeight: 500 }}>{m.header}</span>
             {' → '}
             <span>{m.baseHeader ?? '(미매핑)'}</span>

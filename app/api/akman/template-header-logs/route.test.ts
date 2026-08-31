@@ -28,7 +28,7 @@ vi.mock('@/app/lib/prisma', () => ({
   },
 }));
 
-import { DELETE } from './route';
+import { DELETE, GET } from './route';
 
 function deleteRequest(body: unknown) {
   return new Request('http://localhost/api/akman/template-header-logs', {
@@ -104,5 +104,48 @@ describe('DELETE /api/akman/template-header-logs', () => {
 
     expect(res.status).toBe(400);
     expect(mocks.deleteMany).not.toHaveBeenCalled();
+  });
+});
+
+function getRequest(query = '') {
+  return new Request(`http://localhost/api/akman/template-header-logs${query}`) as never;
+}
+
+describe('GET /api/akman/template-header-logs', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getServerSession.mockResolvedValue({ user: { email: 'admin@example.com' } });
+    mocks.isAdminEmail.mockReturnValue(true);
+  });
+
+  it('업로드 파일별 flat 목록에서 headers 순서·userId를 반환한다', async () => {
+    mocks.findMany.mockResolvedValue([
+      {
+        id: 'log-1',
+        createdAt: new Date('2026-08-31T00:00:00.000Z'),
+        page: 'order-convert',
+        templateName: null,
+        courierName: '로젠택배',
+        headerCount: 3,
+        mappingSuccessRate: 1,
+        headers: ['상품명', '수량', '상품명'],
+        unknownHeaders: [],
+        mappedHeaders: [],
+        fileSessionId: null,
+        templateId: null,
+        source: 'order_upload',
+        userId: 'user-1',
+        user: { id: 'user-1', email: 'abc@naver.com' },
+      },
+    ]);
+
+    const res = await GET(getRequest('?limit=10'));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.grouped).toBe(false);
+    expect(json.data[0].headers).toEqual(['상품명', '수량', '상품명']);
+    expect(json.data[0].userId).toBe('user-1');
+    expect(json.data[0].layoutColumnCount).toBe(3);
   });
 });

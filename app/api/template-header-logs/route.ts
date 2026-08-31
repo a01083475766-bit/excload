@@ -11,7 +11,9 @@ import {
   isTemplateHeaderLogPage,
   isTemplateHeaderLogSource,
   sanitizeHeaderArray,
+  sanitizeHeaderArrayForLayout,
   sanitizeHeaderLabel,
+  countNonEmptyLayoutHeaders,
   TEMPLATE_HEADER_LOG_MAX_HEADERS,
   type TemplateHeaderLogMappedEntry,
 } from '@/app/lib/template-header-log';
@@ -46,8 +48,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'page 값이 올바르지 않습니다.' }, { status: 400 });
     }
 
-    const headers = sanitizeHeaderArray(body?.headers);
-    if (headers.length === 0) {
+    const layoutHeaders = sanitizeHeaderArrayForLayout(body?.headers);
+    const statsHeaders = sanitizeHeaderArray(body?.headers);
+    if (layoutHeaders.length === 0 || statsHeaders.length === 0) {
       return NextResponse.json({ error: 'headers가 비어 있습니다.' }, { status: 400 });
     }
 
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
     const headerCount =
       typeof body?.headerCount === 'number' && Number.isFinite(body.headerCount)
         ? Math.min(Math.max(0, Math.floor(body.headerCount)), TEMPLATE_HEADER_LOG_MAX_HEADERS)
-        : headers.length;
+        : countNonEmptyLayoutHeaders(layoutHeaders);
 
     const fileSessionId =
       typeof body?.fileSessionId === 'string' && body.fileSessionId.trim()
@@ -98,7 +101,7 @@ export async function POST(request: NextRequest) {
         page,
         templateName,
         courierName,
-        headers,
+        headers: layoutHeaders,
         mappedHeaders,
         unknownHeaders,
         headerCount,
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     try {
       const syncResult = await syncHeadersToDictionary({
-        headers,
+        headers: statsHeaders,
         mappedHeaders,
         page,
         source,
