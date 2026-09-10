@@ -239,16 +239,49 @@ export default function VoiceClient() {
             `참조 음성은 ${VOICE_REF_MAX_DURATION_SECONDS}초 이하로 등록해주세요. (권장 ${VOICE_REF_RECOMMENDED_DURATION})`,
           );
         }
-        const form = new FormData();
-        form.append('name', name);
-        form.append('promptText', promptText);
-        form.append('defaultInstruction', defaultInstruction);
-        form.append('defaultSpeed', String(VOICE_SPEED_DEFAULT));
-        if (durationSeconds != null) {
-          form.append('durationSeconds', String(durationSeconds));
+
+        const prepareRes = await fetch('/api/akman/voice/profiles/prepare-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            originalName: referenceFile.name,
+            mimeType: referenceFile.type || null,
+            sizeBytes: referenceFile.size,
+            durationSeconds,
+          }),
+        });
+        const prepareJson = await prepareRes.json();
+        if (!prepareRes.ok) {
+          throw new Error(prepareJson.error || '업로드 URL 발급에 실패했습니다.');
         }
-        form.append('referenceAudio', referenceFile);
-        const res = await fetch('/api/akman/voice/profiles', { method: 'POST', body: form });
+
+        const uploadRes = await fetch(prepareJson.signedUploadUrl as string, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': (prepareJson.mimeType as string) || referenceFile.type || 'audio/wav',
+          },
+          body: referenceFile,
+        });
+        if (!uploadRes.ok) {
+          throw new Error('참조 음성 업로드에 실패했습니다.');
+        }
+
+        const res = await fetch('/api/akman/voice/profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            profileId: prepareJson.profileId,
+            objectKey: prepareJson.objectKey,
+            originalName: prepareJson.originalName,
+            mimeType: prepareJson.mimeType,
+            sizeBytes: referenceFile.size,
+            durationSeconds,
+            name,
+            promptText,
+            defaultInstruction,
+            defaultSpeed: VOICE_SPEED_DEFAULT,
+          }),
+        });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || '캐릭터 저장에 실패했습니다.');
         await loadProfiles();

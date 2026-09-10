@@ -3,12 +3,14 @@ import { requireAkmanAdmin } from '@/app/lib/voucher/require-akman-admin';
 import { prisma } from '@/app/lib/prisma';
 import {
   buildVoiceOutputObjectKey,
-  downloadVoiceObject,
+  createVoiceSignedDownloadUrl,
+  createVoiceSignedUploadUrl,
   isVoiceStorageConfigured,
-  uploadVoiceObject,
+  voiceObjectExists,
 } from '@/app/lib/akman-voice/storage';
 import { callVoiceWorkerGenerate, getVoiceServiceStatus } from '@/app/lib/akman-voice/voice-service';
 import { validateGenerateFields } from '@/app/lib/akman-voice/validation';
+import { VOICE_WORKER_URL_EXPIRES_SEC } from '@/app/lib/akman-voice/constants';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -114,32 +116,30 @@ export async function POST(request: Request) {
   });
 
   try {
-    let referenceDownload;
+    const outputKey = buildVoiceOutputObjectKey(profile.id, generation.id);
+
+    let referenceSigned;
+    let outputSigned;
     try {
-      referenceDownload = await downloadVoiceObject(profile.referenceStoragePath);
+      referenceSigned = await createVoiceSignedDownloadUrl(
+        profile.referenceStoragePath,
+        VOICE_WORKER_URL_EXPIRES_SEC,
+      );
+      outputSigned = await createVoiceSignedUploadUrl(outputKey);
     } catch (error) {
       console.error(
-        '[akman-voice] reference download failed',
+        '[akman-voice] signed url prep failed',
         error instanceof Error ? error.message : 'unknown',
       );
-      await markGenerationFailed(generation.id, '참조 음성을 불러오지 못했습니다.');
-      return NextResponse.json({ error: '참조 음성을 불러오지 못했습니다.' }, { status: 500 });
+      await markGenerationFailed(generation.id, '음성 저장소 URL 발급에 실패했습니다.');
+      return NextResponse.json({ error: '음성 저장소 URL 발급에 실패했습니다.' }, { status: 500 });
     }
-
-    if (!referenceDownload) {
-      await markGenerationFailed(generation.id, '참조 음성을 찾을 수 없습니다.');
-      return NextResponse.json({ error: '참조 음성을 찾을 수 없습니다.' }, { status: 404 });
-    }
-
-    const referenceBytes =
-      referenceDownload.body instanceof ArrayBuffer
-        ? Buffer.from(referenceDownload.body)
-        : Buffer.from(await new Response(referenceDownload.body).arrayBuffer());
 
     const workerResult = await callVoiceWorkerGenerate({
-      referenceAudio: referenceBytes,
+      referenceDownloadUrl: referenceSigned.signedDownloadUrl,
       referenceFilename: profile.referenceOriginalName,
-      referenceMimeType: profile.referenceMimeType,
+      outputUploadUrl: outputSigned.signedUploadUrl,
+      outputObjectKey: outputKey,
       promptText: profile.promptText,
       text: fields.text,
       instruction: fields.instruction,
@@ -151,27 +151,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: workerResult.error }, { status: workerResult.status });
     }
 
-    const outputKey = buildVoiceOutputObjectKey(profile.id, generation.id);
+    let exists = false;
     try {
-      await uploadVoiceObject({
-        objectKey: outputKey,
-        bytes: workerResult.wavBytes,
-        contentType: 'audio/wav',
-      });
+      exists = await voiceObjectExists(workerResult.outputStoragePath);
     } catch (error) {
       console.error(
-        '[akman-voice] output upload failed',
+        '[akman-voice] output existence check failed',
         error instanceof Error ? error.message : 'unknown',
       );
-      await markGenerationFailed(generation.id, '생성 음성 저장에 실패했습니다.');
-      return NextResponse.json({ error: '생성 음성 저장에 실패했습니다.' }, { status: 500 });
+      await markGenerationFailed(generation.id, '생성 음성 확인에 실패했습니다.');
+      return NextResponse.json({ error: '생성 음성 확인에 실패했습니다.' }, { status: 500 });
+    }
+    if (!exists) {
+      await markGenerationFailed(generation.id, '생성 음성이 저장소에 없습니다.');
+      return NextResponse.json({ error: '생성 음성이 저장소에 없습니다.' }, { status: 502 });
     }
 
     const completed = await prisma.voiceGeneration.update({
       where: { id: generation.id },
       data: {
         status: 'COMPLETED',
-        outputStoragePath: outputKey,
+        outputStoragePath: workerResult.outputStoragePath,
         errorMessage: null,
       },
       include: { voiceProfile: { select: { name: true } } },

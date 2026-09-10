@@ -28,9 +28,10 @@ describe('voice-service client', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const result = await callVoiceWorkerGenerate({
-      referenceAudio: Buffer.from([1]),
+      referenceDownloadUrl: 'https://project.supabase.co/storage/v1/object/sign/x',
       referenceFilename: 'a.wav',
-      referenceMimeType: 'audio/wav',
+      outputUploadUrl: 'https://project.supabase.co/storage/v1/object/upload/sign/y',
+      outputObjectKey: 'voice/outputs/p/g.wav',
       promptText: '프롬프트',
       text: '독백',
       speed: 1,
@@ -43,19 +44,22 @@ describe('voice-service client', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('sends bearer secret when configured', async () => {
+  it('sends JSON + bearer secret when configured (no audio binary)', async () => {
     process.env.VOICE_SERVICE_URL = 'https://voice.example.com';
     process.env.VOICE_SERVICE_SECRET = 'shared-secret';
-    const wavHeader = Buffer.alloc(44, 1);
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(wavHeader, { status: 200, headers: { 'content-type': 'audio/wav' } }),
+      new Response(
+        JSON.stringify({ ok: true, output_storage_path: 'voice/outputs/p/g.wav' }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
     );
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await callVoiceWorkerGenerate({
-      referenceAudio: Buffer.from([1, 2, 3]),
+      referenceDownloadUrl: 'https://project.supabase.co/storage/v1/object/sign/ref',
       referenceFilename: 'a.wav',
-      referenceMimeType: 'audio/wav',
+      outputUploadUrl: 'https://project.supabase.co/storage/v1/object/upload/sign/out',
+      outputObjectKey: 'voice/outputs/p/g.wav',
       promptText: '프롬프트',
       text: '독백',
       instruction: '천천히',
@@ -67,8 +71,16 @@ describe('voice-service client', () => {
       'https://voice.example.com/generate',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer shared-secret' }),
+        headers: expect.objectContaining({
+          Authorization: 'Bearer shared-secret',
+          'Content-Type': 'application/json',
+        }),
       }),
     );
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.reference_download_url).toContain('object/sign');
+    expect(body.output_upload_url).toContain('object/upload/sign');
+    expect(body.output_object_key).toBe('voice/outputs/p/g.wav');
+    expect(body).not.toHaveProperty('reference_audio');
   });
 });

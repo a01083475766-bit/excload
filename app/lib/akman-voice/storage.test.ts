@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  createVoiceSignedDownloadUrl,
+  createVoiceSignedUploadUrl,
   deleteVoiceObject,
-  downloadVoiceObject,
-  uploadVoiceObject,
 } from '@/app/lib/akman-voice/storage';
 
 const envSnapshot = {
@@ -26,48 +26,44 @@ describe('voice private Supabase Storage adapter', () => {
     }
   });
 
-  it('uploads under voice/ prefix without public URLs', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+  it('creates signed upload URLs without exposing service role in the URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          url: '/object/upload/sign/voice-private/voice/refs/abc/reference.wav?token=abc.token',
+          token: 'abc.token',
+        }),
+        { status: 200 },
+      ),
+    );
     vi.stubGlobal('fetch', fetchMock);
 
-    await uploadVoiceObject({
-      objectKey: 'voice/refs/abc/reference.wav',
-      bytes: Buffer.from([1]),
-      contentType: 'audio/wav',
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://project.supabase.co/storage/v1/object/voice-private/voice/refs/abc/reference.wav',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ 'x-upsert': 'false' }),
-      }),
-    );
-    expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain('/object/public/');
+    const result = await createVoiceSignedUploadUrl('voice/refs/abc/reference.wav');
+    expect(result.signedUploadUrl).toContain('/object/upload/sign/');
+    expect(result.signedUploadUrl).toContain('token=abc.token');
+    expect(result.signedUploadUrl).not.toContain('test-service-role-key');
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/object/upload/sign/');
   });
 
-  it('downloads via authenticated endpoint', async () => {
+  it('creates signed download URLs for private objects', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(new Uint8Array([1, 2]), {
-        status: 200,
-        headers: { 'content-type': 'audio/wav' },
-      }),
+      new Response(
+        JSON.stringify({
+          signedURL: '/object/sign/voice-private/voice/outputs/a/b.wav?token=dl.token',
+        }),
+        { status: 200 },
+      ),
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    const result = await downloadVoiceObject('voice/outputs/abc/gen.wav');
-    expect(result).not.toBeNull();
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/object/authenticated/');
+    const result = await createVoiceSignedDownloadUrl('voice/outputs/a/b.wav', 300);
+    expect(result.signedDownloadUrl).toContain('/object/sign/');
+    expect(result.signedDownloadUrl).not.toContain('/object/public/');
+    expect(result.signedDownloadUrl).not.toContain('test-service-role-key');
   });
 
   it('rejects non-voice object keys', async () => {
-    await expect(
-      uploadVoiceObject({
-        objectKey: 'feedback/x',
-        bytes: Buffer.from([1]),
-        contentType: 'audio/wav',
-      }),
-    ).rejects.toThrow(/object key/);
+    await expect(createVoiceSignedUploadUrl('feedback/x')).rejects.toThrow(/object key/);
   });
 
   it('deletes by prefix', async () => {

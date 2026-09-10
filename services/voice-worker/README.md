@@ -9,12 +9,15 @@
 ## Architecture
 
 ```
-Browser → EXCLOAD /api/akman/voice/* (requireAkmanAdmin)
-       → VOICE_SERVICE_URL /generate (Bearer VOICE_SERVICE_SECRET)
-       → Fun-CosyVoice3
-       → WAV bytes
-       → EXCLOAD uploads to private Supabase bucket
+Browser → EXCLOAD /api/akman/voice/* (requireAkmanAdmin, JSON only)
+       → short-lived signed URLs (private Supabase)
+       → Voice Worker /generate (Bearer VOICE_SERVICE_SECRET, JSON)
+       → Worker downloads reference + PUTs WAV to Storage
+       → EXCLOAD marks COMPLETED from path JSON
+Browser preview/download → EXCLOAD issues signed download URL → 302 to Storage
 ```
+
+Audio binaries do **not** transit Vercel request/response bodies (avoids ~4.5MB platform limits).
 
 ## Upstream pin
 
@@ -73,19 +76,30 @@ Create a **private** Supabase Storage bucket named like `voice-private` (no publ
 
 ### `POST /generate`
 
-Headers: `Authorization: Bearer <VOICE_SERVICE_SECRET>`
-
-multipart fields:
+Headers: `Authorization: Bearer <VOICE_SERVICE_SECRET>`  
+Body: JSON (no WAV through EXCLOAD / Vercel)
 
 | field | required | notes |
 |-------|----------|--------|
-| `reference_audio` | yes | wav/mp3/m4a |
+| `reference_download_url` | yes | short-lived Supabase signed download URL |
+| `reference_filename` | no | for extension hint |
+| `output_upload_url` | yes | short-lived Supabase signed upload URL |
+| `output_object_key` | yes | must match `voice/outputs/...` |
 | `prompt_text` | yes | transcript of reference |
 | `text` | yes | new monologue |
 | `instruction` | no | if set → `inference_instruct2` |
 | `speed` | no | 0.5–1.5, default 1.0 |
 
-Response: `audio/wav` bytes, or `{ "error": "..." }`.
+Response JSON:
+
+```json
+{ "ok": true, "output_storage_path": "voice/outputs/.../....wav" }
+```
+
+or `{ "error": "..." }`.
+
+Worker downloads the reference itself, synthesizes, and **PUTs WAV directly to Storage**.
+EXCLOAD never receives the WAV body (avoids Vercel ~4.5MB limits).
 
 ## Generation modes
 

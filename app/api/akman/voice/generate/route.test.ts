@@ -5,8 +5,9 @@ const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
-  downloadVoiceObject: vi.fn(),
-  uploadVoiceObject: vi.fn(),
+  createVoiceSignedDownloadUrl: vi.fn(),
+  createVoiceSignedUploadUrl: vi.fn(),
+  voiceObjectExists: vi.fn(),
   callVoiceWorkerGenerate: vi.fn(),
   getVoiceServiceStatus: vi.fn(),
   isVoiceStorageConfigured: vi.fn(),
@@ -29,8 +30,9 @@ vi.mock('@/app/lib/prisma', () => ({
 vi.mock('@/app/lib/akman-voice/storage', () => ({
   buildVoiceOutputObjectKey: (profileId: string, generationId: string) =>
     `voice/outputs/${profileId}/${generationId}.wav`,
-  downloadVoiceObject: mocks.downloadVoiceObject,
-  uploadVoiceObject: mocks.uploadVoiceObject,
+  createVoiceSignedDownloadUrl: mocks.createVoiceSignedDownloadUrl,
+  createVoiceSignedUploadUrl: mocks.createVoiceSignedUploadUrl,
+  voiceObjectExists: mocks.voiceObjectExists,
   isVoiceStorageConfigured: mocks.isVoiceStorageConfigured,
 }));
 
@@ -111,10 +113,15 @@ describe('POST /api/akman/voice/generate', () => {
       updatedAt: new Date(),
       voiceProfile: { name: '여성 독백 A' },
     });
-    mocks.downloadVoiceObject.mockResolvedValue({
-      body: new Uint8Array([1, 2, 3]).buffer,
-      contentType: 'audio/wav',
-      contentLength: '3',
+    mocks.createVoiceSignedDownloadUrl.mockResolvedValue({
+      objectKey: 'voice/refs/p1/reference.wav',
+      signedDownloadUrl: 'https://project.supabase.co/storage/v1/object/sign/ref',
+      expiresInSeconds: 1800,
+    });
+    mocks.createVoiceSignedUploadUrl.mockResolvedValue({
+      objectKey: 'voice/outputs/p1/g1.wav',
+      signedUploadUrl: 'https://project.supabase.co/storage/v1/object/upload/sign/out',
+      token: 'tok',
     });
     mocks.callVoiceWorkerGenerate.mockResolvedValue({
       ok: false,
@@ -132,6 +139,13 @@ describe('POST /api/akman/voice/generate', () => {
     );
 
     expect(res.status).toBe(500);
+    expect(mocks.callVoiceWorkerGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceDownloadUrl: expect.stringContaining('object/sign'),
+        outputUploadUrl: expect.stringContaining('object/upload/sign'),
+        outputObjectKey: 'voice/outputs/p1/g1.wav',
+      }),
+    );
     expect(mocks.update).toHaveBeenCalledWith({
       where: { id: 'g1' },
       data: {
@@ -139,6 +153,6 @@ describe('POST /api/akman/voice/generate', () => {
         errorMessage: '음성 생성 중 오류가 발생했습니다.',
       },
     });
-    expect(mocks.uploadVoiceObject).not.toHaveBeenCalled();
+    expect(mocks.voiceObjectExists).not.toHaveBeenCalled();
   });
 });

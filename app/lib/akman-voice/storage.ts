@@ -4,10 +4,16 @@ type VoiceStorageConfig = {
   bucket: string;
 };
 
-export type DownloadedVoiceObject = {
-  body: ReadableStream<Uint8Array> | ArrayBuffer;
-  contentType: string;
-  contentLength: string | null;
+export type VoiceSignedUpload = {
+  objectKey: string;
+  signedUploadUrl: string;
+  token: string;
+};
+
+export type VoiceSignedDownload = {
+  objectKey: string;
+  signedDownloadUrl: string;
+  expiresInSeconds: number;
 };
 
 function getVoiceStorageConfig(): VoiceStorageConfig {
@@ -61,50 +67,115 @@ export function buildVoiceOutputObjectKey(profileId: string, generationId: strin
   return `voice/outputs/${profileId}/${generationId}.wav`;
 }
 
-export async function uploadVoiceObject(input: {
-  objectKey: string;
-  bytes: Buffer;
-  contentType: string;
-}): Promise<void> {
+function toAbsoluteStorageUrl(baseUrl: string, relativeOrAbsolute: string): string {
+  if (relativeOrAbsolute.startsWith('http://') || relativeOrAbsolute.startsWith('https://')) {
+    return relativeOrAbsolute;
+  }
+  const path = relativeOrAbsolute.startsWith('/')
+    ? relativeOrAbsolute
+    : `/${relativeOrAbsolute}`;
+  return `${baseUrl}/storage/v1${path}`;
+}
+
+/** Short-lived object-scoped upload URL. Never exposes service-role key. */
+export async function createVoiceSignedUploadUrl(objectKey: string): Promise<VoiceSignedUpload> {
   const config = getVoiceStorageConfig();
   const response = await fetch(
-    `${config.baseUrl}/storage/v1/object/${encodeURIComponent(config.bucket)}/${encodeObjectKey(input.objectKey)}`,
+    `${config.baseUrl}/storage/v1/object/upload/sign/${encodeURIComponent(config.bucket)}/${encodeObjectKey(objectKey)}`,
     {
       method: 'POST',
       headers: {
         ...authHeaders(config.serviceRoleKey),
-        'Content-Type': input.contentType,
-        'Cache-Control': 'no-store',
-        'x-upsert': 'false',
+        'Content-Type': 'application/json',
       },
-      body: new Uint8Array(input.bytes),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error('음성 파일 저장소 업로드에 실패했습니다.');
-  }
-}
-
-export async function downloadVoiceObject(objectKey: string): Promise<DownloadedVoiceObject | null> {
-  const config = getVoiceStorageConfig();
-  const response = await fetch(
-    `${config.baseUrl}/storage/v1/object/authenticated/${encodeURIComponent(config.bucket)}/${encodeObjectKey(objectKey)}`,
-    {
-      method: 'GET',
-      headers: authHeaders(config.serviceRoleKey),
+      body: '{}',
       cache: 'no-store',
     },
   );
 
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error('음성 파일 저장소 조회에 실패했습니다.');
+  if (!response.ok) {
+    throw new Error('음성 업로드 URL 발급에 실패했습니다.');
+  }
+
+  const json = (await response.json()) as { url?: string; token?: string };
+  if (!json.url || !json.token) {
+    throw new Error('음성 업로드 URL 응답이 올바르지 않습니다.');
+  }
 
   return {
-    body: response.body ?? (await response.arrayBuffer()),
-    contentType: response.headers.get('content-type') ?? 'application/octet-stream',
-    contentLength: response.headers.get('content-length'),
+    objectKey,
+    signedUploadUrl: toAbsoluteStorageUrl(config.baseUrl, json.url),
+    token: json.token,
   };
+}
+
+/** Short-lived signed download URL for private objects. */
+export async function createVoiceSignedDownloadUrl(
+  objectKey: string,
+  expiresInSeconds: number,
+): Promise<VoiceSignedDownload> {
+  const config = getVoiceStorageConfig();
+  const response = await fetch(
+    `${config.baseUrl}/storage/v1/object/sign/${encodeURIComponent(config.bucket)}/${encodeObjectKey(objectKey)}`,
+    {
+      method: 'POST',
+      headers: {
+        ...authHeaders(config.serviceRoleKey),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ expiresIn: expiresInSeconds }),
+      cache: 'no-store',
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error('음성 다운로드 URL 발급에 실패했습니다.');
+  }
+
+  const json = (await response.json()) as { signedURL?: string; signedUrl?: string };
+  const relative = json.signedURL ?? json.signedUrl;
+  if (!relative) {
+    throw new Error('음성 다운로드 URL 응답이 올바르지 않습니다.');
+  }
+
+  return {
+    objectKey,
+    signedDownloadUrl: toAbsoluteStorageUrl(config.baseUrl, relative),
+    expiresInSeconds,
+  };
+}
+
+export async function voiceObjectExists(objectKey: string): Promise<boolean> {
+  const config = getVoiceStorageConfig();
+  const response = await fetch(
+    `${config.baseUrl}/storage/v1/object/authenticated/${encodeURIComponent(config.bucket)}/${encodeObjectKey(objectKey)}`,
+    {
+      method: 'HEAD',
+      headers: authHeaders(config.serviceRoleKey),
+      cache: 'no-store',
+    },
+  );
+  if (response.status === 404) return false;
+  if (!response.ok) {
+    // Some Storage deployments do not support HEAD — fall back to ranged GET.
+    const getResponse = await fetch(
+      `${config.baseUrl}/storage/v1/object/authenticated/${encodeURIComponent(config.bucket)}/${encodeObjectKey(objectKey)}`,
+      {
+        method: 'GET',
+        headers: {
+          ...authHeaders(config.serviceRoleKey),
+          Range: 'bytes=0-0',
+        },
+        cache: 'no-store',
+      },
+    );
+    if (getResponse.status === 404) return false;
+    if (!getResponse.ok && getResponse.status !== 206) {
+      throw new Error('음성 파일 존재 확인에 실패했습니다.');
+    }
+    return true;
+  }
+  return true;
 }
 
 export async function deleteVoiceObject(objectKey: string): Promise<void> {

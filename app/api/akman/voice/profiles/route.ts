@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
 import { requireAkmanAdmin } from '@/app/lib/voucher/require-akman-admin';
 import { prisma } from '@/app/lib/prisma';
 import {
-  buildVoiceReferenceObjectKey,
   deleteVoiceObject,
   isVoiceStorageConfigured,
-  uploadVoiceObject,
+  voiceObjectExists,
 } from '@/app/lib/akman-voice/storage';
 import { getVoiceServiceStatus } from '@/app/lib/akman-voice/voice-service';
 import {
   sanitizeVoiceOriginalName,
-  tryReadWavDurationSeconds,
   validateProfileFields,
   validateReferenceUpload,
 } from '@/app/lib/akman-voice/validation';
@@ -61,6 +58,10 @@ export async function GET() {
   });
 }
 
+/**
+ * Completes profile creation after the browser uploaded reference audio
+ * via a signed URL (no audio binary through Vercel).
+ */
 export async function POST(request: Request) {
   const admin = await requireAkmanAdmin();
   if (!admin.ok) return admin.response;
@@ -72,69 +73,74 @@ export async function POST(request: Request) {
     );
   }
 
-  let form: FormData;
+  let body: unknown;
   try {
-    form = await request.formData();
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: '잘못된 요청입니다.' }, { status: 400 });
   }
 
-  const name = String(form.get('name') ?? '');
-  const promptText = String(form.get('promptText') ?? '');
-  const defaultInstruction = String(form.get('defaultInstruction') ?? '');
-  const defaultSpeedRaw = form.get('defaultSpeed');
-  const defaultSpeed =
-    defaultSpeedRaw === null || defaultSpeedRaw === ''
-      ? null
-      : Number(defaultSpeedRaw);
-  const durationRaw = form.get('durationSeconds');
-  const clientDuration =
-    durationRaw === null || durationRaw === '' ? null : Number(durationRaw);
+  const record = body as Record<string, unknown>;
+  const profileId = typeof record.profileId === 'string' ? record.profileId.trim() : '';
+  const objectKey = typeof record.objectKey === 'string' ? record.objectKey.trim() : '';
+  const originalName = sanitizeVoiceOriginalName(
+    typeof record.originalName === 'string' ? record.originalName : 'reference.wav',
+  );
+  const mimeType = typeof record.mimeType === 'string' ? record.mimeType : '';
+  const sizeBytes = typeof record.sizeBytes === 'number' ? record.sizeBytes : Number(record.sizeBytes);
+  const durationSeconds =
+    typeof record.durationSeconds === 'number' && Number.isFinite(record.durationSeconds)
+      ? record.durationSeconds
+      : null;
+
+  if (!profileId || !/^[0-9a-f-]{36}$/i.test(profileId)) {
+    return NextResponse.json({ error: '잘못된 프로필 ID입니다.' }, { status: 400 });
+  }
+  if (!objectKey.startsWith(`voice/refs/${profileId}/`) || objectKey.includes('..')) {
+    return NextResponse.json({ error: '잘못된 저장 경로입니다.' }, { status: 400 });
+  }
 
   const fields = validateProfileFields({
-    name,
-    promptText,
-    defaultInstruction,
-    defaultSpeed,
+    name: typeof record.name === 'string' ? record.name : '',
+    promptText: typeof record.promptText === 'string' ? record.promptText : '',
+    defaultInstruction:
+      typeof record.defaultInstruction === 'string' ? record.defaultInstruction : null,
+    defaultSpeed: typeof record.defaultSpeed === 'number' ? record.defaultSpeed : null,
   });
   if (!fields.ok) {
     return NextResponse.json({ error: fields.error }, { status: 400 });
   }
 
-  const file = form.get('referenceAudio');
-  if (!(file instanceof File) || file.size <= 0) {
-    return NextResponse.json({ error: '참조 음성 파일이 필요합니다.' }, { status: 400 });
-  }
-
-  const originalName = sanitizeVoiceOriginalName(file.name || 'reference.wav');
-  const bytes = Buffer.from(await file.arrayBuffer());
-  const wavDuration = tryReadWavDurationSeconds(bytes);
-  const durationSeconds =
-    wavDuration ??
-    (typeof clientDuration === 'number' && Number.isFinite(clientDuration) ? clientDuration : null);
-
   const uploadCheck = validateReferenceUpload({
     originalName,
-    mimeType: file.type,
-    sizeBytes: bytes.length,
+    mimeType,
+    sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : 0,
     durationSeconds,
   });
   if (!uploadCheck.ok) {
     return NextResponse.json({ error: uploadCheck.error }, { status: 400 });
   }
 
-  const profileId = randomUUID();
-  const objectKey = buildVoiceReferenceObjectKey(profileId, uploadCheck.ext);
+  const expectedKeySuffix = objectKey.slice(objectKey.lastIndexOf('.'));
+  if (expectedKeySuffix !== uploadCheck.ext) {
+    return NextResponse.json({ error: '파일 확장자와 저장 경로가 일치하지 않습니다.' }, { status: 400 });
+  }
 
+  let exists = false;
   try {
-    await uploadVoiceObject({
-      objectKey,
-      bytes,
-      contentType: uploadCheck.mime,
-    });
+    exists = await voiceObjectExists(objectKey);
   } catch (error) {
-    console.error('[akman-voice] reference upload failed', error instanceof Error ? error.message : 'unknown');
-    return NextResponse.json({ error: '참조 음성 저장에 실패했습니다.' }, { status: 500 });
+    console.error(
+      '[akman-voice] reference existence check failed',
+      error instanceof Error ? error.message : 'unknown',
+    );
+    return NextResponse.json({ error: '참조 음성 확인에 실패했습니다.' }, { status: 500 });
+  }
+  if (!exists) {
+    return NextResponse.json(
+      { error: '참조 음성이 아직 업로드되지 않았습니다. 다시 시도해주세요.' },
+      { status: 400 },
+    );
   }
 
   try {
@@ -146,7 +152,7 @@ export async function POST(request: Request) {
         referenceOriginalName: originalName,
         referenceMimeType: uploadCheck.mime,
         referenceDurationSeconds: durationSeconds,
-        referenceSizeBytes: bytes.length,
+        referenceSizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : null,
         promptText: fields.promptText,
         defaultInstruction: fields.defaultInstruction,
         defaultSpeed: fields.defaultSpeed,

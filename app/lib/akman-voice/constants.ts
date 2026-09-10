@@ -25,3 +25,8 @@ export const VOICE_ALLOWED_MIME_TYPES = new Set([
 export const VOICE_ALLOWED_EXTENSIONS = new Set(['.wav', '.mp3', '.m4a']);
 
 export const VOICE_SERVICE_TIMEOUT_MS = 240_000;
+/** Signed download for browser preview/download */
+export const VOICE_BROWSER_DOWNLOAD_EXPIRES_SEC = 5 * 60;
+/** Signed URLs handed to GPU worker for ref download + output upload */
+export const VOICE_WORKER_URL_EXPIRES_SEC = 30 * 60;
+

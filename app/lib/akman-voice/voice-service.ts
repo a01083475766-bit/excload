@@ -15,9 +15,10 @@ export function getVoiceServiceStatus(): VoiceServiceStatus {
 }
 
 export type VoiceGenerateRequest = {
-  referenceAudio: Buffer;
+  referenceDownloadUrl: string;
   referenceFilename: string;
-  referenceMimeType: string;
+  outputUploadUrl: string;
+  outputObjectKey: string;
   promptText: string;
   text: string;
   instruction?: string | null;
@@ -26,7 +27,7 @@ export type VoiceGenerateRequest = {
 
 export type VoiceGenerateSuccess = {
   ok: true;
-  wavBytes: Buffer;
+  outputStoragePath: string;
 };
 
 export type VoiceGenerateFailure = {
@@ -35,6 +36,10 @@ export type VoiceGenerateFailure = {
   status: number;
 };
 
+/**
+ * Asks GPU worker to download reference + upload WAV via short-lived signed URLs.
+ * No audio binary passes through the Vercel function body.
+ */
 export async function callVoiceWorkerGenerate(
   input: VoiceGenerateRequest,
 ): Promise<VoiceGenerateSuccess | VoiceGenerateFailure> {
@@ -49,19 +54,6 @@ export async function callVoiceWorkerGenerate(
     };
   }
 
-  const form = new FormData();
-  form.append(
-    'reference_audio',
-    new Blob([new Uint8Array(input.referenceAudio)], { type: input.referenceMimeType }),
-    input.referenceFilename,
-  );
-  form.append('prompt_text', input.promptText);
-  form.append('text', input.text);
-  form.append('speed', String(input.speed));
-  if (input.instruction) {
-    form.append('instruction', input.instruction);
-  }
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VOICE_SERVICE_TIMEOUT_MS);
 
@@ -70,24 +62,36 @@ export async function callVoiceWorkerGenerate(
       method: 'POST',
       headers: {
         Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
       },
-      body: form,
+      body: JSON.stringify({
+        reference_download_url: input.referenceDownloadUrl,
+        reference_filename: input.referenceFilename,
+        output_upload_url: input.outputUploadUrl,
+        output_object_key: input.outputObjectKey,
+        prompt_text: input.promptText,
+        text: input.text,
+        instruction: input.instruction || null,
+        speed: input.speed,
+      }),
       signal: controller.signal,
       cache: 'no-store',
     });
 
+    const contentType = response.headers.get('content-type') ?? '';
+    let json: { error?: string; output_storage_path?: string; ok?: boolean } = {};
+    if (contentType.includes('application/json')) {
+      try {
+        json = (await response.json()) as typeof json;
+      } catch {
+        json = {};
+      }
+    }
+
     if (!response.ok) {
       let message = '음성 생성 중 오류가 발생했습니다.';
-      const contentType = response.headers.get('content-type') ?? '';
-      if (contentType.includes('application/json')) {
-        try {
-          const json = (await response.json()) as { error?: string };
-          if (typeof json.error === 'string' && json.error.trim()) {
-            message = json.error.trim().slice(0, 300);
-          }
-        } catch {
-          // ignore parse errors
-        }
+      if (typeof json.error === 'string' && json.error.trim()) {
+        message = json.error.trim().slice(0, 300);
       }
       if (response.status === 401) {
         message = '음성 엔진 인증에 실패했습니다.';
@@ -97,12 +101,17 @@ export async function callVoiceWorkerGenerate(
       return { ok: false, error: message, status: response.status >= 400 ? response.status : 502 };
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const wavBytes = Buffer.from(arrayBuffer);
-    if (wavBytes.length < 44) {
-      return { ok: false, error: '음성 엔진이 빈 결과를 반환했습니다.', status: 502 };
+    const outputPath =
+      typeof json.output_storage_path === 'string' ? json.output_storage_path.trim() : '';
+    if (!outputPath || outputPath !== input.outputObjectKey) {
+      return {
+        ok: false,
+        error: '음성 엔진이 올바르지 않은 저장 경로를 반환했습니다.',
+        status: 502,
+      };
     }
-    return { ok: true, wavBytes };
+
+    return { ok: true, outputStoragePath: outputPath };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       return { ok: false, error: '음성 생성 시간이 초과되었습니다.', status: 504 };
