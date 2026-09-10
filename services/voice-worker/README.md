@@ -39,7 +39,7 @@ export COSYVOICE_INSTALL_ROOT=/opt/CosyVoice
 ./setup/install-cosyvoice.sh
 ```
 
-4. Copy `.env.example` → `.env` and set `VOICE_SERVICE_SECRET` (same value as EXCLOAD env)
+4. Copy `voice-worker.env.example` → `.env` and set `VOICE_SERVICE_SECRET` (same value as EXCLOAD env)
 5. Start:
 
 ```bash
