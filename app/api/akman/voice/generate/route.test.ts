@@ -85,4 +85,60 @@ describe('POST /api/akman/voice/generate', () => {
     );
     expect(res.status).toBe(403);
   });
+
+  it('marks generation FAILED when worker returns an error', async () => {
+    mocks.getVoiceServiceStatus.mockReturnValue({
+      configured: true,
+      url: 'https://voice.example.com',
+    });
+    mocks.findUnique.mockResolvedValue({
+      id: 'p1',
+      referenceStoragePath: 'voice/refs/p1/reference.wav',
+      referenceOriginalName: 'a.wav',
+      referenceMimeType: 'audio/wav',
+      promptText: '프롬프트',
+    });
+    mocks.create.mockResolvedValue({
+      id: 'g1',
+      voiceProfileId: 'p1',
+      text: '독백',
+      instruction: null,
+      speed: 1,
+      status: 'PROCESSING',
+      errorMessage: null,
+      outputStoragePath: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      voiceProfile: { name: '여성 독백 A' },
+    });
+    mocks.downloadVoiceObject.mockResolvedValue({
+      body: new Uint8Array([1, 2, 3]).buffer,
+      contentType: 'audio/wav',
+      contentLength: '3',
+    });
+    mocks.callVoiceWorkerGenerate.mockResolvedValue({
+      ok: false,
+      error: '음성 생성 중 오류가 발생했습니다.',
+      status: 500,
+    });
+    mocks.update.mockResolvedValue({});
+
+    const res = await POST(
+      new Request('http://localhost/api/akman/voice/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voiceProfileId: 'p1', text: '독백', speed: 1 }),
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    expect(mocks.update).toHaveBeenCalledWith({
+      where: { id: 'g1' },
+      data: {
+        status: 'FAILED',
+        errorMessage: '음성 생성 중 오류가 발생했습니다.',
+      },
+    });
+    expect(mocks.uploadVoiceObject).not.toHaveBeenCalled();
+  });
 });

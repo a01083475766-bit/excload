@@ -12,6 +12,7 @@ import { validateGenerateFields } from '@/app/lib/akman-voice/validation';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+/** Vercel Pro 상한. Worker 클라이언트 timeout(240s)보다 길게 두어 Abort 후 FAILED 정리를 끝낼 여유를 둠. */
 export const maxDuration = 300;
 
 function serializeGeneration(generation: {
@@ -40,6 +41,20 @@ function serializeGeneration(generation: {
     createdAt: generation.createdAt.toISOString(),
     updatedAt: generation.updatedAt.toISOString(),
   };
+}
+
+async function markGenerationFailed(generationId: string, errorMessage: string) {
+  try {
+    await prisma.voiceGeneration.update({
+      where: { id: generationId },
+      data: { status: 'FAILED', errorMessage },
+    });
+  } catch (error) {
+    console.error(
+      '[akman-voice] failed to mark generation FAILED',
+      error instanceof Error ? error.message : 'unknown',
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -98,74 +113,77 @@ export async function POST(request: Request) {
     include: { voiceProfile: { select: { name: true } } },
   });
 
-  let referenceDownload;
   try {
-    referenceDownload = await downloadVoiceObject(profile.referenceStoragePath);
+    let referenceDownload;
+    try {
+      referenceDownload = await downloadVoiceObject(profile.referenceStoragePath);
+    } catch (error) {
+      console.error(
+        '[akman-voice] reference download failed',
+        error instanceof Error ? error.message : 'unknown',
+      );
+      await markGenerationFailed(generation.id, '참조 음성을 불러오지 못했습니다.');
+      return NextResponse.json({ error: '참조 음성을 불러오지 못했습니다.' }, { status: 500 });
+    }
+
+    if (!referenceDownload) {
+      await markGenerationFailed(generation.id, '참조 음성을 찾을 수 없습니다.');
+      return NextResponse.json({ error: '참조 음성을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    const referenceBytes =
+      referenceDownload.body instanceof ArrayBuffer
+        ? Buffer.from(referenceDownload.body)
+        : Buffer.from(await new Response(referenceDownload.body).arrayBuffer());
+
+    const workerResult = await callVoiceWorkerGenerate({
+      referenceAudio: referenceBytes,
+      referenceFilename: profile.referenceOriginalName,
+      referenceMimeType: profile.referenceMimeType,
+      promptText: profile.promptText,
+      text: fields.text,
+      instruction: fields.instruction,
+      speed: fields.speed,
+    });
+
+    if (!workerResult.ok) {
+      await markGenerationFailed(generation.id, workerResult.error);
+      return NextResponse.json({ error: workerResult.error }, { status: workerResult.status });
+    }
+
+    const outputKey = buildVoiceOutputObjectKey(profile.id, generation.id);
+    try {
+      await uploadVoiceObject({
+        objectKey: outputKey,
+        bytes: workerResult.wavBytes,
+        contentType: 'audio/wav',
+      });
+    } catch (error) {
+      console.error(
+        '[akman-voice] output upload failed',
+        error instanceof Error ? error.message : 'unknown',
+      );
+      await markGenerationFailed(generation.id, '생성 음성 저장에 실패했습니다.');
+      return NextResponse.json({ error: '생성 음성 저장에 실패했습니다.' }, { status: 500 });
+    }
+
+    const completed = await prisma.voiceGeneration.update({
+      where: { id: generation.id },
+      data: {
+        status: 'COMPLETED',
+        outputStoragePath: outputKey,
+        errorMessage: null,
+      },
+      include: { voiceProfile: { select: { name: true } } },
+    });
+
+    return NextResponse.json({ generation: serializeGeneration(completed) });
   } catch (error) {
-    console.error('[akman-voice] reference download failed', error instanceof Error ? error.message : 'unknown');
-    await prisma.voiceGeneration.update({
-      where: { id: generation.id },
-      data: { status: 'FAILED', errorMessage: '참조 음성을 불러오지 못했습니다.' },
-    });
-    return NextResponse.json({ error: '참조 음성을 불러오지 못했습니다.' }, { status: 500 });
+    console.error(
+      '[akman-voice] generate unexpected failure',
+      error instanceof Error ? error.message : 'unknown',
+    );
+    await markGenerationFailed(generation.id, '음성 생성 중 오류가 발생했습니다.');
+    return NextResponse.json({ error: '음성 생성 중 오류가 발생했습니다.' }, { status: 500 });
   }
-
-  if (!referenceDownload) {
-    await prisma.voiceGeneration.update({
-      where: { id: generation.id },
-      data: { status: 'FAILED', errorMessage: '참조 음성을 찾을 수 없습니다.' },
-    });
-    return NextResponse.json({ error: '참조 음성을 찾을 수 없습니다.' }, { status: 404 });
-  }
-
-  const referenceBytes =
-    referenceDownload.body instanceof ArrayBuffer
-      ? Buffer.from(referenceDownload.body)
-      : Buffer.from(await new Response(referenceDownload.body).arrayBuffer());
-
-  const workerResult = await callVoiceWorkerGenerate({
-    referenceAudio: referenceBytes,
-    referenceFilename: profile.referenceOriginalName,
-    referenceMimeType: profile.referenceMimeType,
-    promptText: profile.promptText,
-    text: fields.text,
-    instruction: fields.instruction,
-    speed: fields.speed,
-  });
-
-  if (!workerResult.ok) {
-    await prisma.voiceGeneration.update({
-      where: { id: generation.id },
-      data: { status: 'FAILED', errorMessage: workerResult.error },
-    });
-    return NextResponse.json({ error: workerResult.error }, { status: workerResult.status });
-  }
-
-  const outputKey = buildVoiceOutputObjectKey(profile.id, generation.id);
-  try {
-    await uploadVoiceObject({
-      objectKey: outputKey,
-      bytes: workerResult.wavBytes,
-      contentType: 'audio/wav',
-    });
-  } catch (error) {
-    console.error('[akman-voice] output upload failed', error instanceof Error ? error.message : 'unknown');
-    await prisma.voiceGeneration.update({
-      where: { id: generation.id },
-      data: { status: 'FAILED', errorMessage: '생성 음성 저장에 실패했습니다.' },
-    });
-    return NextResponse.json({ error: '생성 음성 저장에 실패했습니다.' }, { status: 500 });
-  }
-
-  const completed = await prisma.voiceGeneration.update({
-    where: { id: generation.id },
-    data: {
-      status: 'COMPLETED',
-      outputStoragePath: outputKey,
-      errorMessage: null,
-    },
-    include: { voiceProfile: { select: { name: true } } },
-  });
-
-  return NextResponse.json({ generation: serializeGeneration(completed) });
 }
