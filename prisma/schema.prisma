@@ -58,6 +58,14 @@ enum HeaderMappingAdminStatus {
   HOLD
 }
 
+/// 관리자 전용 AI 독백 음성 생성 상태
+enum VoiceGenerationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id                String       @id @default(cuid())
   email             String       @unique
@@ -1246,5 +1254,45 @@ model VoucherEmailSend {
   @@unique([campaignId, dedupeKey])
   @@index([campaignId, recipientEmailHash, status])
   @@index([campaignId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+/// 관리자 전용 캐릭터 독백 음성 프로필 (참조 음성 메타만 저장)
+model VoiceProfile {
+  id                       String   @id @default(cuid())
+  name                     String
+  referenceStoragePath     String
+  referenceOriginalName    String
+  referenceMimeType        String
+  referenceDurationSeconds Float?
+  referenceSizeBytes       Int?
+  /// CosyVoice zero-shot prompt transcription
+  promptText               String
+  defaultInstruction       String?
+  defaultSpeed             Float    @default(1.0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  generations VoiceGeneration[]
+
+  @@index([createdAt])
+}
+
+/// 관리자 전용 독백 생성 작업 (출력 오디오는 Storage에만 보관)
+model VoiceGeneration {
+  id                String                @id @default(cuid())
+  voiceProfileId    String
+  text              String
+  instruction       String?
+  speed             Float                 @default(1.0)
+  outputStoragePath String?
+  status            VoiceGenerationStatus @default(PENDING)
+  errorMessage      String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  voiceProfile VoiceProfile @relation(fields: [voiceProfileId], references: [id], onDelete: Cascade)
+
+  @@index([voiceProfileId, createdAt])
   @@index([status, createdAt])
 }

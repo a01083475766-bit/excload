@@ -1,0 +1,7 @@
+# Voice Worker only — do not install into the Next.js app.
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+python-multipart>=0.0.9,<1.0.0
+
+# CosyVoice dependencies are installed from the official CosyVoice repo requirements.txt
+# after cloning (see setup/install-cosyvoice.sh). Do not pin torch here — follow CosyVoice.
