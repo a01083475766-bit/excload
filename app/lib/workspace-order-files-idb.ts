@@ -166,6 +166,7 @@ export async function clearAllWorkspaceFilesInTab(): Promise<void> {
         const s = String(k);
         if (
           s.startsWith('order-convert:') ||
+          s.startsWith('macro-format:') ||
           s.startsWith('invoice-file-convert:') ||
           s.startsWith('logistics-convert:') ||
           s.startsWith('order-integration:')

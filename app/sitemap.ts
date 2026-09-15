@@ -8,6 +8,7 @@ const PUBLIC_SITEMAP_ENTRIES: {
 }[] = [
   { url: 'https://www.excload.com/', changeFrequency: 'weekly', priority: 1 },
   { url: 'https://www.excload.com/order-convert', changeFrequency: 'weekly', priority: 0.9 },
+  { url: 'https://www.excload.com/macro-format', changeFrequency: 'weekly', priority: 0.9 },
   { url: 'https://www.excload.com/logistics-convert', changeFrequency: 'weekly', priority: 0.9 },
   { url: 'https://www.excload.com/invoice-file-convert', changeFrequency: 'weekly', priority: 0.9 },
   { url: 'https://www.excload.com/pricing', changeFrequency: 'monthly', priority: 0.8 },

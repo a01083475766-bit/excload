@@ -7,6 +7,7 @@ import type { InputSourceCounts } from '@/app/lib/history-input-sources';
 
 export type PreviewWorkspacePageKey =
   | 'order-convert'
+  | 'macro-format'
   | 'invoice-file-convert'
   | 'logistics-convert'
   | 'order-integration';
@@ -178,6 +179,7 @@ export function clearPreviewWorkspace(
 export function clearAllPreviewWorkspacesForScope(userId: string | null): void {
   const pages: PreviewWorkspacePageKey[] = [
     'order-convert',
+    'macro-format',
     'invoice-file-convert',
     'logistics-convert',
     'order-integration',

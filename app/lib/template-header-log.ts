@@ -7,6 +7,7 @@ import type { TemplateBridgeFile } from '@/app/pipeline/template/types';
 
 export const TEMPLATE_HEADER_LOG_PAGES = [
   'order-convert',
+  'macro-format',
   'logistics-convert',
   'invoice-file-convert',
   'order-integration-hub',

@@ -21,6 +21,7 @@ import {
   Newspaper,
   FlaskConical,
   Link2,
+  LayoutTemplate,
 } from 'lucide-react';
 import { getNavAuthVisibility } from '@/app/lib/auth/session-ui';
 
@@ -33,6 +34,7 @@ interface MenuItem {
 /** 1단: 업무 실행(변환·내역 등) */
 const primaryMenuItems: MenuItem[] = [
   { href: '/order-convert', label: '택배주문변환', icon: FileSpreadsheet },
+  { href: '/macro-format', label: '매크로양식', icon: LayoutTemplate },
   { href: '/logistics-convert', label: '물류주문변환', icon: Warehouse },
   { href: '/invoice-file-convert', label: '송장파일변환', icon: Package },
   { href: '/history', label: '변환내역', icon: Clock },

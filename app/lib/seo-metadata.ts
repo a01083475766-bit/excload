@@ -91,6 +91,11 @@ export const PAGE_SEO = {
     '쇼핑몰 주문 엑셀, 텍스트, 이미지를 택배사 업로드 양식에 맞게 정리하고 변환할 수 있습니다. 엑클로드(EXCLOAD) 택배 엑셀 변환 서비스.',
     '/order-convert',
   ),
+  macroFormat: pageMetadata(
+    '매크로양식 - 사용자 지정양식으로 주문 변환 | 엑클로드',
+    '원하는 열과 순서를 직접 지정해 나만의 양식으로 주문자료를 변환할 수 있습니다. 엑클로드(EXCLOAD) 매크로양식.',
+    '/macro-format',
+  ),
   logisticsConvert: pageMetadata(
     '물류주문변환 - 3PL·물류센터 양식 주문 변환 | 엑클로드',
     '3PL·물류센터 양식에 맞게 주문 데이터를 변환할 수 있습니다. 엑클로드(EXCLOAD) 물류 주문 변환 서비스.',
