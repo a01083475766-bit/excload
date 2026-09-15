@@ -137,7 +137,7 @@ export function MacroFormatUserGuideSection() {
         </div>
       </section>
 
-      <UserGuidePreviewSection accent="blue" />
+      <UserGuidePreviewSection />
 
       <section className="relative pb-4 pt-4">
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
