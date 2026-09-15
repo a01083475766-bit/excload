@@ -12,6 +12,14 @@ export const ORDER_CONVERT_KEYS = {
   bridge: 'activeCourierBridgeFile',
 } as const;
 
+/** 매크로양식 전용 — 택배/물류/연동과 양식·고정입력 비공유 */
+export const MACRO_FORMAT_KEYS = {
+  template: 'macro_format_onc_template_v1',
+  recentFormats: 'macro_format_recent_excel_formats_v1',
+  fixedHeaders: 'macro_format_fixed_header_values_v1',
+  bridge: 'macro_format_activeBridgeFile',
+} as const;
+
 export const INVOICE_FILE_CONVERT_KEYS = {
   template: 'invoiceFileConvert_courier_template_v1',
   recentFormats: 'invoiceFileConvert_recent_excel_formats_v1',
@@ -26,6 +34,12 @@ export const LOGISTICS_MAIN_KEYS = {
   fixedHeaders: 'logistics_convert_fixed_header_values_v1',
   bridge: 'logistics_activeCourierBridgeFile',
 } as const;
+
+export type ConvertPageStorageKeys =
+  | typeof ORDER_CONVERT_KEYS
+  | typeof MACRO_FORMAT_KEYS
+  | typeof INVOICE_FILE_CONVERT_KEYS
+  | typeof LOGISTICS_MAIN_KEYS;
 
 /** 카카오 텍스트 흐름 — 주문변환과 택배 양식 키는 공유(onc_courier_template_v1) */
 export const KAKAO_EXTRA_KEYS = {

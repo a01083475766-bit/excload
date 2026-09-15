@@ -120,6 +120,8 @@ import {
 } from '@/app/order-convert/bundle-shipping-utils';
 import {
   ORDER_CONVERT_KEYS,
+  MACRO_FORMAT_KEYS,
+  type ConvertPageStorageKeys,
   readLocalStorageWithLegacyMigrate,
   writeLocalStorageForUser,
   removeLocalStorageForUser,
@@ -456,10 +458,13 @@ const isValidCourierTemplate = (template: CourierUploadTemplate | null): boolean
   return nonEmptyHeaders.length > 0;
 };
 
-const loadCourierUploadTemplate = (userId: string | null): CourierUploadTemplate | null => {
+const loadCourierUploadTemplate = (
+  userId: string | null,
+  keys: ConvertPageStorageKeys,
+): CourierUploadTemplate | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const stored = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.template, userId);
+    const stored = readLocalStorageWithLegacyMigrate(keys.template, userId);
     if (stored) {
       const parsed = JSON.parse(stored) as CourierUploadTemplate;
       // headers가 없거나 빈 배열이면 null 반환
@@ -474,23 +479,30 @@ const loadCourierUploadTemplate = (userId: string | null): CourierUploadTemplate
   return null;
 };
 
-const saveCourierUploadTemplate = (template: CourierUploadTemplate | null, userId: string | null) => {
+const saveCourierUploadTemplate = (
+  template: CourierUploadTemplate | null,
+  userId: string | null,
+  keys: ConvertPageStorageKeys,
+) => {
   if (typeof window === 'undefined') return;
   try {
     if (template) {
-      writeLocalStorageForUser(ORDER_CONVERT_KEYS.template, userId, JSON.stringify(template));
+      writeLocalStorageForUser(keys.template, userId, JSON.stringify(template));
     } else {
-      removeLocalStorageForUser(ORDER_CONVERT_KEYS.template, userId);
+      removeLocalStorageForUser(keys.template, userId);
     }
   } catch (error) {
     console.error('localStorage에 택배 양식 정보를 저장하는 중 오류 발생:', error);
   }
 };
 
-const loadRecentExcelFormats = (userId: string | null): RecentExcelFormat[] => {
+const loadRecentExcelFormats = (
+  userId: string | null,
+  keys: ConvertPageStorageKeys,
+): RecentExcelFormat[] => {
   if (typeof window === 'undefined') return [];
   try {
-    const stored = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.recentFormats, userId);
+    const stored = readLocalStorageWithLegacyMigrate(keys.recentFormats, userId);
     if (stored) {
       const parsed = JSON.parse(stored) as RecentExcelFormat[];
       return parsed;
@@ -505,13 +517,14 @@ const saveRecentExcelFormat = (
   template: CourierUploadTemplate,
   setRecentExcelFormats: (formats: RecentExcelFormat[]) => void,
   userId: string | null,
+  keys: ConvertPageStorageKeys,
   bridgeFile?: TemplateBridgeFile,
   displayName?: string,
   protectedFromDeletion?: boolean,
   formatId?: string,
 ) => {
   try {
-    let formats = loadRecentExcelFormats(userId);
+    let formats = loadRecentExcelFormats(userId, keys);
     const columnOrder = Array.isArray(template.headers) ? template.headers.map((header) => header.name) : [];
 
     if (formatId) {
@@ -528,7 +541,7 @@ const saveRecentExcelFormat = (
     };
 
     const updatedFormats = [newFormat, ...formats];
-    writeLocalStorageForUser(ORDER_CONVERT_KEYS.recentFormats, userId, JSON.stringify(updatedFormats));
+    writeLocalStorageForUser(keys.recentFormats, userId, JSON.stringify(updatedFormats));
     setRecentExcelFormats(updatedFormats);
     return newFormat.id;
   } catch (error) {
@@ -536,6 +549,73 @@ const saveRecentExcelFormat = (
     return null;
   }
 };
+
+/** 예전 공유 저장소에 있던 지정양식을 매크로 전용 키로 1회 이전 */
+function migrateSharedDirectFormatsToMacro(userId: string | null) {
+  if (typeof window === 'undefined') return;
+  const macroFormats = loadRecentExcelFormats(userId, MACRO_FORMAT_KEYS);
+  if (macroFormats.length > 0) return;
+
+  const courierFormats = loadRecentExcelFormats(userId, ORDER_CONVERT_KEYS);
+  const directFormats = courierFormats.filter((format) =>
+    hasDirectHeaderMappings(format.bridgeFile),
+  );
+  if (directFormats.length === 0) return;
+
+  writeLocalStorageForUser(
+    MACRO_FORMAT_KEYS.recentFormats,
+    userId,
+    JSON.stringify(directFormats),
+  );
+
+  try {
+    const bridgeRaw = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.bridge, userId);
+    const bridge = bridgeRaw ? (JSON.parse(bridgeRaw) as TemplateBridgeFile) : null;
+    if (!hasDirectHeaderMappings(bridge)) return;
+
+    const template = loadCourierUploadTemplate(userId, ORDER_CONVERT_KEYS);
+    if (template) {
+      saveCourierUploadTemplate(template, userId, MACRO_FORMAT_KEYS);
+    }
+    writeLocalStorageForUser(MACRO_FORMAT_KEYS.bridge, userId, JSON.stringify(bridge));
+
+    const fixedRaw = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.fixedHeaders, userId);
+    if (fixedRaw) {
+      writeLocalStorageForUser(MACRO_FORMAT_KEYS.fixedHeaders, userId, fixedRaw);
+    }
+  } catch (error) {
+    console.error('[macro-format] 지정양식 이전 중 오류:', error);
+  }
+}
+
+/** 택배 저장소에서 지정양식 목록·활성 양식 제거 (매크로로 이전 후) */
+function stripDirectFormatsFromCourierStorage(userId: string | null) {
+  if (typeof window === 'undefined') return;
+  migrateSharedDirectFormatsToMacro(userId);
+
+  const formats = loadRecentExcelFormats(userId, ORDER_CONVERT_KEYS);
+  const withoutDirect = formats.filter(
+    (format) => !hasDirectHeaderMappings(format.bridgeFile),
+  );
+  if (withoutDirect.length !== formats.length) {
+    writeLocalStorageForUser(
+      ORDER_CONVERT_KEYS.recentFormats,
+      userId,
+      JSON.stringify(withoutDirect),
+    );
+  }
+
+  try {
+    const bridgeRaw = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.bridge, userId);
+    const bridge = bridgeRaw ? (JSON.parse(bridgeRaw) as TemplateBridgeFile) : null;
+    if (!hasDirectHeaderMappings(bridge)) return;
+
+    saveCourierUploadTemplate(null, userId, ORDER_CONVERT_KEYS);
+    removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, userId);
+  } catch (error) {
+    console.error('[order-convert] 지정양식 분리 정리 중 오류:', error);
+  }
+}
 
 export type OrderConvertVariant = 'courier' | 'macro';
 
@@ -545,6 +625,9 @@ type OrderConvertClientProps = {
 
 export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientProps) {
   const isMacroVariant = variant === 'macro';
+  const storageKeys: ConvertPageStorageKeys = isMacroVariant
+    ? MACRO_FORMAT_KEYS
+    : ORDER_CONVERT_KEYS;
   const workspacePageKey = isMacroVariant ? 'macro-format' : 'order-convert';
   const headerLogPage = isMacroVariant ? 'macro-format' : 'order-convert';
   const router = useRouter();
@@ -1161,28 +1244,34 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
 
     courierStorageHydratedRef.current = false;
     try {
-      let loadedTemplate = loadCourierUploadTemplate(storageUserId);
+      if (isMacroVariant) {
+        migrateSharedDirectFormatsToMacro(storageUserId);
+      } else {
+        stripDirectFormatsFromCourierStorage(storageUserId);
+      }
+
+      let loadedTemplate = loadCourierUploadTemplate(storageUserId, storageKeys);
       if (
         loadedTemplate &&
         isActiveDefaultCjTemplate(loadedTemplate) &&
         isDefaultCjAutoSeedOptOutForUserIds(templateScopeUserIds, ORDER_DEFAULT_CJ_OPT_OUT_KEY)
       ) {
         for (const uid of templateScopeUserIds) {
-          saveCourierUploadTemplate(null, uid);
-          removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, uid);
+          saveCourierUploadTemplate(null, uid, storageKeys);
+          removeLocalStorageForUser(storageKeys.bridge, uid);
         }
         loadedTemplate = null;
       }
       setCourierUploadTemplate(loadedTemplate);
-      setRecentExcelFormats(loadRecentExcelFormats(storageUserId));
+      setRecentExcelFormats(loadRecentExcelFormats(storageUserId, storageKeys));
       try {
-        const rawFixed = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.fixedHeaders, storageUserId);
+        const rawFixed = readLocalStorageWithLegacyMigrate(storageKeys.fixedHeaders, storageUserId);
         setFixedHeaderValues(rawFixed ? JSON.parse(rawFixed) : {});
       } catch {
         setFixedHeaderValues({});
       }
 
-      const saved = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.bridge, storageUserId);
+      const saved = readLocalStorageWithLegacyMigrate(storageKeys.bridge, storageUserId);
       if (saved) {
         const parsed = JSON.parse(saved) as TemplateBridgeFile;
         const pcccIndex =
@@ -1193,7 +1282,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
         const needsPcccMigration = pcccIndex >= 0 && pcccMapped !== '개인통관번호';
 
         if (needsPcccMigration) {
-          removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, storageUserId);
+          removeLocalStorageForUser(storageKeys.bridge, storageUserId);
           setTemplateBridgeFile(null);
         } else {
           setTemplateBridgeFile(parsed);
@@ -1207,7 +1296,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     isCancelledRef.current = false;
     courierStorageHydratedRef.current = true;
     setWorkspaceStorageHydrated(true);
-  }, [authAssetsReady, storageUserId, templateScopeUserIds]);
+  }, [authAssetsReady, storageUserId, templateScopeUserIds, isMacroVariant, storageKeys]);
 
   const activeTemplateHeaderNames = useMemo(() => {
     if (!isValidCourierTemplate(courierUploadTemplate) || !courierUploadTemplate) {
@@ -1242,7 +1331,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     if (isMacroVariant) return;
     if (!authAssetsReady || !workspaceStorageHydrated) return;
 
-    const storedTemplate = loadCourierUploadTemplate(storageUserId);
+    const storedTemplate = loadCourierUploadTemplate(storageUserId, storageKeys);
     const scopeOptOut = isDefaultCjAutoSeedOptOutForUserIds(
       templateScopeUserIds,
       ORDER_DEFAULT_CJ_OPT_OUT_KEY,
@@ -1251,8 +1340,8 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     if (isValidCourierTemplate(storedTemplate)) {
       if (isActiveDefaultCjTemplate(storedTemplate) && scopeOptOut) {
         for (const uid of templateScopeUserIds) {
-          saveCourierUploadTemplate(null, uid);
-          removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, uid);
+          saveCourierUploadTemplate(null, uid, storageKeys);
+          removeLocalStorageForUser(storageKeys.bridge, uid);
         }
         setCourierUploadTemplate(null);
         setTemplateBridgeFile(null);
@@ -1260,7 +1349,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       }
 
       if (isActiveDefaultCjTemplate(storedTemplate) && !scopeOptOut) {
-        const formats = loadRecentExcelFormats(storageUserId);
+        const formats = loadRecentExcelFormats(storageUserId, storageKeys);
         const hasDefaultEntry = formats.some((format) => isDefaultCjSeedFormatId(format.id));
         if (!hasDefaultEntry) {
           const seed = buildDefaultCjCourierSeed();
@@ -1269,7 +1358,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
             ...formats.filter((format) => format.id !== DEFAULT_CJ_FORMAT_ID),
           ];
           writeLocalStorageForUser(
-            ORDER_CONVERT_KEYS.recentFormats,
+            storageKeys.recentFormats,
             storageUserId,
             JSON.stringify(updatedFormats),
           );
@@ -1288,24 +1377,24 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
 
     const seed = buildDefaultCjCourierSeed();
     writeLocalStorageForUser(
-      ORDER_CONVERT_KEYS.template,
+      storageKeys.template,
       storageUserId,
       JSON.stringify(seed.template),
     );
     writeLocalStorageForUser(
-      ORDER_CONVERT_KEYS.bridge,
+      storageKeys.bridge,
       storageUserId,
       JSON.stringify(seed.bridgeFile),
     );
 
     const updatedFormats = [
       seed.recentFormat,
-      ...loadRecentExcelFormats(storageUserId).filter(
+      ...loadRecentExcelFormats(storageUserId, storageKeys).filter(
         (format) => format.id !== DEFAULT_CJ_FORMAT_ID,
       ),
     ];
     writeLocalStorageForUser(
-      ORDER_CONVERT_KEYS.recentFormats,
+      storageKeys.recentFormats,
       storageUserId,
       JSON.stringify(updatedFormats),
     );
@@ -1314,7 +1403,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     setTemplateBridgeFile(seed.bridgeFile);
     setRecentExcelFormats(updatedFormats);
     setTempSelectedFormatId(DEFAULT_CJ_FORMAT_ID);
-  }, [authAssetsReady, workspaceStorageHydrated, storageUserId, templateScopeUserIds, isMacroVariant]);
+  }, [authAssetsReady, workspaceStorageHydrated, storageUserId, templateScopeUserIds, isMacroVariant, storageKeys]);
 
   const handlePreviewSessionRestored = useCallback(() => {
     setFileProcessingStatus('done');
@@ -1332,7 +1421,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     }
     if (typeof window === 'undefined') return [];
     try {
-      const saved = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.bridge, storageUserId);
+      const saved = readLocalStorageWithLegacyMigrate(storageKeys.bridge, storageUserId);
       if (!saved) return [];
       const parsed = JSON.parse(saved) as TemplateBridgeFile;
       return Array.isArray(parsed.courierHeaders) ? parsed.courierHeaders : [];
@@ -1347,7 +1436,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     }
     if (typeof window === 'undefined') return null;
     try {
-      const saved = readLocalStorageWithLegacyMigrate(ORDER_CONVERT_KEYS.bridge, storageUserId);
+      const saved = readLocalStorageWithLegacyMigrate(storageKeys.bridge, storageUserId);
       if (!saved) return null;
       const parsed = JSON.parse(saved) as TemplateBridgeFile;
       return Array.isArray(parsed.courierHeaders) && parsed.courierHeaders.length > 0
@@ -1493,7 +1582,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       : fixedHeaderValues;
     try {
       writeLocalStorageForUser(
-        ORDER_CONVERT_KEYS.fixedHeaders,
+        storageKeys.fixedHeaders,
         storageUserId,
         JSON.stringify(toStore),
       );
@@ -1554,7 +1643,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
   }, [clearWorkspaceInputTracking]);
 
   const handleOpenCourierTemplateModal = () => {
-    const formats = loadRecentExcelFormats(storageUserId);
+    const formats = loadRecentExcelFormats(storageUserId, storageKeys);
     setRecentExcelFormats(formats);
     setShowRecentTemplate(formats.length > 0);
 
@@ -1694,7 +1783,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       if (typeof window !== 'undefined') {
         try {
           writeLocalStorageForUser(
-            ORDER_CONVERT_KEYS.bridge,
+            storageKeys.bridge,
             storageUserId,
             JSON.stringify(templateResult.bridgeFile),
           );
@@ -1725,10 +1814,11 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
         template,
         setRecentExcelFormats,
         storageUserId,
+        storageKeys,
         templateResult.bridgeFile,
       );
       setCourierUploadTemplate(template);
-      saveCourierUploadTemplate(template, storageUserId);
+      saveCourierUploadTemplate(template, storageUserId, storageKeys);
 
       if (newFormatId) {
         setTempSelectedFormatId(newFormatId);
@@ -1757,11 +1847,11 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
 
   const saveFormatDisplayName = (formatId: string, displayName: string) => {
     try {
-      const formats = loadRecentExcelFormats(storageUserId);
+      const formats = loadRecentExcelFormats(storageUserId, storageKeys);
       const updatedFormats = formats.map((format) =>
         format.id === formatId ? { ...format, displayName: displayName.trim() || undefined } : format,
       );
-      writeLocalStorageForUser(ORDER_CONVERT_KEYS.recentFormats, storageUserId, JSON.stringify(updatedFormats));
+      writeLocalStorageForUser(storageKeys.recentFormats, storageUserId, JSON.stringify(updatedFormats));
       setRecentExcelFormats(updatedFormats);
       setEditingFormatId(null);
       setEditingDisplayName('');
@@ -1816,7 +1906,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     };
 
     setCourierUploadTemplate(template);
-    saveCourierUploadTemplate(template, storageUserId);
+    saveCourierUploadTemplate(template, storageUserId, storageKeys);
 
     // 템플릿 변경 시 메타 초기화
     setUploadedFileMeta([]);
@@ -1830,7 +1920,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       if (typeof window !== 'undefined') {
         try {
           writeLocalStorageForUser(
-            ORDER_CONVERT_KEYS.bridge,
+            storageKeys.bridge,
             storageUserId,
             JSON.stringify(selected.bridgeFile),
           );
@@ -2076,13 +2166,14 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       template,
       setRecentExcelFormats,
       storageUserId,
+      storageKeys,
       directBridgeFile,
       formatName,
     );
 
     setTemplateBridgeFile(directBridgeFile);
     setCourierUploadTemplate(template);
-    saveCourierUploadTemplate(template, storageUserId);
+    saveCourierUploadTemplate(template, storageUserId, storageKeys);
     if (directFormatId) {
       setTempSelectedFormatId(directFormatId);
       setShowRecentTemplate(true);
@@ -2091,7 +2182,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     if (typeof window !== 'undefined') {
       try {
         writeLocalStorageForUser(
-          ORDER_CONVERT_KEYS.bridge,
+          storageKeys.bridge,
           storageUserId,
           JSON.stringify(directBridgeFile),
         );
@@ -2140,15 +2231,15 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
   };
 
   const handleDeleteFormat = (formatId: string) => {
-    const formats = loadRecentExcelFormats(storageUserId);
+    const formats = loadRecentExcelFormats(storageUserId, storageKeys);
     const formatToDelete = formats.find((format) => format.id === formatId);
     if (!confirm('이 양식을 삭제하시겠습니까?')) return;
     try {
       if (formatToDelete && isDefaultCjSeedFormat(formatToDelete)) {
         setDefaultCjAutoSeedOptOutForUserIds(templateScopeUserIds, ORDER_DEFAULT_CJ_OPT_OUT_KEY);
         for (const uid of templateScopeUserIds) {
-          saveCourierUploadTemplate(null, uid);
-          removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, uid);
+          saveCourierUploadTemplate(null, uid, storageKeys);
+          removeLocalStorageForUser(storageKeys.bridge, uid);
         }
         setCourierUploadTemplate(null);
         setTemplateBridgeFile(null);
@@ -2163,11 +2254,11 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
             currentHeaders.every((header, index) => header === formatHeaders[index])) {
           // 현재 사용 중인 템플릿이면 초기화
           setCourierUploadTemplate(null);
-          saveCourierUploadTemplate(null, storageUserId);
+          saveCourierUploadTemplate(null, storageUserId, storageKeys);
           // bridgeFile도 함께 삭제
           if (typeof window !== 'undefined') {
             try {
-              removeLocalStorageForUser(ORDER_CONVERT_KEYS.bridge, storageUserId);
+              removeLocalStorageForUser(storageKeys.bridge, storageUserId);
               setTemplateBridgeFile(null);
             } catch (error) {
               console.error('localStorage에서 bridgeFile을 삭제하는 중 오류 발생:', error);
@@ -2177,7 +2268,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       }
       
       const updatedFormats = formats.filter((format) => format.id !== formatId);
-      writeLocalStorageForUser(ORDER_CONVERT_KEYS.recentFormats, storageUserId, JSON.stringify(updatedFormats));
+      writeLocalStorageForUser(storageKeys.recentFormats, storageUserId, JSON.stringify(updatedFormats));
       setRecentExcelFormats(updatedFormats);
 
       if (tempSelectedFormatId === formatId) {
