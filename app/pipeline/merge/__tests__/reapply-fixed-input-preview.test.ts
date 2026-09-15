@@ -104,4 +104,44 @@ describe('reapplyFixedInputToPreviewRows', () => {
     expect(next[0]!.data.받는분성명).toBe('이영희');
     expect(next[0]!.data.보내는분성명).toBe('김철수');
   });
+
+  it('사용자 지정양식(directHeaderMappings)은 스냅샷이 있어도 주문 출력열을 유지한다', () => {
+    const rowId = 'r1';
+    const template: TemplateBridgeFile = {
+      baseHeaders: [],
+      courierHeaders: ['넘버', '보내는분'],
+      mappedBaseHeaders: [null, null],
+      unknownHeaders: [],
+      directHeaderMappings: {
+        넘버: null,
+        보내는분: '업체명',
+      },
+      directSourceHeaders: ['업체명'],
+    };
+
+    const next = reapplyFixedInputToPreviewRows({
+      previewRows: [
+        {
+          rowId,
+          data: {
+            넘버: '',
+            보내는분: '테스트상사',
+          },
+        },
+      ],
+      // 지정양식 경로에서는 스냅샷도 출력열 키로 들어가 있음 (잘못된 기준헤더 재병합 유도)
+      orderSnapshotsByRowId: {
+        [rowId]: {
+          넘버: '',
+          보내는분: '테스트상사',
+        },
+      },
+      template,
+      fixedInput: { 넘버: '1111' },
+      previousFixedInput: {},
+    });
+
+    expect(next[0]!.data.넘버).toBe('1111');
+    expect(next[0]!.data.보내는분).toBe('테스트상사');
+  });
 });

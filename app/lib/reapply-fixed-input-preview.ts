@@ -27,6 +27,13 @@ export type ReapplyFixedInputToPreviewParams = {
   userOverrides?: Record<string, Record<string, string>>;
 };
 
+function hasDirectHeaderMappings(template: TemplateBridgeFile): boolean {
+  return Boolean(
+    template.directHeaderMappings &&
+      Object.keys(template.directHeaderMappings).length > 0,
+  );
+}
+
 function previewValueFromEmptyOrder(
   baseHeader: string | null,
   fixedValue: string,
@@ -92,6 +99,7 @@ function reapplyRowWithoutSnapshot(
 /**
  * 고정입력 변경을 미리보기에 반영합니다.
  * - Stage2 스냅샷이 있으면 Fill Only로 정확히 재병합
+ * - 사용자 지정양식(directHeaderMappings): 스냅샷이 출력열 기준이라 기준헤더 재병합을 쓰지 않음
  * - 없으면 이전 고정값과 일치하는 셀만 갱신 (세션 복원 등)
  * - userOverrides가 있는 셀은 유지
  */
@@ -111,13 +119,27 @@ export function reapplyFixedInputToPreviewRows(
 
   const enrichedNew = enrichFixedInputByTemplate(fixedInput, template);
   const enrichedOld = enrichFixedInputByTemplate(previousFixedInput, template);
+  const useDirectMappingReapply = hasDirectHeaderMappings(template);
 
   return previewRows.map((row) => {
     const snapshot = orderSnapshotsByRowId[row.rowId];
     const overrideRow = userOverrides[row.rowId];
 
     let data: Record<string, string>;
-    if (snapshot) {
+    if (useDirectMappingReapply) {
+      // 지정양식 스냅샷은 이미 출력 헤더(courier) 키로 저장되어
+      // buildPreviewRowFromStandardRow(기준헤더)로 재병합하면 주문열이 비게 됨.
+      data = reapplyRowWithoutSnapshot(
+        row.data,
+        template,
+        enrichedNew,
+        enrichedOld,
+        overrideRow,
+      );
+      if (overrideRow) {
+        data = { ...data, ...overrideRow };
+      }
+    } else if (snapshot) {
       data = buildPreviewRowFromStandardRow(
         snapshot,
         template,
