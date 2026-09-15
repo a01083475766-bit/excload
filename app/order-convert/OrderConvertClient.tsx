@@ -4770,6 +4770,20 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
                                 </div>
                               </div>
 
+                              {isDirectFileFormat && !isEditing && (
+                                <div className="mb-2 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] leading-relaxed text-zinc-700 dark:border-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">
+                                  <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                                    등록 시 원본 헤더
+                                  </span>
+                                  <span className="mt-0.5 block break-words">
+                                    {(directBridgeFile?.directSourceHeaders ?? [])
+                                      .map((header) => header.trim())
+                                      .filter(Boolean)
+                                      .join(' · ') || '저장된 원본 헤더 정보가 없습니다.'}
+                                  </span>
+                                </div>
+                              )}
+
                               <div
                                 className={`h-[22px] ${
                                   tempSelectedFormatId === format.id ? 'visible' : 'invisible'
