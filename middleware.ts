@@ -36,6 +36,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /macro-format 매크로양식 (지정양식 전용 — order-convert와 동일 정책)
+  if (pathname.startsWith('/macro-format')) {
+    return NextResponse.next();
+  }
+
   // /logistics-convert 경로는 허용 (물류 주문 변환 — order-convert와 동일 정책)
   if (pathname.startsWith('/logistics-convert')) {
     return NextResponse.next();
