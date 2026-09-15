@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>엑클로드 매크로양식 이용 안내</title>
+  <style>
+    :root {
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --zinc-50: #fafafa;
+      --zinc-100: #f4f4f5;
+      --zinc-200: #e4e4e7;
+      --zinc-300: #d4d4d8;
+      --zinc-500: #71717a;
+      --zinc-600: #52525b;
+      --zinc-800: #27272a;
+      --zinc-900: #18181b;
+      --amber-50: #fffbeb;
+      --amber-100: #fef3c7;
+      --amber-800: #92400e;
+      --green: #16a34a;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--zinc-900);
+      background: #e5e7eb;
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 16px auto;
+      padding: 16mm 14mm 14mm;
+      background: #fff;
+      box-shadow: 0 1px 8px rgba(0,0,0,.08);
+    }
+
+    .page + .page { page-break-before: always; }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    h2 {
+      margin: 0 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--zinc-200);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    h3 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    p { margin: 0 0 8px; color: var(--zinc-800); }
+    .muted { color: var(--zinc-500); font-size: 12px; }
+    .lead {
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      background: var(--blue-soft);
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      color: #1e3a8a;
+      font-size: 12.5px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--blue);
+    }
+    .brand-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--blue);
+    }
+    .brand-sub { font-size: 11px; color: var(--zinc-500); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card {
+      border: 1px solid var(--zinc-200);
+      border-radius: 6px;
+      padding: 10px 12px;
+      background: var(--zinc-50);
+    }
+    .card strong { color: var(--zinc-900); }
+
+    .steps {
+      margin: 0 0 14px;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+    .steps li {
+      position: relative;
+      margin-bottom: 8px;
+      padding: 8px 10px 8px 40px;
+      border: 1px solid var(--zinc-200);
+      border-radius: 6px;
+      background: #fff;
+    }
+    .steps li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 10px;
+      top: 8px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 22px;
+      text-align: center;
+    }
+
+    /* ---- UI mock frames ---- */
+    .mock {
+      border: 1px solid var(--zinc-300);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      margin: 8px 0 12px;
+    }
+    .mock-caption {
+      margin: 0 0 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--zinc-500);
+    }
+    .mock-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--zinc-200);
+      background: #fff;
+      font-size: 10px;
+      color: var(--zinc-500);
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .mock-nav .logo {
+      font-weight: 700;
+      color: var(--blue);
+      margin-right: 4px;
+    }
+    .mock-nav .active {
+      color: var(--blue);
+      font-weight: 600;
+      border-bottom: 2px solid var(--blue);
+      padding-bottom: 2px;
+    }
+    .mock-body { padding: 10px 12px; background: var(--zinc-50); }
+    .mock-title {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .mock-desc {
+      text-align: center;
+      font-size: 10px;
+      color: var(--zinc-500);
+      margin-bottom: 10px;
+    }
+    .mock-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .mock-card {
+      height: 52px;
+      border: 1px solid var(--zinc-300);
+      border-radius: 8px;
+      background: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--zinc-800);
+      text-align: center;
+      padding: 4px;
+    }
+    .mock-card.hl {
+      outline: 2px solid var(--blue);
+      background: #fff;
+    }
+    .mock-card span {
+      font-weight: 400;
+      color: var(--zinc-500);
+      font-size: 8.5px;
+      margin-top: 2px;
+    }
+
+    .mock-modal-wrap {
+      background: rgba(0,0,0,.35);
+      padding: 14px 18px;
+    }
+    .mock-modal {
+      max-width: 420px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid var(--zinc-200);
+      padding: 12px;
+    }
+    .mock-modal h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      height: 34px;
+      border-radius: 6px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 34px;
+    }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-outline {
+      background: #fff;
+      border: 1px solid var(--zinc-300);
+      color: var(--zinc-800);
+      margin-top: 6px;
+    }
+    .note {
+      margin-top: 8px;
+      padding: 6px 8px;
+      background: var(--blue-soft);
+      border-radius: 6px;
+      font-size: 10px;
+      color: #1e40af;
+    }
+
+    .mock-map {
+      display: grid;
+      grid-template-columns: 1fr 28px 1fr;
+      gap: 6px;
+      align-items: start;
+    }
+    .mock-col {
+      border: 1px solid var(--zinc-200);
+      border-radius: 6px;
+      background: #fff;
+      padding: 6px;
+    }
+    .mock-col .label {
+      font-size: 10px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--zinc-600);
+    }
+    .chip {
+      display: block;
+      margin-bottom: 4px;
+      padding: 5px 6px;
+      border: 1px solid var(--zinc-200);
+      border-radius: 4px;
+      background: var(--zinc-50);
+      font-size: 10px;
+    }
+    .chip.on {
+      border-color: #93c5fd;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+    .arrow {
+      text-align: center;
+      color: var(--blue);
+      font-weight: 700;
+      padding-top: 28px;
+      font-size: 14px;
+    }
+
+    .format-row {
+      border: 1px solid var(--zinc-300);
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+    .format-row .top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--amber-100);
+      color: var(--amber-800);
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .src-headers {
+      border: 1px solid var(--zinc-200);
+      background: var(--zinc-50);
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 10.5px;
+      color: var(--zinc-700);
+      margin-bottom: 4px;
+    }
+    .using {
+      color: var(--green);
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      padding-top: 10px;
+      border-top: 1px solid var(--zinc-200);
+      font-size: 11px;
+      color: var(--zinc-500);
+    }
+    .print-tip {
+      max-width: 210mm;
+      margin: 12px auto 0;
+      padding: 8px 12px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #92400e;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page {
+        margin: 0;
+        box-shadow: none;
+        width: auto;
+        min-height: auto;
+      }
+      .print-tip { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <p class="print-tip">
+    PDF로 저장: 브라우저에서 <strong>Ctrl+P (인쇄)</strong> → 대상 <strong>PDF로 저장</strong> → 여백 기본·배경 그래픽 켜기 권장
+  </p>
+
+  <!-- ========== PAGE 1 ========== -->
+  <article class="page">
+    <header class="brand">
+      <div>
+        <div class="brand-name">엑클로드 EXCLOAD</div>
+        <div class="brand-sub">주문 엑셀 변환 · 매크로양식 안내</div>
+      </div>
+      <div class="brand-sub">www.excload.com</div>
+    </header>
+
+    <h1>매크로양식 이용 안내</h1>
+    <p class="lead">
+      택배·물류 변환을 써 보셨는데 열이 맞지 않거나, 결과가 비거나, 본인만 쓰는 엑셀 구조라면
+      <strong>매크로양식</strong>에서 원하는 열과 순서를 직접 지정해 변환할 수 있습니다.
+    </p>
+
+    <h2>1. 왜 매크로양식이 생겼나요?</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>기존 택배·물류 변환</h3>
+        <p class="muted" style="margin:0">
+          쇼핑몰·택배사·물류센터에서 쓰는 <strong>일반적인 업로드 양식</strong>에 맞춰
+          자동으로 열을 연결합니다. 많은 경우에 잘 동작합니다.
+        </p>
+      </div>
+      <div class="card">
+        <h3>그래도 잘 안 되는 경우</h3>
+        <p class="muted" style="margin:0">
+          거래처·내부 관리용처럼 <strong>열 이름·순서가 제각각</strong>인 파일은
+          자동 연결만으로는 원하는 결과가 나오기 어렵습니다.
+        </p>
+      </div>
+    </div>
+    <p>
+      매크로양식은 이런 분들을 위해, <strong>사용자 지정양식</strong>으로 출력 열을 직접 만들고
+      같은 방식으로 주문 파일을 변환·다운로드하는 메뉴입니다.
+    </p>
+
+    <h2>2. 이런 분께 권합니다</h2>
+    <ul class="steps">
+      <li>택배·물류 변환 결과가 비어 있거나, 열이 엉뚱하게 들어간 경우</li>
+      <li>택배사 공식 양식이 아니라, 거래처·자체 관리용 엑셀이 필요한 경우</li>
+      <li>자주 쓰는 “나만의 정리 양식”(흔히 매크로처럼 쓰는 파일)이 있는 경우</li>
+    </ul>
+
+    <h2>3. 어디서 시작하나요?</h2>
+    <p class="mock-caption">화면 예시 · 상단 메뉴</p>
+    <div class="mock">
+      <div class="mock-nav">
+        <span class="logo">엑클로드</span>
+        <span>쇼핑몰연동</span>
+        <span>택배주문변환</span>
+        <span class="active">매크로양식</span>
+        <span>물류주문변환</span>
+        <span>송장파일변환</span>
+        <span>사용가이드</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-title">매크로양식</div>
+        <div class="mock-desc">원하는 열과 순서를 직접 지정해 나만의 양식으로 주문자료를 변환합니다.</div>
+        <div class="mock-cards">
+          <div class="mock-card hl">
+            사용자 지정양식 등록
+            <span>열 연결·순서 설정</span>
+          </div>
+          <div class="mock-card">
+            고정 입력 정보 설정
+            <span>공통값 미리 입력</span>
+          </div>
+          <div class="mock-card">
+            변환 파일 다운로드
+            <span>미리보기 기준 저장</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="muted">주소: excload.com/macro-format · 택배·물류 화면의 「매크로양식으로 이동」으로도 올 수 있습니다.</p>
+
+    <div class="footer-note">
+      1 / 2 · 엑클로드 매크로양식 안내 · 문의: 사이트 내 고객문의
+    </div>
+  </article>
+
+  <!-- ========== PAGE 2 ========== -->
+  <article class="page">
+    <header class="brand">
+      <div>
+        <div class="brand-name">엑클로드 EXCLOAD</div>
+        <div class="brand-sub">사용자 지정양식 만들기 · 사용 순서</div>
+      </div>
+      <div class="brand-sub">매크로양식</div>
+    </header>
+
+    <h2>4. 사용 순서 (사용자 지정양식)</h2>
+    <ul class="steps">
+      <li><strong>매크로양식</strong> 메뉴로 이동합니다.</li>
+      <li>하단 <strong>사용자 지정양식 등록</strong>을 누릅니다.</li>
+      <li><strong>사용자 지정양식 만들기</strong>에서 샘플 주문 파일(헤더가 있는 엑셀)을 올립니다.</li>
+      <li>원본 열 → 출력 열 이름·순서를 맞춘 뒤 저장합니다.</li>
+      <li>같은 구조의 주문 파일을 다시 첨부해 미리보기를 확인하고 다운로드합니다.</li>
+    </ul>
+
+    <div class="grid-2">
+      <div>
+        <p class="mock-caption">화면 예시 · 양식 등록</p>
+        <div class="mock">
+          <div class="mock-modal-wrap">
+            <div class="mock-modal">
+              <h4>사용자 지정양식 등록</h4>
+              <p style="font-size:10px;color:var(--zinc-600);margin-bottom:8px;">
+                주문 파일 헤더를 직접 연결해 원하는 열 순서로 다운로드 엑셀을 만듭니다.
+              </p>
+              <div class="btn btn-primary">사용자 지정양식 만들기</div>
+              <div class="note">등록할 때 사용한 파일과 같은 헤더 구조에 맞춰 변환됩니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="mock-caption">화면 예시 · 열 연결(개념)</p>
+        <div class="mock" style="padding:10px;">
+          <div class="mock-map">
+            <div class="mock-col">
+              <div class="label">원본 주문 헤더</div>
+              <div class="chip">주문번호</div>
+              <div class="chip">보내는사람</div>
+              <div class="chip">전화번호</div>
+            </div>
+            <div class="arrow">→</div>
+            <div class="mock-col">
+              <div class="label">출력(다운로드) 열</div>
+              <div class="chip on">1. 넘버</div>
+              <div class="chip on">2. 보내는분</div>
+              <div class="chip on">3. 연락처</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>5. 「이 파일 헤더 전용」이란?</h2>
+    <p>
+      지정양식은 등록할 때 올린 주문 파일의 <strong>헤더 이름·순서</strong>에 맞춰 연결됩니다.
+      다른 구조의 파일을 올리면 값이 비어 보일 수 있습니다.
+    </p>
+    <p class="mock-caption">화면 예시 · 등록된 양식 목록</p>
+    <div class="mock" style="padding:10px;">
+      <div class="format-row">
+        <div class="top">
+          <strong style="font-size:12px;">사용자 지정양식</strong>
+          <span class="badge">이 파일 헤더 전용</span>
+        </div>
+        <div class="src-headers">
+          <strong>등록 시 원본 헤더</strong><br />
+          주문번호 · 보내는사람 · 전화번호 · 주소 · …
+        </div>
+        <div class="using">✔ 이 양식이 사용됩니다</div>
+      </div>
+    </div>
+    <p class="muted">
+      목록의 「등록 시 원본 헤더」로, 어떤 파일 구조에 맞춘 양식인지 다시 확인할 수 있습니다.
+    </p>
+
+    <h2>6. 한눈에 보는 팁</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>잘 되는 방법</h3>
+        <p class="muted" style="margin:0">
+          지정양식 등록에 쓴 파일과 <strong>헤더가 같은</strong> 주문 파일을 올립니다.
+          필요하면 고정 입력으로 공통값을 채웁니다.
+        </p>
+      </div>
+      <div class="card">
+        <h3>택배·물류와의 차이</h3>
+        <p class="muted" style="margin:0">
+          매크로에서 만든 지정양식은 <strong>매크로양식 페이지 전용</strong>입니다.
+          일반 택배사·물류 업로드 양식은 각 메뉴에서 따로 등록합니다.
+        </p>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      2 / 2 · 엑클로드 매크로양식 안내 · 이 문서는 화면을 단순화한 안내도입니다. 실제 UI와 세부 문구는 다를 수 있습니다.
+    </div>
+  </article>
+</body>
+</html>
