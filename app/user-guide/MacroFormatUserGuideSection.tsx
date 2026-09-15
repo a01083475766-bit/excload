@@ -137,7 +137,12 @@ export function MacroFormatUserGuideSection() {
         </div>
       </section>
 
-      <UserGuidePreviewSection />
+      <UserGuidePreviewSection
+        emptyLines={[
+          '주문을 가져오면 변환결과가 여기에 표시됩니다',
+          '파일 크기·주문 건수·PC/인터넷 환경에 따라 처리 시간이 다소 걸릴 수 있습니다.',
+        ]}
+      />
 
       <section className="relative pb-4 pt-4">
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-3 lg:gap-3">
