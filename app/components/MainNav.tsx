@@ -57,9 +57,9 @@ const adminOnlyNavHrefs = new Set(['/akman', '/akman/commerce-report', '/landing
 const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-3 sm:px-5 lg:px-8';
 
 const primaryLinkClass = `
-  flex h-full shrink-0 items-center justify-center gap-2
-  min-w-[118px] max-w-[200px]
-  px-3 py-1.5
+  flex h-full shrink-0 items-center justify-center gap-1.5
+  min-w-0
+  px-2 py-1.5
   text-sm
   relative
   whitespace-nowrap
@@ -100,7 +100,7 @@ export default function MainNav() {
   };
   const orderIntegrationMenuItem: MenuItem = {
     href: '/order/integration',
-    label: '쇼핑몰주문연동',
+    label: '주문연동',
     icon: Link2,
   };
   const primaryMenuForUser = primaryMenuItems.filter(
@@ -148,7 +148,7 @@ export default function MainNav() {
           )}
         </Link>
 
-        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-start gap-2 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-px [-webkit-overflow-scrolling:touch] sm:justify-end sm:gap-3">
+        <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-start gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-px [-webkit-overflow-scrolling:touch] sm:justify-end sm:gap-1.5">
           {displayPrimaryItems.map((item) => {
             const Icon = item.icon;
             const isActive =
