@@ -57,10 +57,10 @@ const adminOnlyNavHrefs = new Set(['/akman', '/akman/commerce-report', '/landing
 const navInnerClass = 'mx-auto flex w-full max-w-[1200px] px-3 sm:px-5 lg:px-8';
 
 const primaryLinkClass = `
-  flex h-full shrink-0 items-center justify-center gap-1.5
+  flex h-full shrink-0 items-center justify-center gap-1
   min-w-0
   px-2 py-1.5
-  text-sm
+  text-[13px] sm:text-sm
   relative
   whitespace-nowrap
 `;
@@ -100,7 +100,7 @@ export default function MainNav() {
   };
   const orderIntegrationMenuItem: MenuItem = {
     href: '/order/integration',
-    label: '주문연동',
+    label: '쇼핑몰연동',
     icon: Link2,
   };
   const primaryMenuForUser = primaryMenuItems.filter(
@@ -126,7 +126,7 @@ export default function MainNav() {
     <nav className="sticky top-0 left-0 right-0 z-[100] border-b border-gray-200 bg-[#ffffff]">
       {/* 1단: 로고(왼쪽 끝) · 실행 메뉴(오른쪽 끝) */}
       <div
-        className={`${navInnerClass} h-10 min-h-[40px] min-w-0 items-stretch justify-between gap-3`}
+        className={`${navInnerClass} h-10 min-h-[40px] min-w-0 items-stretch justify-between gap-2`}
       >
         <Link
           href="/excload"
@@ -165,8 +165,8 @@ export default function MainNav() {
                   ${isActive ? 'font-medium text-blue-600' : 'font-normal text-gray-500'}
                 `}
               >
-                <Icon className="size-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
+                <Icon className="size-3.5 shrink-0 sm:size-4" aria-hidden />
+                <span>{item.label}</span>
                 {isActive && (
                   <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-600" />
                 )}
