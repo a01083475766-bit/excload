@@ -3655,6 +3655,22 @@ export function LogisticsConvertClient({
     setDirectMappingDragOverOrderIndex(null);
   };
 
+  const clearDirectMappingDraftState = useCallback(() => {
+    setDirectMappingModalOpen(false);
+    setDirectMappingConfirmModalOpen(false);
+    setDirectMappingPendingColumns([]);
+    setDirectMappingSourceHeaders([]);
+    setDirectMappingSourceSamples({});
+    setDirectMappingRenameValues([]);
+    setDirectMappingOutputOrder([]);
+    setDirectMappingCustomHeaders([]);
+    setDirectMappingCustomHeaderInputOpen(false);
+    setDirectMappingNewHeaderInput('');
+    setDirectMappingDraggingSourceIndex(null);
+    setDirectMappingDragOverOrderIndex(null);
+    directMappingSampleCleanInputRef.current = null;
+  }, []);
+
   const openDirectMappingEditorModal = (
     headers: string[],
     samples: UnknownHeaderSamples,
@@ -3666,11 +3682,7 @@ export function LogisticsConvertClient({
   };
 
   const handleOpenUserCustomFormatFlow = () => {
-    if (directMappingSourceHeaders.length > 0) {
-      resetDirectMappingEditorFields(directMappingSourceHeaders);
-      setDirectMappingModalOpen(true);
-      return;
-    }
+    clearDirectMappingDraftState();
     setDirectMappingSampleFileModalOpen(true);
   };
 
@@ -7584,11 +7596,7 @@ export function LogisticsConvertClient({
         newHeaderInput={directMappingNewHeaderInput}
         draggingSourceIndex={directMappingDraggingSourceIndex}
         dragOverOrderIndex={directMappingDragOverOrderIndex}
-        onClose={() => {
-          setDirectMappingModalOpen(false);
-          setDirectMappingConfirmModalOpen(false);
-          setDirectMappingPendingColumns([]);
-        }}
+        onClose={clearDirectMappingDraftState}
         onRenameChange={handleDirectMappingRenameChange}
         onAddSourceToOutput={handleAddDirectMappingSourceToOutput}
         onRemoveOutputHeader={handleRemoveDirectMappingOutputHeader}

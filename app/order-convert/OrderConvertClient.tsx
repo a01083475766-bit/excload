@@ -1709,6 +1709,23 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     setDirectMappingDragOverOrderIndex(null);
   };
 
+  /** 지정양식 만들기 중 취소·닫기 시 샘플 파일 헤더 초안을 비움 (다시 만들 때 새 파일 선택) */
+  const clearDirectMappingDraftState = useCallback(() => {
+    setDirectMappingModalOpen(false);
+    setDirectMappingConfirmModalOpen(false);
+    setDirectMappingPendingColumns([]);
+    setDirectMappingSourceHeaders([]);
+    setDirectMappingSourceSamples({});
+    setDirectMappingRenameValues([]);
+    setDirectMappingOutputOrder([]);
+    setDirectMappingCustomHeaders([]);
+    setDirectMappingCustomHeaderInputOpen(false);
+    setDirectMappingNewHeaderInput('');
+    setDirectMappingDraggingSourceIndex(null);
+    setDirectMappingDragOverOrderIndex(null);
+    directMappingSampleCleanInputRef.current = null;
+  }, []);
+
   const openDirectMappingEditorModal = (
     headers: string[],
     samples: UnknownHeaderSamples,
@@ -1720,11 +1737,8 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
   };
 
   const handleOpenUserCustomFormatFlow = () => {
-    if (directMappingSourceHeaders.length > 0) {
-      resetDirectMappingEditorFields(directMappingSourceHeaders);
-      setDirectMappingModalOpen(true);
-      return;
-    }
+    // 취소 후 재진입 시 이전 샘플 헤더가 남지 않도록 초안을 비우고 파일 선택부터 시작
+    clearDirectMappingDraftState();
     setDirectMappingSampleFileModalOpen(true);
   };
 
@@ -4882,11 +4896,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
         newHeaderInput={directMappingNewHeaderInput}
         draggingSourceIndex={directMappingDraggingSourceIndex}
         dragOverOrderIndex={directMappingDragOverOrderIndex}
-        onClose={() => {
-          setDirectMappingModalOpen(false);
-          setDirectMappingConfirmModalOpen(false);
-          setDirectMappingPendingColumns([]);
-        }}
+        onClose={clearDirectMappingDraftState}
         onRenameChange={handleDirectMappingRenameChange}
         onAddSourceToOutput={handleAddDirectMappingSourceToOutput}
         onRemoveOutputHeader={handleRemoveDirectMappingOutputHeader}
