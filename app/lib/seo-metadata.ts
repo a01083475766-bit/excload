@@ -113,7 +113,7 @@ export const PAGE_SEO = {
   ),
   userGuide: pageMetadata(
     '사용가이드 - 엑클로드(EXCLOAD) 주문 변환 이용 안내',
-    '택배주문변환, 물류주문변환, 송장파일변환 기능을 단계별로 안내합니다. 엑클로드(EXCLOAD) 사용 가이드.',
+    '택배주문변환, 매크로양식, 물류주문변환, 송장파일변환 기능을 단계별로 안내합니다. 엑클로드(EXCLOAD) 사용 가이드.',
     '/user-guide',
   ),
   about: pageMetadata(

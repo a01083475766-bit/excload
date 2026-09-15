@@ -15,6 +15,7 @@ import { Fragment } from 'react';
 
 import { InvoiceFileUserGuideSection } from './InvoiceFileUserGuideSection';
 import { LogisticsUserGuideSection } from './LogisticsUserGuideSection';
+import { MacroFormatUserGuideSection } from './MacroFormatUserGuideSection';
 import { UserCustomFormatGuideBlock } from './UserCustomFormatGuideBlock';
 import {
   UserGuideFormStatusBanner,
@@ -52,8 +53,8 @@ export default function UserGuidePage() {
           엑클로드(EXCLOAD) 사용가이드
         </h1>
         <p className="mb-4 text-center text-sm leading-relaxed text-gray-600 px-2">
-          택배주문변환, 물류주문변환, 송장파일변환 화면과 같은 구성으로 단계별로 안내합니다.
-          마우스를 올리면 각 기능 설명을 확인할 수 있습니다.
+          택배주문변환, 매크로양식, 물류주문변환, 송장파일변환 화면과 같은 구성으로 단계별로
+          안내합니다. 마우스를 올리면 각 기능 설명을 확인할 수 있습니다.
         </p>
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50/80 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
           각 위치에 마우스를 올리시면 기능 설명을 드리는 사용가이드입니다. 익숙하지 않은 용어 안내도 포함했습니다
@@ -268,6 +269,8 @@ export default function UserGuidePage() {
             </ol>
           </div>
         </section>
+
+        <MacroFormatUserGuideSection />
 
         <LogisticsUserGuideSection />
 
