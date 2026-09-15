@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ArrowRightLeft } from 'lucide-react';
 
 type UserCustomFormatGuideBlockProps = {
@@ -24,8 +25,7 @@ const STEPS = [
 ] as const;
 
 export function UserCustomFormatGuideBlock({ variant }: UserCustomFormatGuideBlockProps) {
-  const uploadLabel =
-    variant === 'courier' ? '택배 업로드 양식 등록' : '물류센터 업로드 양식 등록';
+  const pageLabel = variant === 'courier' ? '택배주문변환' : '물류주문변환';
   const accentClass =
     variant === 'courier'
       ? 'border-blue-200 bg-blue-50/80 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100'
@@ -44,13 +44,13 @@ export function UserCustomFormatGuideBlock({ variant }: UserCustomFormatGuideBlo
             id={`user-guide-custom-format-${variant}`}
             className="text-base font-semibold"
           >
-            사용자 지정양식 만들기
+            매크로양식 (사용자 지정양식)
           </h3>
         </div>
 
         <p className="mx-auto mb-4 max-w-3xl text-center text-sm leading-relaxed">
-          업로드용 엑셀 양식 파일이 없거나, 주문파일 열 이름·순서를 직접 정하고 싶을 때 사용합니다.
-          헤더명이나 출력 순서를 바꿔도 해당 열의 주문 데이터는 함께 이동합니다.
+          일반 {pageLabel} 업로드 양식이 아니거나, 변환이 잘 안 될 때 사용합니다. 상단 「매크로양식」
+          메뉴에서 열 이름·순서를 직접 지정할 수 있습니다.
         </p>
 
         <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -70,13 +70,11 @@ export function UserCustomFormatGuideBlock({ variant }: UserCustomFormatGuideBlo
         <ul className="mx-auto max-w-3xl space-y-1.5 text-sm leading-relaxed">
           <li>
             <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${stepBadgeClass}`} aria-hidden />
-            아래 「{uploadLabel}」 버튼을 누른 뒤, 나오는 화면에서 「사용자 지정양식 만들기」를 누르면
-            시작할 수 있습니다.
+            상단 메뉴 「매크로양식」으로 이동한 뒤 「사용자 지정양식 등록」에서 시작할 수 있습니다.
           </li>
           <li>
             <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${stepBadgeClass}`} aria-hidden />
-            주문파일을 올린 뒤 열 이름이 맞지 않다는 안내가 보이면, 그 안내에서 「사용자 지정양식
-            만들기」를 눌러 바로 시작할 수 있습니다.
+            {pageLabel}에서 열이 맞지 않다는 안내가 보이면 「매크로양식으로 이동」을 눌러 진행하세요.
           </li>
           <li>
             <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${stepBadgeClass}`} aria-hidden />
@@ -85,14 +83,12 @@ export function UserCustomFormatGuideBlock({ variant }: UserCustomFormatGuideBlo
         </ul>
 
         <div className="mt-4 flex justify-center">
-          <button
-            type="button"
-            data-ex-tooltip={`주문파일을 먼저 선택하면 원본 헤더가 표시됩니다.\u000a열 이름을 바꾸고, 출력할 항목을 3번 줄에 올려 저장합니다.\u000a(가이드에서는 실제 저장·변환이 되지 않습니다.)`}
-            className="ex-tooltip-target cursor-default rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 opacity-90 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-            onClick={(e) => e.preventDefault()}
+          <Link
+            href="/macro-format"
+            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
-            사용자 지정양식 만들기 (안내)
-          </button>
+            매크로양식으로 이동
+          </Link>
         </div>
       </div>
     </section>

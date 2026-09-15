@@ -12,14 +12,16 @@ type UnknownHeadersWarningBannerProps = {
   variant: UnknownHeadersWarningVariant;
   trialMode?: boolean;
   onDirectMapping?: () => void;
+  /** 기본: 직접 연결해서 저장하기 */
+  directMappingLabel?: string;
 };
 
 const variantCopy = {
   courier: {
     intro:
-      '아래 항목은 실제 값이 들어 있지만, 현재 선택한 출력 양식의 어느 칸에 넣어야 할지 자동 판단하지 못했습니다. 필요한 정보라면 사용자 지정양식에서 직접 연결해 주세요.',
+      '아래 항목은 실제 값이 들어 있지만, 현재 선택한 출력 양식의 어느 칸에 넣어야 할지 자동 판단하지 못했습니다. 일반 택배·쇼핑몰 업로드 양식이 아니거나 변환이 잘 안 되면 매크로양식에서 열을 직접 지정해 보세요.',
     neededInfo:
-      '택배사 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은 항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.',
+      '택배사 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은 항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요. 그래도 어려우면 매크로양식을 이용하세요.',
     notNeededInfo:
       '택배사 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고 다운로드하셔도 됩니다.',
     finalCheck: '※ 다운로드 전 주문 정보가 빠짐없이 정리되었는지 한 번 더 확인해 주세요.',
@@ -29,9 +31,9 @@ const variantCopy = {
   },
   logistics: {
     intro:
-      '아래 항목은 실제 값이 들어 있지만, 현재 선택한 출력 양식의 어느 칸에 넣어야 할지 자동 판단하지 못했습니다. 필요한 정보라면 사용자 지정양식에서 직접 연결해 주세요.',
+      '아래 항목은 실제 값이 들어 있지만, 현재 선택한 출력 양식의 어느 칸에 넣어야 할지 자동 판단하지 못했습니다. 일반 물류센터 업로드 양식이 아니거나 변환이 잘 안 되면 매크로양식에서 열을 직접 지정해 보세요.',
     neededInfo:
-      '물류 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은 항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요.',
+      '물류 업로드양식에 해당 정보를 넣을 칸이 있는지 확인한 뒤, 미리보기에서 알맞은 항목으로 지정하거나 원본 엑셀의 열 이름을 수정한 뒤 다시 올려 주세요. 그래도 어려우면 매크로양식을 이용하세요.',
     notNeededInfoTrial:
       '물류 업로드에 사용하지 않는 주문 관리용 정보일 수 있으므로, 그대로 진행하고 결과를 확인하셔도 됩니다.',
     notNeededInfo:
@@ -80,6 +82,7 @@ export function UnknownHeadersWarningBanner({
   variant,
   trialMode = false,
   onDirectMapping,
+  directMappingLabel = '직접 연결해서 저장하기',
 }: UnknownHeadersWarningBannerProps) {
   const { headersWithSamples, emptyHeaderCount } = partitionUnknownHeadersForDisplay(
     unknownHeaders,
@@ -130,7 +133,7 @@ export function UnknownHeadersWarningBanner({
         </button>
         {onDirectMapping && actionButtonClass ? (
           <button type="button" onClick={onDirectMapping} className={actionButtonClass}>
-            직접 연결해서 저장하기
+            {directMappingLabel}
           </button>
         ) : null}
       </div>

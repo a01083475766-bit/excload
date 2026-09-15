@@ -285,17 +285,17 @@ export function OrderIntegrationTemplateModal({
               {busy ? '등록 중…' : '내 업로드 파일 등록하기'}
             </button>
             <Link
-              href="/order-convert"
-              className="mt-2 flex h-11 w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-sm font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-950/70"
+              href="/macro-format"
+              className="mt-2 flex h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
             >
-              사용자 지정양식 만들기 (택배주문변환)
+              매크로양식으로 이동
             </Link>
-            <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-[13px] leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-              사용자 지정양식: 주문 파일 헤더를 직접 연결해 원하는 열 순서로 만드는 다운로드 엑셀
-              양식입니다. 허브에서는 택배주문변환에서 만든 뒤 여기서 선택해 사용합니다.
+            <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-[13px] leading-relaxed text-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-300">
+              일반 택배·쇼핑몰 업로드 양식이 아니거나, 변환이 잘 안 되면 매크로양식에서 열을 직접
+              지정해 보세요.
             </p>
             <p className="mt-2 text-xs text-zinc-500">
-              택배주문변환과 같은 저장값을 사용합니다.
+              택배 업로드 양식은 이 화면에서 등록하고, 지정양식은 매크로양식 메뉴에서 만듭니다.
             </p>
             {registrationSuccessMessage ? (
               <p className="mt-2 text-xs text-green-600 dark:text-green-400">

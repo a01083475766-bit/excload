@@ -9,6 +9,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback, type UIEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { FileSpreadsheet, Truck, Search, ArrowDown, Image, X, Check, Upload, Loader2, Maximize2, Minimize2, RotateCcw, Trash2, Package } from 'lucide-react';
 import { runTemplatePipeline } from '@/app/pipeline/template/template-pipeline';
@@ -4289,7 +4290,14 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
                 expanded={unknownHeadersExpanded}
                 onExpandedChange={setUnknownHeadersExpanded}
                 variant="courier"
-                onDirectMapping={handleOpenDirectMappingModal}
+                onDirectMapping={
+                  isMacroVariant
+                    ? handleOpenDirectMappingModal
+                    : () => router.push('/macro-format')
+                }
+                directMappingLabel={
+                  isMacroVariant ? '직접 연결해서 저장하기' : '매크로양식으로 이동'
+                }
               />
 
               <div
@@ -4608,17 +4616,18 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
                 >
                   내 업로드 파일 등록하기
                 </button>
-                <button
-                  type="button"
-                  onClick={handleOpenUserCustomFormatFlow}
-                  className="mt-2 w-full border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 h-11 rounded-lg font-medium text-sm dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-950/70"
-                >
-                  사용자 지정양식 만들기
-                </button>
-                <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-[13px] leading-relaxed text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
-                  사용자 지정양식: 주문 파일 헤더를 직접 연결해 거래처 제출용, 자체 관리용 등
-                  원하는 열 순서로 만드는 다운로드 엑셀 양식입니다.
+                <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-[13px] leading-relaxed text-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-300">
+                  일반 택배·쇼핑몰 업로드 양식이 아니거나, 변환이 잘 안 되면{' '}
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">매크로양식</span>
+                  에서 열을 직접 지정해 보세요.
                 </p>
+                <Link
+                  href="/macro-format"
+                  className="mt-2 flex h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                  onClick={handleCloseCourierTemplateModal}
+                >
+                  매크로양식으로 이동
+                </Link>
                   </>
                 )}
                 {registrationSuccessMessage && (
