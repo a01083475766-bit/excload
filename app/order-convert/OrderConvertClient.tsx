@@ -158,6 +158,11 @@ import { DirectMappingSampleFileModal } from '@/app/components/DirectMappingSamp
 import { DirectMappingEditorModal } from '@/app/components/DirectMappingEditorModal';
 import { DirectMappingConfirmModal } from '@/app/components/DirectMappingConfirmModal';
 import { UnknownHeadersWarningBanner } from '@/app/components/UnknownHeadersWarningBanner';
+import { DirectSourceHeaderMismatchBanner } from '@/app/components/DirectSourceHeaderMismatchBanner';
+import {
+  findMissingDirectSourceHeaders,
+  getMappedDirectSourceHeaders,
+} from '@/app/lib/direct-source-header-mismatch';
 import { ExcloudConfirmDialog } from '@/app/components/ExcloudConfirmDialog';
 import {
   EXCLOAD_MODAL_BODY,
@@ -391,6 +396,16 @@ function hasDirectHeaderMappings(
       bridgeFile.directHeaderMappings &&
       Object.keys(bridgeFile.directHeaderMappings).length > 0,
   );
+}
+
+function getDirectSourceHeaderMismatch(
+  bridgeFile: TemplateBridgeFile & { directHeaderMappings: DirectHeaderMapping },
+  uploadedHeaders: readonly string[],
+): string[] | null {
+  const required = getMappedDirectSourceHeaders(bridgeFile.directHeaderMappings);
+  if (required.length === 0) return null;
+  const missing = findMissingDirectSourceHeaders(uploadedHeaders, required);
+  return missing.length > 0 ? missing : null;
 }
 
 function buildDirectPreviewRowsFromCleanInput(
@@ -772,6 +787,10 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
   const [unknownHeadersWarning, setUnknownHeadersWarning] = useState<string[]>([]);
   const [unknownHeaderSamples, setUnknownHeaderSamples] = useState<UnknownHeaderSamples>({});
   const [unknownHeadersExpanded, setUnknownHeadersExpanded] = useState(false);
+  /** 사용자 지정양식 원본 헤더가 업로드 파일에 없을 때 */
+  const [directSourceHeaderMismatch, setDirectSourceHeaderMismatch] = useState<string[] | null>(
+    null,
+  );
   const [directMappingModalOpen, setDirectMappingModalOpen] = useState(false);
   const [directMappingConfirmModalOpen, setDirectMappingConfirmModalOpen] = useState(false);
   const [directMappingPendingColumns, setDirectMappingPendingColumns] = useState<DirectMappingFinalColumn[]>([]);
@@ -1204,6 +1223,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       setSortConfig(null);
       setUnknownHeadersWarning([]);
       setUnknownHeaderSamples({});
+      setDirectSourceHeaderMismatch(null);
       setDirectMappingModalOpen(false);
       setDirectMappingConfirmModalOpen(false);
       setDirectMappingPendingColumns([]);
@@ -1627,6 +1647,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     setStage2ChunkLabel(null);
     setUnknownHeadersWarning([]);
     setUnknownHeaderSamples({});
+    setDirectSourceHeaderMismatch(null);
     setDirectMappingModalOpen(false);
     setDirectMappingConfirmModalOpen(false);
     setDirectMappingPendingColumns([]);
@@ -1956,6 +1977,14 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     setDirectMappingModalOpen(true);
   };
 
+  const handleCreateDirectFormatFromCurrentFile = () => {
+    if (directMappingSourceHeaders.length === 0) {
+      handleOpenUserCustomFormatFlow();
+      return;
+    }
+    handleOpenDirectMappingModal();
+  };
+
   const handleDirectMappingRenameChange = (sourceIndex: number, value: string) => {
     setDirectMappingRenameValues((prev) =>
       prev.map((header, index) => (index === sourceIndex ? value : header)),
@@ -2215,6 +2244,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     setSortConfig(null);
     setUnknownHeadersWarning([]);
     setUnknownHeaderSamples({});
+    setDirectSourceHeaderMismatch(null);
     setDirectMappingModalOpen(false);
     setDirectMappingConfirmModalOpen(false);
     setDirectMappingPendingColumns([]);
@@ -3001,6 +3031,11 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       const activeTemplateBridgeFile = getActiveTemplateBridgeFile();
       if (activeTemplateBridgeFile && hasDirectHeaderMappings(activeTemplateBridgeFile)) {
         setTextConvertStatusLabel('등록된 양식에 맞추는 중…');
+        setDirectMappingSourceHeaders([...cleanInputFile.headers]);
+        setDirectMappingSourceSamples(buildHeaderSamples(cleanInputFile));
+        setDirectSourceHeaderMismatch(
+          getDirectSourceHeaderMismatch(activeTemplateBridgeFile, cleanInputFile.headers),
+        );
         const standardRows = buildStandardRowsFromBaseHeaderMatrix(
           cleanInputFile.headers,
           cleanInputFile.rows,
@@ -3079,6 +3114,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
         return;
       }
 
+      setDirectSourceHeaderMismatch(null);
       const fileSessionId = crypto.randomUUID();
       setTextConvertStatusLabel('택배 양식에 맞추는 중…');
       const pipelineResult = await runUnifiedInputOrderPipelines({
@@ -3264,6 +3300,9 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     }
 
     if (hasDirectHeaderMappings(activeTemplateBridgeFile)) {
+      setDirectSourceHeaderMismatch(
+        getDirectSourceHeaderMismatch(activeTemplateBridgeFile, cleanInputFile.headers),
+      );
       const directPreviewRows = buildDirectPreviewRowsFromCleanInput(
         cleanInputFile,
         activeTemplateBridgeFile,
@@ -3333,6 +3372,8 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
         metrics,
       };
     }
+
+    setDirectSourceHeaderMismatch(null);
 
     // Stage2 실행 (대용량 시 행 청크로 서버 API 순차 호출)
     const { orderStandardFile: stage2Result, headerMapping } = await fetchOrderPipelineStage2(
@@ -3782,6 +3823,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
           setSortConfig(null);
           setUnknownHeadersWarning([]);
           setUnknownHeaderSamples({});
+          setDirectSourceHeaderMismatch(null);
           setDirectMappingModalOpen(false);
           setDirectMappingConfirmModalOpen(false);
           setDirectMappingPendingColumns([]);
@@ -3826,6 +3868,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
     setSortConfig(null);
     setUnknownHeadersWarning([]);
     setUnknownHeaderSamples({});
+    setDirectSourceHeaderMismatch(null);
     setDirectMappingModalOpen(false);
     setDirectMappingConfirmModalOpen(false);
     setDirectMappingPendingColumns([]);
@@ -4298,6 +4341,15 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
             </div>
           ) : (
             <>
+              {directSourceHeaderMismatch && directSourceHeaderMismatch.length > 0 ? (
+                <DirectSourceHeaderMismatchBanner
+                  missingHeaders={directSourceHeaderMismatch}
+                  onCreateFormatFromFile={handleCreateDirectFormatFromCurrentFile}
+                  onSelectOtherFormat={handleOpenCourierTemplateModal}
+                  onDismiss={() => setDirectSourceHeaderMismatch(null)}
+                />
+              ) : null}
+
               <UnknownHeadersWarningBanner
                 unknownHeaders={unknownHeadersWarning}
                 unknownHeaderSamples={unknownHeaderSamples}
