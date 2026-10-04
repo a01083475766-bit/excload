@@ -143,7 +143,7 @@ export default function HomePage() {
     <div className="landing-soft-font min-h-screen bg-zinc-50 pt-[3.15rem] dark:bg-black">
       <LandingHeroSection />
 
-      {betaMode ? <OpenBetaLandingTop /> : null}
+      <OpenBetaLandingTop />
 
       <section
         id="free-trial"
@@ -217,7 +217,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {betaMode ? <OpenBetaLandingBottom /> : null}
+      <OpenBetaLandingBottom />
 
       <section id="pricing" className="bg-zinc-50 py-[4.2rem] dark:bg-black sm:py-[5.6rem]">
         <div className={landingContainerClass}>

@@ -17,7 +17,7 @@ export default function LandingHeroSection() {
         <div className="grid gap-10 lg:grid-cols-2 lg:items-stretch lg:gap-12">
           <div className="flex min-w-0 flex-col justify-center text-left">
             <p className="text-xs font-bold tracking-[0.2em] text-blue-600 dark:text-blue-400">
-              EXCLOAD OPEN BETA
+              {betaMode ? 'EXCLOAD OPEN BETA' : 'EXCLOAD'}
             </p>
             <p className="mt-2 text-base font-semibold text-zinc-600 dark:text-zinc-400">
               {betaMode ? '오픈 베타 참여자 모집 중' : '엑클로드 주요 기능 안내'}
@@ -73,11 +73,9 @@ export default function LandingHeroSection() {
                 기능 둘러보기 →
               </a>
             </div>
-            {betaMode ? (
-              <div className="mt-3 w-full lg:hidden">
-                <OpenBetaDemoVideo />
-              </div>
-            ) : null}
+            <div className="mt-3 w-full lg:hidden">
+              <OpenBetaDemoVideo />
+            </div>
           </div>
 
           <div className="w-full lg:w-auto lg:shrink-0">

@@ -3,7 +3,7 @@
 import { landingContainerClass } from '@/app/components/landing/landingLayout';
 import OpenBetaDemoVideo from '@/app/components/landing/OpenBetaDemoVideo';
 import { getVisibleIntegrationMallNames } from '@/app/lib/order-integration/malls';
-import { getSignupBonusPoints } from '@/app/lib/open-beta-policy';
+import { getSignupBonusPoints, isOpenBetaMode } from '@/app/lib/open-beta-policy';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -123,6 +123,29 @@ const FAQ_ITEMS = [
   },
 ] as const;
 
+const GA_FAQ_ITEMS = [
+  {
+    q: '무료로 이용할 수 있나요?',
+    a: '네. 무료 플랜은 매월 5,000 포인트가 제공되며, 텍스트 변환과 엑셀 다운로드 시 포인트가 차감됩니다. 더 많이 사용하시면 프로·연간 요금제를 선택할 수 있습니다.',
+  },
+  {
+    q: '카드 등록이 필요한가요?',
+    a: '아니요. 무료 플랜은 카드 등록 없이 이용할 수 있습니다.',
+  },
+  {
+    q: '자동으로 결제되거나 유료 전환되나요?',
+    a: '아니요. 유료 요금제는 직접 선택해 결제한 경우에만 적용됩니다.',
+  },
+  {
+    q: '어떤 쇼핑몰을 지원하나요?',
+    a: '주문 파일·카톡 텍스트 변환은 여러 쇼핑몰·자사몰 파일을 대상으로 사용할 수 있습니다. 쇼핑몰 API 주문연동은 순차적으로 확대하고 있습니다.',
+  },
+  {
+    q: '업로드한 주문 자료는 어떻게 처리되나요?',
+    a: '변환·연동 처리에 사용됩니다. 보관 기간 등 세부 운영 정책은 서비스 약관·개인정보처리방침을 확인해 주세요.',
+  },
+] as const;
+
 function SectionHead({ title, desc }: { title: string; desc: string }) {
   return (
     <div className="mb-3 max-w-3xl sm:mb-4">
@@ -203,6 +226,15 @@ function JoinBand() {
 }
 
 function FeaturesSection() {
+  const betaMode = isOpenBetaMode();
+  const features = betaMode
+    ? FEATURES
+    : FEATURES.map((feature) =>
+        feature.actionLabel === '오픈 베타로 이용하기'
+          ? { ...feature, actionLabel: '주문연동 이용하기' }
+          : feature,
+      );
+
   return (
     <section id="features" className="scroll-mt-24 border-b border-zinc-200 bg-zinc-50 py-[4.2rem] dark:border-zinc-800 dark:bg-black sm:py-20">
       <div className={landingContainerClass}>
@@ -211,7 +243,7 @@ function FeaturesSection() {
           desc="주문을 확인하고, 필요한 양식으로 바꾸고, 송장번호를 다시 쇼핑몰에 연결하는 과정을 도와드립니다."
         />
         <div className="mt-11 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => (
+          {features.map((feature) => (
             <article
               key={feature.title}
               className="flex flex-col border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6"
@@ -303,6 +335,7 @@ export function OpenBetaBenefitsAndJoin() {
 
 /** Hero 다음: 연동 대상 쇼핑몰 → 혜택 → 참여 독려 */
 export function OpenBetaLandingTop() {
+  const betaMode = isOpenBetaMode();
   const visibleMalls = getVisibleIntegrationMallNames();
 
   return (
@@ -314,7 +347,7 @@ export function OpenBetaLandingTop() {
           </div>
           <div className="mb-3 max-w-3xl sm:mb-4">
             <h2 className="break-keep text-2xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-[1.75rem]">
-              오픈 베타 연동 대상 쇼핑몰
+              {betaMode ? '오픈 베타 연동 대상 쇼핑몰' : '연동 대상 쇼핑몰'}
             </h2>
             <p className="mt-4 break-keep text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
               판매자 계정의 API 이용 승인 여부와 쇼핑몰별 제공 조건에 따라
@@ -336,7 +369,7 @@ export function OpenBetaLandingTop() {
         </div>
       </section>
 
-      <OpenBetaBenefitsAndJoin />
+      {betaMode ? <OpenBetaBenefitsAndJoin /> : null}
       <FeaturesSection />
     </>
   );
@@ -344,6 +377,9 @@ export function OpenBetaLandingTop() {
 
 /** 무료 테스트 다음: 업무 흐름 → 이메일 → FAQ */
 export function OpenBetaLandingBottom() {
+  const betaMode = isOpenBetaMode();
+  const faqItems = betaMode ? FAQ_ITEMS : GA_FAQ_ITEMS;
+
   return (
     <>
       <section className="border-b border-zinc-200 bg-white py-[4.2rem] dark:border-zinc-800 dark:bg-zinc-950 sm:py-20">
@@ -372,7 +408,11 @@ export function OpenBetaLandingBottom() {
         <div className={landingContainerClass}>
           <SectionHead
             title="아직 사용해 볼 시간이 없으신가요?"
-            desc="새로운 쇼핑몰 연동과 오픈 베타 업데이트를 이메일로 알려드립니다. 이메일만 남겨 주시면 됩니다."
+            desc={
+              betaMode
+                ? '새로운 쇼핑몰 연동과 오픈 베타 업데이트를 이메일로 알려드립니다. 이메일만 남겨 주시면 됩니다.'
+                : '새로운 쇼핑몰 연동과 기능 업데이트를 이메일로 알려드립니다. 이메일만 남겨 주시면 됩니다.'
+            }
           />
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
@@ -390,9 +430,12 @@ export function OpenBetaLandingBottom() {
 
       <section className="border-b border-zinc-200 bg-zinc-50 py-[4.2rem] dark:border-zinc-800 dark:bg-black sm:py-20">
         <div className={landingContainerClass}>
-          <SectionHead title="자주 묻는 질문" desc="오픈 베타 이용과 관련된 안내입니다." />
+          <SectionHead
+            title="자주 묻는 질문"
+            desc={betaMode ? '오픈 베타 이용과 관련된 안내입니다.' : '엑클로드 이용과 관련된 안내입니다.'}
+          />
           <div className="mt-6 max-w-3xl">
-            {FAQ_ITEMS.map((item) => (
+            {faqItems.map((item) => (
               <FaqItem key={item.q} q={item.q} a={item.a} />
             ))}
           </div>
