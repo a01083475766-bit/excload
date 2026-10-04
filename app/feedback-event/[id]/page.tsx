@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function FeedbackPostDetailPage({ params }: PageProps) {
   const { id } = await params;
-  redirect(`/beta-feedback/${id}`);
+  redirect(`/feedback/${id}`);
 }

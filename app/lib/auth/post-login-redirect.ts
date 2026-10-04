@@ -1,4 +1,5 @@
 import { isProtectedOrderIntegrationPath } from '@/app/lib/order-integration/access-policy';
+import { isFeedbackBoardPath } from '@/app/lib/feedback-event/routes';
 
 export function getSafeCallbackPath(raw: string | null | undefined): string | null {
   if (raw?.startsWith('/') && !raw.startsWith('//')) {
@@ -18,7 +19,7 @@ export function requiresMiddlewareSession(path: string): boolean {
     path.startsWith('/akman') ||
     path.startsWith('/admin') ||
     path.startsWith('/history') ||
-    path.startsWith('/beta-feedback') ||
+    isFeedbackBoardPath(path.split(/[?#]/)[0] ?? path) ||
     isProtectedOrderIntegrationPath(path)
   );
 }

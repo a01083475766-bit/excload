@@ -12,7 +12,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: '베타 피드백',
+  title: '의견 게시판',
   robots: { index: false, follow: false },
 };
 
@@ -20,7 +20,7 @@ function FeedbackPageShell() {
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-6 sm:py-8">
       <div className="mx-auto max-w-6xl">
-        <h1 className="text-2xl font-bold text-zinc-950">베타 피드백</h1>
+        <h1 className="text-2xl font-bold text-zinc-950">의견 게시판</h1>
         <p className="mt-1 text-sm leading-6 text-zinc-600">
           엑클로드를 사용하며 발견한 오류와 필요한 기능을 알려주세요. 베타 사용자의 의견과
           운영자의 확인 내용을 함께 볼 수 있습니다.

@@ -31,7 +31,7 @@ type PageProps = {
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: '베타 피드백 상세',
+  title: '의견 상세',
   robots: { index: false, follow: false },
 };
 
@@ -39,7 +39,7 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
   const { id } = await params;
   const viewer = await getFeedbackViewerFromCookies();
   if (!viewer.email && !viewer.userId) {
-    redirect(buildAuthLoginRedirectPath(`/beta-feedback/${id}`));
+    redirect(buildAuthLoginRedirectPath(`/feedback/${id}`));
   }
 
   const [post, myUserId] = await Promise.all([
@@ -104,7 +104,7 @@ export default async function BetaFeedbackDetailPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-zinc-50 px-4 py-6 sm:py-8">
       <div className="mx-auto max-w-4xl">
-        <Link href="/beta-feedback" className="mb-4 inline-flex text-sm text-zinc-600 hover:text-blue-700">
+        <Link href="/feedback" className="mb-4 inline-flex text-sm text-zinc-600 hover:text-blue-700">
           목록으로
         </Link>
 

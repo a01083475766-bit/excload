@@ -31,7 +31,7 @@ function FeedbackWriteInner() {
 
   const handleSubmit = useCallback(async () => {
     if (status !== 'authenticated') {
-      router.push(`/auth/login?callbackUrl=${encodeURIComponent('/beta-feedback/write')}`);
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent('/feedback/write')}`);
       return;
     }
     if (title.trim().length < 2) {
@@ -79,7 +79,7 @@ function FeedbackWriteInner() {
         router.push(getBetaFeedbackPostPath(json.submissionId));
         return;
       }
-      router.push('/beta-feedback');
+      router.push('/feedback');
     } catch {
       alert('제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
       setSubmitting(false);
@@ -98,14 +98,14 @@ function FeedbackWriteInner() {
     <div className="bg-zinc-50 min-h-screen py-10 px-4">
       <div className="max-w-2xl mx-auto">
         <Link
-          href="/beta-feedback"
+          href="/feedback"
           className="inline-flex items-center gap-1 text-sm text-zinc-600 hover:text-blue-600 mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
           게시판 목록
         </Link>
 
-        <h1 className="mb-2 text-2xl font-bold text-zinc-950">베타 피드백 작성</h1>
+        <h1 className="mb-2 text-2xl font-bold text-zinc-950">의견 작성</h1>
         <p className="mb-2 text-sm leading-6 text-zinc-600">
           엑클로드를 사용하며 느낀 점, 궁금한 점, 불편한 점이나 개선 의견을 자유롭게 남겨주세요.
         </p>
@@ -241,7 +241,7 @@ function FeedbackWriteInner() {
 
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Link
-              href="/beta-feedback"
+              href="/feedback"
               className="inline-flex h-11 items-center justify-center rounded border border-zinc-300 bg-white px-5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             >
               취소

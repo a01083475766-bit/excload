@@ -214,10 +214,10 @@ function JoinBand() {
             오픈 베타 무료 가입
           </Link>
           <Link
-            href="/beta-feedback"
+            href="/feedback"
             className="inline-flex min-h-12 items-center justify-center rounded-md border border-white/45 px-6 text-base font-semibold text-white hover:bg-white/10"
           >
-            베타 피드백 남기기
+            의견 남기기
           </Link>
         </div>
       </div>

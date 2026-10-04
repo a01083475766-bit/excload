@@ -111,7 +111,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
       <div className="mx-auto max-w-6xl">
         <div className="mb-5 flex flex-col gap-3 border-b border-zinc-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-zinc-950">베타 피드백</h1>
+            <h1 className="text-2xl font-bold text-zinc-950">의견 게시판</h1>
             <p className="mt-1 text-sm leading-6 text-zinc-600">
               엑클로드를 사용하며 느낀 점, 궁금한 점, 불편한 점과 개선 아이디어를 자유롭게 나눠주세요.
             </p>
@@ -119,7 +119,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
           <div className="flex shrink-0 flex-wrap gap-2">
             {status === 'authenticated' && (
               <Link
-                href="/beta-feedback/mine"
+                href="/feedback/mine"
                 prefetch
                 className="inline-flex h-9 items-center justify-center gap-1.5 rounded border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
               >
@@ -128,7 +128,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
               </Link>
             )}
             <Link
-              href="/beta-feedback/write"
+              href="/feedback/write"
               prefetch
               className="inline-flex h-9 items-center justify-center gap-1.5 rounded bg-zinc-900 px-3 text-sm font-semibold text-white hover:bg-zinc-800"
             >
@@ -217,7 +217,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                       <td className="px-3 py-2 align-top">
                         {p.canOpen ? (
                           <Link
-                            href={`/beta-feedback/${p.id}`}
+                            href={`/feedback/${p.id}`}
                             prefetch
                             className="font-semibold text-zinc-950 hover:text-blue-700"
                           >
@@ -312,7 +312,7 @@ export function FeedbackBoardClient({ initialPosts, initialViewerIsAdmin }: Prop
                   return p.canOpen ? (
                     <Link
                       key={p.id}
-                      href={`/beta-feedback/${p.id}`}
+                      href={`/feedback/${p.id}`}
                       prefetch
                       className="block px-3 py-3 hover:bg-zinc-50"
                     >

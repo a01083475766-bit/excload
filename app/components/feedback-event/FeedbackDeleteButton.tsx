@@ -21,7 +21,7 @@ export function FeedbackDeleteButton({ postId }: { postId: string }) {
         setDeleting(false);
         return;
       }
-      router.replace('/beta-feedback');
+      router.replace('/feedback');
       router.refresh();
     } catch {
       alert('삭제 중 오류가 발생했습니다.');

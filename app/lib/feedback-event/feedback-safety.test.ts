@@ -26,44 +26,58 @@ import {
 import {
   getBetaFeedbackPostPath,
   getBetaFeedbackRedirectPath,
+  isFeedbackBoardPath,
 } from '@/app/lib/feedback-event/routes';
 import { viewerFromSessionUser, viewerFromToken } from '@/app/lib/feedback-event/viewer';
 import nextConfig from '../../../next.config';
 
 describe('feedback-event legacy route redirect', () => {
   it.each([
-    ['/feedback-event', '/beta-feedback'],
-    ['/feedback-event/write', '/beta-feedback/write'],
-    ['/feedback-event/mine', '/beta-feedback/mine'],
-    ['/feedback-event/123', '/beta-feedback/123'],
+    ['/feedback-event', '/feedback'],
+    ['/feedback-event/write', '/feedback/write'],
+    ['/feedback-event/mine', '/feedback/mine'],
+    ['/feedback-event/123', '/feedback/123'],
+    ['/beta-feedback', '/feedback'],
+    ['/beta-feedback/write', '/feedback/write'],
+    ['/beta-feedback/mine', '/feedback/mine'],
+    ['/beta-feedback/123', '/feedback/123'],
   ])('%s -> %s', (from, to) => {
     expect(getBetaFeedbackRedirectPath(from)).toBe(to);
   });
 
   it('keeps query strings outside the pathname helper', () => {
-    const url = new URL('https://www.excload.com/feedback-event?mine=1');
+    const url = new URL('https://www.excload.com/beta-feedback?mine=1');
     const redirected = getBetaFeedbackRedirectPath(url.pathname);
     url.pathname = redirected ?? url.pathname;
-    expect(url.pathname + url.search).toBe('/beta-feedback?mine=1');
+    expect(url.pathname + url.search).toBe('/feedback?mine=1');
   });
 
   it('does not match api, static, or similar prefix paths', () => {
     expect(getBetaFeedbackRedirectPath('/api/feedback-event/posts')).toBeNull();
     expect(getBetaFeedbackRedirectPath('/uploads/feedback/a.png')).toBeNull();
     expect(getBetaFeedbackRedirectPath('/feedback-eventual')).toBeNull();
-    expect(getBetaFeedbackRedirectPath('/beta-feedback')).toBeNull();
+    expect(getBetaFeedbackRedirectPath('/beta-feedbacks')).toBeNull();
+    expect(getBetaFeedbackRedirectPath('/feedback')).toBeNull();
+    expect(getBetaFeedbackRedirectPath('/feedback/123')).toBeNull();
   });
 
-  it('preserves the request origin when building beta feedback login redirects', () => {
+  it('matches only the feedback board path for login protection', () => {
+    expect(isFeedbackBoardPath('/feedback')).toBe(true);
+    expect(isFeedbackBoardPath('/feedback/write')).toBe(true);
+    expect(isFeedbackBoardPath('/feedback-event')).toBe(false);
+    expect(isFeedbackBoardPath('/feedbacks')).toBe(false);
+  });
+
+  it('preserves the request origin when building feedback login redirects', () => {
     expect(
       buildAuthLoginRedirectUrl(
-        'https://www.excload.com/beta-feedback/write',
-        '/beta-feedback/post-1',
+        'https://www.excload.com/feedback/write',
+        '/feedback/post-1',
       ),
-    ).toBe('https://www.excload.com/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1');
+    ).toBe('https://www.excload.com/auth?mode=login&callbackUrl=%2Ffeedback%2Fpost-1');
     expect(
-      buildAuthLoginRedirectUrl('http://localhost:3000/beta-feedback/write', '/beta-feedback/post-1'),
-    ).toBe('http://localhost:3000/auth?mode=login&callbackUrl=%2Fbeta-feedback%2Fpost-1');
+      buildAuthLoginRedirectUrl('http://localhost:3000/feedback/write', '/feedback/post-1'),
+    ).toBe('http://localhost:3000/auth?mode=login&callbackUrl=%2Ffeedback%2Fpost-1');
   });
 
   it('delegates host canonicalization to Vercel instead of next config', () => {
@@ -71,8 +85,8 @@ describe('feedback-event legacy route redirect', () => {
   });
 
   it('accepts relative callback URLs and rejects external callback URLs', () => {
-    expect(getPostLoginPath(new URLSearchParams('callbackUrl=%2Fbeta-feedback%2Fpost-1'))).toBe(
-      '/beta-feedback/post-1',
+    expect(getPostLoginPath(new URLSearchParams('callbackUrl=%2Ffeedback%2Fpost-1'))).toBe(
+      '/feedback/post-1',
     );
     expect(
       getPostLoginPath(new URLSearchParams('callbackUrl=https%3A%2F%2Fevil.example%2F')),
@@ -83,7 +97,7 @@ describe('feedback-event legacy route redirect', () => {
   });
 
   it('builds the submit success path without sending the user to auth', () => {
-    expect(getBetaFeedbackPostPath('post-1')).toBe('/beta-feedback/post-1');
+    expect(getBetaFeedbackPostPath('post-1')).toBe('/feedback/post-1');
     expect(getBetaFeedbackPostPath('post-1')).not.toContain('/auth');
   });
 });

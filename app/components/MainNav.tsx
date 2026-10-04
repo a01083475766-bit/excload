@@ -44,7 +44,7 @@ const primaryMenuItems: MenuItem[] = [
 
 /** 2단: 안내·계정 등 보조 메뉴 */
 const secondaryMenuItems: MenuItem[] = [
-  { href: '/beta-feedback', label: '베타 피드백', icon: MessageSquare },
+  { href: '/feedback', label: '의견 게시판', icon: MessageSquare },
   { href: '/about', label: '서비스소개', icon: Info },
   { href: '/pricing', label: '가격', icon: CreditCard },
   { href: '/contact', label: '고객문의', icon: MessageCircle },
@@ -187,7 +187,7 @@ export default function MainNav() {
             const isActive =
               pathname === item.href ||
               (item.href === '/free-tools' && pathname?.startsWith('/free-tools/')) ||
-              (item.href === '/beta-feedback' && pathname?.startsWith('/beta-feedback')) ||
+              (item.href === '/feedback' && pathname?.startsWith('/feedback')) ||
               (item.href === '/akman/commerce-report' &&
                 (pathname?.startsWith('/akman/commerce-report') ||
                   pathname?.startsWith('/admin/commerce-report'))) ||

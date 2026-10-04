@@ -3,7 +3,10 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isAdminEmail } from '@/app/lib/admin-auth';
 import { buildAuthLoginRedirectUrl } from '@/app/lib/auth/post-login-redirect';
-import { getBetaFeedbackRedirectPath } from '@/app/lib/feedback-event/routes';
+import {
+  getBetaFeedbackRedirectPath,
+  isFeedbackBoardPath,
+} from '@/app/lib/feedback-event/routes';
 import {
   isProtectedOrderIntegrationPath,
   isPublicOrderIntegrationPath,
@@ -76,7 +79,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /feedback-event 기존 피드백 이벤트 URL은 베타 피드백 공식 경로로 이동
+  // /feedback-event, /beta-feedback 옛 URL은 의견 게시판(/feedback)으로 이동
   const betaFeedbackRedirectPath = getBetaFeedbackRedirectPath(pathname);
   if (betaFeedbackRedirectPath) {
     const url = request.nextUrl.clone();
@@ -84,8 +87,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
-  // /beta-feedback — 로그인 전용 베타 피드백 게시판
-  if (pathname.startsWith('/beta-feedback')) {
+  // /feedback — 로그인 전용 의견 게시판
+  if (isFeedbackBoardPath(pathname)) {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
