@@ -1,4 +1,5 @@
 import { maskEmail } from '@/app/lib/voucher/campaign';
+import { isBeforeOpenBetaEnd } from '@/app/lib/service-lifecycle';
 
 export const WADIZ_VOUCHER_EMAIL_SUBJECT = '[엑클로드] 와디즈 이용권 코드를 보내드립니다';
 export const WADIZ_REDEEM_URL = 'https://www.excload.com/redeem/wadiz-2026-01';
@@ -43,6 +44,7 @@ export function buildWadizVoucherEmail(input: {
   const now = input.now ?? new Date();
   const name = (input.buyerName || '').trim() || '고객';
   const availability = redeemAvailabilityMessage(input.redeemFrom, now);
+  const showBetaPeriodNote = isBeforeOpenBetaEnd(now);
   const rewardLabels = [...new Set(input.codes.map((c) => c.rewardLabel).filter(Boolean))];
   const rewardText = rewardLabels.length ? rewardLabels.join(', ') : '와디즈 이용권';
   const primaryRedeemUrl =
@@ -73,9 +75,13 @@ export function buildWadizVoucherEmail(input: {
     `■ 등록 안내: ${availability}`,
     `등록 가능일: ${WADIZ_REDEEM_OPEN_LABEL}`,
     '',
-    '2026년 9월 30일까지는 오픈 베타 무료 기간이며,',
-    '이 기간에는 와디즈 리워드 이용기간이 차감되지 않습니다.',
-    '',
+    ...(showBetaPeriodNote
+      ? [
+          '2026년 9월 30일까지는 오픈 베타 무료 기간이며,',
+          '이 기간에는 와디즈 리워드 이용기간이 차감되지 않습니다.',
+          '',
+        ]
+      : []),
     `문의: ${WADIZ_CONTACT_URL}`,
     '',
     '본 메일은 발신전용입니다. 비밀번호 등 민감정보는 포함되어 있지 않습니다.',
@@ -126,10 +132,14 @@ export function buildWadizVoucherEmail(input: {
   </div>
   <p style="margin:0 0 8px;"><strong>${escapeHtml(availability)}</strong></p>
   <p style="margin:0 0 12px;font-size:14px;">등록 가능일: ${WADIZ_REDEEM_OPEN_LABEL}</p>
-  <p style="margin:0 0 16px;font-size:14px;color:#444;">
+  ${
+    showBetaPeriodNote
+      ? `<p style="margin:0 0 16px;font-size:14px;color:#444;">
     2026년 9월 30일까지는 오픈 베타 무료 기간이며,<br/>
     이 기간에는 와디즈 리워드 이용기간이 차감되지 않습니다.
-  </p>
+  </p>`
+      : ''
+  }
   <p style="margin:0 0 8px;font-size:13px;">문의: <a href="${WADIZ_CONTACT_URL}">${WADIZ_CONTACT_URL}</a></p>
   <p style="margin:16px 0 0;font-size:11px;color:#888;">본 메일은 발신전용입니다. 비밀번호 등 민감정보는 포함되어 있지 않습니다.</p>
 </div>

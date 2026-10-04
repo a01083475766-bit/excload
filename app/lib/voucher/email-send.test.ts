@@ -114,6 +114,23 @@ describe('email template', () => {
     expect(built.html).toContain('code=ABCD-EFGH-IJKL-MNOP');
     expect(built.html).toContain('border:1px solid #d4d4d8');
     expect(built.text).toContain('오픈 베타');
+
+    const afterBeta = buildWadizVoucherEmail({
+      buyerName: '홍길동',
+      redeemFrom: new Date('2026-09-30T15:00:00.000Z'),
+      now: new Date('2026-10-04T00:00:00.000Z'),
+      codes: [
+        {
+          externalOrderId: 'ORD1',
+          unitIndex: 0,
+          rewardLabel: '3개월',
+          voucherCode: 'ABCD-EFGH-IJKL-MNOP',
+        },
+      ],
+    });
+    expect(afterBeta.text).not.toContain('오픈 베타');
+    expect(afterBeta.html).not.toContain('오픈 베타');
+    expect(afterBeta.text).toContain('지금 등록할 수 있습니다');
     expect(redeemAvailabilityMessage(new Date('2020-01-01T00:00:00.000Z'), new Date())).toBe(
       '지금 등록할 수 있습니다',
     );
