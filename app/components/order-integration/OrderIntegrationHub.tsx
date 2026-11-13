@@ -25,6 +25,7 @@ import {
   type CourierDownloadBundleListRefreshSignal,
 } from '@/app/lib/order-integration/courier-download/courier-download-bundle-list-refresh';
 import { useUserStore } from '@/app/store/userStore';
+import { isTextConvertUsageExemptEmail } from '@/app/lib/text-convert-usage-exempt';
 import { useExcelFileUnlock } from '@/app/hooks/useExcelFileUnlock';
 import { ExcelUnlockCancelledError } from '@/app/lib/excel/protected-file-types';
 import { extractTextFromImage } from '@/app/unified-input/adapters/ImageToTextAdapter';
@@ -699,7 +700,8 @@ export default function OrderIntegrationHub() {
       showError('로그인이 필요합니다.');
       return;
     }
-    if (user.points < 1) {
+    const skipTextUsage = isTextConvertUsageExemptEmail(user.email);
+    if (!skipTextUsage && user.points < 1) {
       showError('사용량이 부족합니다.');
       return;
     }
@@ -726,11 +728,13 @@ export default function OrderIntegrationHub() {
         },
       });
 
-      const pointsOk = await deductHubConvertPoints(Math.max(1, trimmed.length), 'text');
-      if (!pointsOk) {
-        throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
+      if (!skipTextUsage) {
+        const pointsOk = await deductHubConvertPoints(Math.max(1, trimmed.length), 'text');
+        if (!pointsOk) {
+          throw new Error('사용량 차감에 실패했습니다. 잔여 사용량을 확인해 주세요.');
+        }
+        void fetchUser();
       }
-      void fetchUser();
       nextTextSalesChannelRef.current = null;
 
       const { added, skipped } = appendPreview(result.previewRows, result.courierHeaders, bridge);

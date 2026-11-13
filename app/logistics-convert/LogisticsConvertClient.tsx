@@ -91,6 +91,7 @@ import {
 } from '@/app/lib/history-input-sources';
 import { useUserStore, type Plan } from '@/app/store/userStore';
 import { shouldChargeDownloadPoints, hasProEntitlementClient } from '@/app/lib/feedback-event/client';
+import { isTextConvertUsageExemptEmail } from '@/app/lib/text-convert-usage-exempt';
 import { useAuthAssetsReady } from '@/app/hooks/useAuthAssetsReady';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
 import { FREE_TEXT_INPUT_MAX_CHARS } from '@/app/lib/plan-limits';
@@ -4861,11 +4862,13 @@ export function LogisticsConvertClient({
         return;
       }
 
-      if (user.points < 1) {
+      if (!isTextConvertUsageExemptEmail(user.email) && user.points < 1) {
         setErrorMessageTextImage('사용량이 부족합니다');
         return;
       }
     }
+
+    const skipTextUsage = !trialMode && isTextConvertUsageExemptEmail(user?.email);
 
     textConvertInFlightRef.current = true;
     setIsProcessingTextImage(true);
@@ -4927,7 +4930,7 @@ export function LogisticsConvertClient({
 
         const effectiveMappedBaseHeaders = buildEffectiveMappedBaseHeaders(activeTemplateBridgeFile);
         setTextInput('');
-        setTextConvertPointsPending(true);
+        setTextConvertPointsPending(!skipTextUsage);
         setTextConvertReviewModal({
           originalText: trimmed,
           rows: buildTextConvertReviewRows(
@@ -4938,6 +4941,8 @@ export function LogisticsConvertClient({
             effectiveMappedBaseHeaders,
           ),
         });
+
+        if (skipTextUsage) return;
 
         const rowIdsToRollback = newRowIds;
         void (async () => {
@@ -5005,7 +5010,7 @@ export function LogisticsConvertClient({
       }
 
       setTextInput('');
-      setTextConvertPointsPending(true);
+      setTextConvertPointsPending(!skipTextUsage);
       setTextConvertReviewModal({
         originalText: trimmed,
         rows: buildTextConvertReviewRows(
@@ -5015,6 +5020,8 @@ export function LogisticsConvertClient({
           templateBridgeFile?.mappedBaseHeaders,
         ),
       });
+
+      if (skipTextUsage) return;
 
       const rowIdsToRollback = appendResult.newRowIds;
       void (async () => {

@@ -13,6 +13,7 @@ import { serviceBlockedResponse, tryGrantInitialFreeBenefits } from '@/app/lib/u
 import { hasProEntitlement } from '@/app/lib/feedback-event/entitlement';
 import { isMonthlyGrantDue, tryGrantMonthlyFreePoints } from '@/app/lib/grant-monthly-points-core';
 import { shouldChargeDownloadPointsForPlan } from '@/app/lib/open-beta-policy';
+import { isTextConvertUsageExemptEmail } from '@/app/lib/text-convert-usage-exempt';
 
 interface UsePointsRequest {
   amount: number;
@@ -96,6 +97,21 @@ export async function POST(request: NextRequest) {
 
       const blockedResponse = serviceBlockedResponse(user);
       if (blockedResponse) return blockedResponse;
+
+      if (type === 'text' && isTextConvertUsageExemptEmail(user.email)) {
+        return NextResponse.json({
+          success: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            plan: user.plan as 'BETA' | 'FREE' | 'PRO' | 'YEARLY',
+            points: user.points,
+            nextPointDate: user.nextPointDate?.toISOString() ?? null,
+          },
+          usedAmount: 0,
+          reason: 'TEXT_CONVERT_USAGE_EXEMPT',
+        });
+      }
 
       // IP만 기록(어뷰징 점수 재계산은 sync-account에서 처리 — 차감 핫패스 경량화)
       const ip = getClientIp(request);

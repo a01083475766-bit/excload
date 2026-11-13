@@ -88,6 +88,7 @@ import {
 import { resolveNormalizeQualityNotice } from '@/app/lib/normalize-29/normalize29-error';
 import { isExcloudPipelineDebugClient } from '@/app/lib/excloud-pipeline-debug';
 import { FREE_TEXT_INPUT_MAX_CHARS } from '@/app/lib/plan-limits';
+import { isTextConvertUsageExemptEmail } from '@/app/lib/text-convert-usage-exempt';
 import { shouldChargeDownloadPoints, hasProEntitlementClient } from '@/app/lib/feedback-event/client';
 import {
   buildPreviewDownloadAoA,
@@ -3004,7 +3005,8 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       return;
     }
 
-    if (user.points < 1) {
+    const skipTextUsage = isTextConvertUsageExemptEmail(user.email);
+    if (!skipTextUsage && user.points < 1) {
       setErrorMessageTextImage('사용량이 부족합니다');
       return;
     }
@@ -3074,7 +3076,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
 
         const effectiveMappedBaseHeaders = buildEffectiveMappedBaseHeaders(activeTemplateBridgeFile);
         setTextInput('');
-        setTextConvertPointsPending(true);
+        setTextConvertPointsPending(!skipTextUsage);
         setTextConvertReviewModal({
           originalText: trimmed,
           rows: buildTextConvertReviewRows(
@@ -3085,6 +3087,8 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
             effectiveMappedBaseHeaders,
           ),
         });
+
+        if (skipTextUsage) return;
 
         const rowIdsToRollback = newRowIds;
         void (async () => {
@@ -3145,7 +3149,7 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
       }
 
       setTextInput('');
-      setTextConvertPointsPending(true);
+      setTextConvertPointsPending(!skipTextUsage);
       setTextConvertReviewModal({
         originalText: trimmed,
         rows: buildTextConvertReviewRows(
@@ -3155,6 +3159,8 @@ export function OrderConvertClient({ variant = 'courier' }: OrderConvertClientPr
           templateBridgeFile?.mappedBaseHeaders,
         ),
       });
+
+      if (skipTextUsage) return;
 
       const rowIdsToRollback = appendResult.newRowIds;
       void (async () => {
