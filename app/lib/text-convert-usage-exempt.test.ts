@@ -3,8 +3,9 @@ import { isTextConvertUsageExemptEmail } from '@/app/lib/text-convert-usage-exem
 
 describe('isTextConvertUsageExemptEmail', () => {
   it('matches the exempt account regardless of case or surrounding spaces', () => {
-    expect(isTextConvertUsageExemptEmail('ksl3399@naver.com')).toBe(true);
-    expect(isTextConvertUsageExemptEmail('  KSL3399@naver.com  ')).toBe(true);
+    expect(isTextConvertUsageExemptEmail('ksl3339@naver.com')).toBe(true);
+    expect(isTextConvertUsageExemptEmail('  KSL3339@naver.com  ')).toBe(true);
+    expect(isTextConvertUsageExemptEmail('ksl3399@naver.com')).toBe(false);
   });
 
   it('does not match other accounts', () => {
