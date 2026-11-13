@@ -61,6 +61,24 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['물품가액']).toBe('결제금액');
     expect(ALIAS_DICTIONARY['기본운임']).toBe('운임');
     expect(ALIAS_DICTIONARY['내품코드']).toBe('옵션코드');
+    expect(ALIAS_DICTIONARY['받는분연락처']).toBe('받는사람전화1');
+    expect(ALIAS_DICTIONARY['받는사람전화번호1']).toBe('받는사람전화1');
+    expect(ALIAS_DICTIONARY['받는사람전화번호2']).toBe('받는사람전화2');
+    expect(ALIAS_DICTIONARY['보낸사람']).toBe('보내는사람');
+    expect(ALIAS_DICTIONARY['보낸사람전화번호']).toBe('보내는사람전화1');
+    expect(ALIAS_DICTIONARY['보낸사람주소']).toBe('보내는사람주소1');
+    expect(ALIAS_DICTIONARY['보낸사람우편번호']).toBe('보내는사람우편번호');
+    expect(ALIAS_DICTIONARY['물품코드']).toBe('상품코드');
+    expect(ALIAS_DICTIONARY['베송메시지']).toBe('배송메시지');
+    expect(ALIAS_DICTIONARY['특이사항(배송메시지)']).toBe('배송메시지');
+    expect(ALIAS_DICTIONARY['수령자 전화번호']).toBe('받는사람전화1');
+    expect(ALIAS_DICTIONARY['수령자전화번호']).toBe('받는사람전화1');
+    expect(ALIAS_DICTIONARY['휴대번호']).toBe('받는사람전화1');
+    expect(ALIAS_DICTIONARY['접수일자']).toBe('주문일시');
+    expect(ALIAS_DICTIONARY['신청일']).toBe('주문일시');
+    expect(ALIAS_DICTIONARY['판매수량']).toBe('수량');
+    expect(ALIAS_DICTIONARY['고객성명']).toBe('받는사람');
+    expect(ALIAS_DICTIONARY['주소한줄']).toBe('받는사람주소1');
   });
 
   it('충돌하거나 기준헤더 의미와 어긋나는 헤더는 매핑하지 않는다', () => {
@@ -72,5 +90,13 @@ describe('보고된 AI 매핑 헤더 별칭', () => {
     expect(ALIAS_DICTIONARY['집하예정일']).toBeUndefined();
     expect(ALIAS_DICTIONARY['배송예정일']).toBeUndefined();
     expect(ALIAS_DICTIONARY['주문자기타연락처']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['공급일']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['도서산간']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['TEL']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['H.P']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['박스타입']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['최초등록등록상품명/옵션명']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['2500']).toBeUndefined();
+    expect(ALIAS_DICTIONARY['홍길동']).toBeUndefined();
   });
 });
